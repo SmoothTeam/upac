@@ -120,7 +120,7 @@ pub fn get_commits_count(out_c: *CArray(CCommitEntry)) callconv(.c) usize {
     return out_c.len;
 }
 
-pub fn get_commit_at(array_c: *CArray(CPackageMeta), index: usize, out: ?*?*CPackageMeta) callconv(.c) i32 {
+pub fn get_commit_at(array_c: *CArray(CCommitEntry), index: usize, out: ?*?*CCommitEntry) callconv(.c) i32 {
     const out_ptr = out orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
     if (index >= array_c.len) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
