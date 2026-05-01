@@ -129,7 +129,7 @@ fn state_validating(machine: &mut DiffMachine) -> Result<()> {
     spinner(&machine.progress_bar, "Checking diff set up...");
 
     let has_valid_args = match (&machine.from_commit, &machine.to_commit) {
-        (Some(f), Some(t)) => !f.is_empty() && !t.is_empty(),
+        (Some(from_commit), Some(to_commit)) => !from_commit.is_empty() && !to_commit.is_empty(),
         _ => false,
     };
 

@@ -28,10 +28,7 @@ pub fn list_packages(list_request_c: CListRequest, out_c: *CArray(CPackageMeta))
         .repo_path = list_request_c.repo_path.asZ(),
         .branch = list_request_c.branch.asZ(),
         .db_path = list_request_c.db_path.toSlice(),
-    }, list_module.ffi.allocator()) catch |err| {
-        if (err == error.Cancelled) list_module.ffi.global_cancel.store(true, .release);
-        return @intFromEnum(fromError(err, Operation.list));
-    };
+    }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
     out_c.* = .{ .ptr = packages.ptr, .len = packages.len };
     return @intFromEnum(ErrorCode.ok);
@@ -107,10 +104,7 @@ pub fn list_commits(list_request_c: CListRequest, out_c: *CArray(CCommitEntry)) 
     const commit_entries = list_module.ListMachine.runCommits(.{
         .repo_path = list_request_c.repo_path.asZ(),
         .branch = list_request_c.branch.asZ(),
-    }, list_module.ffi.allocator()) catch |err| {
-        if (err == error.Cancelled) list_module.ffi.global_cancel.store(true, .release);
-        return @intFromEnum(fromError(err, Operation.list));
-    };
+    }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
     out_c.* = .{ .ptr = commit_entries.ptr, .len = commit_entries.len };
     return @intFromEnum(ErrorCode.ok);
