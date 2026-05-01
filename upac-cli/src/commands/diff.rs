@@ -7,7 +7,7 @@ use colored::Colorize;
 
 use clap::Args;
 
-use std::ptr::null_mut;
+use std::ffi::CString;
 use std::slice;
 use std::sync::Arc;
 
@@ -16,8 +16,8 @@ use crate::upac::UpacLib;
 use crate::utils::{spinner, BackendKind};
 
 use crate::ffi::{
-    CAttributedDiffArray, CCommitArray, CDiffKind, CPackageDiffArray, CPackageDiffKind, CSlice,
-    Validate,
+    CArray, CAttributedDiffEntry, CDiffKind, CPackageDiffEntry, CPackageDiffKind, CSlice,
+    CUnmutatedRequest, CommitHandle, Validate,
 };
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
@@ -153,28 +153,39 @@ fn fetch_commit_checksums(machine: &mut DiffMachine) -> Result<Vec<String>> {
     machine.state = State::Validating;
     spinner(&machine.progress_bar, "Fetching commit checksums...");
 
-    let mut commit_array_c = CCommitArray {
-        ptr: null_mut(),
-        len: 0,
-    };
+    let mut commit_array_c: CArray<CommitHandle> = CArray::empty();
+
+    let diff_request_c = CUnmutatedRequest::for_diff(
+        &machine.config.paths.repo_path.to_owned(),
+        &machine.config.paths.root_path.to_owned(),
+        &machine.config.ostree.prefix_directory.to_owned(),
+        &machine.config.ostree.branch.to_owned(),
+        &machine.config.ostree.prefix_directory.to_owned(),
+        &CString::new(machine.from_commit.as_ref().unwrap().as_str())?,
+        &CString::new(machine.to_commit.as_ref().unwrap().as_str())?,
+    );
 
     UpacLib::check(
-        unsafe {
-            (machine.upac_lib.as_ref().list_commits)(
-                CSlice::from_str(&machine.config.paths.repo_path.to_str()?),
-                CSlice::from_str(&machine.config.ostree.branch.to_str()?),
-                &mut commit_array_c,
-            )
-        },
+        unsafe { (machine.upac_lib.as_ref().list_commits)(diff_request_c, &mut commit_array_c) },
         "list commits",
     )?;
+
     let commit_array = unsafe { slice::from_raw_parts(commit_array_c.ptr, commit_array_c.len) };
 
     let checksums = commit_array
         .iter()
         .map(|commit_entry| {
-            commit_entry.validate()?;
-            Ok(unsafe { commit_entry.checksum.as_str().to_owned() })
+            let mut result_slice = CSlice::empty();
+
+            unsafe {
+                (machine.upac_lib.as_ref().get_commit_slice_field)(
+                    *commit_entry,
+                    0,
+                    &mut result_slice,
+                );
+
+                Ok(result_slice.as_str().to_owned())
+            }
         })
         .collect::<Result<Vec<_>>>()?;
 
@@ -187,27 +198,24 @@ fn state_fetching_files_diff(machine: &mut DiffMachine) -> Result<()> {
     machine.state = State::FetchingFilesDiff;
     spinner(&machine.progress_bar, "Fetching file diff...");
 
-    let mut attributed_diff_array_c = CAttributedDiffArray {
-        ptr: null_mut(),
-        len: 0,
-    };
+    let mut diff_files_array_c: CArray<CAttributedDiffEntry> = CArray::empty();
+
+    let diff_request_c = CUnmutatedRequest::for_diff(
+        &machine.config.paths.repo_path.to_owned(),
+        &machine.config.paths.root_path.to_owned(),
+        &machine.config.ostree.prefix_directory.to_owned(),
+        &machine.config.ostree.branch.to_owned(),
+        &machine.config.ostree.prefix_directory.to_owned(),
+        &CString::new(machine.from_commit.as_ref().unwrap().as_str())?,
+        &CString::new(machine.to_commit.as_ref().unwrap().as_str())?,
+    );
 
     UpacLib::check(
-        unsafe {
-            (machine.upac_lib.as_ref().diff_files_attributed)(
-                CSlice::from_str(&machine.config.paths.repo_path.to_str()?),
-                CSlice::from_str(&machine.from_commit.as_ref().unwrap()),
-                CSlice::from_str(&machine.to_commit.as_ref().unwrap()),
-                CSlice::from_str(&machine.config.paths.root_path.to_str()?),
-                CSlice::from_str(&machine.config.paths.database_path.to_str()?),
-                &mut attributed_diff_array_c,
-            )
-        },
+        unsafe { (machine.upac_lib.as_ref().diff_files)(diff_request_c, &mut diff_files_array_c) },
         "diff files attributed",
     )?;
 
-    let entries =
-        unsafe { slice::from_raw_parts(attributed_diff_array_c.ptr, attributed_diff_array_c.len) };
+    let entries = unsafe { slice::from_raw_parts(diff_files_array_c.ptr, diff_files_array_c.len) };
 
     machine.file_rows = entries
         .iter()
@@ -227,7 +235,7 @@ fn state_fetching_files_diff(machine: &mut DiffMachine) -> Result<()> {
         })
         .collect::<Result<Vec<_>>>()?;
 
-    unsafe { (machine.upac_lib.as_ref().diff_files_attributed_free)(&mut attributed_diff_array_c) };
+    unsafe { (machine.upac_lib.as_ref().diff_files_free)(&mut diff_files_array_c) };
 
     state_printing_files_diff(machine)
 }
@@ -236,20 +244,20 @@ fn state_fetching_packages_diff(machine: &mut DiffMachine) -> Result<()> {
     machine.state = State::FetchingPackagesDiff;
     spinner(&machine.progress_bar, "Fetching package diff...");
 
-    let mut package_array_c = CPackageDiffArray {
-        ptr: null_mut(),
-        len: 0,
-    };
+    let mut package_array_c: CArray<CPackageDiffEntry> = CArray::empty();
+
+    let diff_request_c = CUnmutatedRequest::for_diff(
+        &machine.config.paths.repo_path.to_owned(),
+        &machine.config.paths.root_path.to_owned(),
+        &machine.config.ostree.prefix_directory.to_owned(),
+        &machine.config.ostree.branch.to_owned(),
+        &machine.config.ostree.prefix_directory.to_owned(),
+        &CString::new(machine.from_commit.as_ref().unwrap().as_str())?,
+        &CString::new(machine.to_commit.as_ref().unwrap().as_str())?,
+    );
 
     UpacLib::check(
-        unsafe {
-            (machine.upac_lib.as_ref().diff_packages)(
-                CSlice::from_str(&machine.config.paths.repo_path.to_str()?),
-                CSlice::from_str(&machine.from_commit.as_ref().unwrap()),
-                CSlice::from_str(&machine.to_commit.as_ref().unwrap()),
-                &mut package_array_c,
-            )
-        },
+        unsafe { (machine.upac_lib.as_ref().diff_packages)(diff_request_c, &mut package_array_c) },
         "diff packages",
     )?;
 

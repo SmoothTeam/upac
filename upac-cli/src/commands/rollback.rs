@@ -5,17 +5,18 @@ use indicatif::ProgressBar;
 
 use colored::Colorize;
 
+use std::ffi::CString;
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::ffi::CRollbackRequest;
+use crate::ffi::CMutatedRequest;
 use crate::upac::UpacLib;
 use crate::utils::{spinner, BackendKind};
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
 #[derive(clap::Args)]
 pub struct RollbackArgs {
-    pub commit: String,
+    pub commit: CString,
 }
 
 // ── FSM states ───────────────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ enum State {
 
 // ── FSM machine ───────────────────────────────────────────────────────────────────────
 struct RollbackMachine {
-    commit_hash: String,
+    commit_hash: CString,
 
     upac_lib: Arc<UpacLib>,
     progress_bar: ProgressBar,
@@ -37,7 +38,7 @@ struct RollbackMachine {
 }
 
 impl RollbackMachine {
-    fn new(config: Config, commit_hash: String) -> Result<Self> {
+    fn new(config: Config, commit_hash: CString) -> Result<Self> {
         Ok(Self {
             commit_hash,
             progress_bar: ProgressBar::new_spinner(),
@@ -69,14 +70,15 @@ fn state_validating(machine: &mut RollbackMachine) -> Result<()> {
     machine.state = State::Validating;
     spinner(&machine.progress_bar, "Validating rolling data...");
 
-    if machine.commit_hash.len() != 64
+    if machine.commit_hash.as_bytes().len() != 64
         || !machine
             .commit_hash
-            .chars()
-            .all(|char| char.is_ascii_hexdigit())
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_hexdigit())
     {
         anyhow::bail!(
-            "invalid commit hash '{}'. Expected 64 hex characters",
+            "invalid commit hash '{:?}'. Expected 64 hex characters",
             machine.commit_hash
         );
     }
@@ -84,7 +86,7 @@ fn state_validating(machine: &mut RollbackMachine) -> Result<()> {
     machine.progress_bar.println(format!(
         "{} rolling back to {}",
         "→".cyan(),
-        &machine.commit_hash[..12].dimmed()
+        &machine.commit_hash.to_str()?[..12].dimmed()
     ));
 
     state_rolling_back(machine)
@@ -94,12 +96,14 @@ fn state_rolling_back(machine: &mut RollbackMachine) -> Result<()> {
     machine.state = State::RollingBack;
     spinner(&machine.progress_bar, "Rolling back...");
 
-    let rollback_request_c = CRollbackRequest::new(
-        &machine.config.paths.root_path.to_str()?,
-        &machine.config.paths.repo_path.to_str()?,
-        &machine.config.ostree.branch.to_str()?,
-        &machine.config.ostree.prefix_directory.to_str()?,
+    let rollback_request_c = CMutatedRequest::for_rollback(
         &machine.commit_hash,
+        &machine.config.paths.repo_path,
+        &machine.config.paths.root_path,
+        &machine.config.paths.database_path,
+        &machine.config.ostree.branch,
+        &machine.config.ostree.prefix_directory,
+        machine.config.step_retries,
     );
 
     UpacLib::check(
@@ -117,7 +121,7 @@ fn state_done(machine: &mut RollbackMachine) -> Result<()> {
     println!(
         "{} rolled back to {}",
         "✓".green().bold(),
-        &machine.commit_hash[..12].bold()
+        &machine.commit_hash.to_str()?[..12].bold()
     );
 
     Ok(())

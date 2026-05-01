@@ -3,8 +3,6 @@ use anyhow::Result;
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-use colored::Colorize;
-
 use strum::{Display, EnumProperty, EnumString};
 
 use std::fmt::Debug;

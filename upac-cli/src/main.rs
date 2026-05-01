@@ -7,7 +7,6 @@ use colored::Colorize;
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::thread::Builder;
 
 use commands::diff::DiffArgs;
 use commands::init::InitArgs;
@@ -60,13 +59,7 @@ enum Command {
 // ── Entry points ───────────────────────────────────────────────────────────────
 // The main entry point, responsible for error output and the return code.
 fn main() {
-    let result = Builder::new()
-        .name("upac-main".into())
-        .stack_size(64 * 1024 * 1024) // 64 MiB
-        .spawn(|| run())
-        .expect("Failed to spawn main thread")
-        .join()
-        .expect("Main thread panicked");
+    let result = run();
 
     match result {
         Ok(()) => {}

@@ -13,8 +13,8 @@ pub trait Validate {
     fn validate(&self) -> Result<()>;
 }
 
-// ── CSlice: FFI view over a null-terminated byte buffer ──────────────────────
-// A (ptr, len) pair that mirrors Zig's CSlice. `ptr[len]` MUST be 0
+// ── CSlice ────────────────────────────────────────────────────────────────────
+// (ptr, len) pair mirroring Zig's CSlice. ptr[len] MUST be 0.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CSlice {
@@ -23,7 +23,6 @@ pub struct CSlice {
 }
 
 impl CSlice {
-    // Empty, NULL-sentinel slice. Accepted by the library for optional fields.
     pub const fn empty() -> Self {
         Self {
             ptr: null(),
@@ -31,7 +30,6 @@ impl CSlice {
         }
     }
 
-    // Construct a CSlice from an owned CString. The borrow checker ties the slice lifetime to the source CString.
     pub fn from_cstring(source: &CString) -> Self {
         let bytes = source.as_bytes();
         Self {
@@ -40,7 +38,6 @@ impl CSlice {
         }
     }
 
-    // Construct a CSlice from a borrowed CStr (same invariant).
     pub fn from_cstr(source: &CStr) -> Self {
         let bytes = source.to_bytes();
         Self {
@@ -49,7 +46,6 @@ impl CSlice {
         }
     }
 
-    // Returns a &str view of the CSlice, assuming valid UTF-8.
     pub unsafe fn as_str(&self) -> &str {
         let bytes = slice::from_raw_parts(self.ptr, self.len);
         str::from_utf8_unchecked(bytes)
@@ -68,7 +64,7 @@ impl Validate for CSlice {
     }
 }
 
-// ── CArray<T>: generic output array produced by the library ──────────────────
+// ── CArray<T> ─────────────────────────────────────────────────────────────────
 #[repr(C)]
 pub struct CArray<T> {
     pub ptr: *mut T,
@@ -94,24 +90,25 @@ impl<T> CArray<T> {
     }
 }
 
-// ── Package meta handle (backend-owned, opaque) ──────────────────────────────
+// ── PackageMetaHandle ─────────────────────────────────────────────────────────
 pub type PackageMetaHandle = *mut c_void;
+pub type CommitHandle = *mut c_void;
 
-// ── CPackageEntry — one item in CMutatedRequest.packages ─────────────────────
+// ── CPackageEntry ─────────────────────────────────────────────────────────────
+// One item in CMutatedRequest.packages (install path).
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CPackageEntry {
     struct_size: usize,
-
-    meta: PackageMetaHandle,
-    temp_path: CSlice,
-    checksum: CSlice,
+    pub meta: PackageMetaHandle,
+    pub temp_path: CSlice,
+    pub checksum: CSlice,
 }
 
 impl CPackageEntry {
     pub fn new(meta: PackageMetaHandle, temp_path: CSlice, checksum: CSlice) -> Self {
         Self {
-            struct_size: size_of::<CPackageEntry>(),
+            struct_size: size_of::<Self>(),
             meta,
             temp_path,
             checksum,
@@ -119,47 +116,12 @@ impl CPackageEntry {
     }
 }
 
-impl Validate for CPackageEntry {
-    fn validate(&self) -> Result<()> {
-        if self.struct_size != size_of::<CPackageEntry>() {
-            return Err(anyhow::anyhow!("CPackageEntry: abi mismatch"));
-        }
-        if self.meta.is_null() {
-            return Err(anyhow::anyhow!("CPackageEntry: meta is null"));
-        }
-        self.temp_path.validate()?;
-        self.checksum.validate()?;
-        Ok(())
-    }
-}
-
-// ── CPackageMeta — library-owned metadata record (out-parameter for list) ────
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct CPackageMeta {
-    struct_size: usize,
-
-    pub name: CSlice,
-    pub version: CSlice,
-    pub architecture: CSlice,
-    pub author: CSlice,
-    pub description: CSlice,
-    pub license: CSlice,
-    pub url: CSlice,
-    pub packager: CSlice,
-    pub checksum: CSlice,
-    pub size: u32,
-    _padding: u32,
-    pub installed_at: i64,
-}
-
-// ── Progress callback ────────────────────────────────────────────────────────
-// Shared signature for install / uninstall / rollback progress reporting.
+// ── Progress callback ─────────────────────────────────────────────────────────
+// event is u32 — matches Zig's CMutatedRequest.on_progress declaration.
 pub type CProgressFn = unsafe extern "C" fn(event: u32, package_name: CSlice, ctx: *mut c_void);
 
-// ── CRepoMode ────────────────────────────────────────────────────────────────
-// Kept as a plain `u8` — the library accepts a pointer to an int and translates it into its own enum with validation. See OwnedUnmutatedRequest.
-#[repr(u8)]
+// ── CRepoMode ─────────────────────────────────────────────────────────────────
+#[repr(u32)]
 #[derive(Clone, Copy, Debug)]
 pub enum CRepoMode {
     Archive = 0,
@@ -167,10 +129,11 @@ pub enum CRepoMode {
     BareUser = 2,
 }
 
-// ── CMutatedRequest (raw / owned) ────────────────────────────────────────────
-// Unified request used by install, uninstall and rollback.
+// ── CMutatedRequest ───────────────────────────────────────────────────────────
+// Unified repr(C) struct for install, uninstall and rollback.
+// CSlice fields borrow from CStrings stored in the calling machine.
 #[repr(C)]
-pub struct CMutatedRequestRaw {
+pub struct CMutatedRequest {
     struct_size: usize,
 
     repo_path: CSlice,
@@ -179,15 +142,15 @@ pub struct CMutatedRequestRaw {
     branch: CSlice,
     prefix_directory: CSlice,
 
-    // Install
+    // install
     packages: *const CPackageEntry,
     packages_count: usize,
 
-    // Uninstall
+    // uninstall
     package_names: *const CSlice,
     package_names_len: usize,
 
-    // Rollback
+    // rollback
     commit_hash: CSlice,
 
     on_progress: Option<CProgressFn>,
@@ -196,160 +159,127 @@ pub struct CMutatedRequestRaw {
     max_retries: u8,
 }
 
-pub struct CMutatedRequest {
-    // Owned strings — storage for every CSlice below.
-    repo_path: CString,
-    root_path: CString,
-    db_path: CString,
-    branch: CString,
-    prefix_directory: CString,
-    commit_hash: Option<CString>,
-
-    // Install: temp_path / checksum storage is kept here; CPackageEntry in `packages` references slices into these CStrings.
-    package_names_storage: Vec<CString>,
-    package_names_slices: Vec<CSlice>,
-
-    packages_storage: Vec<OwnedPackageEntry>,
-    packages_view: Vec<CPackageEntry>,
-
-    on_progress: Option<CProgressFn>,
-    progress_ctx: *mut c_void,
-    max_retries: u8,
-}
-
-// A single install entry whose CString fields back the CSlices in CPackageEntry.
-pub struct OwnedPackageEntry {
-    pub meta: PackageMetaHandle,
-    pub temp_path: CString,
-    pub checksum: CString,
-}
-
-impl OwnedPackageEntry {
-    pub fn new(meta: PackageMetaHandle, temp_path: CString, checksum: CString) -> Self {
-        Self {
-            meta,
-            temp_path,
-            checksum,
-        }
-    }
-
-    fn as_c_entry(&self) -> CPackageEntry {
-        CPackageEntry::new(
-            self.meta,
-            CSlice::from_cstring(&self.temp_path),
-            CSlice::from_cstring(&self.checksum),
-        )
-    }
-}
-
-pub struct CMutatedRequestBuilder {
-    req: CMutatedRequest,
-}
-
 impl CMutatedRequest {
-    pub fn builder(
-        repo_path: CString,
-        root_path: CString,
-        db_path: CString,
-        branch: CString,
-        prefix_directory: CString,
-    ) -> CMutatedRequestBuilder {
-        CMutatedRequestBuilder {
-            req: CMutatedRequest {
-                repo_path,
-                root_path,
-                db_path,
-                branch,
-                prefix_directory,
-                commit_hash: None,
-                package_names_storage: Vec::new(),
-                package_names_slices: Vec::new(),
-                packages_storage: Vec::new(),
-                packages_view: Vec::new(),
-                on_progress: None,
-                progress_ctx: null_mut(),
-                max_retries: 0,
-            },
+    fn base(
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix_directory: &CString,
+        max_retries: u8,
+        on_progress: Option<CProgressFn>,
+        progress_ctx: *mut c_void,
+    ) -> Self {
+        Self {
+            struct_size: size_of::<Self>(),
+            repo_path: CSlice::from_cstring(repo_path),
+            root_path: CSlice::from_cstring(root_path),
+            db_path: CSlice::from_cstring(db_path),
+            branch: CSlice::from_cstring(branch),
+            prefix_directory: CSlice::from_cstring(prefix_directory),
+            packages: null(),
+            packages_count: 0,
+            package_names: null(),
+            package_names_len: 0,
+            commit_hash: CSlice::empty(),
+            on_progress,
+            progress_ctx,
+            max_retries,
         }
     }
 
-    // Build the #[repr(C)] view. The raw struct borrows from `self`;
-    pub fn as_raw(&self) -> CMutatedRequestRaw {
-        CMutatedRequestRaw {
-            struct_size: size_of::<CMutatedRequestRaw>(),
+    /// Install.  `packages` slice must outlive this request.
+    pub fn for_install(
+        packages: &[CPackageEntry],
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix_directory: &CString,
+        max_retries: u8,
+        on_progress: Option<CProgressFn>,
+        progress_ctx: *mut c_void,
+    ) -> Self {
+        let mut req = Self::base(
+            repo_path,
+            root_path,
+            db_path,
+            branch,
+            prefix_directory,
+            max_retries,
+            on_progress,
+            progress_ctx,
+        );
+        req.packages = if packages.is_empty() {
+            null()
+        } else {
+            packages.as_ptr()
+        };
+        req.packages_count = packages.len();
+        req
+    }
 
-            repo_path: CSlice::from_cstring(&self.repo_path),
-            root_path: CSlice::from_cstring(&self.root_path),
-            db_path: CSlice::from_cstring(&self.db_path),
-            branch: CSlice::from_cstring(&self.branch),
-            prefix_directory: CSlice::from_cstring(&self.prefix_directory),
+    /// Uninstall.  `package_names` slice of CSlices must outlive this request.
+    pub fn for_uninstall(
+        package_names: &[CSlice],
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix_directory: &CString,
+        max_retries: u8,
+        on_progress: Option<CProgressFn>,
+        progress_ctx: *mut c_void,
+    ) -> Self {
+        let mut req = Self::base(
+            repo_path,
+            root_path,
+            db_path,
+            branch,
+            prefix_directory,
+            max_retries,
+            on_progress,
+            progress_ctx,
+        );
+        req.package_names = if package_names.is_empty() {
+            null()
+        } else {
+            package_names.as_ptr()
+        };
+        req.package_names_len = package_names.len();
+        req
+    }
 
-            packages: if self.packages_view.is_empty() {
-                null()
-            } else {
-                self.packages_view.as_ptr()
-            },
-            packages_count: self.packages_view.len(),
-
-            package_names: if self.package_names_slices.is_empty() {
-                null()
-            } else {
-                self.package_names_slices.as_ptr()
-            },
-            package_names_len: self.package_names_slices.len(),
-
-            commit_hash: self
-                .commit_hash
-                .as_ref()
-                .map(CSlice::from_cstring)
-                .unwrap_or_else(CSlice::empty),
-
-            on_progress: self.on_progress,
-            progress_ctx: self.progress_ctx,
-            max_retries: self.max_retries,
-        }
+    /// Rollback.
+    pub fn for_rollback(
+        commit_hash: &CString,
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix_directory: &CString,
+        max_retries: u8,
+    ) -> Self {
+        let mut req = Self::base(
+            repo_path,
+            root_path,
+            db_path,
+            branch,
+            prefix_directory,
+            max_retries,
+            None,
+            null_mut(),
+        );
+        req.commit_hash = CSlice::from_cstring(commit_hash);
+        req
     }
 }
 
-impl CMutatedRequestBuilder {
-    pub fn packages(mut self, entries: Vec<OwnedPackageEntry>) -> Self {
-        self.req.packages_view = entries.iter().map(OwnedPackageEntry::as_c_entry).collect();
-        self.req.packages_storage = entries;
-        self
-    }
-
-    pub fn package_names(mut self, names: Vec<CString>) -> Self {
-        self.req.package_names_slices = names.iter().map(CSlice::from_cstring).collect();
-        self.req.package_names_storage = names;
-        self
-    }
-
-    pub fn commit_hash(mut self, hash: CString) -> Self {
-        self.req.commit_hash = Some(hash);
-        self
-    }
-
-    pub fn progress(mut self, cb: CProgressFn, ctx: *mut c_void) -> Self {
-        self.req.on_progress = Some(cb);
-        self.req.progress_ctx = ctx;
-        self
-    }
-
-    pub fn max_retries(mut self, retries: u8) -> Self {
-        self.req.max_retries = retries;
-        self
-    }
-
-    pub fn build(self) -> CMutatedRequest {
-        self.req
-    }
-}
-
-// ── CUnmutatedRequest (raw / owned) ──────────────────────────────────────────
-// Unified request for init / diff / list. `repo_mode` is a pointer to an int that the library interprets as CRepoMode (with validation);
-
+// ── CUnmutatedRequest ─────────────────────────────────────────────────────────
+// Unified repr(C) struct for init, diff and list.
+// `repo_mode` points to a u32 stored in the calling machine; null for diff/list.
 #[repr(C)]
-pub struct CUnmutatedRequestRaw {
+pub struct CUnmutatedRequest {
     struct_size: usize,
 
     repo_path: CSlice,
@@ -361,152 +291,109 @@ pub struct CUnmutatedRequestRaw {
     from_commit_hash: CSlice,
     to_commit_hash: CSlice,
 
+    // Points to a machine-owned u32; Zig reads it as *const i32 via @ptrCast.
+    // Null is accepted for diff and list.
     repo_mode: *mut c_void,
 }
 
-pub struct CUnmutatedRequest {
-    repo_path: CString,
-    root_path: CString,
-    db_path: CString,
-    branch: CString,
-    prefix: CString,
-
-    from_commit_hash: Option<CString>,
-    to_commit_hash: Option<CString>,
-
-    // Backing storage for `repo_mode`; stored as u32 since the Zig side reads it as `*const i32` via @ptrCast
-    repo_mode_storage: Option<Box<u32>>,
-}
-
-pub struct CUnmutatedRequestBuilder {
-    req: CUnmutatedRequest,
-}
-
 impl CUnmutatedRequest {
-    pub fn builder(
-        repo_path: CString,
-        root_path: CString,
-        db_path: CString,
-        branch: CString,
-        prefix: CString,
-    ) -> CUnmutatedRequestBuilder {
-        CUnmutatedRequestBuilder {
-            req: CUnmutatedRequest {
-                repo_path,
-                root_path,
-                db_path,
-                branch,
-                prefix,
-                from_commit_hash: None,
-                to_commit_hash: None,
-                repo_mode_storage: None,
-            },
+    fn base(
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix: &CString,
+    ) -> Self {
+        Self {
+            struct_size: size_of::<Self>(),
+            repo_path: CSlice::from_cstring(repo_path),
+            root_path: CSlice::from_cstring(root_path),
+            db_path: CSlice::from_cstring(db_path),
+            branch: CSlice::from_cstring(branch),
+            prefix: CSlice::from_cstring(prefix),
+            from_commit_hash: CSlice::empty(),
+            to_commit_hash: CSlice::empty(),
+            repo_mode: null_mut(),
         }
     }
 
-    pub fn as_raw(&self) -> CUnmutatedRequestRaw {
-        CUnmutatedRequestRaw {
-            struct_size: size_of::<CUnmutatedRequestRaw>(),
+    /// Init.  `repo_mode_val` must be stored in the machine and outlive the request.
+    pub fn for_init(
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix: &CString,
+        repo_mode_val: &u32,
+    ) -> Self {
+        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix);
+        req.repo_mode = repo_mode_val as *const u32 as *mut c_void;
+        req
+    }
 
-            repo_path: CSlice::from_cstring(&self.repo_path),
-            root_path: CSlice::from_cstring(&self.root_path),
-            db_path: CSlice::from_cstring(&self.db_path),
-            branch: CSlice::from_cstring(&self.branch),
-            prefix: CSlice::from_cstring(&self.prefix),
+    /// Diff packages or diff files attributed.
+    /// `db_path` can be an empty CString for packages-only diff.
+    pub fn for_diff(
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix: &CString,
+        from_commit: &CString,
+        to_commit: &CString,
+    ) -> Self {
+        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix);
+        req.from_commit_hash = CSlice::from_cstring(from_commit);
+        req.to_commit_hash = CSlice::from_cstring(to_commit);
+        req
+    }
 
-            from_commit_hash: self
-                .from_commit_hash
-                .as_ref()
-                .map(CSlice::from_cstring)
-                .unwrap_or_else(CSlice::empty),
-            to_commit_hash: self
-                .to_commit_hash
-                .as_ref()
-                .map(CSlice::from_cstring)
-                .unwrap_or_else(CSlice::empty),
-
-            repo_mode: self
-                .repo_mode_storage
-                .as_ref()
-                .map(|b| &**b as *const u32 as *mut c_void)
-                .unwrap_or(null_mut()),
-        }
+    /// List packages.
+    pub fn for_list(
+        repo_path: &CString,
+        root_path: &CString,
+        db_path: &CString,
+        branch: &CString,
+        prefix: &CString,
+    ) -> Self {
+        Self::base(repo_path, root_path, db_path, branch, prefix)
     }
 }
 
-impl CUnmutatedRequestBuilder {
-    pub fn from_commit(mut self, hash: CString) -> Self {
-        self.req.from_commit_hash = Some(hash);
-        self
-    }
-
-    pub fn to_commit(mut self, hash: CString) -> Self {
-        self.req.to_commit_hash = Some(hash);
-        self
-    }
-
-    pub fn repo_mode(mut self, mode: CRepoMode) -> Self {
-        self.req.repo_mode_storage = Some(Box::new(mode as u32));
-        self
-    }
-
-    pub fn build(self) -> CUnmutatedRequest {
-        self.req
-    }
-}
-
-// ── Prepare request (backend) ────────────────────────────────────────────────
+// ── CPrepareRequest ───────────────────────────────────────────────────────────
+// Passed to the backend .so `prepare` function.
+// CSlice fields borrow from CStrings in the install machine.
+// Note: backend progress uses u8 event (backend-specific enum).
 #[repr(C)]
-pub struct CPrepareRequestRaw {
+pub struct CPrepareRequest {
     struct_size: usize,
     checksum: CSlice,
-
     package_path: CSlice,
     temp_dir_path: CSlice,
-
-    on_progress: unsafe extern "C" fn(u8, CSlice, *mut c_void),
-    progress_ctx: *mut c_void,
-}
-
-pub struct CPrepareRequest {
-    checksum: CString,
-    package_path: CString,
-    temp_dir_path: CString,
-
     on_progress: unsafe extern "C" fn(u8, CSlice, *mut c_void),
     progress_ctx: *mut c_void,
 }
 
 impl CPrepareRequest {
     pub fn new(
-        package_path: CString,
-        temp_dir_path: CString,
-        checksum: CString,
+        package_path: &CString,
+        temp_dir_path: &CString,
+        checksum: &CString,
         on_progress: unsafe extern "C" fn(u8, CSlice, *mut c_void),
         progress_ctx: *mut c_void,
     ) -> Self {
         Self {
-            checksum,
-            package_path,
-            temp_dir_path,
+            struct_size: size_of::<Self>(),
+            checksum: CSlice::from_cstring(checksum),
+            package_path: CSlice::from_cstring(package_path),
+            temp_dir_path: CSlice::from_cstring(temp_dir_path),
             on_progress,
             progress_ctx,
         }
     }
-
-    pub fn as_raw(&self) -> CPrepareRequestRaw {
-        CPrepareRequestRaw {
-            struct_size: size_of::<CPrepareRequestRaw>(),
-            checksum: CSlice::from_cstring(&self.checksum),
-            package_path: CSlice::from_cstring(&self.package_path),
-            temp_dir_path: CSlice::from_cstring(&self.temp_dir_path),
-            on_progress: self.on_progress,
-            progress_ctx: self.progress_ctx,
-        }
-    }
 }
 
-// ── Diff entries ─────────────────────────────────────────────────────────────
+// ── Diff entry types ──────────────────────────────────────────────────────────
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CDiffKind {
@@ -527,14 +414,13 @@ pub enum CPackageDiffKind {
 #[derive(Clone, Copy)]
 pub struct CPackageDiffEntry {
     struct_size: usize,
-
     pub name: CSlice,
     pub kind: CPackageDiffKind,
 }
 
 impl Validate for CPackageDiffEntry {
     fn validate(&self) -> Result<()> {
-        if self.struct_size != size_of::<CPackageDiffEntry>() {
+        if self.struct_size != size_of::<Self>() {
             return Err(anyhow::anyhow!("CPackageDiffEntry: abi mismatch"));
         }
         self.name.validate()?;
@@ -546,7 +432,6 @@ impl Validate for CPackageDiffEntry {
 #[derive(Clone, Copy)]
 pub struct CAttributedDiffEntry {
     struct_size: usize,
-
     pub path: CSlice,
     pub kind: CDiffKind,
     pub package_name: CSlice,
@@ -554,54 +439,15 @@ pub struct CAttributedDiffEntry {
 
 impl Validate for CAttributedDiffEntry {
     fn validate(&self) -> Result<()> {
-        if self.struct_size != size_of::<CAttributedDiffEntry>() {
+        if self.struct_size != size_of::<Self>() {
             return Err(anyhow::anyhow!("CAttributedDiffEntry: abi mismatch"));
         }
         self.path.validate()?;
-        self.package_name.validate()?;
         Ok(())
     }
 }
 
-// ── Commit entry ─────────────────────────────────────────────────────────────
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct CCommitEntry {
-    struct_size: usize,
-
-    pub checksum: CSlice,
-    pub subject: CSlice,
-}
-
-impl Validate for CCommitEntry {
-    fn validate(&self) -> Result<()> {
-        if self.struct_size != size_of::<CCommitEntry>() {
-            return Err(anyhow::anyhow!("CCommitEntry: abi mismatch"));
-        }
-        self.checksum.validate()?;
-        self.subject.validate()?;
-        Ok(())
-    }
-}
-
-// ── Package meta field indices (list_packages accessors) ─────────────────────
-#[repr(u8)]
-#[derive(Clone, Copy)]
-pub enum CPackageField {
-    Name = 0,
-    Version = 1,
-    Architecture = 2,
-    Author = 3,
-    Description = 4,
-    License = 5,
-    Url = 6,
-    Packager = 7,
-    Checksum = 8,
-    Size = 9,
-    InstalledAt = 10,
-}
-
-// ── Symbol loader ────────────────────────────────────────────────────────────
+// ── Symbol loader ─────────────────────────────────────────────────────────────
 pub unsafe fn load_symbol<T: Copy>(lib: &Library, name: &str) -> Result<T> {
     lib.get(name.as_bytes())
         .map(|symbol| *symbol)

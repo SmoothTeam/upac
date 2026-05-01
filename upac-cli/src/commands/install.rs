@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::backends::Backend;
 use crate::config::Config;
-use crate::ffi::{CInstallRequest, CPackageEntry, CSlice, PackageMetaHandle};
+use crate::ffi::{CMutatedRequest, CPackageEntry, CSlice, PackageMetaHandle};
 use crate::upac::UpacLib;
 use crate::utils::{spinner, BackendKind};
 
@@ -46,7 +46,7 @@ enum State {
 pub struct PreparedPackage {
     pub meta_handle: PackageMetaHandle,
     pub temp_path_c: CSlice,
-    pub checksum: String,
+    pub checksum: CString,
     pub backend: Arc<Backend>,
 }
 
@@ -54,8 +54,8 @@ impl PreparedPackage {
     pub fn as_c_entry(&self) -> CPackageEntry {
         CPackageEntry::new(
             self.meta_handle,
-            unsafe { self.temp_path_c.as_str() },
-            &self.checksum,
+            self.temp_path_c,
+            CSlice::from_cstring(&self.checksum),
         )
     }
 }
@@ -194,12 +194,7 @@ fn state_preparing_package(machine: &mut InstallMachine) -> Result<()> {
         };
 
         let (meta_handle, temp_path_c) = backend
-            .meta_prepare(
-                &abs_file_str.to_str()?,
-                &tmp_string_path.to_str()?,
-                &checksum.to_str()?,
-                progress_bar_ptr,
-            )
+            .meta_prepare(&abs_file_str, &tmp_string_path, &checksum, progress_bar_ptr)
             .map_err(|err| {
                 machine.progress_bar.finish_and_clear();
                 err
@@ -208,7 +203,7 @@ fn state_preparing_package(machine: &mut InstallMachine) -> Result<()> {
         let prepared_packege = PreparedPackage {
             meta_handle,
             temp_path_c,
-            checksum: checksum.to_str()?.to_owned(),
+            checksum: checksum.to_owned(),
             backend,
         };
 
@@ -229,13 +224,13 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
         .map(|prepared_package| prepared_package.as_c_entry())
         .collect();
 
-    let install_request_c = CInstallRequest::new(
+    let install_request_c = CMutatedRequest::for_install(
         packages_c.as_slice(),
-        machine.config.paths.repo_path.to_str()?,
-        machine.config.paths.root_path.to_str()?,
-        machine.config.paths.database_path.to_str()?,
-        machine.config.ostree.branch.to_str()?,
-        machine.config.ostree.prefix_directory.to_str()?,
+        &machine.config.paths.repo_path,
+        &machine.config.paths.root_path,
+        &machine.config.paths.database_path,
+        &machine.config.ostree.branch,
+        &machine.config.ostree.prefix_directory,
         machine.config.step_retries,
         Some(on_install_progress),
         progress_bar_ptr,
@@ -276,7 +271,7 @@ fn state_done(machine: &mut InstallMachine) -> Result<()> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-pub unsafe extern "C" fn on_install_progress(event: u8, package_name_c: CSlice, ctx: *mut c_void) {
+pub unsafe extern "C" fn on_install_progress(event: u32, package_name_c: CSlice, ctx: *mut c_void) {
     let progress_bar = &*(ctx as *const ProgressBar);
 
     let package_name = unsafe { package_name_c.as_str() };

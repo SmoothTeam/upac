@@ -3,45 +3,45 @@ use anyhow::{bail, Result};
 
 use libloading::Library;
 
-use std::ffi::c_void;
 use std::str;
 
 use crate::ffi::{
-    load_symbol, CAttributedDiffArray, CCommitArray, CInitRequest, CInstallRequest,
-    CPackageDiffArray, CRollbackRequest, CSlice, CUninstallRequest,
+    load_symbol, CArray, CAttributedDiffEntry, CMutatedRequest, CPackageDiffEntry, CSlice,
+    CUnmutatedRequest, CommitHandle, PackageMetaHandle,
 };
 use crate::utils::BackendKind;
 
 // ── Wrapper around libupac.so ────────────────────────────────────────────────────
 // A wrapper for dynamically loading libupac.so and mapping its C functions to Rust types
 pub struct UpacLib {
-    pub install: unsafe extern "C" fn(CInstallRequest) -> i32,
-    pub uninstall: unsafe extern "C" fn(CUninstallRequest) -> i32,
-    pub rollback: unsafe extern "C" fn(CRollbackRequest) -> i32,
+    pub install: unsafe extern "C" fn(CMutatedRequest) -> i32,
+    pub uninstall: unsafe extern "C" fn(CMutatedRequest) -> i32,
+    pub rollback: unsafe extern "C" fn(CMutatedRequest) -> i32,
 
-    pub diff_packages: unsafe extern "C" fn(CSlice, CSlice, CSlice, *mut CPackageDiffArray) -> i32,
-    pub diff_packages_free: unsafe extern "C" fn(*mut CPackageDiffArray),
-    pub diff_files_attributed: unsafe extern "C" fn(
-        CSlice,
-        CSlice,
-        CSlice,
-        CSlice,
-        CSlice,
-        *mut CAttributedDiffArray,
-    ) -> i32,
-    pub diff_files_attributed_free: unsafe extern "C" fn(*mut CAttributedDiffArray),
+    pub diff_packages:
+        unsafe extern "C" fn(CUnmutatedRequest, *mut CArray<CPackageDiffEntry>) -> i32,
+    pub diff_packages_free: unsafe extern "C" fn(*mut CArray<CPackageDiffEntry>),
+    pub diff_files:
+        unsafe extern "C" fn(CUnmutatedRequest, *mut CArray<CAttributedDiffEntry>) -> i32,
+    pub diff_files_free: unsafe extern "C" fn(*mut CArray<CAttributedDiffEntry>),
 
-    pub list_packages: unsafe extern "C" fn(CSlice, CSlice, CSlice, *mut *mut c_void) -> i32,
-    pub packages_free: unsafe extern "C" fn(*mut c_void),
-    pub packages_count: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub list_packages:
+        unsafe extern "C" fn(CUnmutatedRequest, *mut CArray<PackageMetaHandle>) -> i32,
+    pub get_packages_count: unsafe extern "C" fn(*mut CArray<PackageMetaHandle>) -> usize,
+    pub get_package_at:
+        unsafe extern "C" fn(*mut CArray<PackageMetaHandle>, u8, *mut PackageMetaHandle) -> i32,
+    pub get_package_slice_field: unsafe extern "C" fn(PackageMetaHandle, u8, *mut CSlice) -> i32,
+    pub get_package_int_field: unsafe extern "C" fn(PackageMetaHandle, u8, *mut u64) -> i32,
+    pub packages_free: unsafe extern "C" fn(*mut CArray<PackageMetaHandle>),
 
-    pub package_get_slice_field: unsafe extern "C" fn(*mut c_void, usize, u8, *mut CSlice) -> i32,
-    pub package_get_int_field: unsafe extern "C" fn(*mut c_void, usize, u8, *mut u32) -> i32,
+    pub list_commits: unsafe extern "C" fn(CUnmutatedRequest, *mut CArray<CommitHandle>) -> i32,
+    pub get_commits_count: unsafe extern "C" fn(*mut CArray<CommitHandle>) -> usize,
+    pub get_commit_at:
+        unsafe extern "C" fn(*mut CArray<CommitHandle>, u8, *mut CommitHandle) -> i32,
+    pub get_commit_slice_field: unsafe extern "C" fn(CommitHandle, u8, *mut CSlice) -> i32,
+    pub commits_free: unsafe extern "C" fn(*mut CArray<CommitHandle>),
 
-    pub list_commits: unsafe extern "C" fn(CSlice, CSlice, *mut CCommitArray) -> i32,
-    pub commits_free: unsafe extern "C" fn(*mut CCommitArray),
-
-    pub init: unsafe extern "C" fn(CInitRequest) -> i32,
+    pub init: unsafe extern "C" fn(CUnmutatedRequest) -> i32,
 
     pub deinit: unsafe extern "C" fn(),
 
@@ -62,25 +62,26 @@ impl UpacLib {
 
             diff_packages: unsafe { load_symbol(&loaded_library, "diff_packages")? },
             diff_packages_free: unsafe { load_symbol(&loaded_library, "diff_packages_free")? },
-            diff_files_attributed: unsafe {
-                load_symbol(&loaded_library, "diff_files_attributed")?
-            },
-            diff_files_attributed_free: unsafe {
-                load_symbol(&loaded_library, "diff_files_attributed_free")?
-            },
+            diff_files: unsafe { load_symbol(&loaded_library, "diff_files")? },
+            diff_files_free: unsafe { load_symbol(&loaded_library, "diff_files_free")? },
 
             list_packages: unsafe { load_symbol(&loaded_library, "list_packages")? },
-            packages_free: unsafe { load_symbol(&loaded_library, "packages_free")? },
-            packages_count: unsafe { load_symbol(&loaded_library, "packages_count")? },
-
-            package_get_slice_field: unsafe {
-                load_symbol(&loaded_library, "package_get_slice_field")?
+            get_packages_count: unsafe { load_symbol(&loaded_library, "get_packages_count")? },
+            get_package_at: unsafe { load_symbol(&loaded_library, "get_package_at")? },
+            get_package_slice_field: unsafe {
+                load_symbol(&loaded_library, "get_package_slice_field")?
             },
-            package_get_int_field: unsafe {
-                load_symbol(&loaded_library, "package_get_int_field")?
+            get_package_int_field: unsafe {
+                load_symbol(&loaded_library, "get_package_int_field")?
             },
 
             list_commits: unsafe { load_symbol(&loaded_library, "list_commits")? },
+            get_commits_count: unsafe { load_symbol(&loaded_library, "get_commits_count")? },
+            get_commit_at: unsafe { load_symbol(&loaded_library, "get_commit_at")? },
+            get_commit_slice_field: unsafe {
+                load_symbol(&loaded_library, "get_commit_slice_field")?
+            },
+            packages_free: unsafe { load_symbol(&loaded_library, "packages_free")? },
             commits_free: unsafe { load_symbol(&loaded_library, "commits_free")? },
 
             init: unsafe { load_symbol(&loaded_library, "init")? },

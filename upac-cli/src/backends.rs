@@ -4,7 +4,7 @@ use indicatif::ProgressBar;
 
 use strum::FromRepr;
 
-use std::ffi::c_void;
+use std::ffi::{c_void, CString};
 use std::mem::MaybeUninit;
 use std::ptr::null_mut;
 
@@ -38,23 +38,19 @@ impl BackendEvent {
     }
 }
 
-// ── Wrapper for the backend .so ───────────────────────────────────────────────────
-// A wrapper for dynamically loading libupac.so and mapping its C functions to Rust types
+// ── Wrapper for the backend .so ───────────────────────────────────────────────
 pub struct Backend {
     _lib: Library,
 
     pub prepare:
         unsafe extern "C" fn(*const CPrepareRequest, *mut PackageMetaHandle, *mut CSlice) -> i32,
     pub meta_free: unsafe extern "C" fn(PackageMetaHandle),
-
     pub meta_get_name: unsafe extern "C" fn(PackageMetaHandle) -> CSlice,
     pub meta_get_version: unsafe extern "C" fn(PackageMetaHandle) -> CSlice,
-
     pub cleanup: unsafe extern "C" fn(CSlice),
 }
 
 impl Backend {
-    // Loads the library from a file and initializes pointers to symbols
     pub fn load(backend_kind: &BackendKind) -> Result<Self> {
         let loaded_library = unsafe { Library::new(backend_kind.so_name()) }.map_err(|error| {
             anyhow::anyhow!("Failed to load {}: {error}", backend_kind.so_name())
@@ -70,12 +66,13 @@ impl Backend {
         })
     }
 
-    // Prepares a package by calling the backend's prepare function
+    /// Prepare a package. All string arguments are owned CStrings stored in
+    /// the calling machine and must outlive this call.
     pub fn meta_prepare(
         &self,
-        pkg_path: &str,
-        temp_dir: &str,
-        checksum: &str,
+        pkg_path: &CString,
+        temp_dir: &CString,
+        checksum: &CString,
         progress_ctx: *mut c_void,
     ) -> Result<(PackageMetaHandle, CSlice)> {
         let prepare_request_c = CPrepareRequest::new(
@@ -86,20 +83,14 @@ impl Backend {
             progress_ctx,
         );
 
-        let mut package_meta_handle_ptr: PackageMetaHandle = null_mut();
-        let mut package_temp_path_ptr = MaybeUninit::<CSlice>::uninit();
+        let mut meta_handle: PackageMetaHandle = null_mut();
+        let mut temp_path = MaybeUninit::<CSlice>::uninit();
 
         unsafe {
-            match (self.prepare)(
-                &prepare_request_c,
-                &mut package_meta_handle_ptr,
-                package_temp_path_ptr.as_mut_ptr(),
-            ) {
-                0 if !package_meta_handle_ptr.is_null() => {
-                    Ok((package_meta_handle_ptr, package_temp_path_ptr.assume_init()))
-                }
+            match (self.prepare)(&prepare_request_c, &mut meta_handle, temp_path.as_mut_ptr()) {
+                0 if !meta_handle.is_null() => Ok((meta_handle, temp_path.assume_init())),
                 0 => anyhow::bail!("Backend returned success code but NULL handle"),
-                error_code => anyhow::bail!("Backend prepare failed with code {error_code}"),
+                code => anyhow::bail!("Backend prepare failed with code {code}"),
             }
         }
     }
@@ -116,8 +107,8 @@ impl Backend {
         let detail_string = detail_c_slice.as_str();
 
         let message_string = match BackendEvent::from_repr(event_code) {
-            Some(backend_event) => backend_event.format_message(detail_string),
-            None => format!("Unknown error code {event_code}"),
+            Some(event) => event.format_message(detail_string),
+            None => format!("Unknown backend event code {event_code}"),
         };
 
         progress_bar.set_message(message_string);
