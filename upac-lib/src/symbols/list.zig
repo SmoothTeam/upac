@@ -59,7 +59,7 @@ pub fn package_get_slice_field(out_c: *CArray(CPackageMeta), index: usize, field
         else => return @intFromEnum(fromError(error.InvalidEntry, Operation.list)),
     };
 
-    out_ptr.* = result; // уже CSlice, fromSlice не нужен
+    out_ptr.* = result;
     return @intFromEnum(ErrorCode.ok);
 }
 
@@ -108,6 +108,21 @@ pub fn list_commits(repo_path: CSlice, branch: CSlice, out_c: *CArray(CCommitEnt
     };
 
     out_c.* = .{ .ptr = commit_entries.ptr, .len = commit_entries.len };
+    return @intFromEnum(ErrorCode.ok);
+}
+
+pub fn commit_get_slice_field(out_c: *CArray(CCommitEntry), index: usize, field: u8, out: ?*CSlice) callconv(.c) i32 {
+    const out_ptr = out orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
+    if (index >= out_c.len) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
+
+    const commit = out_c.ptr[index];
+    const result = switch (field) {
+        0 => commit.checksum,
+        1 => commit.subject,
+        else => return @intFromEnum(fromError(error.InvalidEntry, Operation.list)),
+    };
+
+    out_ptr.* = result;
     return @intFromEnum(ErrorCode.ok);
 }
 
