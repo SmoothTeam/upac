@@ -37,7 +37,7 @@ pub fn list_packages(list_request_c: CListRequest, out_c: *CArray(CPackageMeta))
     return @intFromEnum(ErrorCode.ok);
 }
 
-pub fn packages_count(out_c: *CArray(CPackageMeta)) callconv(.c) usize {
+pub fn get_packages_count(out_c: *CArray(CPackageMeta)) callconv(.c) usize {
     return out_c.len;
 }
 
@@ -114,6 +114,10 @@ pub fn list_commits(list_request_c: CListRequest, out_c: *CArray(CCommitEntry)) 
 
     out_c.* = .{ .ptr = commit_entries.ptr, .len = commit_entries.len };
     return @intFromEnum(ErrorCode.ok);
+}
+
+pub fn get_commits_count(out_c: *CArray(CCommitEntry)) callconv(.c) usize {
+    return out_c.len;
 }
 
 pub fn get_commit_at(array_c: *CArray(CPackageMeta), index: usize, out: ?*?*CPackageMeta) callconv(.c) i32 {
