@@ -9,16 +9,50 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::ffi::{CArray, CSlice, CUnmutatedRequest, CommitHandle, PackageMetaHandle};
 use crate::upac::UpacLib;
-use crate::utils::BackendKind;
+use crate::utils::{BackendKind, PackageField};
 
-macro_rules! get_field {
-    ($lib:expr, $handle:expr, $field_idx:expr, $dest:expr, $err_msg:expr) => {{
+macro_rules! get_package_handle {
+    ($lib:expr, $array:expr, $idx:expr, $err:expr) => {{
+        let mut handle_ptr = null_mut();
+        UpacLib::check(($lib.get_package_at)($array, $idx, &mut handle_ptr), $err)?;
+        handle_ptr
+    }};
+}
+
+macro_rules! get_package_field {
+    ($lib:expr, $handle:expr, $field:expr, @int $dest:expr) => {{
+        UpacLib::check(
+            ($lib.get_package_int_field)($handle, $field as u8, &mut $dest),
+            &format!("get int field {:?}", $field),
+        )
+    }};
+
+    ($lib:expr, $handle:expr, $field:expr) => {{
         let mut slice = CSlice::empty();
         UpacLib::check(
-            ($lib.get_package_slice_field)($handle, $field_idx, &mut slice),
-            $err_msg,
+            ($lib.get_package_slice_field)($handle, $field as u8, &mut slice),
+            &format!("get str field {}", $field.as_str()),
         )?;
-        $dest = slice.as_str().to_owned();
+        slice.as_str().to_owned()
+    }};
+}
+
+macro_rules! get_commit_handle {
+    ($lib:expr, $array:expr, $idx:expr, $err:expr) => {{
+        let mut handle_ptr = null_mut();
+        UpacLib::check(($lib.get_commit_at)($array, $idx, &mut handle_ptr), $err)?;
+        handle_ptr
+    }};
+}
+
+macro_rules! get_commit_field {
+    ($lib:expr, $handle:expr, $idx:expr, $err:expr) => {{
+        let mut slice = CSlice::empty();
+        UpacLib::check(
+            ($lib.get_commit_slice_field)($handle, $idx, &mut slice),
+            $err,
+        )?;
+        slice.as_str().to_owned()
     }};
 }
 
@@ -129,15 +163,13 @@ fn state_get_commits_info(machine: &mut ListMachine) -> Result<()> {
     machine.state = State::GetCommits;
 
     let mut commit_array_c: CArray<CommitHandle> = CArray::empty();
-    let mut checksum_slice = CSlice::empty();
-    let mut subject_slice = CSlice::empty();
 
     let list_request_c = CUnmutatedRequest::for_list(
-        &machine.config.paths.repo_path.to_owned(),
-        &machine.config.paths.root_path.to_owned(),
-        &machine.config.ostree.prefix_directory.to_owned(),
-        &machine.config.ostree.branch.to_owned(),
-        &machine.config.ostree.prefix_directory.to_owned(),
+        &machine.config.paths.repo_path,
+        &machine.config.paths.root_path,
+        &machine.config.paths.database_path,
+        &machine.config.ostree.branch,
+        &machine.config.ostree.prefix_directory,
     );
 
     UpacLib::check(
@@ -150,41 +182,29 @@ fn state_get_commits_info(machine: &mut ListMachine) -> Result<()> {
     let mut commit_rows = Vec::with_capacity(commits_count);
 
     for index in 0..commits_count {
-        let mut commit_handle_ptr: PackageMetaHandle = null_mut();
-
         unsafe {
-            UpacLib::check(
-                (machine.upac_lib.as_ref().get_commit_at)(
-                    &mut commit_array_c,
-                    index as u8,
-                    &mut commit_handle_ptr,
-                ),
-                "get package handle",
-            )?;
+            let commit_handle_ptr = get_commit_handle!(
+                machine.upac_lib.as_ref(),
+                &mut commit_array_c,
+                index as u8,
+                "get commit handle"
+            );
 
-            UpacLib::check(
-                (machine.upac_lib.as_ref().get_commit_slice_field)(
-                    commit_handle_ptr,
-                    0,
-                    &mut checksum_slice,
-                ),
-                "get commit filed",
-            )?;
+            let checksum = get_commit_field!(
+                machine.upac_lib.as_ref(),
+                commit_handle_ptr,
+                0,
+                "get checksum"
+            );
+            let subject = get_commit_field!(
+                machine.upac_lib.as_ref(),
+                commit_handle_ptr,
+                1,
+                "get subject"
+            );
 
-            UpacLib::check(
-                (machine.upac_lib.as_ref().get_commit_slice_field)(
-                    commit_handle_ptr,
-                    1,
-                    &mut subject_slice,
-                ),
-                "get commit filed",
-            )?;
-
-            commit_rows.push(CommitRow::new(
-                checksum_slice.as_str().to_owned(),
-                subject_slice.as_str().to_owned(),
-            ));
-        }
+            commit_rows.push(CommitRow::new(checksum.to_owned(), subject.to_owned()));
+        };
     }
 
     machine.commits = commit_rows;
@@ -197,123 +217,74 @@ fn state_get_commits_info(machine: &mut ListMachine) -> Result<()> {
 fn state_get_packages_list(machine: &mut ListMachine) -> Result<()> {
     machine.state = State::GetPackages;
 
-    let mut package_list_c: CArray<PackageMetaHandle> = CArray::empty();
+    let mut package_array_c: CArray<PackageMetaHandle> = CArray::empty();
 
     let list_request_c = CUnmutatedRequest::for_list(
-        &machine.config.paths.repo_path.to_owned(),
-        &machine.config.paths.root_path.to_owned(),
-        &machine.config.ostree.prefix_directory.to_owned(),
-        &machine.config.ostree.branch.to_owned(),
-        &machine.config.ostree.prefix_directory.to_owned(),
+        &machine.config.paths.repo_path,
+        &machine.config.paths.root_path,
+        &machine.config.paths.database_path,
+        &machine.config.ostree.branch,
+        &machine.config.ostree.prefix_directory,
     );
 
     UpacLib::check(
-        unsafe { (machine.upac_lib.as_ref().list_packages)(list_request_c, &mut package_list_c) },
+        unsafe { (machine.upac_lib.as_ref().list_packages)(list_request_c, &mut package_array_c) },
         "list packages",
     )?;
 
     let package_count =
-        unsafe { (machine.upac_lib.as_ref().get_packages_count)(&mut package_list_c) };
+        unsafe { (machine.upac_lib.as_ref().get_packages_count)(&mut package_array_c) };
     let mut packages = Vec::with_capacity(package_count as usize);
 
     for index in 0..package_count {
-        let mut package_meta_handle_ptr: PackageMetaHandle = null_mut();
-
         unsafe {
-            UpacLib::check(
-                (machine.upac_lib.as_ref().get_package_at)(
-                    &mut package_list_c,
-                    index as u8,
-                    &mut package_meta_handle_ptr,
-                ),
-                "get package handle",
-            )?;
-
-            let (mut name, mut version, mut arch, mut author, mut license, mut url, mut packager) = (
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
+            let package_handle = get_package_handle!(
+                machine.upac_lib.as_ref(),
+                &mut package_array_c,
+                index as u8,
+                "get package handle"
             );
+
+            let string_fields = [
+                PackageField::Name,
+                PackageField::Version,
+                PackageField::Arch,
+                PackageField::Author,
+                PackageField::License,
+                PackageField::Url,
+                PackageField::Packager,
+            ];
+
+            let values = string_fields
+                .iter()
+                .map(|&f| {
+                    Ok(get_package_field!(
+                        machine.upac_lib.as_ref(),
+                        package_handle,
+                        f
+                    ))
+                })
+                .collect::<Result<Vec<String>>>()?;
+
             let mut size_u64: u64 = 0;
+            get_package_field!(machine.upac_lib.as_ref(), package_handle, PackageField::Size, @int size_u64)?;
 
-            get_field!(
-                machine.upac_lib.as_ref(),
-                package_meta_handle_ptr,
-                0,
-                name,
-                "get name"
-            );
-            get_field!(
-                machine.upac_lib.as_ref(),
-                package_meta_handle_ptr,
-                1,
-                version,
-                "get version"
-            );
-            get_field!(
-                machine.upac_lib.as_ref(),
-                package_meta_handle_ptr,
-                2,
-                arch,
-                "get architecture"
-            );
-            get_field!(
-                machine.upac_lib.as_ref(),
-                package_meta_handle_ptr,
-                3,
-                author,
-                "get author"
-            );
-            get_field!(
-                machine.upac_lib.as_ref(),
-                package_meta_handle_ptr,
-                5,
-                license,
-                "get license"
-            );
-            get_field!(
-                machine.upac_lib.as_ref(),
-                package_meta_handle_ptr,
-                6,
-                url,
-                "get url"
-            );
-            get_field!(
-                machine.upac_lib.as_ref(),
-                package_meta_handle_ptr,
-                7,
-                packager,
-                "get packager"
-            );
-
-            UpacLib::check(
-                (machine.upac_lib.as_ref().get_package_int_field)(
-                    package_meta_handle_ptr,
-                    9,
-                    &mut size_u64,
-                ),
-                "get size",
-            )?;
-
+            let mut it = values.into_iter();
             packages.push(PackageRow {
-                name,
-                version,
-                architecture: arch,
-                author,
-                license,
-                url,
-                packager,
+                name: it.next().unwrap(),
+                version: it.next().unwrap(),
+                architecture: it.next().unwrap(),
+                author: it.next().unwrap(),
+                license: it.next().unwrap(),
+                url: it.next().unwrap(),
+                packager: it.next().unwrap(),
                 size: size_u64 as u32,
             });
         }
     }
 
     machine.packages = packages;
-    unsafe { (machine.upac_lib.as_ref().packages_free)(&mut package_list_c) };
+    unsafe { (machine.upac_lib.as_ref().packages_free)(&mut package_array_c) };
 
     state_printing_packeges(machine)
 }

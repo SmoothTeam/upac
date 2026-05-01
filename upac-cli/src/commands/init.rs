@@ -113,13 +113,14 @@ fn state_initializing(machine: &mut InitMachine) -> Result<()> {
     machine.state = State::Initializing;
     spinner(&machine.progress_bar, "Initializing system directories...");
 
+    let repo_mode_val = machine.repo_mode_c as u32;
     let init_request_c = CUnmutatedRequest::for_init(
-        &machine.config.paths.repo_path.to_owned(),
-        &machine.config.paths.root_path.to_owned(),
-        &machine.config.ostree.prefix_directory.to_owned(),
-        &machine.config.ostree.branch.to_owned(),
-        &machine.config.ostree.prefix_directory.to_owned(),
-        &(machine.repo_mode_c as u32),
+        &machine.config.paths.repo_path,
+        &machine.config.paths.root_path,
+        &machine.config.paths.database_path,
+        &machine.config.ostree.branch,
+        &machine.config.ostree.prefix_directory,
+        &repo_mode_val,
     );
 
     UpacLib::check(

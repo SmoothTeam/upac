@@ -8,6 +8,34 @@ use strum::{Display, EnumProperty, EnumString};
 use std::fmt::Debug;
 use std::time::Duration;
 
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum PackageField {
+    Name = 0,
+    Version = 1,
+    Arch = 2,
+    Author = 3,
+    License = 5,
+    Url = 6,
+    Packager = 7,
+    Size = 9,
+}
+
+impl PackageField {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Name => "name",
+            Self::Version => "version",
+            Self::Arch => "architecture",
+            Self::Author => "author",
+            Self::License => "license",
+            Self::Url => "url",
+            Self::Packager => "packager",
+            Self::Size => "size",
+        }
+    }
+}
+
 // ── Backend Definition ────────────────────────────────────────
 // Represents the type of backend (ALPM, RPM, DEB) for a package
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Display, EnumString, EnumProperty)]
