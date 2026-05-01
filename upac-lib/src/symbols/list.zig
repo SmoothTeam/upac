@@ -41,21 +41,28 @@ pub fn packages_count(out_c: *CArray(CPackageMeta)) callconv(.c) usize {
     return out_c.len;
 }
 
-pub fn package_get_slice_field(out_c: *CArray(CPackageMeta), index: usize, field: u8, out: ?*CSlice) callconv(.c) i32 {
+pub fn get_package_at(array_c: *CArray(CPackageMeta), index: usize, out: ?*?*CPackageMeta) callconv(.c) i32 {
     const out_ptr = out orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
-    if (index >= out_c.len) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
+    if (index >= array_c.len) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
-    const pkg = out_c.ptr[index];
+    out_ptr.* = &array_c.ptr[index];
+
+    return @intFromEnum(ErrorCode.ok);
+}
+
+pub fn get_package_slice_field(out_c: *CPackageMeta, field: u8, out: ?*CSlice) callconv(.c) i32 {
+    const out_ptr = out orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
+
     const result = switch (field) {
-        0 => pkg.name,
-        1 => pkg.version,
-        2 => pkg.architecture,
-        3 => pkg.author,
-        4 => pkg.description,
-        5 => pkg.license,
-        6 => pkg.url,
-        7 => pkg.packager,
-        8 => pkg.checksum,
+        0 => out_c.name,
+        1 => out_c.version,
+        2 => out_c.architecture,
+        3 => out_c.author,
+        4 => out_c.description,
+        5 => out_c.license,
+        6 => out_c.url,
+        7 => out_c.packager,
+        8 => out_c.checksum,
         else => return @intFromEnum(fromError(error.InvalidEntry, Operation.list)),
     };
 
@@ -63,14 +70,12 @@ pub fn package_get_slice_field(out_c: *CArray(CPackageMeta), index: usize, field
     return @intFromEnum(ErrorCode.ok);
 }
 
-pub fn package_get_int_field(out_c: *CArray(CPackageMeta), index: usize, field: u8, out: ?*u64) callconv(.c) i32 {
+pub fn get_package_int_field(out_c: *CPackageMeta, field: u8, out: ?*u64) callconv(.c) i32 {
     const out_ptr = out orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
-    if (index >= out_c.len) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
-    const pkg = out_c.ptr[index];
     out_ptr.* = switch (field) {
-        9 => @intCast(pkg.size),
-        10 => @intCast(pkg.installed_at),
+        9 => @intCast(out_c.size),
+        10 => @intCast(out_c.installed_at),
         else => return @intFromEnum(fromError(error.InvalidEntry, Operation.list)),
     };
 
@@ -93,15 +98,15 @@ pub fn packages_free(package_meta_array_c: *CArray(CPackageMeta)) callconv(.c) v
     allocator.free(package_meta_array_c.toSlice());
 }
 
-pub fn list_commits(repo_path: CSlice, branch: CSlice, out_c: *CArray(CCommitEntry)) callconv(.c) i32 {
-    const required = [_]CSlice{ repo_path, branch };
+pub fn list_commits(list_request_c: CListRequest, out_c: *CArray(CCommitEntry)) callconv(.c) i32 {
+    const required = [_]CSlice{ list_request_c.repo_path, list_request_c.branch };
     for (required) |field| {
         if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
     }
 
     const commit_entries = list_module.ListMachine.runCommits(.{
-        .repo_path = repo_path.asZ(),
-        .branch = branch.asZ(),
+        .repo_path = list_request_c.repo_path.asZ(),
+        .branch = list_request_c.branch.asZ(),
     }, list_module.ffi.allocator()) catch |err| {
         if (err == error.Cancelled) list_module.ffi.global_cancel.store(true, .release);
         return @intFromEnum(fromError(err, Operation.list));
@@ -111,14 +116,21 @@ pub fn list_commits(repo_path: CSlice, branch: CSlice, out_c: *CArray(CCommitEnt
     return @intFromEnum(ErrorCode.ok);
 }
 
-pub fn commit_get_slice_field(out_c: *CArray(CCommitEntry), index: usize, field: u8, out: ?*CSlice) callconv(.c) i32 {
+pub fn get_commit_at(array_c: *CArray(CPackageMeta), index: usize, out: ?*?*CPackageMeta) callconv(.c) i32 {
     const out_ptr = out orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
-    if (index >= out_c.len) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
+    if (index >= array_c.len) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
-    const commit = out_c.ptr[index];
+    out_ptr.* = &array_c.ptr[index];
+
+    return @intFromEnum(ErrorCode.ok);
+}
+
+pub fn get_commit_slice_field(out_c: *CCommitEntry, field: u8, out: ?*CSlice) callconv(.c) i32 {
+    const out_ptr = out orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
+
     const result = switch (field) {
-        0 => commit.checksum,
-        1 => commit.subject,
+        0 => out_c.checksum,
+        1 => out_c.subject,
         else => return @intFromEnum(fromError(error.InvalidEntry, Operation.list)),
     };
 

@@ -1,36 +1,39 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const ffi_symbols = @import("symbols/ffi.zig");
-pub export const request_cancel = ffi_symbols.request_cancel;
-pub export const reset_cancel = ffi_symbols.reset_cancel;
+export const request_cancel = ffi_symbols.request_cancel;
+export const reset_cancel = ffi_symbols.reset_cancel;
 
-pub export const deinit = ffi_symbols.deinit;
+export const deinit = ffi_symbols.deinit;
 
 const installer_symbols = @import("symbols/installer.zig");
-pub export const install = installer_symbols.install;
+export const install = installer_symbols.install;
 
 const uninstaller_symbols = @import("symbols/uninstaller.zig");
-pub export const uninstall = uninstaller_symbols.uninstall;
+export const uninstall = uninstaller_symbols.uninstall;
 
 const rollback_symbols = @import("symbols/rollback.zig");
-pub export const rollback = rollback_symbols.rollback;
+export const rollback = rollback_symbols.rollback;
 
 const diff_symbols = @import("symbols/diff.zig");
-pub export const diff_packages = diff_symbols.diff_packages;
-pub export const diff_packages_free = diff_symbols.diff_packages_free;
+export const diff_packages = diff_symbols.diff_packages;
+export const diff_packages_free = diff_symbols.diff_packages_free;
 
-pub export const diff_files = diff_symbols.diff_files;
-pub export const diff_files_free = diff_symbols.diff_files_free;
+export const diff_files = diff_symbols.diff_files;
+export const diff_files_free = diff_symbols.diff_files_free;
 
 const list_symbols = @import("symbols/list.zig");
-pub export const list_packages = list_symbols.list_packages;
+export const list_packages = list_symbols.list_packages;
 
-pub export const packages_count = list_symbols.packages_count;
-pub export const packages_free = list_symbols.packages_free;
-pub export const package_get_slice_field = list_symbols.package_get_slice_field;
-pub export const package_get_int_field = list_symbols.package_get_int_field;
+export const packages_count = list_symbols.packages_count;
+export const get_package_at = list_symbols.get_package_at;
+export const get_package_slice_field = list_symbols.get_package_slice_field;
+export const get_package_int_field = list_symbols.get_package_int_field;
+export const packages_free = list_symbols.packages_free;
 
-pub export const list_commits = list_symbols.list_commits;
-pub export const commits_free = list_symbols.commits_free;
+export const list_commits = list_symbols.list_commits;
+export const get_commit_at = list_symbols.get_commit_at;
+export const get_commit_slice_field = list_symbols.get_commit_slice_field;
+export const commits_free = list_symbols.commits_free;
 
 const init_symbols = @import("symbols/init.zig");
-pub export const init = init_symbols.init;
+export const init = init_symbols.init;
