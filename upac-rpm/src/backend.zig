@@ -28,8 +28,8 @@ pub const PackageMeta = struct {
 
 // Parameters for the package preparation request: paths to the archive and output folder, and the checksum
 pub const PrepareRequest = struct {
-    package_path: [*:0]u8,
-    temp_dir: [*:0]u8,
+    package_path: [*:0]const u8,
+    temp_dir: [*:0]const u8,
 
     checksum: []const u8,
 
@@ -148,29 +148,25 @@ pub const BackendMachine = struct {
 // ── FFI ───────────────────────────────────────────────────────────────────────
 // A helper structure for passing data slices via C FFI
 const CSlice = extern struct {
-    ptr: ?[*]const u8,
+    ptr: [*:0]const u8,
     len: usize,
 
-    // Converts a native Zig slice into a C-compatible CSlice struct, packaging the pointer and length
-    pub fn fromSlice(slice: []const u8) CSlice {
-        return .{ .ptr = slice.ptr, .len = slice.len };
+    pub fn toSlice(self: CSlice) []const u8 {
+        return self.ptr[0..self.len];
     }
 
-    // It performs the inverse operation—reconstructing a safe Zig slice from data received via a C interface—so that it can be manipulated using standard language constructs
-    pub fn toSlice(self: CSlice) []const u8 {
-        const ptr = self.ptr orelse return "";
+    pub fn asZ(self: CSlice) [*:0]const u8 {
+        return self.ptr;
+    }
 
-        if (self.len > std.posix.PATH_MAX) return "";
-
-        return ptr[0..self.len];
+    pub fn fromSlice(slice: []const u8) CSlice {
+        return .{ .ptr = @ptrCast(slice.ptr), .len = slice.len };
     }
 
     // A simple check to determine whether a passed string or data array is empty (i.e., has zero length)
-    pub fn validate(self: CSlice) bool {
-        const ptr = self.ptr orelse return false;
-        if (self.len == 0) return false;
-
-        return ptr[self.len] == 0;
+    pub fn validate(self: CSlice) !void {
+        if (self.ptr[self.len] != 0) return error.InvalidEntry;
+        if (std.mem.len(self.ptr) != self.len) return error.InvalidEntry;
     }
 };
 
@@ -206,9 +202,9 @@ const CPrepareRequest = extern struct {
     pub fn validate(req: CPrepareRequest) !void {
         if (req.struct_size != @sizeOf(CPrepareRequest)) return error.AbiMismatch;
 
-        if (req.package_path.validate()) return error.InvalidEntry;
-        if (req.temp_dir.validate()) return error.InvalidEntry;
-        if (req.checksum.validate()) return error.InvalidEntry;
+        try req.package_path.validate();
+        try req.temp_dir.validate();
+        try req.checksum.validate();
     }
 };
 
@@ -237,16 +233,35 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque, out_temp_path: *CSlice) callconv(.c) i32 {
     request_c.validate() catch |err| return @intFromEnum(fromError(err));
 
-    var arena_allocator = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena_allocator.deinit();
+    const zig_request = PrepareRequest{
+        .package_path = request_c.package_path.asZ(),
+        .temp_dir = request_c.temp_dir.asZ(),
 
-    const zig_request = toPrepareRequest(arena_allocator.allocator(), request_c) catch |err| return @intFromEnum(fromError(err));
+        .checksum = request_c.checksum.toSlice(),
+
+        .on_progress = request_c.on_progress,
+        .progress_ctx = request_c.progress_ctx,
+    };
 
     const result = BackendMachine.run(zig_request, gpa.allocator()) catch |err| return @intFromEnum(fromError(err));
 
     const out_meta_ptr = gpa.allocator().create(CPackageMeta) catch return @intFromEnum(BackendErrorCode.alloc_failed);
-    out_meta_ptr.* = metaToC(gpa.allocator(), result.meta) catch return @intFromEnum(fromError(BackendError.AllocZFailed));
 
+    out_meta_ptr.* = CPackageMeta{
+        .struct_size = @sizeOf(CPackageMeta),
+
+        .name = dupeToCSlice(gpa.allocator(), result.meta.name) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .version = dupeToCSlice(gpa.allocator(), result.meta.version) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .size = @intCast(result.meta.size),
+        .arch = dupeToCSlice(gpa.allocator(), result.meta.arch) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .author = dupeToCSlice(gpa.allocator(), result.meta.author) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .description = dupeToCSlice(gpa.allocator(), result.meta.description) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .license = dupeToCSlice(gpa.allocator(), result.meta.license) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .url = dupeToCSlice(gpa.allocator(), result.meta.url) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .packager = dupeToCSlice(gpa.allocator(), result.meta.packager) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .installed_at = result.meta.installed_at,
+        .checksum = dupeToCSlice(gpa.allocator(), result.meta.checksum) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+    };
     out_meta.* = out_meta_ptr;
     out_temp_path.* = dupeToCSlice(gpa.allocator(), result.temp_path) catch return @intFromEnum(fromError(BackendError.AllocZFailed));
 
@@ -330,16 +345,6 @@ pub fn fromError(err: anyerror) BackendErrorCode {
         error.InvalidEntry => .invalid_entry,
         error.AbiMismatch => .abi_mismatch,
         else => .unexpected,
-    };
-}
-
-fn toPrepareRequest(allocator: std.mem.Allocator, req: *const CPrepareRequest) BackendError!PrepareRequest {
-    return .{
-        .package_path = allocator.dupeZ(u8, req.package_path.toSlice()) catch return BackendError.AllocZFailed,
-        .temp_dir = allocator.dupeZ(u8, req.temp_dir.toSlice()) catch return BackendError.AllocZFailed,
-        .checksum = req.checksum.toSlice(),
-        .on_progress = req.on_progress,
-        .progress_ctx = req.progress_ctx,
     };
 }
 
