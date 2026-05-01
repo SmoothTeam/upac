@@ -136,7 +136,14 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.Cancelled => .cancelled,
             else => null,
         },
-        else => null,
+        .list => switch (err) {
+            error.RepoOpenFailed => .ostree_repo_open_failed,
+            error.CommitNotFound => .ostree_commit_not_found,
+            error.AllocFailed => .out_of_memory,
+            error.Cancelled => .cancelled,
+            error.MaxRetriesExceeded => .max_retries_exceeded,
+            else => null,
+        },
     };
 
     if (specific) |code| return code;

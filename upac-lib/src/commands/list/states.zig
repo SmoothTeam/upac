@@ -19,10 +19,10 @@ const getRefBody = utils.getRefBody;
 const parsePackageBody = utils.parsePackageBody;
 const freeStringMap = utils.freeStringMap;
 
-pub fn stateOpenRepo(machine: *ListMachine, repo_path: [*:0]const u8) ListError!void {
+pub fn stateOpenRepo(machine: *ListMachine) ListError!void {
     try machine.check(machine.enter(.open_repo), ListError.AllocFailed);
 
-    const gfile = c_libs.g_file_new_for_path(repo_path);
+    const gfile = c_libs.g_file_new_for_path(machine.data.repo_path);
     defer c_libs.g_object_unref(gfile);
 
     const repo = c_libs.ostree_repo_new(gfile);
@@ -34,12 +34,10 @@ pub fn stateOpenRepo(machine: *ListMachine, repo_path: [*:0]const u8) ListError!
     machine.repo = repo;
 }
 
-pub fn stateListPackages(machine: *ListMachine, branch: [*:0]const u8, db_path: []const u8) ListError!void {
+pub fn stateListPackages(machine: *ListMachine) ListError!void {
     try machine.check(machine.enter(.list_packages), ListError.AllocFailed);
 
-    const repo = try machine.unwrap(machine.repo, ListError.RepoOpenFailed);
-
-    const body = (try machine.check(getRefBody(repo, branch, &machine.gerror, machine.allocator), ListError.AllocFailed)) orelse {
+    const body = (getRefBody(machine) catch null) orelse {
         machine.result_packages = &.{};
         return stateDone(machine);
     };
@@ -69,7 +67,7 @@ pub fn stateListPackages(machine: *ListMachine, branch: [*:0]const u8, db_path: 
 
     var iter = package_map.iterator();
     while (iter.next()) |entry| {
-        const pkg = data.readMeta(db_path, entry.value_ptr.*, machine.allocator) catch continue;
+        const pkg = data.readMeta(machine.data.db_path, entry.value_ptr.*, machine.allocator) catch continue;
         try machine.check(result.append(machine.allocator, .{
             .name = CSlice.fromSlice(pkg.name),
             .version = CSlice.fromSlice(pkg.version),
@@ -85,11 +83,13 @@ pub fn stateListPackages(machine: *ListMachine, branch: [*:0]const u8, db_path: 
         }), ListError.AllocFailed);
     }
 
+    std.debug.print("6", .{});
+
     machine.result_packages = try machine.check(result.toOwnedSlice(machine.allocator), ListError.AllocFailed);
     return stateDone(machine);
 }
 
-pub fn stateListCommits(machine: *ListMachine, branch: [*:0]const u8) ListError!void {
+pub fn stateListCommits(machine: *ListMachine) ListError!void {
     try machine.check(machine.enter(.list_commits), ListError.AllocFailed);
 
     const repo = try machine.unwrap(machine.repo, ListError.RepoOpenFailed);
@@ -106,7 +106,7 @@ pub fn stateListCommits(machine: *ListMachine, branch: [*:0]const u8) ListError!
     var current_checksum: [*c]u8 = null;
     defer if (current_checksum != null) c_libs.g_free(current_checksum);
 
-    if (c_libs.ostree_repo_resolve_rev(repo, branch, 0, &current_checksum, &machine.gerror) == 0) {
+    if (c_libs.ostree_repo_resolve_rev(repo, machine.data.branch, 1, &current_checksum, &machine.gerror) == 0) {
         machine.result_commits = try machine.check(entries.toOwnedSlice(machine.allocator), ListError.AllocFailed);
         return stateDone(machine);
     }
@@ -122,7 +122,7 @@ pub fn stateListCommits(machine: *ListMachine, branch: [*:0]const u8) ListError!
             if (!is_first) c_libs.g_free(checksum);
             break;
         }
-        defer if (commit_variant) |v| c_libs.g_variant_unref(v);
+        defer if (commit_variant) |variant| c_libs.g_variant_unref(variant);
 
         const subject_variant = c_libs.g_variant_get_child_value(commit_variant, 3);
         defer if (subject_variant) |variant| c_libs.g_variant_unref(variant);

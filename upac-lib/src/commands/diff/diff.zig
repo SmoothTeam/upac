@@ -25,13 +25,7 @@ pub const DiffError = error{
     Cancelled,
 };
 
-pub const DiffPackagesData = struct {
-    repo_path: [*:0]const u8,
-    from_ref: [*:0]const u8,
-    to_ref: [*:0]const u8,
-};
-
-pub const DiffFilesData = struct {
+pub const DiffData = struct {
     repo_path: [*:0]const u8,
     from_ref: [*:0]const u8,
     to_ref: [*:0]const u8,
@@ -39,6 +33,7 @@ pub const DiffFilesData = struct {
 };
 
 pub const DiffMachine = struct {
+    data: DiffData,
     repo: ?*c_libs.OstreeRepo = null,
 
     result_packages: ?[]CPackageDiffEntry = null,
@@ -96,30 +91,32 @@ pub const DiffMachine = struct {
         self.stack.deinit(self.allocator);
     }
 
-    pub fn runPackages(diff_data: DiffPackagesData, allocator: std.mem.Allocator) DiffError![]CPackageDiffEntry {
+    pub fn runPackages(diff_data: DiffData, allocator: std.mem.Allocator) DiffError![]CPackageDiffEntry {
         var machine = DiffMachine{
+            .data = diff_data,
             .cancellable = c_libs.g_cancellable_new() orelse return DiffError.Cancelled,
             .stack = std.ArrayList(DiffStateId).empty,
             .allocator = allocator,
         };
         defer machine.deinit();
 
-        try states.stateOpenRepo(&machine, diff_data.repo_path);
-        try states.stateDiffPackages(&machine, diff_data.from_ref, diff_data.to_ref);
+        try states.stateOpenRepo(&machine);
+        try states.stateDiffPackages(&machine);
 
         return machine.result_packages orelse &.{};
     }
 
-    pub fn runFiles(diff_data: DiffFilesData, allocator: std.mem.Allocator) DiffError![]CAttributedDiffEntry {
+    pub fn runFiles(diff_data: DiffData, allocator: std.mem.Allocator) DiffError![]CAttributedDiffEntry {
         var machine = DiffMachine{
+            .data = diff_data,
             .cancellable = c_libs.g_cancellable_new() orelse return DiffError.Cancelled,
             .stack = std.ArrayList(DiffStateId).empty,
             .allocator = allocator,
         };
         defer machine.deinit();
 
-        try states.stateOpenRepo(&machine, diff_data.repo_path);
-        try states.stateDiffFilesAttributed(&machine, diff_data.from_ref, diff_data.to_ref, diff_data.db_path);
+        try states.stateOpenRepo(&machine);
+        try states.stateDiffFilesAttributed(&machine);
 
         return machine.result_files orelse &.{};
     }

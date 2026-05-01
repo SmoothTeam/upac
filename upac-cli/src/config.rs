@@ -90,13 +90,13 @@ impl Config {
     // Validates the configuration, ensuring all paths and values are set correctly
     fn validate(&self) -> Result<()> {
         if self.paths.repo_path.is_empty() {
-            anyhow::bail!("config: paths.db_path is empty");
-        }
-        if self.paths.repo_path.is_empty() {
-            anyhow::bail!("config: paths.repo_path is empty");
+            anyhow::bail!("config: paths.repo path is empty");
         }
         if self.paths.root_path.is_empty() {
-            anyhow::bail!("config: paths.root_path is empty");
+            anyhow::bail!("config: paths.root path is empty");
+        }
+        if self.paths.database_path.is_empty() {
+            anyhow::bail!("config: paths.database path is empty");
         }
         if self.ostree.branch.is_empty() {
             anyhow::bail!("config: ostree.branch is empty");

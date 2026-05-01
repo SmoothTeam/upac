@@ -51,6 +51,20 @@ pub struct PreparedPackage {
 }
 
 impl PreparedPackage {
+    pub fn new(
+        meta_handle: PackageMetaHandle,
+        temp_path_c: CSlice,
+        checksum: CString,
+        backend: Arc<Backend>,
+    ) -> Self {
+        Self {
+            meta_handle: meta_handle,
+            temp_path_c: temp_path_c,
+            checksum: checksum,
+            backend: backend,
+        }
+    }
+
     pub fn as_c_entry(&self) -> CPackageEntry {
         CPackageEntry::new(
             self.meta_handle,
@@ -180,32 +194,31 @@ fn state_preparing_package(machine: &mut InstallMachine) -> Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("invalid temp dir path"))?,
         )?;
 
-        let abs_file_str = CString::from_str(
-            fs::canonicalize(file)
-                .map_err(|err| anyhow::anyhow!("cannot resolve path '{file}': {err}"))?
-                .to_str()
-                .ok_or_else(|| anyhow::anyhow!("invalid path encoding"))?,
-        )?;
+        let abs_file_str = fs::canonicalize(file)
+            .map_err(|err| anyhow::anyhow!("cannot resolve path '{file}': {err}"))?
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("invalid path encoding"))?;
 
         let checksum = if machine.checksums.is_empty() {
-            CString::from_str(&compute_checksum(&abs_file_str.to_str()?)?)?
+            CString::from_str(&compute_checksum(&abs_file_str)?)?
         } else {
             CString::from_str(&machine.checksums[index])?
         };
 
         let (meta_handle, temp_path_c) = backend
-            .meta_prepare(&abs_file_str, &tmp_string_path, &checksum, progress_bar_ptr)
+            .meta_prepare(
+                &CString::from_str(&abs_file_str)?,
+                &tmp_string_path,
+                &checksum,
+                progress_bar_ptr,
+            )
             .map_err(|err| {
                 machine.progress_bar.finish_and_clear();
                 err
             })?;
 
-        let prepared_packege = PreparedPackage {
-            meta_handle,
-            temp_path_c,
-            checksum: checksum.to_owned(),
-            backend,
-        };
+        let prepared_packege =
+            PreparedPackage::new(meta_handle, temp_path_c, checksum.to_owned(), backend);
 
         machine.prepared_packages.push(prepared_packege);
     }

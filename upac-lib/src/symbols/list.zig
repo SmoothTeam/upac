@@ -96,7 +96,7 @@ pub fn packages_free(package_meta_array_c: *CArray(CPackageMeta)) callconv(.c) v
 }
 
 pub fn list_commits(list_request_c: CListRequest, out_c: *CArray(CCommitEntry)) callconv(.c) i32 {
-    const required = [_]CSlice{ list_request_c.repo_path, list_request_c.branch };
+    const required = [_]CSlice{ list_request_c.repo_path, list_request_c.branch, list_request_c.db_path };
     for (required) |field| {
         if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
     }
@@ -104,6 +104,7 @@ pub fn list_commits(list_request_c: CListRequest, out_c: *CArray(CCommitEntry)) 
     const commit_entries = list_module.ListMachine.runCommits(.{
         .repo_path = list_request_c.repo_path.asZ(),
         .branch = list_request_c.branch.asZ(),
+        .db_path = list_request_c.db_path.toSlice(),
     }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
     out_c.* = .{ .ptr = commit_entries.ptr, .len = commit_entries.len };

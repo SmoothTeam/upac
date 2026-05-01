@@ -23,18 +23,14 @@ pub const ListError = error{
     MaxRetriesExceeded,
 };
 
-pub const ListPackagesData = struct {
+pub const ListData = struct {
     repo_path: [*:0]const u8,
     branch: [*:0]const u8,
     db_path: []const u8,
 };
 
-pub const ListCommitsData = struct {
-    repo_path: [*:0]const u8,
-    branch: [*:0]const u8,
-};
-
 pub const ListMachine = struct {
+    data: ListData,
     repo: ?*c_libs.OstreeRepo = null,
 
     result_packages: ?[]CPackageMeta = null,
@@ -102,30 +98,34 @@ pub const ListMachine = struct {
         self.stack.deinit(self.allocator);
     }
 
-    pub fn runPackages(list_data: ListPackagesData, allocator: std.mem.Allocator) ListError![]CPackageMeta {
+    pub fn runPackages(list_data: ListData, allocator: std.mem.Allocator) ListError![]CPackageMeta {
         var machine = ListMachine{
+            .data = list_data,
+
             .cancellable = c_libs.g_cancellable_new() orelse return ListError.Cancelled,
             .stack = std.ArrayList(ListStateId).empty,
             .allocator = allocator,
         };
         defer machine.deinit();
 
-        try states.stateOpenRepo(&machine, list_data.repo_path);
-        try states.stateListPackages(&machine, list_data.branch, list_data.db_path);
+        try states.stateOpenRepo(&machine);
+        try states.stateListPackages(&machine);
 
         return machine.result_packages orelse &.{};
     }
 
-    pub fn runCommits(list_data: ListCommitsData, allocator: std.mem.Allocator) ListError![]CCommitEntry {
+    pub fn runCommits(list_data: ListData, allocator: std.mem.Allocator) ListError![]CCommitEntry {
         var machine = ListMachine{
+            .data = list_data,
+
             .cancellable = c_libs.g_cancellable_new() orelse return ListError.Cancelled,
             .stack = std.ArrayList(ListStateId).empty,
             .allocator = allocator,
         };
         defer machine.deinit();
 
-        try states.stateOpenRepo(&machine, list_data.repo_path);
-        try states.stateListCommits(&machine, list_data.branch);
+        try states.stateOpenRepo(&machine);
+        try states.stateListCommits(&machine);
 
         return machine.result_commits orelse &.{};
     }

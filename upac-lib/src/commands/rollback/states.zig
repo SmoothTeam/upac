@@ -49,6 +49,9 @@ fn stateResolveCommit(machine: *RollbackMachine) RollbackError!void {
 
     var resolved: [*c]u8 = null;
     try machine.gcheck(c_libs.ostree_repo_resolve_rev(repo, machine.data.commit_hash, 0, &resolved, &machine.gerror), error.CommitNotFound);
+
+    std.debug.print("1", .{});
+
     machine.resolved_checksum = resolved;
 
     machine.resetRetries();

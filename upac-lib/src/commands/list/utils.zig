@@ -1,26 +1,32 @@
 const list = @import("list.zig");
 const std = list.std;
 const c_libs = list.c_libs;
+
+const ListMachine = list.ListMachine;
 const ListError = list.ListError;
 
-pub fn getRefBody(repo: *c_libs.OstreeRepo, ostree_ref_c: [*:0]const u8, gerror: *?*c_libs.GError, allocator: std.mem.Allocator) ListError!?[]const u8 {
+pub fn getRefBody(machine: *ListMachine) ListError!?[]const u8 {
     var checksum: [*c]u8 = null;
     defer if (checksum != null) c_libs.g_free(checksum);
 
-    if (c_libs.ostree_repo_resolve_rev(repo, ostree_ref_c, 1, &checksum, gerror) == 0 or checksum == null) return null;
-
     var commit_variant: ?*c_libs.GVariant = null;
-    defer if (commit_variant) |v| c_libs.g_variant_unref(v);
+    defer if (commit_variant) |variant| c_libs.g_variant_unref(variant);
 
-    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, checksum, &commit_variant, gerror) == 0) return null;
+    const repo = try machine.unwrap(machine.repo, ListError.RepoOpenFailed);
+
+    if (c_libs.ostree_repo_resolve_rev(repo, machine.data.branch, 1, &checksum, &machine.gerror) == 0 or checksum == null) return ListError.CommitNotFound;
+
+    _ = try machine.unwrap(machine.gerror, ListError.AllocFailed);
+
+    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, checksum, &commit_variant, &machine.gerror) == 0) return null;
 
     const body_variant = c_libs.g_variant_get_child_value(commit_variant, 4);
-    defer if (body_variant) |v| c_libs.g_variant_unref(v);
+    defer if (body_variant) |variant| c_libs.g_variant_unref(variant);
 
     var body_len: usize = 0;
     const body_ptr = c_libs.g_variant_get_string(body_variant, &body_len);
 
-    return allocator.dupe(u8, body_ptr[0..body_len]) catch return ListError.AllocFailed;
+    return machine.allocator.dupe(u8, body_ptr[0..body_len]) catch return ListError.AllocFailed;
 }
 
 pub fn parsePackageBody(body: []const u8, allocator: std.mem.Allocator) ListError!std.StringHashMap([]const u8) {

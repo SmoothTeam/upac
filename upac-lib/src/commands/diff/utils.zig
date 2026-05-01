@@ -2,6 +2,8 @@ const diff = @import("diff.zig");
 const std = diff.std;
 const c_libs = diff.c_libs;
 const data = diff.data;
+
+const DiffMachine = diff.DiffMachine;
 const DiffError = diff.DiffError;
 const CDiffKind = diff.ffi.CDiffKind;
 
@@ -10,23 +12,27 @@ pub const RawDiffEntry = struct {
     kind: CDiffKind,
 };
 
-pub fn getRefBody(repo: *c_libs.OstreeRepo, ref: [*:0]const u8, gerror: *?*c_libs.GError, allocator: std.mem.Allocator) DiffError!?[]const u8 {
+pub fn getRefBody(machine: *DiffMachine, ref: [*:0]const u8) DiffError!?[]const u8 {
     var commit_checksum: [*c]u8 = null;
     defer if (commit_checksum != null) c_libs.g_free(commit_checksum);
-
-    if (c_libs.ostree_repo_resolve_rev(repo, ref, 1, &commit_checksum, gerror) == 0 or commit_checksum == null) return null;
 
     var commit_variant: ?*c_libs.GVariant = null;
     defer if (commit_variant) |varinat| c_libs.g_variant_unref(varinat);
 
-    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, commit_checksum, &commit_variant, gerror) == 0) return null;
+    const repo = try machine.unwrap(machine.repo, DiffError.RepoOpenFailed);
+
+    if (c_libs.ostree_repo_resolve_rev(repo, ref, 1, &commit_checksum, &machine.gerror) == 0 or commit_checksum == null) return null;
+
+    _ = try machine.unwrap(machine.gerror, DiffError.AllocFailed);
+
+    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, commit_checksum, &commit_variant, &machine.gerror) == 0) return null;
 
     const body_variant = c_libs.g_variant_get_child_value(commit_variant, 4);
-    defer if (body_variant) |v| c_libs.g_variant_unref(v);
+    defer if (body_variant) |variant| c_libs.g_variant_unref(variant);
 
     var len: usize = 0;
     const ptr = c_libs.g_variant_get_string(body_variant, &len);
-    return allocator.dupe(u8, ptr[0..len]) catch return DiffError.AllocFailed;
+    return machine.allocator.dupe(u8, ptr[0..len]) catch return DiffError.AllocFailed;
 }
 
 pub fn parsePackageBody(body: []const u8, allocator: std.mem.Allocator) DiffError!std.StringHashMap([]const u8) {
@@ -57,37 +63,39 @@ pub fn freeStringMap(map: *std.StringHashMap([]const u8), allocator: std.mem.All
     map.deinit();
 }
 
-pub fn resolveCommitRoot(repo: *c_libs.OstreeRepo, ref: [*:0]const u8, cancellable: ?*c_libs.GCancellable, gerror: *?*c_libs.GError) DiffError!*c_libs.GFile {
+pub fn resolveCommitRoot(machine: *DiffMachine, ref: [*:0]const u8) DiffError!*c_libs.GFile {
     var commit_checksum: [*c]u8 = null;
     defer if (commit_checksum != null) c_libs.g_free(commit_checksum);
 
-    if (c_libs.ostree_repo_resolve_rev(repo, ref, 0, &commit_checksum, gerror) == 0 or commit_checksum == null)
+    const repo = try machine.unwrap(machine.repo, DiffError.RepoOpenFailed);
+
+    if (c_libs.ostree_repo_resolve_rev(repo, ref, 0, &commit_checksum, &machine.gerror) == 0 or commit_checksum == null)
         return DiffError.CommitNotFound;
 
     var root_gfile: ?*c_libs.GFile = null;
-    if (c_libs.ostree_repo_read_commit(repo, commit_checksum, &root_gfile, null, cancellable, gerror) == 0)
+    if (c_libs.ostree_repo_read_commit(repo, commit_checksum, &root_gfile, null, machine.cancellable, &machine.gerror) == 0)
         return DiffError.CommitNotFound;
 
     return root_gfile orelse DiffError.CommitNotFound;
 }
 
-pub fn buildFilePkgMap(repo: *c_libs.OstreeRepo, ref: [*:0]const u8, db_path: []const u8, out: *std.StringHashMap([]const u8), gerror: *?*c_libs.GError, allocator: std.mem.Allocator) DiffError!void {
-    const body = (try getRefBody(repo, ref, gerror, allocator)) orelse return;
-    defer allocator.free(body);
+pub fn buildFilePkgMap(machine: *DiffMachine, ref: [*:0]const u8, out: *std.StringHashMap([]const u8)) DiffError!void {
+    const body = (try getRefBody(machine, ref)) orelse return;
+    defer machine.allocator.free(body);
 
-    var pkg_map = try parsePackageBody(body, allocator);
-    defer freeStringMap(&pkg_map, allocator);
+    var pkg_map = try parsePackageBody(body, machine.allocator);
+    defer freeStringMap(&pkg_map, machine.allocator);
 
     var iter = pkg_map.iterator();
     while (iter.next()) |entry| {
-        var file_map = data.readFiles(db_path, entry.value_ptr.*, allocator) catch continue;
-        defer data.freeFileMap(&file_map, allocator);
+        var file_map = data.readFiles(machine.data.db_path, entry.value_ptr.*, machine.allocator) catch continue;
+        defer data.freeFileMap(&file_map, machine.allocator);
 
         var file_iter = file_map.iterator();
         while (file_iter.next()) |fe| {
             if (out.contains(fe.key_ptr.*)) continue;
-            const key_dupe = allocator.dupe(u8, fe.key_ptr.*) catch return DiffError.AllocFailed;
-            const value_dupe = allocator.dupe(u8, entry.key_ptr.*) catch return DiffError.AllocFailed;
+            const key_dupe = machine.allocator.dupe(u8, fe.key_ptr.*) catch return DiffError.AllocFailed;
+            const value_dupe = machine.allocator.dupe(u8, entry.key_ptr.*) catch return DiffError.AllocFailed;
             out.put(key_dupe, value_dupe) catch return DiffError.AllocFailed;
         }
     }
