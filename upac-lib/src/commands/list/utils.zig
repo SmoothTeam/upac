@@ -16,8 +16,6 @@ pub fn getRefBody(machine: *ListMachine) ListError!?[]const u8 {
 
     if (c_libs.ostree_repo_resolve_rev(repo, machine.data.branch, 1, &checksum, &machine.gerror) == 0 or checksum == null) return ListError.CommitNotFound;
 
-    _ = try machine.unwrap(machine.gerror, ListError.AllocFailed);
-
     if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, checksum, &commit_variant, &machine.gerror) == 0) return null;
 
     const body_variant = c_libs.g_variant_get_child_value(commit_variant, 4);

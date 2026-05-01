@@ -22,6 +22,8 @@ pub fn rollback(rollback_request_c: CRollbackRequest) callconv(.c) i32 {
 
         .branch = rollback_request_c.branch.asZ(),
         .commit_hash = rollback_request_c.commit_hash.asZ(),
+
+        .max_retries = rollback_request_c.max_retries,
     };
 
     rollback_module.RollbackMachine.run(rollback_data, rollback_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.rollback));

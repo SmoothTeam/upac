@@ -194,8 +194,9 @@ fn state_preparing_package(machine: &mut InstallMachine) -> Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("invalid temp dir path"))?,
         )?;
 
-        let abs_file_str = fs::canonicalize(file)
-            .map_err(|err| anyhow::anyhow!("cannot resolve path '{file}': {err}"))?
+        let abs_file_path = fs::canonicalize(file)
+            .map_err(|err| anyhow::anyhow!("cannot resolve path '{file}': {err}"))?;
+        let abs_file_str = abs_file_path
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("invalid path encoding"))?;
 
@@ -274,7 +275,12 @@ fn state_done(machine: &mut InstallMachine) -> Result<()> {
                 .to_owned()
         };
 
-        println!("Installed: {} {}", name, version);
+        machine.progress_bar.println(format!(
+            "{} installed {} {}",
+            "✓".green().bold(),
+            name.bold(),
+            version
+        ));
     }
 
     machine.prepared_packages.clear();
@@ -304,7 +310,7 @@ pub unsafe extern "C" fn on_install_progress(event: u32, package_name_c: CSlice,
         10 => progress_bar.println(format!("{} Done", "✓".green().bold())),
         11 => progress_bar.println(format!("{} Failed", "✗".red().bold())),
         _ => {
-            eprintln!("Unknow event: {}", event);
+            eprintln!("Unknown event: {}", event);
             return;
         }
     }

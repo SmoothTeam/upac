@@ -83,8 +83,6 @@ pub fn stateListPackages(machine: *ListMachine) ListError!void {
         }), ListError.AllocFailed);
     }
 
-    std.debug.print("6", .{});
-
     machine.result_packages = try machine.check(result.toOwnedSlice(machine.allocator), ListError.AllocFailed);
     return stateDone(machine);
 }

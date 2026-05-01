@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use commands::diff::DiffArgs;
 use commands::init::InitArgs;
-//use commands::install::InstallArgs;
+use commands::install::InstallArgs;
 use commands::list::ListArgs;
 use commands::remove::RemoveArgs;
 use commands::rollback::RollbackArgs;
@@ -25,7 +25,7 @@ pub mod ffi;
 pub mod utils;
 
 mod commands {
-    //pub mod install;
+    pub mod install;
     pub mod remove;
     pub mod rollback;
 
@@ -47,7 +47,7 @@ struct Cli {
 // Enumerate all available CLI subcommands
 #[derive(Subcommand)]
 enum Command {
-    //Install(InstallArgs),
+    Install(InstallArgs),
     Remove(RemoveArgs),
     Rollback(RollbackArgs),
 
@@ -89,9 +89,9 @@ fn run() -> Result<()> {
     let config = Config::load(&default_config_path)?;
 
     match cli.command {
-        // Command::Install(args) => {
-        //     commands::install::run(config, args)?;
-        // }
+        Command::Install(args) => {
+            commands::install::run(config, args)?;
+        }
         Command::Remove(args) => {
             commands::remove::run(config, args)?;
         }

@@ -11,10 +11,10 @@ const resolveStagingDir = utils.resolveStagingDir;
 const resolveRootDir = utils.resolveRootDir;
 
 pub fn stateVerifying(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.verifying), RollbackError.OutOfMemory);
+    try machine.enter(.verifying);
 
     try machine.check(std.fs.accessAbsoluteZ(machine.data.root_path, .{}), RollbackError.PathNotFound);
-    try machine.check(std.fs.accessAbsoluteZ(machine.data.repo_path, .{}), RollbackError.PathNotFound);
+    try machine.check(std.fs.accessAbsoluteZ(machine.data.repo_path, .{}), RollbackError.RepoOpenFailed);
 
     const prefix_directory = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), RollbackError.AllocZFailed);
     defer machine.allocator.free(prefix_directory);
@@ -26,7 +26,7 @@ pub fn stateVerifying(machine: *RollbackMachine) RollbackError!void {
 }
 
 fn stateOpenRepo(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.open_repo), RollbackError.OutOfMemory);
+    try machine.enter(.open_repo);
 
     const gfile = c_libs.g_file_new_for_path(machine.data.repo_path);
     defer c_libs.g_object_unref(@ptrCast(gfile));
@@ -43,14 +43,20 @@ fn stateOpenRepo(machine: *RollbackMachine) RollbackError!void {
 }
 
 fn stateResolveCommit(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.resolve_commit), RollbackError.OutOfMemory);
+    try machine.enter(.resolve_commit);
 
     const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
 
     var resolved: [*c]u8 = null;
     try machine.gcheck(c_libs.ostree_repo_resolve_rev(repo, machine.data.commit_hash, 0, &resolved, &machine.gerror), error.CommitNotFound);
 
-    std.debug.print("1", .{});
+    var has_object: c_libs.gboolean = 0;
+    _ = c_libs.ostree_repo_has_object(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, resolved, &has_object, machine.cancellable, null);
+    if (has_object == 0) {
+        c_libs.g_free(@ptrCast(resolved));
+        stateFailed(machine);
+        return error.CommitNotFound;
+    }
 
     machine.resolved_checksum = resolved;
 
@@ -59,7 +65,7 @@ fn stateResolveCommit(machine: *RollbackMachine) RollbackError!void {
 }
 
 fn stateCheckoutStaging(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.checkout_staging), RollbackError.OutOfMemory);
+    try machine.enter(.checkout_staging);
 
     const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
     const resolved_checksum = try machine.unwrap(machine.resolved_checksum, error.CommitNotFound);
@@ -80,7 +86,7 @@ fn stateCheckoutStaging(machine: *RollbackMachine) RollbackError!void {
         machine.allocator.free(staging_path_c);
         machine.staging_path_c = null;
 
-        return machine.retry(stateVerifying);
+        return machine.retry(stateCheckoutStaging);
     }
 
     machine.resetRetries();
@@ -88,7 +94,7 @@ fn stateCheckoutStaging(machine: *RollbackMachine) RollbackError!void {
 }
 
 fn stateAtomicSwap(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.atomic_swap), RollbackError.OutOfMemory);
+    try machine.enter(.atomic_swap);
 
     const staging_path_c = try machine.unwrap(machine.staging_path_c, error.StagingFailed);
 
@@ -110,7 +116,7 @@ fn stateAtomicSwap(machine: *RollbackMachine) RollbackError!void {
 }
 
 fn stateCleanupStaging(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.cleanup_staging), RollbackError.OutOfMemory);
+    try machine.enter(.cleanup_staging);
 
     const staging_path_c = try machine.unwrap(machine.staging_path_c, error.StagingFailed);
 
@@ -124,7 +130,7 @@ fn stateCleanupStaging(machine: *RollbackMachine) RollbackError!void {
 }
 
 fn stateUpdateRef(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.update_ref), RollbackError.OutOfMemory);
+    try machine.enter(.update_ref);
 
     const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
     const resolved_checksum = try machine.unwrap(machine.resolved_checksum, error.CommitNotFound);
@@ -143,7 +149,7 @@ fn stateUpdateRef(machine: *RollbackMachine) RollbackError!void {
 }
 
 fn stateDone(machine: *RollbackMachine) RollbackError!void {
-    try machine.check(machine.enter(.done), RollbackError.OutOfMemory);
+    try machine.enter(.done);
 }
 
 pub fn stateFailed(machine: *RollbackMachine) void {
@@ -152,5 +158,6 @@ pub fn stateFailed(machine: *RollbackMachine) void {
         machine.allocator.free(staging_path);
         machine.staging_path_c = null;
     }
-    _ = machine.enter(.failed) catch {};
+    machine.stack.append(machine.allocator, .failed) catch {};
+    machine.report(.failed);
 }

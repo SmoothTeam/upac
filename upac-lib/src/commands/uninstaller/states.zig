@@ -27,7 +27,7 @@ pub fn stateVerifying(machine: *UninstallerMachine) UninstallerError!void {
     try machine.check(machine.enter(.verifying), UninstallerError.AllocZFailed);
 
     try machine.check(std.fs.accessAbsoluteZ(machine.data.root_path, .{}), UninstallerError.PathNotFound);
-    try machine.check(std.fs.accessAbsoluteZ(machine.data.repo_path, .{}), UninstallerError.PathNotFound);
+    try machine.check(std.fs.accessAbsoluteZ(machine.data.repo_path, .{}), UninstallerError.RepoOpenFailed);
 
     const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), error.AllocZFailed);
     defer machine.allocator.free(root_prefix_path_c);
@@ -76,6 +76,11 @@ fn stateCheckInstalled(machine: *UninstallerMachine) UninstallerError!void {
 
     var commit_variant: ?*c_libs.GVariant = null;
     defer if (commit_variant) |variant| c_libs.g_variant_unref(variant);
+
+    if (machine.previous_commit_checksum == null) {
+        stateFailed(machine);
+        return error.PackageNotFound;
+    }
 
     try machine.gcheck(c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, machine.previous_commit_checksum, &commit_variant, &machine.gerror), error.PackageNotFound);
 
@@ -277,10 +282,11 @@ pub fn stateFailed(machine: *UninstallerMachine) void {
     if (machine.repo) |repo| {
         _ = c_libs.ostree_repo_abort_transaction(repo, null, &machine.gerror);
 
-        if (machine.commit_checksum != null) {
+        if (machine.commit_checksum != null and machine.previous_commit_checksum != null) {
             _ = c_libs.ostree_repo_set_ref_immediate(repo, null, machine.data.branch, machine.previous_commit_checksum, null, null);
         }
     }
 
-    _ = machine.enter(.failed) catch {};
+    machine.stack.append(machine.allocator, .failed) catch {};
+    machine.report(.failed);
 }
