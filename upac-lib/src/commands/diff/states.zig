@@ -42,6 +42,11 @@ pub fn stateDiffPackages(machine: *DiffMachine) DiffError!void {
     const to_body = try machine.check(getRefBody(machine, machine.data.to_ref), DiffError.CommitNotFound);
     defer if (to_body) |body| machine.allocator.free(body);
 
+    if (from_body == null or to_body == null) {
+        stateFailed(machine);
+        return DiffError.CommitNotFound;
+    }
+
     var map_from = try machine.check(parsePackageBody(from_body orelse "", machine.allocator), DiffError.AllocFailed);
     defer freeStringMap(&map_from, machine.allocator);
 
@@ -50,7 +55,7 @@ pub fn stateDiffPackages(machine: *DiffMachine) DiffError!void {
 
     var entries = std.ArrayList(CPackageDiffEntry).empty;
     errdefer {
-        for (entries.items) |entry| machine.allocator.free(entry.name.toSlice());
+        for (entries.items) |entry| machine.allocator.free(entry.name.ptr[0 .. entry.name.len + 1]);
         entries.deinit(machine.allocator);
     }
 
@@ -60,14 +65,14 @@ pub fn stateDiffPackages(machine: *DiffMachine) DiffError!void {
             (if (std.mem.eql(u8, from_cs, entry.value_ptr.*)) continue else .updated)
         else
             .added;
-        const name = try machine.check(machine.allocator.dupe(u8, entry.key_ptr.*), DiffError.AllocFailed);
+        const name = try machine.check(machine.allocator.dupeZ(u8, entry.key_ptr.*), DiffError.AllocFailed);
         try machine.check(entries.append(machine.allocator, .{ .name = CSlice.fromSlice(name), .kind = kind }), DiffError.AllocFailed);
     }
 
     var from_iter = map_from.iterator();
     while (from_iter.next()) |entry| {
         if (!map_to.contains(entry.key_ptr.*)) {
-            const name = try machine.check(machine.allocator.dupe(u8, entry.key_ptr.*), DiffError.AllocFailed);
+            const name = try machine.check(machine.allocator.dupeZ(u8, entry.key_ptr.*), DiffError.AllocFailed);
             try machine.check(entries.append(machine.allocator, .{ .name = CSlice.fromSlice(name), .kind = .removed }), DiffError.AllocFailed);
         }
     }
@@ -108,10 +113,11 @@ pub fn stateDiffFilesAttributed(machine: *DiffMachine) DiffError!void {
     try machine.check(utils.buildFilePkgMap(machine, machine.data.from_ref, &file_pkg), DiffError.DiffFailed);
 
     var raw = std.ArrayList(utils.RawDiffEntry).empty;
-    errdefer {
+    defer {
         for (raw.items) |raw_entry| machine.allocator.free(raw_entry.path);
         raw.deinit(machine.allocator);
     }
+
     try machine.check(utils.collectEntries(added, to_root, .added, false, &raw, machine.allocator), DiffError.AllocFailed);
     try machine.check(utils.collectEntries(removed, from_root, .removed, false, &raw, machine.allocator), DiffError.AllocFailed);
     try machine.check(utils.collectEntries(modified, to_root, .modified, true, &raw, machine.allocator), DiffError.AllocFailed);
@@ -119,16 +125,16 @@ pub fn stateDiffFilesAttributed(machine: *DiffMachine) DiffError!void {
     var result = std.ArrayList(CAttributedDiffEntry).empty;
     errdefer {
         for (result.items) |result_entry| {
-            machine.allocator.free(result_entry.path.toSlice());
-            machine.allocator.free(result_entry.package_name.toSlice());
+            machine.allocator.free(result_entry.path.ptr[0 .. result_entry.path.len + 1]);
+            machine.allocator.free(result_entry.package_name.ptr[0 .. result_entry.package_name.len + 1]);
         }
         result.deinit(machine.allocator);
     }
 
     for (raw.items) |raw_entry| {
         const package_name = file_pkg.get(raw_entry.path) orelse "";
-        const path_dupe = try machine.check(machine.allocator.dupe(u8, raw_entry.path), DiffError.AllocFailed);
-        const package_name_dupe = try machine.check(machine.allocator.dupe(u8, package_name), DiffError.AllocFailed);
+        const path_dupe = try machine.check(machine.allocator.dupeZ(u8, raw_entry.path), DiffError.AllocFailed);
+        const package_name_dupe = try machine.check(machine.allocator.dupeZ(u8, package_name), DiffError.AllocFailed);
         try machine.check(result.append(machine.allocator, .{
             .path = CSlice.fromSlice(path_dupe),
             .kind = @enumFromInt(@intFromEnum(raw_entry.kind)),

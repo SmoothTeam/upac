@@ -30,9 +30,9 @@ pub fn diff_packages_free(c_out: *CArray(CPackageDiffEntry)) callconv(.c) void {
     const allocator = diff_module.ffi.allocator();
     const entries = c_out.toSlice();
 
-    for (entries) |entry| allocator.free(entry.name.toSlice());
+    for (entries) |entry| allocator.free(entry.name.ptr[0..entry.name.len + 1]);
 
-    diff_module.ffi.allocator().free(entries);
+    allocator.free(entries);
 }
 
 pub fn diff_files(diff_request_c: CDiffRequest, out_c: *CArray(CAttributedDiffEntry)) callconv(.c) i32 {
@@ -46,10 +46,11 @@ pub fn diff_files(diff_request_c: CDiffRequest, out_c: *CArray(CAttributedDiffEn
 }
 
 pub fn diff_files_free(out_c: *CArray(CAttributedDiffEntry)) callconv(.c) void {
+    const allocator = diff_module.ffi.allocator();
     const entries = out_c.toSlice();
     for (entries) |entry| {
-        diff_module.ffi.allocator().free(entry.path.toSlice());
-        diff_module.ffi.allocator().free(entry.package_name.toSlice());
+        allocator.free(entry.path.ptr[0..entry.path.len + 1]);
+        allocator.free(entry.package_name.ptr[0..entry.package_name.len + 1]);
     }
-    diff_module.ffi.allocator().free(entries);
+    allocator.free(entries);
 }

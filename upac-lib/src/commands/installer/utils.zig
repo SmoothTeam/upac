@@ -37,9 +37,7 @@ pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap)
         var hex_buf: [65]u8 = undefined;
         c_libs.ostree_checksum_inplace_from_bytes(raw_checksum_bin.?, &hex_buf);
 
-        const relative = if (entry.path.len > std.mem.span(machine.data.prefix_path).len) entry.path[std.mem.span(machine.data.prefix_path).len..] else entry.path;
-
-        try machine.check(file_map.put(try machine.allocator.dupe(u8, relative), try machine.allocator.dupe(u8, hex_buf[0..64])), InstallerError.CollectFileChecksumsFailed);
+        try machine.check(file_map.put(try machine.allocator.dupe(u8, entry.path), try machine.allocator.dupe(u8, hex_buf[0..64])), InstallerError.CollectFileChecksumsFailed);
     }
 }
 

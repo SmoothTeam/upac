@@ -235,8 +235,6 @@ fn stateCheckout(machine: *InstallerMachine) InstallerError!void {
     const staging_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), temp_folder_name }), InstallerError.AllocZFailed);
     machine.staging_path_c = staging_path_c;
 
-    std.debug.print("{any}", .{machine.commit_checksum == null});
-
     var options = std.mem.zeroes(c_libs.OstreeRepoCheckoutAtOptions);
     options.mode = c_libs.OSTREE_REPO_CHECKOUT_MODE_NONE;
     options.overwrite_mode = c_libs.OSTREE_REPO_CHECKOUT_OVERWRITE_UNION_FILES;

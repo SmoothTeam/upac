@@ -23,8 +23,6 @@ pub fn getRefBody(machine: *DiffMachine, ref: [*:0]const u8) DiffError!?[]const 
 
     if (c_libs.ostree_repo_resolve_rev(repo, ref, 1, &commit_checksum, &machine.gerror) == 0 or commit_checksum == null) return null;
 
-    _ = try machine.unwrap(machine.gerror, DiffError.AllocFailed);
-
     if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, commit_checksum, &commit_variant, &machine.gerror) == 0) return null;
 
     const body_variant = c_libs.g_variant_get_child_value(commit_variant, 4);

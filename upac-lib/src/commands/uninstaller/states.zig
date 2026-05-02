@@ -130,12 +130,13 @@ fn stateRemoveFiles(machine: *UninstallerMachine) !void {
 
     var iter = file_map.iterator();
     while (iter.next()) |entry| {
-        removeFromMtree(repo, mtree, entry.key_ptr.*, machine.allocator) catch |err| {
-            if (err == error.FileNotFound) continue;
-            if (machine.mtree) |old_mtree| c_libs.g_object_unref(old_mtree);
-            machine.mtree = utils.resolveMtree(machine, repo);
-
-            return machine.retry(stateRemoveFiles);
+        const stored_path = entry.key_ptr.*;
+        removeFromMtree(repo, mtree, stored_path, machine.allocator) catch |err| {
+            if (err != error.FileNotFound) {
+                if (machine.mtree) |old_mtree| c_libs.g_object_unref(old_mtree);
+                machine.mtree = utils.resolveMtree(machine, repo);
+                return machine.retry(stateRemoveFiles);
+            }
         };
     }
 
