@@ -4,6 +4,7 @@ use anyhow::{bail, Result};
 use libloading::Library;
 
 use std::str;
+use std::sync::atomic::Ordering;
 
 use crate::ffi::{
     load_symbol, CArray, CAttributedDiffEntry, CMutatedRequest, CPackageDiffEntry, CSlice,
@@ -43,6 +44,9 @@ pub struct UpacLib {
 
     pub init: unsafe extern "C" fn(CUnmutatedRequest) -> i32,
 
+    pub request_cancel: unsafe extern "C" fn(),
+    pub reset_cancel: unsafe extern "C" fn(),
+
     pub deinit: unsafe extern "C" fn(),
 
     _lib: Library,
@@ -55,7 +59,7 @@ impl UpacLib {
             anyhow::anyhow!("Failed to load {}: {error}", backend_kind.so_name())
         })?;
 
-        Ok(Self {
+        let lib = Self {
             install: unsafe { load_symbol(&loaded_library, "install")? },
             uninstall: unsafe { load_symbol(&loaded_library, "uninstall")? },
             rollback: unsafe { load_symbol(&loaded_library, "rollback")? },
@@ -85,10 +89,17 @@ impl UpacLib {
             commits_free: unsafe { load_symbol(&loaded_library, "commits_free")? },
 
             init: unsafe { load_symbol(&loaded_library, "init")? },
+
+            request_cancel: unsafe { load_symbol(&loaded_library, "request_cancel")? },
+            reset_cancel: unsafe { load_symbol(&loaded_library, "reset_cancel")? },
+
             deinit: unsafe { load_symbol(&loaded_library, "deinit")? },
 
             _lib: loaded_library,
-        })
+        };
+
+        crate::CANCEL_FN.store(lib.request_cancel as *mut (), Ordering::Release);
+        Ok(lib)
     }
 
     // Converts numeric error codes from the C-layer into human-readable anyhow::Result values
@@ -167,6 +178,8 @@ impl UpacLib {
 
 impl Drop for UpacLib {
     fn drop(&mut self) {
-        unsafe { (self.deinit)() }
+        crate::CANCEL_FN.store(std::ptr::null_mut(), Ordering::Release);
+        unsafe { (self.reset_cancel)() };
+        unsafe { (self.deinit)() };
     }
 }

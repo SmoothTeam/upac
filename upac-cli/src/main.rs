@@ -6,7 +6,12 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 
 use std::fs;
+use std::mem::transmute;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicPtr, Ordering};
+
+// Set by UpacLib on load, cleared on drop. The ctrlc handler calls through it.
+pub(crate) static CANCEL_FN: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 
 use commands::diff::DiffArgs;
 use commands::init::InitArgs;
@@ -77,11 +82,14 @@ fn main() {
 // Core business logic: argument parsing, config loading, and command execution
 fn run() -> Result<()> {
     let cli = Cli::parse();
-    ctrlc::set_handler(move || {
-        println!(
-            "\n{} Abort signal received, exiting...",
-            "!".yellow().bold()
-        );
+    ctrlc::set_handler(|| {
+        let ptr = CANCEL_FN.load(Ordering::Acquire);
+        if !ptr.is_null() {
+            unsafe {
+                let f: unsafe extern "C" fn() = transmute(ptr);
+                f();
+            }
+        }
     })?;
 
     let default_config_path =

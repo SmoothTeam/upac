@@ -8,6 +8,7 @@ use colored::Colorize;
 use clap::Args;
 
 use std::ffi::CString;
+use std::ptr::null_mut;
 use std::slice;
 use std::sync::Arc;
 
@@ -169,27 +170,25 @@ fn fetch_commit_checksums(machine: &mut DiffMachine) -> Result<Vec<String>> {
 
     UpacLib::check(
         unsafe { (machine.upac_lib.as_ref().list_commits)(diff_request_c, &mut commit_array_c) },
-        "list commits",
+        "diff commits",
     )?;
 
-    let commit_array = unsafe { slice::from_raw_parts(commit_array_c.ptr, commit_array_c.len) };
-
-    let checksums = commit_array
-        .iter()
-        .map(|commit_entry| {
-            let mut result_slice = CSlice::empty();
-
-            unsafe {
-                (machine.upac_lib.as_ref().get_commit_slice_field)(
-                    *commit_entry,
-                    0,
-                    &mut result_slice,
-                );
-
-                Ok(result_slice.as_str().to_owned())
-            }
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let mut checksums = Vec::with_capacity(commit_array_c.len);
+    for index in 0..commit_array_c.len {
+        let mut commit_entry: CommitHandle = null_mut();
+        unsafe {
+            (machine.upac_lib.as_ref().get_commit_at)(
+                &mut commit_array_c,
+                index as u8,
+                &mut commit_entry,
+            );
+        }
+        let mut result_slice = CSlice::empty();
+        unsafe {
+            (machine.upac_lib.as_ref().get_commit_slice_field)(commit_entry, 0, &mut result_slice);
+            checksums.push(result_slice.as_str().to_owned());
+        }
+    }
 
     unsafe { (machine.upac_lib.as_ref().commits_free)(&mut commit_array_c) };
 
