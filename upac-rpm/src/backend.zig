@@ -250,18 +250,19 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque,
     out_meta_ptr.* = CPackageMeta{
         .struct_size = @sizeOf(CPackageMeta),
 
-        .name = dupeToCSlice(gpa.allocator(), result.meta.name) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .version = dupeToCSlice(gpa.allocator(), result.meta.version) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .name = dupeRequiredToCSlice(gpa.allocator(), result.meta.name) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .version = dupeRequiredToCSlice(gpa.allocator(), result.meta.version) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
         .size = @intCast(result.meta.size),
-        .arch = dupeToCSlice(gpa.allocator(), result.meta.arch) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .author = dupeToCSlice(gpa.allocator(), result.meta.author) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .description = dupeToCSlice(gpa.allocator(), result.meta.description) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .license = dupeToCSlice(gpa.allocator(), result.meta.license) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .url = dupeToCSlice(gpa.allocator(), result.meta.url) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .packager = dupeToCSlice(gpa.allocator(), result.meta.packager) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .arch = dupeToCSlice(gpa.allocator(), result.meta.arch) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .author = dupeToCSlice(gpa.allocator(), result.meta.author) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .description = dupeToCSlice(gpa.allocator(), result.meta.description) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .license = dupeToCSlice(gpa.allocator(), result.meta.license) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .url = dupeToCSlice(gpa.allocator(), result.meta.url) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .packager = dupeToCSlice(gpa.allocator(), result.meta.packager) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
         .installed_at = result.meta.installed_at,
-        .checksum = dupeToCSlice(gpa.allocator(), result.meta.checksum) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .checksum = dupeToCSlice(gpa.allocator(), result.meta.checksum) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
     };
+
     out_meta.* = out_meta_ptr;
     out_temp_path.* = dupeToCSlice(gpa.allocator(), result.temp_path) catch return @intFromEnum(fromError(BackendError.AllocZFailed));
 
@@ -271,6 +272,11 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque,
 fn dupeToCSlice(allocator: std.mem.Allocator, slice: []const u8) BackendError!CSlice {
     const dupe_slice = allocator.dupe(u8, slice) catch return BackendError.AllocZFailed;
     return CSlice.fromSlice(dupe_slice);
+}
+
+fn dupeRequiredToCSlice(allocator: std.mem.Allocator, slice: []const u8) BackendError!CSlice {
+    if (slice.len == 0) return BackendError.InvalidPackage;
+    return dupeToCSlice(allocator, slice);
 }
 
 pub export fn cleanup(path_c: CSlice) callconv(.c) void {

@@ -99,27 +99,22 @@ fn skipLeadSection(file: std.fs.File) !void {
 
 // Skips the digital signature section, accounting for its header, data, and alignment
 fn skipSignatureSection(file: std.fs.File) !void {
-    var padding: [8]u8 = undefined;
-    var read_buf: [8]u8 = undefined;
     const header = try readSectionHeader(file, error.InvalidSignatureMagic);
 
     const tags_size = header.tag_count * 16;
     try file.seekBy(@intCast(tags_size + header.data_size));
 
-    const total_size = 16 + tags_size + header.data_size;
+    const total_size: usize = 16 + tags_size + header.data_size;
     const remainder = total_size % 8;
-    if (remainder != 0) {
-        var buff_reader = file.reader(&read_buf);
-        try buff_reader.interface.readSliceAll(padding[0 .. 8 - remainder]);
-    }
+    if (remainder != 0) try file.seekBy(@intCast(8 - remainder));
 }
 
 // Reads the main header section, extracting the tag table and data block
 fn readHeaderSection(allocator: std.mem.Allocator, file: std.fs.File) !RpmHeader {
+    const header = try readSectionHeader(file, error.InvalidHeaderMagic);
+
     var read_buf: [4096]u8 = undefined;
     var buff_reader = file.reader(&read_buf);
-
-    const header = try readSectionHeader(file, error.InvalidHeaderMagic);
 
     const tag_entries = try allocator.alloc(TagEntry, header.tag_count);
     defer allocator.free(tag_entries);
@@ -175,10 +170,8 @@ fn readString(allocator: std.mem.Allocator, data_block: []const u8, offset: u32)
 
 fn readSectionHeader(file: std.fs.File, comptime err: anyerror) !SectionHeader {
     var buf: [16]u8 = undefined;
-    var read_buf: [256]u8 = undefined;
-    var buff_reader = file.reader(&read_buf);
-
-    try buff_reader.interface.readSliceAll(&buf);
+    const n = try file.read(&buf);
+    if (n < 16) return error.UnexpectedEOF;
 
     if (!std.mem.eql(u8, buf[0..3], &header_magic)) return err;
 

@@ -57,7 +57,7 @@ fn stateReadingMeta(machine: *Machine) BackendError!void {
 
     const name = try machine.unwrap(rpm_header.name, BackendError.MetadataNotFound);
     const version = try machine.unwrap(rpm_header.version, BackendError.MetadataNotFound);
-    const arch = try machine.unwrap(rpm_header.version, BackendError.MetadataNotFound);
+    const arch = try machine.unwrap(rpm_header.arch, BackendError.MetadataNotFound);
 
     machine.meta = PackageMeta{
         .name = try machine.check(machine.allocator.dupe(u8, name), BackendError.MetadataNotFound),
