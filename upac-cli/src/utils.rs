@@ -46,6 +46,8 @@ pub enum BackendKind {
     Rpm,
     #[strum(serialize = "deb", props(so = "libupac-deb.so"))]
     Deb,
+    #[strum(serialize = "xbps", props(so = "libupac-xbps.so"))]
+    XBPS,
     #[strum(serialize = "upaclib", props(so = "libupac.so"))]
     UpacLib,
 }
@@ -58,6 +60,7 @@ impl BackendKind {
             (".pkg.tar.gz", Self::Alpm),
             (".rpm", Self::Rpm),
             (".deb", Self::Deb),
+            (".xbps", Self::XBPS),
         ];
 
         known_extensions
@@ -68,7 +71,7 @@ impl BackendKind {
 
     pub fn from_flag(flag_string: &str) -> Result<Self> {
         flag_string.parse().map_err(|_| {
-            anyhow::anyhow!("unknown backend: '{flag_string}'. Available: arch, rpm, deb")
+            anyhow::anyhow!("unknown backend: '{flag_string}'. Available: arch, rpm, deb, xbps")
         })
     }
 
