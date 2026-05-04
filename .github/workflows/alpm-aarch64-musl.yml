@@ -9,10 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:latest # Используем Arch
     steps:
+      - name: Update package via pacman
+        run: pacman -Syu --noconfirm
+
       - name: Install Zig via pacman
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm zig
+        run: pacman -S --noconfirm zig
+
+      - name: Install Make via pacman
+        run: pacman -S --noconfirm make
 
       - name: Build package
         run: make pkg-arch CPU=x86_64_v3 MODE=release
