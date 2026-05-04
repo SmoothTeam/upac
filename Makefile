@@ -79,10 +79,6 @@ build-cli:
 	fi
 
 build-removing:
-	@echo "--- Cleaning external build artifacts ---"
-	@rm -rf $(ROOT_DIR)/ostree
-	@rm -rf $(ROOT_DIR)/libarchive
-
 	@echo "--- Cleaning cargo temp dirs ---"
 	@rm -rf $(OUT_BUILD_DIR)/$(CARGO_TARGET)
 	@rm -rf $(OUT_BUILD_DIR)/$(MODE)
@@ -236,6 +232,10 @@ clean-build:
 	@echo "--- Cleaning upac-deb build artifacts ---"
 	@rm -rf $(ROOT_DIR)/upac-deb/.zig-cache
 	@rm -rf $(ROOT_DIR)/upac-deb/zig-out
+
+	@echo "--- Cleaning upac-xbps build artifacts ---"
+	@rm -rf $(ROOT_DIR)/upac-xbps/.zig-cache
+	@rm -rf $(ROOT_DIR)/upac-xbps/zig-out
 
 	@echo "--- Cleaning global .zig-cache ---"
 	@rm -rf $(ROOT_DIR)/.zig-cache
