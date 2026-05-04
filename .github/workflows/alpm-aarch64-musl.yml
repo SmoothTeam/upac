@@ -6,13 +6,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     container: alpine:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pkg-config via apk
-        run: apk add --no-cache base-devel
+      - name: Install base via apk
+        run: apk add --no-cache build-base pkgconf ostree-dev glib-dev git
 
       - name: Install OSTree via apk
         run: apk add --no-cache ostree
@@ -20,11 +20,8 @@ jobs:
       - name: Install Zig via apk
         run: apk add --no-cache zig
 
-      - name: Install Latest Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          components: cargo
+      - name: Install Rust via apk
+        run: apk add --no-cache rust cargo
 
       - name: Install Make via apk
         run: apk add --no-cache make
