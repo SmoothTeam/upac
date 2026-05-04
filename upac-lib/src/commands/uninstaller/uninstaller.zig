@@ -3,8 +3,6 @@
 const UninstallStateId = ffi.UninstallStateId;
 const UninstallProgressFn = ffi.UninstallProgressFn;
 
-const isCancelRequested = ffi.isCancelRequested;
-
 const data = @import("upac-data");
 
 const states = @import("states.zig");
@@ -97,50 +95,39 @@ pub const UninstallerMachine = struct {
     }
 
     fn isBroked(self: *UninstallerMachine) UninstallerError!void {
-        if (self.gerror) |err| {
-            const is_cancel_error = err.domain == c_libs.g_io_error_quark() and
-                err.code == c_libs.G_IO_ERROR_CANCELLED;
+        errdefer stateFailed(self);
 
-            c_libs.g_error_free(err);
-            self.gerror = null;
+        if (self.gerror) |err| {
+            defer {
+                c_libs.g_error_free(err);
+                self.gerror = null;
+            }
+
+            const is_cancel_error = err.domain == c_libs.g_io_error_quark() and err.code == c_libs.G_IO_ERROR_CANCELLED;
 
             if (is_cancel_error) {
                 if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-                stateFailed(self);
                 return UninstallerError.Cancelled;
             }
 
-            stateFailed(self);
             return UninstallerError.MaxRetriesExceeded;
         }
 
-        const is_cancelled = isCancelRequested() or
-            (if (self.cancellable) |cancellable| c_libs.g_cancellable_is_cancelled(cancellable) != 0 else false);
-
-        if (is_cancelled) {
-            if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-            stateFailed(self);
-            return UninstallerError.Cancelled;
+        if (self.cancellable) |cancellable| {
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return UninstallerError.Cancelled;
         }
 
-        if (self.exhausted()) {
-            stateFailed(self);
-            return UninstallerError.MaxRetriesExceeded;
-        }
+        if (self.exhausted()) return UninstallerError.MaxRetriesExceeded;
     }
 
-    pub fn retry(self: *UninstallerMachine, comptime state_fn: anytype) UninstallerError!void {
+    pub fn retry(self: *UninstallerMachine, state: UninstallStateId) UninstallerError!UninstallStateId {
+        errdefer stateFailed(self);
+
         if (self.cancellable) |cancellable| {
-            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) {
-                stateFailed(self);
-                return error.Cancelled;
-            }
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
         }
 
-        if (self.exhausted()) {
-            stateFailed(self);
-            return error.MaxRetriesExceeded;
-        }
+        if (self.exhausted()) return error.MaxRetriesExceeded;
 
         if (self.gerror) |err| {
             c_libs.g_error_free(err);
@@ -148,9 +135,8 @@ pub const UninstallerMachine = struct {
         }
 
         self.retries += 1;
-
         try self.resetTransaction();
-        return state_fn(self);
+        return state;
     }
 
     // Resets the transaction by aborting any ongoing transaction and preparing a new one. If the transaction cannot be reset, returns an error
@@ -236,6 +222,9 @@ pub const UninstallerMachine = struct {
         };
         defer machine.deinit();
 
-        try states.stateVerifying(&machine);
+        ffi.active_cancellable.store(machine.cancellable, .release);
+        defer ffi.active_cancellable.store(null, .release);
+
+        try states.stateStart(&machine);
     }
 };

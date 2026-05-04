@@ -4,7 +4,7 @@ pub const Operation = enum { install, uninstall, rollback, init, diff, list };
 pub const ErrorCode = enum(i32) {
     ok = 0,
 
-    // --- General Errors (0 - 19) ---
+    // --- General Errors (0 - 29) ---
     unexpected = 1,
     out_of_memory = 2,
     file_not_found = 3,
@@ -20,59 +20,60 @@ pub const ErrorCode = enum(i32) {
     max_retries_exceeded = 13,
     read_failed = 14,
     write_failed = 15,
+    diff_failed = 16,
+    list_failed = 17,
 
-    // --- Database & Index Errors (20 - 29) ---
-    db_missing_field = 20,
-    db_missing_section = 21,
-    db_invalid_entry = 22,
-    db_parse_error = 23,
-    db_write_database_failed = 24,
-    db_malformed_meta = 25,
-    db_malformed_files = 26,
-    idx_malformed_entry = 27,
+    // --- Database & Index Errors (30 - 49) ---
+    db_missing_field = 30,
+    db_missing_section = 31,
+    db_invalid_entry = 32,
+    db_parse_error = 33,
+    db_write_database_failed = 34,
+    db_malformed_meta = 35,
+    db_malformed_files = 36,
+    idx_malformed_entry = 37,
 
-    // --- Installer Errors (30 - 39) ---
-    install_already_installed = 30,
-    install_package_path_not_found = 31,
-    install_collect_file_checksum_failed = 32,
-    install_checkout_failed = 33,
-    install_cancelled = 34,
-    install_max_retries_exceeded = 35,
-    install_check_space_failed = 36,
-    install_make_failed = 37,
+    // --- Installer Errors (50 - 69) ---
+    install_already_installed = 50,
+    install_package_path_not_found = 51,
+    install_collect_file_checksum_failed = 52,
+    install_checkout_failed = 53,
+    install_cancelled = 54,
+    install_max_retries_exceeded = 55,
+    install_check_space_failed = 56,
+    install_write_files_failed = 57,
 
-    // --- Uninstaller Errors (40 - 49) ---
-    uninstall_not_found = 40,
-    uninstall_failed = 41,
-    uninstall_file_map_corrupted = 42,
-    uninstall_staging_not_cleaned = 43,
+    // --- Uninstaller Errors (70 - 89) ---
+    uninstall_not_found = 70,
+    uninstall_failed = 71,
+    uninstall_file_map_corrupted = 72,
+    uninstall_staging_not_cleaned = 73,
 
-    // --- OSTree, Repo & FSM Errors (50 - 59 & 65 - 66) ---
-    ostree_repo_open_failed = 50,
-    ostree_repo_transaction_failed = 51,
-    ostree_commit = 52,
-    ostree_diff_failed = 53,
-    ostree_rollback = 54,
-    ostree_no_parent = 55,
-    ostree_staging_failed = 56,
-    ostree_swap_failed = 57,
-    ostree_commit_not_found = 58,
-    ostree_cleanup_failed = 59,
-    ostree_repo_write_failed = 65,
-    ostree_mtree_insert_failed = 66,
+    // --- OSTree, Repo & FSM Errors (90 - 109) ---
+    ostree_repo_open_failed = 90,
+    ostree_repo_transaction_failed = 91,
+    ostree_commit = 92,
+    ostree_rollback = 93,
+    ostree_no_parent = 94,
+    ostree_staging_failed = 95,
+    ostree_swap_failed = 96,
+    ostree_commit_not_found = 97,
+    ostree_cleanup_failed = 98,
+    ostree_repo_write_failed = 99,
+    ostree_mtree_insert_failed = 100,
 
-    // --- Init Errors (60 - 64 & 67 - 68) ---
-    already_initialized = 60,
-    create_dir_failed = 61,
-    not_a_directory = 62,
-    ostree_init_failed = 63,
-    directory_not_empty = 64,
-    init_prefix_not_found = 67,
-    init_additional_prefix_not_found = 68,
+    // --- Init Errors (110 - 119) ---
+    already_initialized = 110,
+    create_dir_failed = 111,
+    not_a_directory = 112,
+    ostree_init_failed = 113,
+    directory_not_empty = 114,
+    init_prefix_not_found = 115,
+    init_additional_prefix_not_found = 116,
 
-    // --- File Checksum/FSM Errors (70+) ---
-    file_checksum_failed = 70,
-    file_already_exists = 71,
+    // --- File Checksum/FSM Errors (120+) ---
+    file_checksum_failed = 120,
+    file_already_exists = 121,
 };
 
 // A mapper function that translates internal Zig errors (anyerror) into ErrorCode values understandable by the external interface
@@ -97,7 +98,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.Cancelled => .install_cancelled,
             error.MaxRetriesExceeded => .install_max_retries_exceeded,
             error.CheckSpaceFailed => .install_check_space_failed,
-            error.MakeFailed => .install_make_failed,
+            error.WriteFilesFailed => .install_write_files_failed,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
             else => null,
@@ -110,6 +111,8 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.StagingNotCleaned => .uninstall_staging_not_cleaned,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
             error.CheckoutFailed => .install_checkout_failed,
+            error.Cancelled => .cancelled,
+            error.MaxRetriesExceeded => .max_retries_exceeded,
             else => null,
         },
         .rollback => switch (err) {
@@ -128,7 +131,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.PathInvalid => .invalid_path,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.CommitNotFound => .ostree_commit_not_found,
-            error.DiffFailed => .ostree_diff_failed,
+            error.DiffFailed => .diff_failed,
             error.StagingFailed => .ostree_staging_failed,
             error.CleanupFailed => .ostree_cleanup_failed,
             error.FileNotFound => .file_not_found,
@@ -140,6 +143,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.CommitNotFound => .ostree_commit_not_found,
             error.AllocFailed => .out_of_memory,
+            error.ListError => .list_failed,
             error.Cancelled => .cancelled,
             error.MaxRetriesExceeded => .max_retries_exceeded,
             else => null,

@@ -10,7 +10,7 @@ pub const c_libs = @cImport({
     @cInclude("sys/statvfs.h");
 });
 
-pub var global_cancel = std.atomic.Value(bool).init(false);
+pub var active_cancellable = std.atomic.Value(?*c_libs.GCancellable).init(null);
 
 // ── Reimports types ─────────────────────────────────────────────────────────────────────
 const types = @import("types.zig");
@@ -263,10 +263,6 @@ var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true, .thread_safe = tru
 
 pub fn allocator() std.mem.Allocator {
     return gpa.allocator();
-}
-
-pub fn isCancelRequested() bool {
-    return global_cancel.load(.acquire);
 }
 
 pub fn deinit() void {

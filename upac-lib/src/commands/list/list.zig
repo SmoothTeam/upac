@@ -6,8 +6,6 @@ const ListStateId = ffi.ListStateId;
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
-const isCancelRequested = ffi.isCancelRequested;
-
 // ── Public imports ───────────────────────────────────────────────────────────
 pub const std = @import("std");
 pub const ffi = @import("upac-ffi");
@@ -19,6 +17,7 @@ pub const ListError = error{
     RepoOpenFailed,
     CommitNotFound,
     AllocFailed,
+    ListError,
     Cancelled,
     MaxRetriesExceeded,
 };
@@ -42,37 +41,30 @@ pub const ListMachine = struct {
     stack: std.ArrayList(ListStateId),
     allocator: std.mem.Allocator,
 
-    pub fn enter(self: *ListMachine, state_id: ListStateId) !void {
+    pub fn enter(self: *ListMachine, state_id: ListStateId) ListError!void {
         isBroked(self) catch |err| return err;
 
-        try self.stack.append(self.allocator, state_id);
+        self.stack.append(self.allocator, state_id) catch return ListError.AllocFailed;
     }
 
     fn isBroked(self: *ListMachine) ListError!void {
+        errdefer stateFailed(self);
+
         if (self.gerror) |err| {
-            const is_cancel_error = err.domain == c_libs.g_io_error_quark() and
+            const is_cancel = err.domain == c_libs.g_io_error_quark() and
                 err.code == c_libs.G_IO_ERROR_CANCELLED;
 
             c_libs.g_error_free(err);
             self.gerror = null;
 
-            if (is_cancel_error) {
-                if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-                stateFailed(self);
-                return ListError.Cancelled;
-            }
-
-            stateFailed(self);
-            return ListError.MaxRetriesExceeded;
+            return if (is_cancel) ListError.Cancelled else ListError.ListError;
         }
 
-        const is_cancelled = isCancelRequested() or
-            (if (self.cancellable) |cancellable| c_libs.g_cancellable_is_cancelled(cancellable) != 0 else false);
-
-        if (is_cancelled) {
-            if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-            stateFailed(self);
-            return ListError.Cancelled;
+        if (self.cancellable) |cancellable| {
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) {
+                c_libs.g_cancellable_cancel(cancellable);
+                return ListError.Cancelled;
+            }
         }
     }
 
@@ -108,8 +100,14 @@ pub const ListMachine = struct {
         };
         defer machine.deinit();
 
+        ffi.active_cancellable.store(machine.cancellable, .release);
+        defer ffi.active_cancellable.store(null, .release);
+
+        try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+        try machine.enter(.list_packages);
         try states.stateListPackages(&machine);
+        try machine.enter(.done);
 
         return machine.result_packages orelse &.{};
     }
@@ -124,8 +122,14 @@ pub const ListMachine = struct {
         };
         defer machine.deinit();
 
+        ffi.active_cancellable.store(machine.cancellable, .release);
+        defer ffi.active_cancellable.store(null, .release);
+
+        try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+        try machine.enter(.list_commits);
         try states.stateListCommits(&machine);
+        try machine.enter(.done);
 
         return machine.result_commits orelse &.{};
     }

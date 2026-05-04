@@ -6,9 +6,6 @@ const RollbackProgressFn = ffi.RollbackProgressFn;
 
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
-const stateVerifying = states.stateVerifying;
-
-const isCancelRequested = ffi.isCancelRequested;
 
 // ──Public imports ─────────────────────────────────────────────────────────────────────
 pub const ffi = @import("upac-ffi");
@@ -76,59 +73,47 @@ pub const RollbackMachine = struct {
     }
 
     fn isBroked(self: *RollbackMachine) RollbackError!void {
-        if (self.gerror) |err| {
-            const is_cancel_error = err.domain == c_libs.g_io_error_quark() and
-                err.code == c_libs.G_IO_ERROR_CANCELLED;
+        errdefer stateFailed(self);
 
-            c_libs.g_error_free(err);
-            self.gerror = null;
+        if (self.gerror) |err| {
+            defer {
+                c_libs.g_error_free(err);
+                self.gerror = null;
+            }
+
+            const is_cancel_error = err.domain == c_libs.g_io_error_quark() and err.code == c_libs.G_IO_ERROR_CANCELLED;
 
             if (is_cancel_error) {
                 if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-                stateFailed(self);
                 return RollbackError.Cancelled;
             }
 
-            stateFailed(self);
             return RollbackError.MaxRetriesExceeded;
         }
 
-        const is_cancelled = isCancelRequested() or
-            (if (self.cancellable) |cancellable| c_libs.g_cancellable_is_cancelled(cancellable) != 0 else false);
-
-        if (is_cancelled) {
-            if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-            stateFailed(self);
-            return RollbackError.Cancelled;
+        if (self.cancellable) |cancellable| {
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return RollbackError.Cancelled;
         }
 
-        if (self.exhausted()) {
-            stateFailed(self);
-            return RollbackError.MaxRetriesExceeded;
-        }
+        if (self.exhausted()) return RollbackError.MaxRetriesExceeded;
     }
 
-    pub fn retry(self: *RollbackMachine, comptime state_fn: anytype) RollbackError!void {
-        if (self.cancellable) |cancellable| {
-            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) {
-                stateFailed(self);
-                return error.Cancelled;
-            }
-        }
-
-        if (self.exhausted()) {
-            stateFailed(self);
-            return error.MaxRetriesExceeded;
-        }
+    pub fn retry(self: *RollbackMachine, state: RollbackStateId) RollbackError!RollbackStateId {
+        errdefer stateFailed(self);
 
         if (self.gerror) |err| {
             c_libs.g_error_free(err);
             self.gerror = null;
         }
 
-        self.retries += 1;
+        if (self.cancellable) |cancellable| {
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
+        }
 
-        return state_fn(self);
+        if (self.exhausted()) return error.MaxRetriesExceeded;
+
+        self.retries += 1;
+        return state;
     }
 
     // Reports an installation progress event to the progress callback, if one is set
@@ -182,6 +167,9 @@ pub const RollbackMachine = struct {
         };
         defer machine.deinit();
 
-        try states.stateVerifying(&machine);
+        ffi.active_cancellable.store(machine.cancellable, .release);
+        defer ffi.active_cancellable.store(null, .release);
+
+        try states.stateStart(&machine);
     }
 };

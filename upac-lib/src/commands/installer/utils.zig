@@ -23,19 +23,32 @@ pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap)
 
         if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return InstallerError.Cancelled;
 
-        const abs_path = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(current_entry.temp_path), entry.path }), InstallerError.CollectFileChecksumsFailed);
-        defer machine.allocator.free(abs_path);
-
-        const gfile = c_libs.g_file_new_for_path(abs_path.ptr);
-        defer c_libs.g_object_unref(@ptrCast(gfile));
-
-        var raw_checksum_bin: [*c]u8 = null;
-        if (c_libs.ostree_checksum_file(gfile, c_libs.OSTREE_OBJECT_TYPE_FILE, &raw_checksum_bin, machine.cancellable, &machine.gerror) == 0)
-            return InstallerError.CollectFileChecksumsFailed;
-        defer c_libs.g_free(@ptrCast(raw_checksum_bin));
-
         var hex_buf: [65]u8 = undefined;
-        c_libs.ostree_checksum_inplace_from_bytes(raw_checksum_bin.?, &hex_buf);
+
+        if (entry.kind == .sym_link) {
+            var link_target_buf: [std.fs.max_path_bytes]u8 = undefined;
+            const link_target = entry.dir.readLink(entry.basename, &link_target_buf) catch
+                return InstallerError.CollectFileChecksumsFailed;
+            var hash_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
+            std.crypto.hash.sha2.Sha256.hash(link_target, &hash_bytes, .{});
+            const hex = std.fmt.bytesToHex(hash_bytes, .lower);
+            @memcpy(hex_buf[0..64], &hex);
+            hex_buf[64] = 0;
+        } else {
+            const abs_path = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(current_entry.temp_path), entry.path }), InstallerError.CollectFileChecksumsFailed);
+            defer machine.allocator.free(abs_path);
+
+            const gfile = c_libs.g_file_new_for_path(abs_path.ptr);
+            defer c_libs.g_object_unref(@ptrCast(gfile));
+
+            var raw_checksum_bin: [*c]u8 = null;
+            if (c_libs.ostree_checksum_file(gfile, c_libs.OSTREE_OBJECT_TYPE_FILE, &raw_checksum_bin, machine.cancellable, &machine.gerror) == 0) {
+                if (machine.gerror) |err| { c_libs.g_error_free(err); machine.gerror = null; }
+                return InstallerError.CollectFileChecksumsFailed;
+            }
+            defer c_libs.g_free(@ptrCast(raw_checksum_bin));
+            c_libs.ostree_checksum_inplace_from_bytes(raw_checksum_bin.?, &hex_buf);
+        }
 
         try machine.check(file_map.put(try machine.allocator.dupe(u8, entry.path), try machine.allocator.dupe(u8, hex_buf[0..64])), InstallerError.CollectFileChecksumsFailed);
     }
@@ -75,27 +88,40 @@ pub fn estimateCheckoutSize(machine: *InstallerMachine) !u64 {
     return walkTree(machine, root_file_unwraped);
 }
 
-fn walkTree(machine: *InstallerMachine, dir: *anyopaque) !u64 {
+fn walkTree(machine: *InstallerMachine, root: *anyopaque) !u64 {
     var total: u64 = 0;
 
-    const enumerator = c_libs.g_file_enumerate_children(@ptrCast(dir), "standard::name,standard::type,standard::size", c_libs.G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, machine.cancellable, &machine.gerror) orelse return error.DiffFailed;
-    defer c_libs.g_object_unref(enumerator);
+    var queue = std.ArrayList(*anyopaque).empty;
+    defer {
+        for (queue.items) |item| c_libs.g_object_unref(item);
+        queue.deinit(machine.allocator);
+    }
 
-    while (true) {
-        const info: ?*anyopaque = c_libs.g_file_enumerator_next_file(enumerator, machine.cancellable, &machine.gerror);
-        if (info == null) break;
-        defer c_libs.g_object_unref(info);
+    _ = c_libs.g_object_ref(root);
+    try queue.append(machine.allocator, root);
 
-        const file_type = c_libs.g_file_info_get_file_type(@ptrCast(info));
-        const child_name = c_libs.g_file_info_get_name(@ptrCast(info));
+    while (queue.items.len > 0) {
+        const dir = queue.pop();
+        defer c_libs.g_object_unref(dir);
 
-        const child: ?*anyopaque = c_libs.g_file_get_child(@ptrCast(dir), child_name);
-        defer if (child) |c| c_libs.g_object_unref(c);
+        const enumerator = c_libs.g_file_enumerate_children(@ptrCast(dir), "standard::name,standard::type,standard::size", c_libs.G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, machine.cancellable, &machine.gerror) orelse return error.DiffFailed;
+        defer c_libs.g_object_unref(enumerator);
 
-        if (file_type == c_libs.G_FILE_TYPE_DIRECTORY) {
-            total += try walkTree(machine, child orelse continue);
-        } else {
-            total += @intCast(c_libs.g_file_info_get_size(@ptrCast(info)));
+        while (true) {
+            const info: ?*anyopaque = c_libs.g_file_enumerator_next_file(enumerator, machine.cancellable, &machine.gerror);
+            if (info == null) break;
+            defer c_libs.g_object_unref(info);
+
+            const file_type = c_libs.g_file_info_get_file_type(@ptrCast(info));
+            const child_name = c_libs.g_file_info_get_name(@ptrCast(info));
+            const child = c_libs.g_file_get_child(@ptrCast(dir), child_name) orelse continue;
+
+            if (file_type == c_libs.G_FILE_TYPE_DIRECTORY) {
+                try queue.append(machine.allocator, child);
+            } else {
+                defer c_libs.g_object_unref(child);
+                total += @intCast(c_libs.g_file_info_get_size(@ptrCast(info)));
+            }
         }
     }
 

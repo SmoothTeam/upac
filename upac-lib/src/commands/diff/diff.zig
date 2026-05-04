@@ -7,8 +7,6 @@ const CPackageDiffEntry = ffi.CPackageDiffEntry;
 const CAttributedDiffEntry = ffi.CAttributedDiffEntry;
 const DiffStateId = ffi.DiffStateId;
 
-const isCancelRequested = ffi.isCancelRequested;
-
 // ── Public imports ───────────────────────────────────────────────────────────
 pub const std = @import("std");
 pub const ffi = @import("upac-ffi");
@@ -45,28 +43,30 @@ pub const DiffMachine = struct {
     stack: std.ArrayList(DiffStateId),
     allocator: std.mem.Allocator,
 
-    pub fn enter(self: *DiffMachine, state_id: DiffStateId) !void {
+    pub fn enter(self: *DiffMachine, state_id: DiffStateId) DiffError!void {
         isBroked(self) catch |err| return err;
 
-        try self.stack.append(self.allocator, state_id);
+        self.stack.append(self.allocator, state_id) catch return DiffError.AllocFailed;
     }
 
     fn isBroked(self: *DiffMachine) DiffError!void {
+        errdefer stateFailed(self);
+
         if (self.gerror) |err| {
             const is_cancel = err.domain == c_libs.g_io_error_quark() and
                 err.code == c_libs.G_IO_ERROR_CANCELLED;
+
             c_libs.g_error_free(err);
             self.gerror = null;
-            stateFailed(self);
+
             return if (is_cancel) DiffError.Cancelled else DiffError.DiffFailed;
         }
 
-        if (isCancelRequested() or
-            (if (self.cancellable) |c| c_libs.g_cancellable_is_cancelled(c) != 0 else false))
-        {
-            if (self.cancellable) |c| c_libs.g_cancellable_cancel(c);
-            stateFailed(self);
-            return DiffError.Cancelled;
+        if (self.cancellable) |cancellable| {
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) {
+                c_libs.g_cancellable_cancel(cancellable);
+                return DiffError.Cancelled;
+            }
         }
     }
 
@@ -87,7 +87,8 @@ pub const DiffMachine = struct {
     pub fn deinit(self: *DiffMachine) void {
         if (self.repo) |repo| c_libs.g_object_unref(repo);
         if (self.gerror) |err| c_libs.g_error_free(err);
-        if (self.cancellable) |c| c_libs.g_object_unref(c);
+        if (self.cancellable) |cancellable| c_libs.g_object_unref(cancellable);
+
         self.stack.deinit(self.allocator);
     }
 
@@ -100,8 +101,14 @@ pub const DiffMachine = struct {
         };
         defer machine.deinit();
 
+        ffi.active_cancellable.store(machine.cancellable, .release);
+        defer ffi.active_cancellable.store(null, .release);
+
+        try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+        try machine.enter(.diff_packages);
         try states.stateDiffPackages(&machine);
+        try machine.enter(.done);
 
         return machine.result_packages orelse &.{};
     }
@@ -115,8 +122,14 @@ pub const DiffMachine = struct {
         };
         defer machine.deinit();
 
+        ffi.active_cancellable.store(machine.cancellable, .release);
+        defer ffi.active_cancellable.store(null, .release);
+
+        try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+        try machine.enter(.diff_files);
         try states.stateDiffFilesAttributed(&machine);
+        try machine.enter(.done);
 
         return machine.result_files orelse &.{};
     }

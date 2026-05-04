@@ -7,8 +7,6 @@ const PackageMeta = ffi.PackageMeta;
 const InstallStateId = ffi.InstallStateId;
 const InstallProgressFn = ffi.InstallProgressFn;
 
-const isCancelRequested = ffi.isCancelRequested;
-
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
@@ -30,7 +28,7 @@ pub const InstallerError = error{
     CheckSpaceFailed,
     WriteDatabaseFailed,
     CollectFileChecksumsFailed,
-    MakeFailed,
+    WriteFilesFailed,
     // Global errors
     PathNotFound,
     RepoOpenFailed,
@@ -105,43 +103,44 @@ pub const InstallerMachine = struct {
     }
 
     fn isBroked(self: *InstallerMachine) InstallerError!void {
-        if (self.gerror) |err| {
-            const is_cancel_error = err.domain == c_libs.g_io_error_quark() and
-                err.code == c_libs.G_IO_ERROR_CANCELLED;
+        errdefer stateFailed(self);
 
-            c_libs.g_error_free(err);
-            self.gerror = null;
+        if (self.gerror) |err| {
+            defer {
+                c_libs.g_error_free(err);
+                self.gerror = null;
+            }
+
+            const is_cancel_error = err.domain == c_libs.g_io_error_quark() and err.code == c_libs.G_IO_ERROR_CANCELLED;
 
             if (is_cancel_error) {
                 if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-                stateFailed(self);
                 return InstallerError.Cancelled;
             }
 
-            stateFailed(self);
             return InstallerError.MaxRetriesExceeded;
         }
 
-        const is_cancelled = isCancelRequested() or
-            (if (self.cancellable) |cancellable| c_libs.g_cancellable_is_cancelled(cancellable) != 0 else false);
-
-        if (is_cancelled) {
-            if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
-            stateFailed(self);
-            return InstallerError.Cancelled;
+        if (self.cancellable) |cancellable| {
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return InstallerError.Cancelled;
         }
 
-        if (self.exhausted()) {
-            stateFailed(self);
-            return InstallerError.MaxRetriesExceeded;
-        }
+        if (self.exhausted()) return InstallerError.MaxRetriesExceeded;
     }
 
-    pub fn retry(self: *InstallerMachine, comptime state_fn: anytype) InstallerError!void {
-        self.retries += 1;
+    pub fn retry(self: *InstallerMachine, state: InstallStateId) InstallerError!InstallStateId {
+        errdefer stateFailed(self);
 
+        if (self.gerror) |err| {
+            c_libs.g_error_free(err);
+            self.gerror = null;
+        }
+
+        if (self.exhausted()) return InstallerError.MaxRetriesExceeded;
+
+        self.retries += 1;
         try self.resetTransaction();
-        return state_fn(self);
+        return state;
     }
 
     // Resets the transaction by aborting any ongoing transaction and preparing a new one. If the transaction cannot be reset, returns an error
@@ -161,10 +160,10 @@ pub const InstallerMachine = struct {
         };
     }
 
-    pub inline fn check(self: *InstallerMachine, value: anytype, comptime err: InstallerError) InstallerError!@typeInfo(@TypeOf(value)).error_union.payload {
+    pub inline fn check(self: *InstallerMachine, value: anytype, comptime installer_error: InstallerError) InstallerError!@typeInfo(@TypeOf(value)).error_union.payload {
         return value catch {
             stateFailed(self);
-            return err;
+            return installer_error;
         };
     }
 
@@ -223,6 +222,9 @@ pub const InstallerMachine = struct {
         };
         defer machine.deinit();
 
-        try states.stateVerifying(&machine);
+        ffi.active_cancellable.store(machine.cancellable, .release);
+        defer ffi.active_cancellable.store(null, .release);
+
+        try states.stateStart(&machine);
     }
 };

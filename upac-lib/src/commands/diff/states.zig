@@ -19,8 +19,6 @@ const parsePackageBody = utils.parsePackageBody;
 const freeStringMap = utils.freeStringMap;
 
 pub fn stateOpenRepo(machine: *DiffMachine) DiffError!void {
-    try machine.check(machine.enter(.open_repo), DiffError.AllocFailed);
-
     const gfile = c_libs.g_file_new_for_path(machine.data.repo_path);
     defer c_libs.g_object_unref(gfile);
 
@@ -34,8 +32,6 @@ pub fn stateOpenRepo(machine: *DiffMachine) DiffError!void {
 }
 
 pub fn stateDiffPackages(machine: *DiffMachine) DiffError!void {
-    try machine.check(machine.enter(.diff_packages), DiffError.AllocFailed);
-
     const from_body = try machine.check(getRefBody(machine, machine.data.from_ref), DiffError.CommitNotFound);
     defer if (from_body) |body| machine.allocator.free(body);
 
@@ -78,11 +74,9 @@ pub fn stateDiffPackages(machine: *DiffMachine) DiffError!void {
     }
 
     machine.result_packages = try machine.check(entries.toOwnedSlice(machine.allocator), DiffError.AllocFailed);
-    return stateDone(machine);
 }
 
 pub fn stateDiffFilesAttributed(machine: *DiffMachine) DiffError!void {
-    try machine.check(machine.enter(.diff_files), DiffError.AllocFailed);
 
     const modified = c_libs.g_ptr_array_new();
     defer c_libs.g_ptr_array_unref(modified);
@@ -96,7 +90,7 @@ pub fn stateDiffFilesAttributed(machine: *DiffMachine) DiffError!void {
     const from_root = try machine.check(utils.resolveCommitRoot(machine, machine.data.from_ref), DiffError.CommitNotFound);
     defer c_libs.g_object_unref(from_root);
 
-    if (diff.ffi.isCancelRequested()) return DiffError.Cancelled;
+    if (if (machine.cancellable) |c| diff.c_libs.g_cancellable_is_cancelled(c) != 0 else false) return DiffError.Cancelled;
 
     const to_root = try machine.check(utils.resolveCommitRoot(machine, machine.data.to_ref), DiffError.CommitNotFound);
     defer c_libs.g_object_unref(to_root);
@@ -143,13 +137,8 @@ pub fn stateDiffFilesAttributed(machine: *DiffMachine) DiffError!void {
     }
 
     machine.result_files = try machine.check(result.toOwnedSlice(machine.allocator), DiffError.AllocFailed);
-    return stateDone(machine);
-}
-
-fn stateDone(machine: *DiffMachine) DiffError!void {
-    try machine.check(machine.enter(.done), DiffError.AllocFailed);
 }
 
 pub fn stateFailed(machine: *DiffMachine) void {
-    _ = machine.enter(.failed) catch {};
+    machine.stack.append(machine.allocator, .failed) catch {};
 }

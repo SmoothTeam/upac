@@ -11,6 +11,8 @@ const CSlice = uninstaller.CSlice;
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
 
+const UninstallStateId = uninstaller.ffi.UninstallStateId;
+
 const utils = @import("utils.zig");
 
 const resolveMtree = utils.resolveMtree;
@@ -21,11 +23,30 @@ const removeFromMtree = utils.removeFromMtree;
 const buildCommitBody = utils.buildCommitBody;
 const buildCommitSubject = utils.buildCommitSubject;
 
-// ── States ─────────────────────────────────────────────────────────────────────
-// The status of the path validation check
-pub fn stateVerifying(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.verifying), UninstallerError.AllocZFailed);
+// ── Trampoline ────────────────────────────────────────────────────────────────
+pub fn stateStart(machine: *UninstallerMachine) UninstallerError!void {
+    var state = UninstallStateId.verifying;
+    while (state != .done) {
+        try machine.enter(state);
+        state = switch (state) {
+            .verifying => try stateVerifying(machine),
+            .open_repo => try stateOpenRepo(machine),
+            .check_installed => try stateCheckInstalled(machine),
+            .load_files => try stateLoadFiles(machine),
+            .remove_files => try stateRemoveFiles(machine),
+            .remove_db_files => try stateRemoveDbFiles(machine),
+            .commit => try stateCommit(machine),
+            .checkout_staging => try stateCheckoutStaging(machine),
+            .atomic_swap => try stateAtomicSwap(machine),
+            .cleanup_staging => try stateCleanupStaging(machine),
+            .done, .failed => unreachable,
+        };
+    }
+    try machine.enter(.done);
+}
 
+// ── States ────────────────────────────────────────────────────────────────────
+fn stateVerifying(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     try machine.check(std.fs.accessAbsoluteZ(machine.data.root_path, .{}), UninstallerError.PathNotFound);
     try machine.check(std.fs.accessAbsoluteZ(machine.data.repo_path, .{}), UninstallerError.RepoOpenFailed);
 
@@ -35,13 +56,10 @@ pub fn stateVerifying(machine: *UninstallerMachine) UninstallerError!void {
     try machine.check(std.fs.accessAbsoluteZ(root_prefix_path_c, .{}), UninstallerError.PathNotFound);
 
     machine.resetRetries();
-    return stateOpenRepo(machine);
+    return .open_repo;
 }
 
-// The state of opening the repository and writing its data to the machine
-fn stateOpenRepo(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.open_repo), UninstallerError.AllocZFailed);
-
+fn stateOpenRepo(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     if (machine.mtree) |mtree| c_libs.g_object_unref(mtree);
 
     const gfile = c_libs.g_file_new_for_path(machine.data.repo_path);
@@ -53,7 +71,7 @@ fn stateOpenRepo(machine: *UninstallerMachine) UninstallerError!void {
 
     if (c_libs.ostree_repo_open(repo, machine.cancellable, &machine.gerror) == 0) {
         c_libs.g_object_unref(machine.repo);
-        return machine.retry(stateOpenRepo);
+        return machine.retry(.open_repo);
     }
 
     try machine.gcheck(c_libs.ostree_repo_prepare_transaction(repo, null, machine.cancellable, &machine.gerror), error.RepoTransactionFailed);
@@ -61,13 +79,10 @@ fn stateOpenRepo(machine: *UninstallerMachine) UninstallerError!void {
     machine.mtree = resolveMtree(machine, repo);
 
     machine.resetRetries();
-    return stateCheckInstalled(machine);
+    return .check_installed;
 }
 
-// Installation verification status, designed to prevent the removal of non-existent items
-fn stateCheckInstalled(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.check_installed), UninstallerError.AllocZFailed);
-
+fn stateCheckInstalled(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     var body_len: usize = 0;
     var body_variant: ?*c_libs.GVariant = null;
     defer if (body_variant) |variant| c_libs.g_variant_unref(variant);
@@ -100,7 +115,7 @@ fn stateCheckInstalled(machine: *UninstallerMachine) UninstallerError!void {
         if (std.ascii.eqlIgnoreCase(pkg_name, machine.data.package_names[machine.current_package_index])) {
             machine.package_checksum = try machine.allocator.dupe(u8, pkg_checksum);
             machine.resetRetries();
-            return stateLoadFiles(machine);
+            return .load_files;
         }
     }
 
@@ -108,22 +123,16 @@ fn stateCheckInstalled(machine: *UninstallerMachine) UninstallerError!void {
     return error.PackageNotFound;
 }
 
-// State for loading the list of paths created during installation, in order to precisely identify which OSTree tree nodes need to be removed
-fn stateLoadFiles(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.load_files), UninstallerError.AllocZFailed);
-
+fn stateLoadFiles(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const package_checksum = try machine.unwrap(machine.package_checksum, error.PackageNotFound);
 
     machine.package_file_map = try machine.check(data.readFiles(std.mem.span(machine.data.database_path), package_checksum, machine.allocator), UninstallerError.FileMapCorrupted);
 
     machine.resetRetries();
-    return stateRemoveFiles(machine);
+    return .remove_files;
 }
 
-// State of file removal from mtree
-fn stateRemoveFiles(machine: *UninstallerMachine) !void {
-    try machine.check(machine.enter(.remove_files), UninstallerError.AllocZFailed);
-
+fn stateRemoveFiles(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
     const file_map = try machine.unwrap(machine.package_file_map, error.PackageNotFound);
     const mtree = try machine.unwrap(machine.mtree, error.PackageNotFound);
@@ -133,21 +142,17 @@ fn stateRemoveFiles(machine: *UninstallerMachine) !void {
         const stored_path = entry.key_ptr.*;
         removeFromMtree(repo, mtree, stored_path, machine.allocator) catch |err| {
             if (err != error.FileNotFound) {
-                if (machine.mtree) |old_mtree| c_libs.g_object_unref(old_mtree);
-                machine.mtree = utils.resolveMtree(machine, repo);
-                return machine.retry(stateRemoveFiles);
+                stateFailed(machine);
+                return UninstallerError.FileMapCorrupted;
             }
         };
     }
 
     machine.resetRetries();
-    return stateRemoveDbFiles(machine);
+    return .remove_db_files;
 }
 
-// The state of removal from the global index, as well as of files belonging to the package in the database
-fn stateRemoveDbFiles(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.remove_db_files), UninstallerError.AllocZFailed);
-
+fn stateRemoveDbFiles(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
     const mtree = try machine.unwrap(machine.mtree, error.PackageNotFound);
     const pkg_checksum = try machine.unwrap(machine.package_checksum, error.PackageNotFound);
@@ -172,17 +177,14 @@ fn stateRemoveDbFiles(machine: *UninstallerMachine) UninstallerError!void {
     machine.current_package_index += 1;
     if (machine.current_package_index < machine.data.package_names.len) {
         machine.resetRetries();
-        return stateCheckInstalled(machine);
+        return .check_installed;
     }
 
     machine.resetRetries();
-    return stateCommit(machine);
+    return .commit;
 }
 
-// Creates a new commit in OSTree representing the system state without the files of this package
-fn stateCommit(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.commit), UninstallerError.AllocZFailed);
-
+fn stateCommit(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
     const mtree = try machine.unwrap(machine.mtree, error.PackageNotFound);
 
@@ -195,26 +197,24 @@ fn stateCommit(machine: *UninstallerMachine) UninstallerError!void {
 
     var out_g_file: ?*c_libs.GFile = null;
     defer if (out_g_file) |g_file| c_libs.g_object_unref(@ptrCast(g_file));
-    if (c_libs.ostree_repo_write_mtree(repo, mtree, &out_g_file, machine.cancellable, &machine.gerror) == 0) return machine.retry(stateCommit);
+    if (c_libs.ostree_repo_write_mtree(repo, mtree, &out_g_file, machine.cancellable, &machine.gerror) == 0) return machine.retry(.commit);
 
     const subject_c = try buildCommitSubject(machine);
     defer machine.allocator.free(subject_c);
 
     var commit_checksum: [*c]u8 = null;
-    if (c_libs.ostree_repo_write_commit(repo, machine.previous_commit_checksum, subject_c.ptr, body_c.ptr, null, @as(?*c_libs.OstreeRepoFile, @ptrCast(out_g_file)), &commit_checksum, machine.cancellable, &machine.gerror) == 0) return machine.retry(stateCommit);
+    if (c_libs.ostree_repo_write_commit(repo, machine.previous_commit_checksum, subject_c.ptr, body_c.ptr, null, @as(?*c_libs.OstreeRepoFile, @ptrCast(out_g_file)), &commit_checksum, machine.cancellable, &machine.gerror) == 0) return machine.retry(.commit);
 
     c_libs.ostree_repo_transaction_set_ref(repo, null, machine.data.branch, commit_checksum);
 
-    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.cancellable, &machine.gerror) == 0) return machine.retry(stateCommit);
+    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.cancellable, &machine.gerror) == 0) return machine.retry(.commit);
     machine.commit_checksum = commit_checksum;
 
     machine.resetRetries();
-    return stateCheckoutStaging(machine);
+    return .checkout_staging;
 }
 
-fn stateCheckoutStaging(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.checkout_staging), UninstallerError.AllocZFailed);
-
+fn stateCheckoutStaging(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const repo = try machine.unwrap(machine.repo, error.AllocZFailed);
 
     var buf: [256]u8 = undefined;
@@ -237,12 +237,10 @@ fn stateCheckoutStaging(machine: *UninstallerMachine) UninstallerError!void {
         return error.CheckoutFailed;
     }
 
-    return stateAtomicSwap(machine);
+    return .atomic_swap;
 }
 
-fn stateAtomicSwap(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.atomic_swap), UninstallerError.AllocZFailed);
-
+fn stateAtomicSwap(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const staging_path_c = try machine.unwrap(machine.staging_path_c, error.AllocZFailed);
 
     const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), UninstallerError.AllocZFailed);
@@ -255,25 +253,18 @@ fn stateAtomicSwap(machine: *UninstallerMachine) UninstallerError!void {
 
     if (std.os.linux.E.init(result) != .SUCCESS) try machine.check(std.fs.deleteTreeAbsolute(staging_path_c), UninstallerError.CheckoutFailed);
 
-    return stateCleanupStaging(machine);
+    return .cleanup_staging;
 }
 
-fn stateCleanupStaging(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.cleanup_staging), UninstallerError.AllocZFailed);
-
+fn stateCleanupStaging(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const staging_path_c = try machine.unwrap(machine.staging_path_c, UninstallerError.AllocZFailed);
     try machine.check(std.fs.deleteTreeAbsolute(staging_path_c), UninstallerError.CheckoutFailed);
 
-    return stateDone(machine);
+    return .done;
 }
 
-// State of successful completion of the package removal process and deployment of the new commit
-fn stateDone(machine: *UninstallerMachine) UninstallerError!void {
-    try machine.check(machine.enter(.done), UninstallerError.AllocZFailed);
-}
-
-// A state of unsuccessful package removal, signaling the system that a rollback is required to revert the changes
 pub fn stateFailed(machine: *UninstallerMachine) void {
+    if (machine.stack.items.len > 0 and machine.stack.getLast() == .failed) return;
     if (machine.staging_path_c) |staging_path| {
         std.fs.deleteTreeAbsolute(staging_path) catch {};
         machine.allocator.free(staging_path);

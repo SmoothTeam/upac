@@ -12,7 +12,6 @@ const CSlice = list.ffi.CSlice;
 const CPackageMeta = list.ffi.CPackageMeta;
 const CCommitEntry = list.ffi.CCommitEntry;
 
-const isCancelRequested = list.ffi.isCancelRequested;
 
 const utils = @import("utils.zig");
 const getRefBody = utils.getRefBody;
@@ -20,8 +19,6 @@ const parsePackageBody = utils.parsePackageBody;
 const freeStringMap = utils.freeStringMap;
 
 pub fn stateOpenRepo(machine: *ListMachine) ListError!void {
-    try machine.check(machine.enter(.open_repo), ListError.AllocFailed);
-
     const gfile = c_libs.g_file_new_for_path(machine.data.repo_path);
     defer c_libs.g_object_unref(gfile);
 
@@ -35,17 +32,15 @@ pub fn stateOpenRepo(machine: *ListMachine) ListError!void {
 }
 
 pub fn stateListPackages(machine: *ListMachine) ListError!void {
-    try machine.check(machine.enter(.list_packages), ListError.AllocFailed);
-
     const body = (getRefBody(machine) catch null) orelse {
         machine.result_packages = &.{};
-        return stateDone(machine);
+        return;
     };
     defer machine.allocator.free(body);
 
     var package_map = parsePackageBody(body, machine.allocator) catch {
         machine.result_packages = &.{};
-        return stateDone(machine);
+        return;
     };
     defer freeStringMap(&package_map, machine.allocator);
 
@@ -84,11 +79,9 @@ pub fn stateListPackages(machine: *ListMachine) ListError!void {
     }
 
     machine.result_packages = try machine.check(result.toOwnedSlice(machine.allocator), ListError.AllocFailed);
-    return stateDone(machine);
 }
 
 pub fn stateListCommits(machine: *ListMachine) ListError!void {
-    try machine.check(machine.enter(.list_commits), ListError.AllocFailed);
 
     const repo = try machine.unwrap(machine.repo, ListError.RepoOpenFailed);
 
@@ -106,14 +99,14 @@ pub fn stateListCommits(machine: *ListMachine) ListError!void {
 
     if (c_libs.ostree_repo_resolve_rev(repo, machine.data.branch, 1, &current_checksum, &machine.gerror) == 0) {
         machine.result_commits = try machine.check(entries.toOwnedSlice(machine.allocator), ListError.AllocFailed);
-        return stateDone(machine);
+        return;
     }
 
     var checksum = current_checksum;
     var is_first = true;
 
     while (checksum != null) {
-        if (isCancelRequested()) return ListError.Cancelled;
+        if (if (machine.cancellable) |c| list.c_libs.g_cancellable_is_cancelled(c) != 0 else false) return ListError.Cancelled;
 
         var commit_variant: ?*c_libs.GVariant = null;
         if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, checksum, &commit_variant, &machine.gerror) == 0) {
@@ -142,13 +135,8 @@ pub fn stateListCommits(machine: *ListMachine) ListError!void {
     }
 
     machine.result_commits = try machine.check(entries.toOwnedSlice(machine.allocator), ListError.AllocFailed);
-    return stateDone(machine);
-}
-
-fn stateDone(machine: *ListMachine) ListError!void {
-    try machine.check(machine.enter(.done), ListError.AllocFailed);
 }
 
 pub fn stateFailed(machine: *ListMachine) void {
-    _ = machine.enter(.failed) catch {};
+    machine.stack.append(machine.allocator, .failed) catch {};
 }
