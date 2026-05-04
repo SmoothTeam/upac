@@ -7,24 +7,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: archlinux:latest # Используем Arch
+    container: alpine:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Update package via pacman
-        run: pacman -Syu --noconfirm
+      - name: Install pkg-config via apk
+        run: apk add --no-cache base-devel
 
-      - name: Install pkg-config via pacman
-        run: pacman -S --noconfirm base-devel
+      - name: Install OSTree via apk
+        run: apk add --no-cache ostree
 
-      - name: Install OSTree via pacman
-        run: pacman -S --noconfirm ostree
+      - name: Install Zig via apk
+        run: apk add --no-cache zig
 
-      - name: Install Zig via pacman
-        run: pacman -S --noconfirm zig
+      - name: Install Latest Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: cargo
 
-      - name: Install Make via pacman
-        run: pacman -S --noconfirm make
+      - name: Install Make via apk
+        run: apk add --no-cache make
 
       - name: Build package
         run: make build MODE=release
