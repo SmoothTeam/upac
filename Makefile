@@ -16,8 +16,8 @@ RPM_PKG_FLAGS   ?= -bb --define "_topdir $(PKG_DIR)/rpm" \
                        --define "version $(VERSION)"
 DEB_PKG_FLAGS   ?= --root-owner-group
 
-.PHONY: all build prepare-dirs \
-        build-lib build-backends build-cli build-removing \
+.PHONY: all build \
+        prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli build-removing \
         pkg-arch pkg-rpm pkg-deb \
         sync sync-build sync-pkg \
         clean clean-build clean-pkg
@@ -45,7 +45,7 @@ prepare-dirs:
 
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-build: prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backends build-cli
+build: prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli
 
 build-lib:
 	@echo "--- Building upac-lib in $(MODE) mode ---"
@@ -59,9 +59,13 @@ build-rpm-backend:
 	@echo "--- Building upac-rpm in $(MODE) mode ---"
 	@cd $(ROOT_DIR)/upac-rpm && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
 
-build-deb-backends:
+build-deb-backend:
 	@echo "--- Building upac-deb in $(MODE) mode ---"
 	@cd $(ROOT_DIR)/upac-deb && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
+
+build-xbps-backend:
+	@echo "--- Building upac-xbps in $(MODE) mode ---"
+	@cd $(ROOT_DIR)/upac-xbps && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
 
 build-cli:
 	@cd $(ROOT_DIR)/upac-cli && \
@@ -116,6 +120,7 @@ pkg-arch: build
 	@cp $(OUT_BUILD_DIR)/lib/libupac-alpm.so $(PKG_DIR)/arch/root/usr/lib/
 	@cp $(OUT_BUILD_DIR)/lib/libupac-rpm.so $(PKG_DIR)/arch/root/usr/lib/
 	@cp $(OUT_BUILD_DIR)/lib/libupac-deb.so $(PKG_DIR)/arch/root/usr/lib/
+	@cp $(OUT_BUILD_DIR)/lib/libupac-xbps.so $(PKG_DIR)/arch/root/usr/lib/
 
 	@echo "--- Building ARCH package v$(VERSION) ---"
 	@cd $(PKG_DIR)/arch && makepkg $(ARCH_PKG_FLAGS)
