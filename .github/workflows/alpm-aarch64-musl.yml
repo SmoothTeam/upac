@@ -14,6 +14,9 @@ jobs:
       - name: Update package via pacman
         run: pacman -Syu --noconfirm
 
+      - name: Install OSTree via pacman
+        run: pacman -S --noconfirm zig
+
       - name: Install Zig via pacman
         run: pacman -S --noconfirm zig
 
