@@ -40,7 +40,7 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
     machine.file = package_file;
 
     while (true) {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
@@ -141,7 +141,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
     defer original_directory.setAsCwd() catch {};
 
     while (true) {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
@@ -160,7 +160,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
         }
 
         while (true) {
-            if (Machine.isCancelRequested()) {
+            if (machine.isCancelRequested()) {
                 stateFailed(machine);
                 return BackendError.Cancelled;
             }

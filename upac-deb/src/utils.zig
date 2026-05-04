@@ -27,7 +27,7 @@ pub fn parseLicenseFromCopyright(content: ?[]const u8, allocator: std.mem.Alloca
 
 pub fn copyArchiveEntry(reader: *c_libs.archive, writer: *c_libs.archive, machine: *BackendMachine) BackendError!void {
     while (true) {
-        if (BackendMachine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }

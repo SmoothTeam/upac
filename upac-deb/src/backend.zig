@@ -9,9 +9,16 @@ pub const c_libs = @cImport({
     @cInclude("archive_entry.h");
 });
 
-var cancel_requested = std.atomic.Value(bool).init(false);
-
 // ── Public types ────────────────────────────────────────────────────────────
+pub const CancelToken = extern struct {
+    _flag: u8,
+    _hook: ?*const fn (ctx: ?*anyopaque) callconv(.c) void = null,
+    _hook_ctx: ?*anyopaque = null,
+
+    pub fn isCancelled(self: *const CancelToken) bool {
+        return @atomicLoad(u8, &self._flag, .acquire) != 0;
+    }
+};
 const PackageMetaField = enum {
     Package,
     Version,
@@ -56,6 +63,8 @@ pub const PrepareRequest = struct {
 
     on_progress: ?BackendProgressFn = null,
     progress_ctx: ?*anyopaque = null,
+
+    cancel_token: *const CancelToken,
 };
 
 // Listing specific backend errors when working with archives and metadata
@@ -90,6 +99,7 @@ pub const StateId = enum(u8) {
 // A state machine context storing the transition stack, allocator, and parsing result
 pub const BackendMachine = struct {
     request: PrepareRequest,
+    cancel_token: *const CancelToken,
     meta: ?PackageMeta,
 
     temp_path: ?[:0]const u8 = null,
@@ -100,7 +110,7 @@ pub const BackendMachine = struct {
 
     // Method for transitioning to a new state with history addition
     pub fn enter(self: *BackendMachine, state_id: StateId) !void {
-        if (isCancelRequested()) {
+        if (self.isCancelRequested()) {
             stateFailed(self);
             return BackendError.Cancelled;
         }
@@ -108,8 +118,8 @@ pub const BackendMachine = struct {
         self.report(state_id);
     }
 
-    pub fn isCancelRequested() bool {
-        return cancel_requested.load(.acquire);
+    pub fn isCancelRequested(self: *const BackendMachine) bool {
+        return self.cancel_token.isCancelled();
     }
 
     // Releasing resources (stack memory) occupied by the state machine
@@ -149,6 +159,7 @@ pub const BackendMachine = struct {
     pub fn run(request: PrepareRequest, allocator: std.mem.Allocator) !PrepareResult {
         var machine = BackendMachine{
             .request = request,
+            .cancel_token = request.cancel_token,
             .stack = std.ArrayList(StateId).empty,
             .allocator = allocator,
             .meta = null,
@@ -220,6 +231,8 @@ const CPrepareRequest = extern struct {
     on_progress: ?CBackendProgressFn = null,
     progress_ctx: ?*anyopaque = null,
 
+    cancel_token: ?*const CancelToken = null,
+
     pub fn validate(req: CPrepareRequest) !void {
         if (req.struct_size != @sizeOf(CPrepareRequest)) return error.AbiMismatch;
 
@@ -254,6 +267,8 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque, out_temp_path: *CSlice) callconv(.c) i32 {
     request_c.validate() catch |err| return @intFromEnum(fromError(err));
 
+    const cancel_token = request_c.cancel_token orelse return @intFromEnum(BackendErrorCode.invalid_entry);
+
     const zig_request = PrepareRequest{
         .pkg_path = request_c.pkg_path.asZ(),
         .temp_dir = request_c.temp_dir.asZ(),
@@ -262,6 +277,8 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque,
 
         .on_progress = request_c.on_progress,
         .progress_ctx = request_c.progress_ctx,
+
+        .cancel_token = cancel_token,
     };
 
     const result = BackendMachine.run(zig_request, gpa.allocator()) catch |err| return @intFromEnum(fromError(err));
@@ -327,14 +344,6 @@ pub export fn meta_get_name(meta: *const CPackageMeta) callconv(.c) CSlice {
 
 pub export fn meta_get_version(meta: *const CPackageMeta) callconv(.c) CSlice {
     return meta.version;
-}
-
-pub export fn request_cancel() callconv(.c) void {
-    cancel_requested.store(true, .release);
-}
-
-pub export fn reset_cancel() callconv(.c) void {
-    cancel_requested.store(false, .release);
 }
 
 pub const BackendErrorCode = enum(i32) {

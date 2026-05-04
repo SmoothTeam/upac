@@ -39,7 +39,7 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
     machine.file = package_file;
 
     while (true) {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
@@ -110,7 +110,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
     defer old_dir.setAsCwd() catch {};
 
     while (true) {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
@@ -146,7 +146,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
         }
 
         while (true) {
-            if (Machine.isCancelRequested()) {
+            if (machine.isCancelRequested()) {
                 stateFailed(machine);
                 return BackendError.Cancelled;
             }
@@ -210,7 +210,7 @@ fn stateReadingMeta(machine: *Machine) BackendError!StateId {
 
     var lines = std.mem.splitScalar(u8, content, '\n');
     while (lines.next()) |line| {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }

@@ -52,7 +52,7 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
     machine.file = package_file;
 
     while (true) {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
@@ -126,7 +126,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
 
     var entry: ?*c_libs.archive_entry = null;
     while (c_libs.archive_read_next_header(archive_reader, &entry) == c_libs.ARCHIVE_OK) {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
@@ -156,7 +156,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
 
             var inner_entry: ?*c_libs.archive_entry = null;
             while (c_libs.archive_read_next_header(inner_archive_reader, &inner_entry) == c_libs.ARCHIVE_OK) {
-                if (Machine.isCancelRequested()) {
+                if (machine.isCancelRequested()) {
                     stateFailed(machine);
                     return BackendError.Cancelled;
                 }
@@ -193,7 +193,7 @@ fn stateVerifyingFiles(machine: *Machine) BackendError!StateId {
     var lines = std.mem.splitScalar(u8, content, '\n');
 
     while (lines.next()) |line| {
-        if (Machine.isCancelRequested()) {
+        if (machine.isCancelRequested()) {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
