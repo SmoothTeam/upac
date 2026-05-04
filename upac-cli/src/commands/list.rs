@@ -6,10 +6,11 @@ use colored::Colorize;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
+use crate::cancel_token_ptr;
 use crate::config::Config;
-use crate::ffi::{CArray, CSlice, CUnmutatedRequest, CancelToken, CommitHandle, PackageMetaHandle};
+use crate::ffi::{CArray, CSlice, CUnmutatedRequest, CommitHandle, PackageMetaHandle};
 use crate::upac::UpacLib;
-use crate::utils::{BackendKind, PackageField};
+use crate::utils::PackageField;
 
 macro_rules! get_package_handle {
     ($lib:expr, $array:expr, $idx:expr, $err:expr) => {{
@@ -114,7 +115,7 @@ struct ListMachine {
 }
 
 impl ListMachine {
-    fn new(config: Config, commits_mode: bool, full: bool) -> Result<Self> {
+    fn new(config: Config, upac_lib: Arc<UpacLib>, commits_mode: bool, full: bool) -> Result<Self> {
         Ok(Self {
             full,
 
@@ -124,15 +125,15 @@ impl ListMachine {
             commits: Vec::new(),
 
             config,
-            upac_lib: Arc::new(UpacLib::load(&BackendKind::UpacLib)?),
+            upac_lib: upac_lib,
             state: State::Starting,
         })
     }
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
-pub fn run(config: Config, args: ListArgs) -> Result<()> {
-    let mut list_machine = ListMachine::new(config, args.commit, args.full)?;
+pub fn run(args: ListArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
+    let mut list_machine = ListMachine::new(config, upac_lib, args.commit, args.full)?;
 
     match list_machine.commits_mode {
         true => state_get_commits_info(&mut list_machine).map_err(|err| {
@@ -164,8 +165,7 @@ fn state_get_commits_info(machine: &mut ListMachine) -> Result<()> {
 
     let mut commit_array_c: CArray<CommitHandle> = CArray::empty();
 
-    let mut token = Box::new(crate::ffi::CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut crate::ffi::CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let list_request_c = CUnmutatedRequest::for_list(
         &machine.config.paths.repo_path,
@@ -223,8 +223,7 @@ fn state_get_packages_list(machine: &mut ListMachine) -> Result<()> {
 
     let mut package_array_c: CArray<PackageMetaHandle> = CArray::empty();
 
-    let mut token = Box::new(CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let list_request_c = CUnmutatedRequest::for_list(
         &machine.config.paths.repo_path,

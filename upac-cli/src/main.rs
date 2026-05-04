@@ -7,8 +7,12 @@ use colored::Colorize;
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::ptr::null_mut;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::ptr::addr_of_mut;
+use std::sync::Arc;
+
+use crate::ffi::CancelToken;
+use crate::upac::UpacLib;
+use crate::utils::BackendKind;
 
 use commands::diff::DiffArgs;
 use commands::init::InitArgs;
@@ -37,7 +41,11 @@ mod commands {
     pub mod init;
 }
 
-pub static CURRENT_CANCEL_TOKEN: AtomicPtr<CancelToken> = AtomicPtr::new(null_mut());
+static mut CANCEL_TOKEN: CancelToken = CancelToken::new();
+
+pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
+    addr_of_mut!(CANCEL_TOKEN)
+}
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 // Automatic generation of Cli structure parser
@@ -76,36 +84,37 @@ fn main() {
 
 // Core business logic: argument parsing, config loading, and command execution
 fn run() -> Result<()> {
-    let cli = Cli::parse();
-    ctrlc::set_handler(|| {
-        let token = CURRENT_CANCEL_TOKEN.load(Ordering::SeqCst);
-        if !token.is_null() {
-            ffi::cancel_token(token);
-        }
-    })?;
-
     let default_config_path =
         check_default_config_path().ok_or(anyhow::anyhow!("no default config path found"))?;
     let config = Config::load(&default_config_path)?;
 
+    let cli = Cli::parse();
+
+    let upac_lib = Arc::new(UpacLib::load(&BackendKind::UpacLib)?);
+
+    let lib_cancel = Arc::clone(&upac_lib);
+    ctrlc::set_handler(move || {
+        unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
+    })?;
+
     match cli.command {
         Command::Install(args) => {
-            commands::install::run(config, args)?;
+            commands::install::run(args, config, upac_lib)?;
         }
         Command::Remove(args) => {
-            commands::remove::run(config, args)?;
+            commands::remove::run(args, config, upac_lib)?;
         }
         Command::List(args) => {
-            commands::list::run(config, args)?;
+            commands::list::run(args, config, upac_lib)?;
         }
         Command::Diff(args) => {
-            commands::diff::run(config, args)?;
+            commands::diff::run(args, config, upac_lib)?;
         }
         Command::Rollback(args) => {
-            commands::rollback::run(config, args)?;
+            commands::rollback::run(args, config, upac_lib)?;
         }
         Command::Init(args) => {
-            commands::init::run(config, args)?;
+            commands::init::run(args, config, upac_lib)?;
         }
     }
 

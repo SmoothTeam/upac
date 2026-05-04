@@ -6,10 +6,11 @@ use indicatif::ProgressBar;
 use std::ffi::{c_void, CString};
 use std::sync::Arc;
 
+use crate::cancel_token_ptr;
 use crate::config::Config;
-use crate::ffi::{CMutatedRequest, CSlice, CancelToken};
+use crate::ffi::{CMutatedRequest, CSlice};
 use crate::upac::UpacLib;
-use crate::utils::{spinner, BackendKind};
+use crate::utils::spinner;
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
 #[derive(clap::Args)]
@@ -37,11 +38,11 @@ struct RemoveMachine {
 }
 
 impl RemoveMachine {
-    fn new(config: Config, package_names: Vec<CString>) -> Result<Self> {
+    fn new(config: Config, upac_lib: Arc<UpacLib>, package_names: Vec<CString>) -> Result<Self> {
         Ok(Self {
             package_names,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: Arc::new(UpacLib::load(&BackendKind::UpacLib)?),
+            upac_lib: upac_lib,
             config,
             state: State::Validating,
         })
@@ -49,8 +50,8 @@ impl RemoveMachine {
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
-pub fn run(config: Config, args: RemoveArgs) -> Result<()> {
-    let mut remove_machine = RemoveMachine::new(config, args.name)?;
+pub fn run(args: RemoveArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
+    let mut remove_machine = RemoveMachine::new(config, upac_lib, args.name)?;
 
     state_validating(&mut remove_machine).map_err(|err| {
         if remove_machine.config.verbose {
@@ -92,8 +93,7 @@ fn state_uninstalling(machine: &mut RemoveMachine) -> Result<()> {
 
     let progress_bar_ptr = &machine.progress_bar as *const ProgressBar as *mut c_void;
 
-    let mut token = Box::new(CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let remove_request_c = CMutatedRequest::for_uninstall(
         package_names_c.as_slice(),

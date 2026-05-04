@@ -7,7 +7,7 @@ use std::str;
 
 use crate::ffi::{
     load_symbol, CArray, CAttributedDiffEntry, CMutatedRequest, CPackageDiffEntry, CSlice,
-    CUnmutatedRequest, CommitHandle, PackageMetaHandle,
+    CUnmutatedRequest, CancelToken, CommitHandle, PackageMetaHandle,
 };
 use crate::utils::BackendKind;
 
@@ -43,7 +43,7 @@ pub struct UpacLib {
 
     pub init: unsafe extern "C" fn(CUnmutatedRequest) -> i32,
     pub deinit: unsafe extern "C" fn(),
-    pub cancel: unsafe extern "C" fn(),
+    pub cancel: unsafe extern "C" fn(*mut CancelToken),
 
     _lib: Library,
 }

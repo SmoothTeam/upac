@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 use std::ptr::{null, null_mut};
 use std::slice;
 use std::str;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 pub trait Validate {
     fn validate(&self) -> Result<()>;
@@ -140,17 +141,27 @@ pub struct CancelToken {
 }
 
 impl CancelToken {
-    pub fn zeroed() -> Self {
+    pub const fn new() -> Self {
         Self {
             _flag: 0,
             _hook: None,
             _hook_ctx: null_mut(),
         }
     }
+
+    pub fn cancel(&self) {
+        unsafe {
+            let atomic_flag = &*(&self._flag as *const u8 as *const AtomicU8);
+            atomic_flag.store(1, Ordering::Release);
+            if let Some(hook) = self._hook {
+                hook(self._hook_ctx);
+            }
+        }
+    }
 }
 
-unsafe impl Send for CancelToken {}
-unsafe impl Sync for CancelToken {}
+// unsafe impl Send for CancelToken {}
+// unsafe impl Sync for CancelToken {}
 
 // ── CMutatedRequest ───────────────────────────────────────────────────────────
 // Unified repr(C) struct for install, uninstall and rollback.
@@ -410,6 +421,7 @@ pub struct CPrepareRequest {
     temp_dir_path: CSlice,
     on_progress: unsafe extern "C" fn(u8, CSlice, *mut c_void),
     progress_ctx: *mut c_void,
+    cancel_token: *mut CancelToken,
 }
 
 impl CPrepareRequest {
@@ -419,6 +431,7 @@ impl CPrepareRequest {
         checksum: &CString,
         on_progress: unsafe extern "C" fn(u8, CSlice, *mut c_void),
         progress_ctx: *mut c_void,
+        cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
             struct_size: size_of::<Self>(),
@@ -427,6 +440,7 @@ impl CPrepareRequest {
             temp_dir_path: CSlice::from_cstring(temp_dir_path),
             on_progress,
             progress_ctx,
+            cancel_token,
         }
     }
 }

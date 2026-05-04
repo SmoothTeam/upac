@@ -12,13 +12,14 @@ use std::ptr::null_mut;
 use std::slice;
 use std::sync::Arc;
 
+use crate::cancel_token_ptr;
 use crate::config::Config;
 use crate::upac::UpacLib;
-use crate::utils::{spinner, BackendKind};
+use crate::utils::spinner;
 
 use crate::ffi::{
     CArray, CAttributedDiffEntry, CDiffKind, CPackageDiffEntry, CPackageDiffKind, CSlice,
-    CUnmutatedRequest, CancelToken, CommitHandle, Validate,
+    CUnmutatedRequest, CommitHandle, Validate,
 };
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
@@ -90,6 +91,7 @@ struct DiffMachine {
 impl DiffMachine {
     fn new(
         config: Config,
+        upac_lib: Arc<UpacLib>,
         from_commit: Option<String>,
         to_commit: Option<String>,
         files_mode: bool,
@@ -101,7 +103,7 @@ impl DiffMachine {
             file_rows: Vec::new(),
             files_mode,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: Arc::new(UpacLib::load(&BackendKind::UpacLib)?),
+            upac_lib: upac_lib,
             config,
             state: State::Validating,
         })
@@ -109,8 +111,8 @@ impl DiffMachine {
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
-pub fn run(config: Config, args: DiffArgs) -> Result<()> {
-    let mut diff_machine = DiffMachine::new(config, args.from, args.to, args.files)?;
+pub fn run(args: DiffArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
+    let mut diff_machine = DiffMachine::new(config, upac_lib, args.from, args.to, args.files)?;
 
     state_validating(&mut diff_machine).map_err(|err| {
         if diff_machine.config.verbose {
@@ -158,8 +160,7 @@ fn fetch_commit_checksums(machine: &mut DiffMachine) -> Result<Vec<String>> {
     let from_c = CString::new(machine.from_commit.as_deref().unwrap_or(""))?;
     let to_c = CString::new(machine.to_commit.as_deref().unwrap_or(""))?;
 
-    let mut token = Box::new(CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
@@ -207,8 +208,7 @@ fn state_fetching_files_diff(machine: &mut DiffMachine) -> Result<()> {
     let from_c = CString::new(machine.from_commit.as_deref().unwrap_or(""))?;
     let to_c = CString::new(machine.to_commit.as_deref().unwrap_or(""))?;
 
-    let mut token = Box::new(CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
@@ -259,8 +259,7 @@ fn state_fetching_packages_diff(machine: &mut DiffMachine) -> Result<()> {
     let from_c = CString::new(machine.from_commit.as_deref().unwrap_or(""))?;
     let to_c = CString::new(machine.to_commit.as_deref().unwrap_or(""))?;
 
-    let mut token = Box::new(CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,

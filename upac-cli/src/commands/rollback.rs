@@ -8,10 +8,11 @@ use colored::Colorize;
 use std::ffi::CString;
 use std::sync::Arc;
 
+use crate::cancel_token_ptr;
 use crate::config::Config;
-use crate::ffi::{CMutatedRequest, CancelToken};
+use crate::ffi::CMutatedRequest;
 use crate::upac::UpacLib;
-use crate::utils::{spinner, BackendKind};
+use crate::utils::spinner;
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
 #[derive(clap::Args)]
@@ -38,11 +39,11 @@ struct RollbackMachine {
 }
 
 impl RollbackMachine {
-    fn new(config: Config, commit_hash: CString) -> Result<Self> {
+    fn new(config: Config, upac_lib: Arc<UpacLib>, commit_hash: CString) -> Result<Self> {
         Ok(Self {
             commit_hash,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: Arc::new(UpacLib::load(&BackendKind::UpacLib)?),
+            upac_lib: upac_lib,
             config,
             state: State::Validating,
         })
@@ -50,8 +51,8 @@ impl RollbackMachine {
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
-pub fn run(config: Config, args: RollbackArgs) -> Result<()> {
-    let mut rolling_machine = RollbackMachine::new(config, args.commit)?;
+pub fn run(args: RollbackArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
+    let mut rolling_machine = RollbackMachine::new(config, upac_lib, args.commit)?;
 
     state_validating(&mut rolling_machine).map_err(|err| {
         if rolling_machine.config.verbose {
@@ -96,8 +97,7 @@ fn state_rolling_back(machine: &mut RollbackMachine) -> Result<()> {
     machine.state = State::RollingBack;
     spinner(&machine.progress_bar, "Rolling back...");
 
-    let mut token = Box::new(CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let rollback_request_c = CMutatedRequest::for_rollback(
         &machine.commit_hash,

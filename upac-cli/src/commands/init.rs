@@ -8,10 +8,11 @@ use colored::Colorize;
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::cancel_token_ptr;
 use crate::config::Config;
-use crate::ffi::{CRepoMode, CUnmutatedRequest, CancelToken};
+use crate::ffi::{CRepoMode, CUnmutatedRequest};
 use crate::upac::UpacLib;
-use crate::utils::{spinner, BackendKind};
+use crate::utils::spinner;
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
 #[derive(clap::Args)]
@@ -42,7 +43,12 @@ struct InitMachine {
 }
 
 impl InitMachine {
-    fn new(repo_mode_c: CRepoMode, config_path: String, config: Config) -> Result<Self> {
+    fn new(
+        repo_mode_c: CRepoMode,
+        config_path: String,
+        config: Config,
+        upac_lib: Arc<UpacLib>,
+    ) -> Result<Self> {
         Ok(Self {
             repo_mode_c,
 
@@ -50,14 +56,14 @@ impl InitMachine {
 
             config,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: Arc::new(UpacLib::load(&BackendKind::UpacLib)?),
+            upac_lib: upac_lib,
             state: State::Validating,
         })
     }
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
-pub fn run(config: Config, args: InitArgs) -> Result<()> {
+pub fn run(args: InitArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
     let repo_mode_c = match config.ostree.mode.to_str()? {
         "archive" => CRepoMode::Archive,
         "bare" => CRepoMode::Bare,
@@ -68,7 +74,7 @@ pub fn run(config: Config, args: InitArgs) -> Result<()> {
         ),
     };
 
-    let mut init_machine = InitMachine::new(repo_mode_c, args.config_path, config)?;
+    let mut init_machine = InitMachine::new(repo_mode_c, args.config_path, config, upac_lib)?;
 
     state_validating(&mut init_machine).map_err(|err| {
         if init_machine.config.verbose {
@@ -113,8 +119,7 @@ fn state_initializing(machine: &mut InitMachine) -> Result<()> {
     machine.state = State::Initializing;
     spinner(&machine.progress_bar, "Initializing system directories...");
 
-    let mut token = Box::new(CancelToken::zeroed());
-    let token_ptr = &mut *token as *mut CancelToken;
+    let token_ptr = cancel_token_ptr();
 
     let repo_mode_val = machine.repo_mode_c as u32;
     let init_request_c = CUnmutatedRequest::for_init(

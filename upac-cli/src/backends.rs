@@ -10,7 +10,7 @@ use std::ptr::null_mut;
 
 use libloading::Library;
 
-use crate::ffi::{load_symbol, CPrepareRequest, CSlice, PackageMetaHandle};
+use crate::ffi::{load_symbol, CPrepareRequest, CSlice, CancelToken, PackageMetaHandle};
 use crate::utils::BackendKind;
 
 // ── Backend Definition ────────────────────────────────────────
@@ -74,6 +74,7 @@ impl Backend {
         temp_dir: &CString,
         checksum: &CString,
         progress_ctx: *mut c_void,
+        cancel_token: *mut CancelToken,
     ) -> Result<(PackageMetaHandle, CSlice)> {
         let prepare_request_c = CPrepareRequest::new(
             pkg_path,
@@ -81,6 +82,7 @@ impl Backend {
             checksum,
             Backend::on_backend_progress,
             progress_ctx,
+            cancel_token,
         );
 
         let mut meta_handle: PackageMetaHandle = null_mut();
