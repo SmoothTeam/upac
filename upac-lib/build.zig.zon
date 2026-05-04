@@ -1,6 +1,6 @@
 .{
     .name = .upac_lib,
-    .version = "0.1.3",
+    .version = "0.1.4",
     .fingerprint = 0xb5e0bcfe9385219e,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{},
