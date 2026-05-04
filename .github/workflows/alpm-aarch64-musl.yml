@@ -1,0 +1,25 @@
+name: Make package for Alpm Aarch64 Musl
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: latest
+
+      - name: Build package
+        run: make pkg-arch CPU=x86_64_v3 MODE=release
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: upac-alpm-aarch64-musl
+          path: pkg/*
