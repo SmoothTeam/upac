@@ -11,16 +11,17 @@ const package_meta_field_map = backend.package_meta_field_map;
 const BackendError = backend.BackendError;
 const StateId = backend.StateId;
 
-const parseLicenseFromCopyright = backend.parseLicenseFromCopyright;
+const utils = @import("utils.zig");
+const parseLicenseFromCopyright = utils.parseLicenseFromCopyright;
 
-const copyArchiveEntry = backend.copyArchiveEntry;
+const copyArchiveEntry = utils.copyArchiveEntry;
 
-const computeMd5 = backend.computeMd5;
+const computeMd5 = utils.computeMd5;
 
-const isControlFile = backend.isControlFile;
-const isCopyrightFile = backend.isCopyrightFile;
+const isControlFile = utils.isControlFile;
+const isCopyrightFile = utils.isCopyrightFile;
 
-const readFileFromNestedTar = backend.readFileFromNestedTar;
+const readFileFromNestedTar = utils.readFileFromNestedTar;
 
 // ── Trampoline ────────────────────────────────────────────────────────────────
 pub fn stateStart(machine: *Machine) BackendError!void {
