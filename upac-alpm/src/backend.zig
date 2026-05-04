@@ -159,7 +159,7 @@ pub const BackendMachine = struct {
             .allocator = allocator,
         };
         defer machine.deinit();
-        try states.stateVerifying(&machine);
+        try states.stateStart(&machine);
 
         const temp_path = try machine.unwrap(machine.temp_path, BackendError.TempDirFailed);
         machine.temp_path = null;

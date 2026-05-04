@@ -9,6 +9,7 @@ const PackageMeta = backend.PackageMeta;
 const package_meta_field_map = backend.package_meta_field_map;
 
 const BackendError = backend.BackendError;
+const StateId = backend.StateId;
 
 const parseLicenseFromCopyright = backend.parseLicenseFromCopyright;
 
@@ -21,11 +22,25 @@ const isCopyrightFile = backend.isCopyrightFile;
 
 const readFileFromNestedTar = backend.readFileFromNestedTar;
 
+// ── Trampoline ────────────────────────────────────────────────────────────────
+pub fn stateStart(machine: *Machine) BackendError!void {
+    var state = StateId.verifying;
+    while (state != .done) {
+        try machine.enter(state);
+        state = switch (state) {
+            .verifying => try stateVerifying(machine),
+            .extracting => try stateExtracting(machine),
+            .special_step => try stateVerifyingFiles(machine),
+            .reading_meta => try stateReadingMeta(machine),
+            .done, .failed => unreachable,
+        };
+    }
+    try machine.enter(.done);
+}
+
 // ── States ─────────────────────────────────────────────────────────────────
 // Archive integrity check status: calculating SHA256 and comparing against expected value
-pub fn stateVerifying(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.verifying), BackendError.OutOfMemory);
-
+fn stateVerifying(machine: *Machine) BackendError!StateId {
     var hasher = std.crypto.hash.sha2.Sha256.init(.{});
     var hasher_buf: [65536]u8 = undefined;
 
@@ -36,6 +51,10 @@ pub fn stateVerifying(machine: *Machine) BackendError!void {
     machine.file = package_file;
 
     while (true) {
+        if (Machine.isCancelRequested()) {
+            stateFailed(machine);
+            return BackendError.Cancelled;
+        }
         const index = try machine.check(package_file.read(&hasher_buf), BackendError.ReadFailed);
 
         if (index == 0) break;
@@ -53,13 +72,11 @@ pub fn stateVerifying(machine: *Machine) BackendError!void {
     const file_descriptor = try machine.unwrap(machine.file, BackendError.ArchiveOpenFailed);
     try machine.check(file_descriptor.seekTo(0), BackendError.ArchiveOpenFailed);
 
-    return stateExtracting(machine);
+    return .extracting;
 }
 
 // Unpacking state: uses libarchive to extract files to the temp directory
-fn stateExtracting(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.extracting), BackendError.OutOfMemory);
-
+fn stateExtracting(machine: *Machine) BackendError!StateId {
     var tem_dir_buf: [256]u8 = undefined;
     const timestamp = std.time.milliTimestamp();
 
@@ -108,6 +125,11 @@ fn stateExtracting(machine: *Machine) BackendError!void {
 
     var entry: ?*c_libs.archive_entry = null;
     while (c_libs.archive_read_next_header(archive_reader, &entry) == c_libs.ARCHIVE_OK) {
+        if (Machine.isCancelRequested()) {
+            stateFailed(machine);
+            return BackendError.Cancelled;
+        }
+
         const entry_name = std.mem.span(c_libs.archive_entry_pathname(entry));
 
         if (std.mem.startsWith(u8, entry_name, "data.tar")) {
@@ -133,6 +155,10 @@ fn stateExtracting(machine: *Machine) BackendError!void {
 
             var inner_entry: ?*c_libs.archive_entry = null;
             while (c_libs.archive_read_next_header(inner_archive_reader, &inner_entry) == c_libs.ARCHIVE_OK) {
+                if (Machine.isCancelRequested()) {
+                    stateFailed(machine);
+                    return BackendError.Cancelled;
+                }
                 if (c_libs.archive_write_header(archive_writer, inner_entry) != c_libs.ARCHIVE_OK) {
                     stateFailed(machine);
                     return BackendError.ArchiveExtractFailed;
@@ -141,19 +167,19 @@ fn stateExtracting(machine: *Machine) BackendError!void {
             }
         }
     }
-    return stateVerifyingFiles(machine);
+
+    return .special_step;
 }
 
 // Verifies the checksums of files listed in md5sums against their actual contents on disk
-fn stateVerifyingFiles(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.special_step), BackendError.OutOfMemory);
+fn stateVerifyingFiles(machine: *Machine) BackendError!StateId {
     machine.reportDetail("verifying archive integrity...");
 
     const md5_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.request.temp_dir), "md5sums" }), BackendError.OutOfMemory);
     defer machine.allocator.free(md5_path);
 
     const content = std.fs.cwd().readFileAlloc(machine.allocator, md5_path, 10 * 1024 * 1024) catch |err| {
-        if (err == error.FileNotFound) return stateReadingMeta(machine);
+        if (err == error.FileNotFound) return .reading_meta;
         stateFailed(machine);
         return BackendError.ReadFailed;
     };
@@ -166,6 +192,10 @@ fn stateVerifyingFiles(machine: *Machine) BackendError!void {
     var lines = std.mem.splitScalar(u8, content, '\n');
 
     while (lines.next()) |line| {
+        if (Machine.isCancelRequested()) {
+            stateFailed(machine);
+            return BackendError.Cancelled;
+        }
         const trimmed = std.mem.trim(u8, line, " \r");
         if (trimmed.len == 0) continue;
 
@@ -185,13 +215,11 @@ fn stateVerifyingFiles(machine: *Machine) BackendError!void {
         }
     }
 
-    return stateReadingMeta(machine);
+    return .reading_meta;
 }
 
 // Extracts package metadata from the nested control.tar archive and parses the control file
-fn stateReadingMeta(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.reading_meta), BackendError.OutOfMemory);
-
+fn stateReadingMeta(machine: *Machine) BackendError!StateId {
     const archive_reader = try machine.unwrap(c_libs.archive_read_new(), BackendError.ArchiveOpenFailed);
     defer _ = c_libs.archive_read_free(archive_reader);
     _ = c_libs.archive_read_support_format_ar(archive_reader);
@@ -269,21 +297,17 @@ fn stateReadingMeta(machine: *Machine) BackendError!void {
         .checksum = try machine.allocator.dupe(u8, machine.request.checksum),
     };
 
-    return stateDone(machine);
-}
-
-// The final state representing the successful completion of all processing stages
-fn stateDone(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.done), BackendError.OutOfMemory);
+    return .done;
 }
 
 // An error state signaling that the machine failed to reach the required state at a certain stage
 pub fn stateFailed(machine: *Machine) void {
-    machine.enter(.failed) catch {};
+    if (machine.stack.items.len > 0 and machine.stack.getLast() == .failed) return;
     if (machine.temp_path) |path| {
         std.fs.deleteTreeAbsolute(path) catch {};
         machine.allocator.free(path);
         machine.temp_path = null;
     }
-    _ = machine.enter(.failed) catch {};
+    machine.stack.append(machine.allocator, .failed) catch {};
+    machine.report(.failed);
 }

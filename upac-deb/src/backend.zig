@@ -154,7 +154,7 @@ pub const BackendMachine = struct {
             .meta = null,
         };
         defer machine.deinit();
-        try states.stateVerifying(&machine);
+        try states.stateStart(&machine);
 
         const temp_path = machine.temp_path orelse return BackendError.TempDirFailed;
         machine.temp_path = null;
@@ -393,17 +393,21 @@ pub fn parseLicenseFromCopyright(content: ?[]const u8, allocator: std.mem.Alloca
 
 pub fn copyArchiveEntry(reader: *c_libs.archive, writer: *c_libs.archive, machine: *BackendMachine) BackendError!void {
     while (true) {
+        if (BackendMachine.isCancelRequested()) {
+            stateFailed(machine);
+            return BackendError.Cancelled;
+        }
         var block: ?*const anyopaque = null;
-        var b_size: usize = 0;
+        var block_size: usize = 0;
         var offset: i64 = 0;
 
-        const rd = c_libs.archive_read_data_block(reader, &block, &b_size, &offset);
+        const rd = c_libs.archive_read_data_block(reader, &block, &block_size, &offset);
         if (rd == c_libs.ARCHIVE_EOF) break;
         if (rd != c_libs.ARCHIVE_OK) {
             stateFailed(machine);
             return BackendError.ArchiveReadFailed;
         }
-        if (c_libs.archive_write_data_block(writer, block, b_size, offset) != c_libs.ARCHIVE_OK) {
+        if (c_libs.archive_write_data_block(writer, block, block_size, offset) != c_libs.ARCHIVE_OK) {
             stateFailed(machine);
             return BackendError.ArchiveExtractFailed;
         }

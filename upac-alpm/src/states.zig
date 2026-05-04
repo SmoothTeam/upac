@@ -7,14 +7,28 @@ const c_libs = backend.c_libs;
 const Machine = backend.BackendMachine;
 const PackageMeta = backend.PackageMeta;
 const BackendError = backend.BackendError;
+const StateId = backend.StateId;
 
 const package_meta_field_map = backend.package_meta_field_map;
 
+// ── Trampoline ────────────────────────────────────────────────────────────────
+pub fn stateStart(machine: *Machine) BackendError!void {
+    var state = StateId.verifying;
+    while (state != .done) {
+        try machine.enter(state);
+        state = switch (state) {
+            .verifying => try stateVerifying(machine),
+            .extracting => try stateExtracting(machine),
+            .reading_meta => try stateReadingMeta(machine),
+            .done, .failed, .special_step => unreachable,
+        };
+    }
+    try machine.enter(.done);
+}
+
 // ── States ─────────────────────────────────────────────────────────────────
 // Archive integrity check status: calculating SHA256 and comparing against expected value
-pub fn stateVerifying(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.verifying), BackendError.OutOfMemory);
-
+fn stateVerifying(machine: *Machine) BackendError!StateId {
     var hasher = std.crypto.hash.sha2.Sha256.init(.{});
     var hasher_buf: [65536]u8 = undefined;
 
@@ -25,6 +39,10 @@ pub fn stateVerifying(machine: *Machine) BackendError!void {
     machine.file = package_file;
 
     while (true) {
+        if (Machine.isCancelRequested()) {
+            stateFailed(machine);
+            return BackendError.Cancelled;
+        }
         const index = try machine.check(package_file.read(&hasher_buf), BackendError.ReadFailed);
 
         if (index == 0) break;
@@ -42,13 +60,11 @@ pub fn stateVerifying(machine: *Machine) BackendError!void {
     const file_descriptor = try machine.unwrap(machine.file, BackendError.ArchiveOpenFailed);
     try machine.check(file_descriptor.seekTo(0), BackendError.ArchiveOpenFailed);
 
-    return stateExtracting(machine);
+    return .extracting;
 }
 
 // Unpacking state: uses libarchive to extract files to the temp directory
-fn stateExtracting(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.extracting), BackendError.OutOfMemory);
-
+fn stateExtracting(machine: *Machine) BackendError!StateId {
     const file_descriptor = try machine.unwrap(machine.file, BackendError.ArchiveOpenFailed);
 
     var tem_dir_buf: [256]u8 = undefined;
@@ -94,6 +110,11 @@ fn stateExtracting(machine: *Machine) BackendError!void {
     defer old_dir.setAsCwd() catch {};
 
     while (true) {
+        if (Machine.isCancelRequested()) {
+            stateFailed(machine);
+            return BackendError.Cancelled;
+        }
+
         var entry: ?*c_libs.archive_entry = null;
         const result_code = c_libs.archive_read_next_header(archive_reader, &entry);
         if (result_code == c_libs.ARCHIVE_EOF) break;
@@ -125,6 +146,11 @@ fn stateExtracting(machine: *Machine) BackendError!void {
         }
 
         while (true) {
+            if (Machine.isCancelRequested()) {
+                stateFailed(machine);
+                return BackendError.Cancelled;
+            }
+
             var block: ?*const anyopaque = null;
             var size: usize = 0;
             var offset: i64 = 0;
@@ -148,13 +174,11 @@ fn stateExtracting(machine: *Machine) BackendError!void {
         }
     }
 
-    return stateReadingMeta(machine);
+    return .reading_meta;
 }
 
 // Parsing status: searching for and parsing the .PKGINFO file to populate package metadata
-fn stateReadingMeta(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.reading_meta), BackendError.OutOfMemory);
-
+fn stateReadingMeta(machine: *Machine) BackendError!StateId {
     const temp_path_c = try machine.unwrap(machine.temp_path, BackendError.TempDirFailed);
     var temp_dir = try machine.check(std.fs.openDirAbsolute(temp_path_c, .{}), BackendError.TempDirFailed);
     defer temp_dir.close();
@@ -186,6 +210,11 @@ fn stateReadingMeta(machine: *Machine) BackendError!void {
 
     var lines = std.mem.splitScalar(u8, content, '\n');
     while (lines.next()) |line| {
+        if (Machine.isCancelRequested()) {
+            stateFailed(machine);
+            return BackendError.Cancelled;
+        }
+
         const trimmed_line = std.mem.trim(u8, line, " \t\r");
         if (trimmed_line.len == 0 or trimmed_line[0] == '#') continue;
 
@@ -225,20 +254,17 @@ fn stateReadingMeta(machine: *Machine) BackendError!void {
     const alpm_junk_files = [_][]const u8{ ".BUILDINFO", ".MTREE", ".INSTALL", ".CHANGELOG" };
     for (alpm_junk_files) |filename| temp_dir.deleteFile(filename) catch {};
 
-    return stateDone(machine);
-}
-
-// The final state representing the successful completion of all processing stages
-fn stateDone(machine: *Machine) BackendError!void {
-    try machine.check(machine.enter(.done), BackendError.OutOfMemory);
+    return .done;
 }
 
 // An error state signaling that the machine failed to reach the required state at a certain stage
 pub fn stateFailed(machine: *Machine) void {
+    if (machine.stack.items.len > 0 and machine.stack.getLast() == .failed) return;
     if (machine.temp_path) |path| {
         std.fs.deleteTreeAbsolute(path) catch {};
         machine.allocator.free(path);
         machine.temp_path = null;
     }
-    _ = machine.enter(.failed) catch {};
+    machine.stack.append(machine.allocator, .failed) catch {};
+    machine.report(.failed);
 }
