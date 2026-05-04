@@ -3,4 +3,5 @@ usr/lib/libupac.so
 usr/lib/libupac-alpm.so
 usr/lib/libupac-rpm.so
 usr/lib/libupac-deb.so
+usr/lib/libupac-xbps.so
 etc/upac/config.toml
