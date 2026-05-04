@@ -15,16 +15,7 @@ pub fn rollback(rollback_request_c: CRollbackRequest) callconv(.c) i32 {
     if (rollback_request_c.commit_hash.len == 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback));
     rollback_request_c.commit_hash.validate() catch return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback));
 
-    const rollback_data = rollback_module.RollbackData{
-        .root_path = rollback_request_c.root_path.asZ(),
-        .repo_path = rollback_request_c.repo_path.asZ(),
-        .prefix_path = rollback_request_c.prefix_directory.asZ(),
-
-        .branch = rollback_request_c.branch.asZ(),
-        .commit_hash = rollback_request_c.commit_hash.asZ(),
-
-        .max_retries = rollback_request_c.max_retries,
-    };
+    const rollback_data = rollback_module.RollbackData{ .root_path = rollback_request_c.root_path.asZ(), .repo_path = rollback_request_c.repo_path.asZ(), .prefix_path = rollback_request_c.prefix_directory.asZ(), .branch = rollback_request_c.branch.asZ(), .commit_hash = rollback_request_c.commit_hash.asZ(), .max_retries = rollback_request_c.max_retries, .cancel_token = rollback_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback)) };
 
     rollback_module.RollbackMachine.run(rollback_data, rollback_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.rollback));
 

@@ -6,6 +6,8 @@ const c_libs = ffi.c_libs;
 
 const CRepoMode = ffi.CRepoMode;
 
+const CancelToken = ffi.CancelToken;
+const cancelGCancellable = ffi.cancelGCancellable;
 
 // ── Public imports ─────────────────────────────────────────────────────────────────────
 pub const std = @import("std");
@@ -22,15 +24,16 @@ pub const InitError = error{
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────
-pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_mode: CRepoMode, branch_c: [*:0]const u8, prefix: []const u8, additional_prefixes: []const []const u8, allocator: std.mem.Allocator) !void {
+pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_mode: CRepoMode, branch_c: [*:0]const u8, prefix: []const u8, additional_prefixes: []const []const u8, cancel_token: *CancelToken, allocator: std.mem.Allocator) !void {
     var gerror: ?*c_libs.GError = null;
     defer if (gerror) |err| c_libs.g_error_free(err);
 
     const cancellable = c_libs.g_cancellable_new() orelse return error.OutOfMemory;
     defer c_libs.g_object_unref(cancellable);
 
-    ffi.active_cancellable.store(cancellable, .release);
-    defer ffi.active_cancellable.store(null, .release);
+    cancel_token.hook = cancelGCancellable;
+    cancel_token.hook_ctx = cancellable;
+    defer cancel_token.reset();
 
     if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
     if (!try checkDirExists(root_path_c)) return InitError.RootNotFound;

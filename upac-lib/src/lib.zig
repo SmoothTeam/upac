@@ -1,7 +1,6 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const ffi_symbols = @import("symbols/ffi.zig");
-export const request_cancel = ffi_symbols.request_cancel;
-export const reset_cancel = ffi_symbols.reset_cancel;
+export const cancel = ffi_symbols.cancel;
 
 export const deinit = ffi_symbols.deinit;
 

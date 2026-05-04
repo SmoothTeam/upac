@@ -19,7 +19,8 @@ pub fn init(init_request_c: CInitRequest) callconv(.c) i32 {
     const required = [_]CSlice{ init_request_c.repo_path, init_request_c.root_path, init_request_c.prefix, init_request_c.branch };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.init));
 
-    init_module.initSystem(init_request_c.repo_path.asZ(), init_request_c.root_path.asZ(), repo_mode_unwraped, init_request_c.branch.asZ(), init_request_c.prefix.toSlice(), &.{}, init_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.init));
+    const cancel_token = init_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.init));
+    init_module.initSystem(init_request_c.repo_path.asZ(), init_request_c.root_path.asZ(), repo_mode_unwraped, init_request_c.branch.asZ(), init_request_c.prefix.toSlice(), &.{}, cancel_token, init_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.init));
 
     return @intFromEnum(ErrorCode.ok);
 }

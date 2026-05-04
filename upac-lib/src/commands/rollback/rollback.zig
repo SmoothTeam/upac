@@ -1,8 +1,12 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const CSlice = ffi.CSlice;
 
+const CancelToken = ffi.CancelToken;
+
 const RollbackStateId = ffi.RollbackStateId;
 const RollbackProgressFn = ffi.RollbackProgressFn;
+
+const cancelGCancellable = ffi.cancelGCancellable;
 
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
@@ -39,6 +43,7 @@ pub const RollbackData = struct {
     on_progress: ?RollbackProgressFn = null,
     progress_ctx: ?*anyopaque = null,
     max_retries: u8 = 0,
+    cancel_token: *CancelToken,
 };
 
 // ── Rollback ────────────────────────────────────────────────────────────────────
@@ -155,9 +160,9 @@ pub const RollbackMachine = struct {
         self.stack.deinit(self.allocator);
     }
 
-    pub fn run(data: RollbackData, allocator: std.mem.Allocator) !void {
+    pub fn run(rollback_data: RollbackData, allocator: std.mem.Allocator) !void {
         var machine = RollbackMachine{
-            .data = data,
+            .data = rollback_data,
 
             .retries = 0,
 
@@ -167,8 +172,9 @@ pub const RollbackMachine = struct {
         };
         defer machine.deinit();
 
-        ffi.active_cancellable.store(machine.cancellable, .release);
-        defer ffi.active_cancellable.store(null, .release);
+        rollback_data.cancel_token.hook = cancelGCancellable;
+        rollback_data.cancel_token.hook_ctx = machine.cancellable;
+        defer rollback_data.cancel_token.reset();
 
         try states.stateStart(&machine);
     }

@@ -3,6 +3,9 @@ const CPackageMeta = ffi.CPackageMeta;
 const CCommitEntry = ffi.CCommitEntry;
 const ListStateId = ffi.ListStateId;
 
+const CancelToken = ffi.CancelToken;
+const cancelGCancellable = ffi.cancelGCancellable;
+
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
@@ -26,6 +29,8 @@ pub const ListData = struct {
     repo_path: [*:0]const u8,
     branch: [*:0]const u8,
     db_path: []const u8,
+
+    cancel_token: *CancelToken,
 };
 
 pub const ListMachine = struct {
@@ -100,8 +105,9 @@ pub const ListMachine = struct {
         };
         defer machine.deinit();
 
-        ffi.active_cancellable.store(machine.cancellable, .release);
-        defer ffi.active_cancellable.store(null, .release);
+        list_data.cancel_token.hook = cancelGCancellable;
+        list_data.cancel_token.hook_ctx = machine.cancellable;
+        defer list_data.cancel_token.reset();
 
         try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
@@ -122,8 +128,9 @@ pub const ListMachine = struct {
         };
         defer machine.deinit();
 
-        ffi.active_cancellable.store(machine.cancellable, .release);
-        defer ffi.active_cancellable.store(null, .release);
+        list_data.cancel_token.hook = cancelGCancellable;
+        list_data.cancel_token.hook_ctx = machine.cancellable;
+        defer list_data.cancel_token.reset();
 
         try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);

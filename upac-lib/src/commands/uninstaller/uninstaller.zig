@@ -1,7 +1,10 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
+const CancelToken = ffi.CancelToken;
 
 const UninstallStateId = ffi.UninstallStateId;
 const UninstallProgressFn = ffi.UninstallProgressFn;
+
+const cancelGCancellable = ffi.cancelGCancellable;
 
 const data = @import("upac-data");
 
@@ -49,6 +52,7 @@ pub const UninstallData = struct {
     on_progress: ?UninstallProgressFn = null,
     progress_ctx: ?*anyopaque = null,
     max_retries: u8 = 0,
+    cancel_token: *CancelToken,
 };
 
 // ── UninstallerFSM ─────────────────────────────────────────────────────────────────────
@@ -222,8 +226,9 @@ pub const UninstallerMachine = struct {
         };
         defer machine.deinit();
 
-        ffi.active_cancellable.store(machine.cancellable, .release);
-        defer ffi.active_cancellable.store(null, .release);
+        uninstall_data.cancel_token.hook = cancelGCancellable;
+        uninstall_data.cancel_token.hook_ctx = machine.cancellable;
+        defer uninstall_data.cancel_token.reset();
 
         try states.stateStart(&machine);
     }

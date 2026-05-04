@@ -10,7 +10,31 @@ pub const c_libs = @cImport({
     @cInclude("sys/statvfs.h");
 });
 
-pub var active_cancellable = std.atomic.Value(?*c_libs.GCancellable).init(null);
+pub const CancelToken = extern struct {
+    _flag: u8 = 0,
+    hook: ?*const fn (ctx: ?*anyopaque) callconv(.c) void = null,
+    hook_ctx: ?*anyopaque = null,
+
+    pub fn cancel(self: *CancelToken) void {
+        @atomicStore(u8, &self._flag, 1, .release);
+        if (self.hook) |f| f(self.hook_ctx);
+    }
+
+    pub fn isCancelled(self: *const CancelToken) bool {
+        return @atomicLoad(u8, &self._flag, .acquire) != 0;
+    }
+
+    pub fn reset(self: *CancelToken) void {
+        @atomicStore(u8, &self._flag, 0, .release);
+        self.hook = null;
+        self.hook_ctx = null;
+    }
+};
+
+// Hook function passed to CancelToken to cancel an associated GCancellable.
+pub fn cancelGCancellable(ctx: ?*anyopaque) callconv(.c) void {
+    if (ctx) |ptr| c_libs.g_cancellable_cancel(@ptrCast(@alignCast(ptr)));
+}
 
 // ── Reimports types ─────────────────────────────────────────────────────────────────────
 const types = @import("types.zig");
@@ -140,6 +164,7 @@ pub const CMutatedRequest = extern struct {
     progress_ctx: ?*anyopaque = null,
 
     max_retries: u8 = 0,
+    cancel_token: ?*CancelToken = null,
 
     pub fn validate(self: CMutatedRequest) !void {
         if (self.struct_size != @sizeOf(CMutatedRequest)) return error.AbiMismatch;
@@ -165,6 +190,7 @@ pub const CUnmutatedRequest = extern struct {
     to_commit_hash: CSlice,
 
     repo_mode: *anyopaque,
+    cancel_token: ?*CancelToken = null,
 
     pub fn validate(self: CUnmutatedRequest) !void {
         if (self.struct_size != @sizeOf(CUnmutatedRequest)) return error.AbiMismatch;

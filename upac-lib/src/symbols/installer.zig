@@ -20,17 +20,7 @@ pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
     const install_entries = collectInstallEntries(install_request_c, installer_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
     defer installer_module.ffi.allocator().free(install_entries);
 
-    const install_data = installer_module.InstallData{
-        .packages = install_entries,
-        .branch = install_request_c.branch.asZ(),
-        .repo_path = install_request_c.repo_path.asZ(),
-        .root_path = install_request_c.root_path.asZ(),
-        .database_path = install_request_c.db_path.asZ(),
-        .prefix_path = install_request_c.prefix_directory.asZ(),
-        .on_progress = if (install_request_c.on_progress) |cb| @as(InstallProgressFn, @ptrCast(cb)) else null,
-        .progress_ctx = install_request_c.progress_ctx,
-        .max_retries = install_request_c.max_retries,
-    };
+    const install_data = installer_module.InstallData{ .packages = install_entries, .branch = install_request_c.branch.asZ(), .repo_path = install_request_c.repo_path.asZ(), .root_path = install_request_c.root_path.asZ(), .database_path = install_request_c.db_path.asZ(), .prefix_path = install_request_c.prefix_directory.asZ(), .on_progress = if (install_request_c.on_progress) |cb| @as(InstallProgressFn, @ptrCast(cb)) else null, .progress_ctx = install_request_c.progress_ctx, .max_retries = install_request_c.max_retries, .cancel_token = install_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.install)) };
 
     installer_module.InstallerMachine.run(install_data, installer_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
 

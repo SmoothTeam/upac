@@ -7,6 +7,9 @@ const PackageMeta = ffi.PackageMeta;
 const InstallStateId = ffi.InstallStateId;
 const InstallProgressFn = ffi.InstallProgressFn;
 
+const CancelToken = ffi.CancelToken;
+const cancelGCancellable = ffi.cancelGCancellable;
+
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
@@ -60,6 +63,7 @@ pub const InstallData = struct {
     on_progress: ?InstallProgressFn = null,
     progress_ctx: ?*anyopaque = null,
     max_retries: u8 = 0,
+    cancel_token: *CancelToken,
 };
 
 // ── InstallerMachine ──────────────────────────────────────────────────────────
@@ -222,8 +226,9 @@ pub const InstallerMachine = struct {
         };
         defer machine.deinit();
 
-        ffi.active_cancellable.store(machine.cancellable, .release);
-        defer ffi.active_cancellable.store(null, .release);
+        install_data.cancel_token.hook = cancelGCancellable;
+        install_data.cancel_token.hook_ctx = machine.cancellable;
+        defer install_data.cancel_token.reset();
 
         try states.stateStart(&machine);
     }
