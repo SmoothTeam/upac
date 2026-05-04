@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::ffi::{CRepoMode, CUnmutatedRequest};
+use crate::ffi::{CRepoMode, CUnmutatedRequest, CancelToken};
 use crate::upac::UpacLib;
 use crate::utils::{spinner, BackendKind};
 
@@ -113,6 +113,9 @@ fn state_initializing(machine: &mut InitMachine) -> Result<()> {
     machine.state = State::Initializing;
     spinner(&machine.progress_bar, "Initializing system directories...");
 
+    let mut token = Box::new(CancelToken::zeroed());
+    let token_ptr = &mut *token as *mut CancelToken;
+
     let repo_mode_val = machine.repo_mode_c as u32;
     let init_request_c = CUnmutatedRequest::for_init(
         &machine.config.paths.repo_path,
@@ -121,6 +124,7 @@ fn state_initializing(machine: &mut InitMachine) -> Result<()> {
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         &repo_mode_val,
+        token_ptr,
     );
 
     UpacLib::check(

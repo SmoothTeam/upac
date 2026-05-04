@@ -15,13 +15,15 @@ use std::fs;
 use std::io::Read;
 use std::ptr::{null, null_mut};
 use std::str::FromStr;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use crate::backends::Backend;
 use crate::config::Config;
-use crate::ffi::{CMutatedRequest, CPackageEntry, CSlice, PackageMetaHandle};
+use crate::ffi::{CMutatedRequest, CPackageEntry, CSlice, CancelToken, PackageMetaHandle};
 use crate::upac::UpacLib;
 use crate::utils::{spinner, BackendKind};
+use crate::CURRENT_CANCEL_TOKEN;
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
 #[derive(clap::Args)]
@@ -238,6 +240,10 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
         .map(|prepared_package| prepared_package.as_c_entry())
         .collect();
 
+    let mut token = Box::new(CancelToken::zeroed());
+    let token_ptr = &mut *token as *mut CancelToken;
+    CURRENT_CANCEL_TOKEN.store(token_ptr, Ordering::SeqCst);
+
     let install_request_c = CMutatedRequest::for_install(
         packages_c.as_slice(),
         &machine.config.paths.repo_path,
@@ -248,6 +254,7 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
         machine.config.step_retries,
         Some(on_install_progress),
         progress_bar_ptr,
+        token_ptr,
     );
 
     UpacLib::check(
@@ -261,6 +268,7 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
 fn state_done(machine: &mut InstallMachine) -> Result<()> {
     machine.state = State::Done;
     machine.progress_bar.finish_and_clear();
+    CURRENT_CANCEL_TOKEN.store(null_mut(), Ordering::SeqCst);
 
     for package in &machine.prepared_packages {
         let backend = &package.backend;

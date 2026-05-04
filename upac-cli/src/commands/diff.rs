@@ -18,7 +18,7 @@ use crate::utils::{spinner, BackendKind};
 
 use crate::ffi::{
     CArray, CAttributedDiffEntry, CDiffKind, CPackageDiffEntry, CPackageDiffKind, CSlice,
-    CUnmutatedRequest, CommitHandle, Validate,
+    CUnmutatedRequest, CancelToken, CommitHandle, Validate,
 };
 
 // ── Arguments for command ───────────────────────────────────────────────────────────────────────
@@ -158,6 +158,9 @@ fn fetch_commit_checksums(machine: &mut DiffMachine) -> Result<Vec<String>> {
     let from_c = CString::new(machine.from_commit.as_deref().unwrap_or(""))?;
     let to_c = CString::new(machine.to_commit.as_deref().unwrap_or(""))?;
 
+    let mut token = Box::new(CancelToken::zeroed());
+    let token_ptr = &mut *token as *mut CancelToken;
+
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
@@ -166,6 +169,7 @@ fn fetch_commit_checksums(machine: &mut DiffMachine) -> Result<Vec<String>> {
         &machine.config.ostree.prefix_directory,
         &from_c,
         &to_c,
+        token_ptr,
     );
 
     UpacLib::check(
@@ -203,6 +207,9 @@ fn state_fetching_files_diff(machine: &mut DiffMachine) -> Result<()> {
     let from_c = CString::new(machine.from_commit.as_deref().unwrap_or(""))?;
     let to_c = CString::new(machine.to_commit.as_deref().unwrap_or(""))?;
 
+    let mut token = Box::new(CancelToken::zeroed());
+    let token_ptr = &mut *token as *mut CancelToken;
+
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
@@ -211,6 +218,7 @@ fn state_fetching_files_diff(machine: &mut DiffMachine) -> Result<()> {
         &machine.config.ostree.prefix_directory,
         &from_c,
         &to_c,
+        token_ptr,
     );
 
     UpacLib::check(
@@ -251,6 +259,9 @@ fn state_fetching_packages_diff(machine: &mut DiffMachine) -> Result<()> {
     let from_c = CString::new(machine.from_commit.as_deref().unwrap_or(""))?;
     let to_c = CString::new(machine.to_commit.as_deref().unwrap_or(""))?;
 
+    let mut token = Box::new(CancelToken::zeroed());
+    let token_ptr = &mut *token as *mut CancelToken;
+
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
@@ -259,6 +270,7 @@ fn state_fetching_packages_diff(machine: &mut DiffMachine) -> Result<()> {
         &machine.config.ostree.prefix_directory,
         &from_c,
         &to_c,
+        token_ptr,
     );
 
     UpacLib::check(

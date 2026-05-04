@@ -7,7 +7,7 @@ use std::ffi::{c_void, CString};
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::ffi::{CMutatedRequest, CSlice};
+use crate::ffi::{CMutatedRequest, CSlice, CancelToken};
 use crate::upac::UpacLib;
 use crate::utils::{spinner, BackendKind};
 
@@ -92,6 +92,9 @@ fn state_uninstalling(machine: &mut RemoveMachine) -> Result<()> {
 
     let progress_bar_ptr = &machine.progress_bar as *const ProgressBar as *mut c_void;
 
+    let mut token = Box::new(CancelToken::zeroed());
+    let token_ptr = &mut *token as *mut CancelToken;
+
     let remove_request_c = CMutatedRequest::for_uninstall(
         package_names_c.as_slice(),
         &machine.config.paths.repo_path,
@@ -102,6 +105,7 @@ fn state_uninstalling(machine: &mut RemoveMachine) -> Result<()> {
         machine.config.step_retries,
         Some(on_remove_progress),
         progress_bar_ptr,
+        token_ptr,
     );
 
     UpacLib::check(

@@ -9,7 +9,7 @@ use std::ffi::CString;
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::ffi::CMutatedRequest;
+use crate::ffi::{CMutatedRequest, CancelToken};
 use crate::upac::UpacLib;
 use crate::utils::{spinner, BackendKind};
 
@@ -96,6 +96,9 @@ fn state_rolling_back(machine: &mut RollbackMachine) -> Result<()> {
     machine.state = State::RollingBack;
     spinner(&machine.progress_bar, "Rolling back...");
 
+    let mut token = Box::new(CancelToken::zeroed());
+    let token_ptr = &mut *token as *mut CancelToken;
+
     let rollback_request_c = CMutatedRequest::for_rollback(
         &machine.commit_hash,
         &machine.config.paths.repo_path,
@@ -104,6 +107,7 @@ fn state_rolling_back(machine: &mut RollbackMachine) -> Result<()> {
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         machine.config.step_retries,
+        token_ptr,
     );
 
     UpacLib::check(

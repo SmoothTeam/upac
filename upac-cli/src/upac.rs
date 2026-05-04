@@ -4,7 +4,6 @@ use anyhow::{bail, Result};
 use libloading::Library;
 
 use std::str;
-use std::sync::atomic::Ordering;
 
 use crate::ffi::{
     load_symbol, CArray, CAttributedDiffEntry, CMutatedRequest, CPackageDiffEntry, CSlice,
@@ -43,11 +42,8 @@ pub struct UpacLib {
     pub commits_free: unsafe extern "C" fn(*mut CArray<CommitHandle>),
 
     pub init: unsafe extern "C" fn(CUnmutatedRequest) -> i32,
-
-    pub request_cancel: unsafe extern "C" fn(),
-    pub reset_cancel: unsafe extern "C" fn(),
-
     pub deinit: unsafe extern "C" fn(),
+    pub cancel: unsafe extern "C" fn(),
 
     _lib: Library,
 }
@@ -89,16 +85,12 @@ impl UpacLib {
             commits_free: unsafe { load_symbol(&loaded_library, "commits_free")? },
 
             init: unsafe { load_symbol(&loaded_library, "init")? },
-
-            request_cancel: unsafe { load_symbol(&loaded_library, "request_cancel")? },
-            reset_cancel: unsafe { load_symbol(&loaded_library, "reset_cancel")? },
-
             deinit: unsafe { load_symbol(&loaded_library, "deinit")? },
+            cancel: unsafe { load_symbol(&loaded_library, "cancel")? },
 
             _lib: loaded_library,
         };
 
-        crate::CANCEL_FN.store(lib.request_cancel as *mut (), Ordering::Release);
         Ok(lib)
     }
 
@@ -113,62 +105,63 @@ impl UpacLib {
             4 => "permission_denied",
             5 => "invalid path",
             6 => "no space left",
-            7 => "abi_mismatch",
+            7 => "abi mismatch",
 
             9 => "thread error",
             10 => "lock would block — another process is running",
-            11 => "allocz_failed",
+            11 => "allocz failed",
             12 => return Err(anyhow::anyhow!("{context}: cancelled (code {code})")),
-            13 => "max_retries_exceeded",
-            14 => "read_failed",
-            15 => "write_failed",
+            13 => "max retries exceeded",
+            14 => "read failed",
+            15 => "write failed",
+            16 => "diff failed",
+            17 => "list failed",
 
-            20 => "database: missing field",
-            21 => "database: missing section",
-            22 => "database: invalid entry",
-            23 => "database: parse error",
-            24 => "database: write database failed",
-            25 => "db_malformed_meta",
-            26 => "db_malformed_files",
-            27 => "idx_malformed_entry",
+            30 => "missing field",
+            31 => "missing section",
+            32 => "invalid entry",
+            33 => "parse error",
+            34 => "write database failed",
+            35 => "malformed meta",
+            36 => "malformed files",
+            37 => "idx malformed entry",
 
-            30 => "package already installed",
-            31 => "install: package temp path not found",
-            32 => "install: checksum calculation failed",
-            33 => "install: checkout failed",
-            34 => "install: install cancelled",
-            35 => "install: max retries exceeded",
-            36 => "install: check space failed",
-            37 => "install: make failed",
+            50 => "package already installed",
+            51 => "package temp path not found",
+            52 => "checksum calculation failed",
+            53 => "checkout failed",
+            54 => "install cancelled",
+            55 => "max retries exceeded",
+            56 => "check space failed",
+            57 => "make failed",
 
-            40 => "package not found for uninstall",
-            41 => "uninstall failed",
-            42 => "uninstall: file map corrupted",
-            43 => "uninstall: staging not cleaned",
+            70 => "package not found for uninstall",
+            71 => "uninstall failed",
+            72 => "file map corrupted",
+            73 => "staging not cleaned",
 
-            50 => "ostree: failed to open repository",
-            51 => "ostree: transaction failed",
-            52 => "ostree: commit failed",
-            53 => "ostree: diff failed",
-            54 => "ostree: rollback failed",
-            55 => "ostree: no previous commit",
-            56 => "ostree: staging checkout failed",
-            57 => "ostree: atomic swap failed (renameat2)",
-            58 => "ostree: commit not found",
-            59 => "ostree: cleanup failed",
-            65 => "ostree: repo write failed",
-            66 => "ostree: mtree insert failed",
+            90 => "failed to open repository",
+            91 => "transaction failed",
+            92 => "commit failed",
+            93 => "rollback failed",
+            94 => "no previous commit",
+            95 => "staging checkout failed",
+            96 => "atomic swap failed (renameat2)",
+            97 => "commit not found",
+            98 => "cleanup failed",
+            99 => "repo write failed",
+            100 => "mtree insert failed",
 
-            60 => "already initialized",
-            61 => "failed to create directory",
-            62 => "ostree: init failed",
-            63 => "ostree: init failed",
-            64 => "directory not empty",
-            67 => "init prefix not found",
-            68 => "init additional prefix not found",
+            110 => "already initialized",
+            111 => "failed to create directory",
+            112 => "not a directory",
+            113 => "init failed",
+            114 => "directory not empty",
+            115 => "init prefix not found",
+            116 => "init additional prefix not found",
 
-            70 => "file checksum failed",
-            71 => "file already exists",
+            120 => "file checksum failed",
+            121 => "file already exists",
 
             _ => "unknown error",
         };
@@ -178,8 +171,6 @@ impl UpacLib {
 
 impl Drop for UpacLib {
     fn drop(&mut self) {
-        crate::CANCEL_FN.store(std::ptr::null_mut(), Ordering::Release);
-        unsafe { (self.reset_cancel)() };
         unsafe { (self.deinit)() };
     }
 }

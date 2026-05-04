@@ -129,6 +129,29 @@ pub enum CRepoMode {
     BareUser = 2,
 }
 
+// ── CancelToken ───────────────────────────────────────────────────────────────
+// Mirrors Zig's CancelToken extern struct (24 bytes).
+// _flag: u8, _hook: ?fn ptr, _hook_ctx: ?*anyopaque
+#[repr(C)]
+pub struct CancelToken {
+    _flag: u8,
+    _hook: Option<unsafe extern "C" fn(*mut c_void)>,
+    _hook_ctx: *mut c_void,
+}
+
+impl CancelToken {
+    pub fn zeroed() -> Self {
+        Self {
+            _flag: 0,
+            _hook: None,
+            _hook_ctx: null_mut(),
+        }
+    }
+}
+
+unsafe impl Send for CancelToken {}
+unsafe impl Sync for CancelToken {}
+
 // ── CMutatedRequest ───────────────────────────────────────────────────────────
 // Unified repr(C) struct for install, uninstall and rollback.
 // CSlice fields borrow from CStrings stored in the calling machine.
@@ -157,6 +180,7 @@ pub struct CMutatedRequest {
     progress_ctx: *mut c_void,
 
     max_retries: u8,
+    cancel_token: *mut CancelToken,
 }
 
 impl CMutatedRequest {
@@ -169,6 +193,7 @@ impl CMutatedRequest {
         max_retries: u8,
         on_progress: Option<CProgressFn>,
         progress_ctx: *mut c_void,
+        cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
             struct_size: size_of::<Self>(),
@@ -185,6 +210,7 @@ impl CMutatedRequest {
             on_progress,
             progress_ctx,
             max_retries,
+            cancel_token,
         }
     }
 
@@ -199,6 +225,7 @@ impl CMutatedRequest {
         max_retries: u8,
         on_progress: Option<CProgressFn>,
         progress_ctx: *mut c_void,
+        cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(
             repo_path,
@@ -209,6 +236,7 @@ impl CMutatedRequest {
             max_retries,
             on_progress,
             progress_ctx,
+            cancel_token,
         );
         req.packages = if packages.is_empty() {
             null()
@@ -230,6 +258,7 @@ impl CMutatedRequest {
         max_retries: u8,
         on_progress: Option<CProgressFn>,
         progress_ctx: *mut c_void,
+        cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(
             repo_path,
@@ -240,6 +269,7 @@ impl CMutatedRequest {
             max_retries,
             on_progress,
             progress_ctx,
+            cancel_token,
         );
         req.package_names = if package_names.is_empty() {
             null()
@@ -259,6 +289,7 @@ impl CMutatedRequest {
         branch: &CString,
         prefix_directory: &CString,
         max_retries: u8,
+        cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(
             repo_path,
@@ -269,6 +300,7 @@ impl CMutatedRequest {
             max_retries,
             None,
             null_mut(),
+            cancel_token,
         );
         req.commit_hash = CSlice::from_cstring(commit_hash);
         req
@@ -294,6 +326,7 @@ pub struct CUnmutatedRequest {
     // Points to a machine-owned u32; Zig reads it as *const i32 via @ptrCast.
     // Null is accepted for diff and list.
     repo_mode: *mut c_void,
+    cancel_token: *mut CancelToken,
 }
 
 impl CUnmutatedRequest {
@@ -303,6 +336,7 @@ impl CUnmutatedRequest {
         db_path: &CString,
         branch: &CString,
         prefix: &CString,
+        cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
             struct_size: size_of::<Self>(),
@@ -314,6 +348,7 @@ impl CUnmutatedRequest {
             from_commit_hash: CSlice::empty(),
             to_commit_hash: CSlice::empty(),
             repo_mode: null_mut(),
+            cancel_token,
         }
     }
 
@@ -325,8 +360,9 @@ impl CUnmutatedRequest {
         branch: &CString,
         prefix: &CString,
         repo_mode_val: &u32,
+        cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix);
+        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix, cancel_token);
         req.repo_mode = repo_mode_val as *const u32 as *mut c_void;
         req
     }
@@ -341,8 +377,9 @@ impl CUnmutatedRequest {
         prefix: &CString,
         from_commit: &CString,
         to_commit: &CString,
+        cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix);
+        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix, cancel_token);
         req.from_commit_hash = CSlice::from_cstring(from_commit);
         req.to_commit_hash = CSlice::from_cstring(to_commit);
         req
@@ -355,8 +392,9 @@ impl CUnmutatedRequest {
         db_path: &CString,
         branch: &CString,
         prefix: &CString,
+        cancel_token: *mut CancelToken,
     ) -> Self {
-        Self::base(repo_path, root_path, db_path, branch, prefix)
+        Self::base(repo_path, root_path, db_path, branch, prefix, cancel_token)
     }
 }
 

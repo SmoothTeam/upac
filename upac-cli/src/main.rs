@@ -6,12 +6,9 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 
 use std::fs;
-use std::mem::transmute;
 use std::path::{Path, PathBuf};
+use std::ptr::null_mut;
 use std::sync::atomic::{AtomicPtr, Ordering};
-
-// Set by UpacLib on load, cleared on drop. The ctrlc handler calls through it.
-pub(crate) static CANCEL_FN: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 
 use commands::diff::DiffArgs;
 use commands::init::InitArgs;
@@ -40,6 +37,8 @@ mod commands {
     pub mod init;
 }
 
+pub static CURRENT_CANCEL_TOKEN: AtomicPtr<CancelToken> = AtomicPtr::new(null_mut());
+
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 // Automatic generation of Cli structure parser
 #[derive(Parser)]
@@ -63,18 +62,14 @@ enum Command {
 
 // ── Entry points ───────────────────────────────────────────────────────────────
 // The main entry point, responsible for error output and the return code.
+// Spawned on a large stack because install/uninstall invoke OSTree C functions
+// that recurse deeply through large package directory trees.
 fn main() {
     let result = run();
-
     match result {
         Ok(()) => {}
-        Err(err) if err.to_string().contains("cancelled") => {
-            eprintln!("\n{} Cancelled", "!".yellow().bold());
-            std::process::exit(130);
-        }
         Err(err) => {
             eprintln!("{} {err}", "Error:".red().bold());
-            std::process::exit(1);
         }
     }
 }
@@ -83,12 +78,9 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     ctrlc::set_handler(|| {
-        let ptr = CANCEL_FN.load(Ordering::Acquire);
-        if !ptr.is_null() {
-            unsafe {
-                let f: unsafe extern "C" fn() = transmute(ptr);
-                f();
-            }
+        let token = CURRENT_CANCEL_TOKEN.load(Ordering::SeqCst);
+        if !token.is_null() {
+            ffi::cancel_token(token);
         }
     })?;
 

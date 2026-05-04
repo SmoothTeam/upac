@@ -86,12 +86,12 @@ impl Backend {
         let mut meta_handle: PackageMetaHandle = null_mut();
         let mut temp_path = MaybeUninit::<CSlice>::uninit();
 
-        unsafe {
-            match (self.prepare)(&prepare_request_c, &mut meta_handle, temp_path.as_mut_ptr()) {
-                0 if !meta_handle.is_null() => Ok((meta_handle, temp_path.assume_init())),
-                0 => anyhow::bail!("Backend returned success code but NULL handle"),
-                code => anyhow::bail!("Backend prepare failed with code {code}"),
-            }
+        match unsafe {
+            (self.prepare)(&prepare_request_c, &mut meta_handle, temp_path.as_mut_ptr())
+        } {
+            0 if !meta_handle.is_null() => Ok((meta_handle, unsafe { temp_path.assume_init() })),
+            0 => anyhow::bail!("Backend returned success code but NULL handle"),
+            code => anyhow::bail!("Backend prepare failed with code {code}"),
         }
     }
 
