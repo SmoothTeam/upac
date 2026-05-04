@@ -6,12 +6,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
+    container: archlinux:latest # Используем Arch
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Zig via Snap
-        run: sudo snap install zig --classic --edge
+      - name: Install Zig via pacman
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm zig
 
       - name: Build package
         run: make pkg-arch CPU=x86_64_v3 MODE=release
