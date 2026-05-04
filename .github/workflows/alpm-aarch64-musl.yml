@@ -15,7 +15,7 @@ jobs:
         run: pacman -Syu --noconfirm
 
       - name: Install OSTree via pacman
-        run: pacman -S --noconfirm ostree
+        run: pacman -S --noconfirm ostree gcc glib2 libarchive zstd
 
       - name: Install Zig via pacman
         run: pacman -S --noconfirm zig
