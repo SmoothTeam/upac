@@ -7,24 +7,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
-    container: alpine:latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Update base via apt
+        run: sudo apt-get update
+
       - name: Install base via apk
-        run: apk add --no-cache build-base pkgconf ostree-dev glib-dev git
+        run: sudo apt-get install -y libglib2.0-dev pkg-config
 
       - name: Install OSTree via apk
-        run: apk add --no-cache ostree
+        run: sudo apt-get install -y libostree-dev
 
       - name: Install Zig via apk
-        run: apk add --no-cache zig
+        run: sudo apt-get install -y zig
 
       - name: Install Rust via apk
-        run: apk add --no-cache rust cargo
+        run: sudo apt-get install -y rustс cargo
 
       - name: Install Make via apk
-        run: apk add --no-cache make
+        run: sudo apt-get install -y make
 
       - name: Build package
         run: make build MODE=release
