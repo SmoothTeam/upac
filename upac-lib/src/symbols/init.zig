@@ -14,7 +14,7 @@ const fromError = init_module.ffi.fromError;
 pub fn init(init_request_c: CInitRequest) callconv(.c) i32 {
     init_request_c.validate() catch |err| return @intFromEnum(fromError(err, Operation.init));
     const repo_mode: *const i32 = @ptrCast(@alignCast(init_request_c.repo_mode));
-    const repo_mode_unwraped = std.meta.intToEnum(CRepoMode, repo_mode.*) catch return @intFromEnum(fromError(error.OstreeInitFailed, Operation.init));
+    const repo_mode_unwraped = init_module.ffi.intToEnum(CRepoMode, repo_mode.*) catch return @intFromEnum(fromError(error.OstreeInitFailed, Operation.init));
 
     const required = [_]CSlice{ init_request_c.repo_path, init_request_c.root_path, init_request_c.prefix, init_request_c.branch };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.init));

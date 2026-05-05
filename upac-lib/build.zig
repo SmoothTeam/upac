@@ -8,16 +8,30 @@ pub fn build(b: *std.Build) void {
     const strip = b.option(bool, "strip", "Strip debug symbols") orelse false;
     const stack_check = b.option(bool, "stack-check", "Check for stack overflows") orelse false;
 
+    // ── C libs ─────────────────────────────────────────────────────────────────
+    const translated_libs = b.addTranslateC(.{
+        .root_source_file = b.path("src/imports.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    translated_libs.link_libc = true;
+
+    translated_libs.linkSystemLibrary("ostree-1", .{});
+    translated_libs.linkSystemLibrary("glib-2.0", .{});
+    translated_libs.linkSystemLibrary("gio-2.0", .{});
+    translated_libs.linkSystemLibrary("gobject-2.0", .{});
+
+    const translated_libs_module = translated_libs.createModule();
+
     // ── Types and ffi ─────────────────────────────────────────────────────────────────
     const upac_ffi = b.createModule(.{
         .root_source_file = b.path("src/ffi/ctypes.zig"),
         .target = target,
         .optimize = optimize,
     });
-    upac_ffi.linkSystemLibrary("ostree-1", .{});
-    upac_ffi.linkSystemLibrary("glib-2.0", .{});
-    upac_ffi.linkSystemLibrary("gio-2.0", .{});
-    upac_ffi.linkSystemLibrary("gobject-2.0", .{});
+
+    upac_ffi.addImport("clibs", translated_libs_module);
 
     // ── Database ──────────────────────────────────────────────────────────────
     const upac_data = b.createModule(.{
@@ -97,12 +111,8 @@ pub fn build(b: *std.Build) void {
         .root_module = upac_root,
     });
 
-    shared_lib.linkLibC();
-
-    shared_lib.linkSystemLibrary("ostree-1");
-    shared_lib.linkSystemLibrary("glib-2.0");
-    shared_lib.linkSystemLibrary("gio-2.0");
-    shared_lib.linkSystemLibrary("gobject-2.0");
+    shared_lib.root_module.link_libc = true;
+    shared_lib.root_module.addImport("clibs", translated_libs_module);
 
     shared_lib.root_module.addImport("upac-ffi", upac_ffi);
     shared_lib.root_module.addImport("upac-data", upac_data);

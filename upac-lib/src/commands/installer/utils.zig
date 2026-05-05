@@ -12,13 +12,14 @@ const InstallerError = installer.InstallerError;
 // A recursive assistant. It traverses the directory structure, calculates checksums for all files, and populates the FileMap. It is precisely this data that is subsequently written to the `.files` file within the database
 pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap) !void {
     const current_entry = machine.data.packages[machine.current_package_index];
-    var dir = try machine.check(std.fs.openDirAbsolute(std.mem.span(current_entry.temp_path), .{ .iterate = true }), InstallerError.CollectFileChecksumsFailed);
-    defer dir.close();
+    const io = std.Io.Threaded.global_single_threaded.io();
+    var dir = try machine.check(std.Io.Dir.openDirAbsolute(io, std.mem.span(current_entry.temp_path), .{ .iterate = true }), InstallerError.CollectFileChecksumsFailed);
+    defer dir.close(io);
 
     var walker = try dir.walk(machine.allocator);
     defer walker.deinit();
 
-    while (try walker.next()) |entry| {
+    while (try walker.next(io)) |entry| {
         if (entry.kind != .file and entry.kind != .sym_link) continue;
 
         if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return InstallerError.Cancelled;
@@ -27,8 +28,9 @@ pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap)
 
         if (entry.kind == .sym_link) {
             var link_target_buf: [std.fs.max_path_bytes]u8 = undefined;
-            const link_target = entry.dir.readLink(entry.basename, &link_target_buf) catch
+            const link_target_len = entry.dir.readLink(io, entry.basename, &link_target_buf) catch
                 return InstallerError.CollectFileChecksumsFailed;
+            const link_target = link_target_buf[0..link_target_len];
             var hash_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
             std.crypto.hash.sha2.Sha256.hash(link_target, &hash_bytes, .{});
             const hex = std.fmt.bytesToHex(hash_bytes, .lower);
@@ -57,15 +59,16 @@ pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap)
 pub fn dirSize(allocator: std.mem.Allocator, root_path: []const u8) !u64 {
     var total_size: u64 = 0;
 
-    var dir = std.fs.openDirAbsolute(root_path, .{ .iterate = true }) catch return 0;
-    defer dir.close();
+    const io = std.Io.Threaded.global_single_threaded.io();
+    var dir = std.Io.Dir.openDirAbsolute(io, root_path, .{ .iterate = true }) catch return 0;
+    defer dir.close(io);
 
     var walker = try dir.walk(allocator);
     defer walker.deinit();
 
-    while (try walker.next()) |entry| {
+    while (try walker.next(io)) |entry| {
         if (entry.kind != .file) continue;
-        const stat = entry.dir.statFile(entry.basename) catch continue;
+        const stat = entry.dir.statFile(io, entry.basename, .{}) catch continue;
         total_size += stat.size;
     }
 
@@ -73,8 +76,8 @@ pub fn dirSize(allocator: std.mem.Allocator, root_path: []const u8) !u64 {
 }
 
 pub fn estimateCheckoutSize(machine: *InstallerMachine) !u64 {
-    var root_file: ?*anyopaque = null;
-    defer if (root_file) |file| c_libs.g_object_unref(file);
+    var root_file: ?*c_libs.GFile = null;
+    defer if (root_file) |file| c_libs.g_object_unref(@ptrCast(file));
 
     const repo = try machine.unwrap(machine.repo, InstallerError.RepoOpenFailed);
 
@@ -85,7 +88,7 @@ pub fn estimateCheckoutSize(machine: *InstallerMachine) !u64 {
 
     const root_file_unwraped = try machine.unwrap(root_file, InstallerError.CheckSpaceFailed);
 
-    return walkTree(machine, root_file_unwraped);
+    return walkTree(machine, @ptrCast(root_file_unwraped));
 }
 
 fn walkTree(machine: *InstallerMachine, root: *anyopaque) !u64 {

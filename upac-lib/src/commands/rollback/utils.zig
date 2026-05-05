@@ -9,7 +9,9 @@ const RollbackError = rollback.RollbackError;
 pub fn resolveStagingDir(root_path: []const u8, prefix: []const u8, allocator: std.mem.Allocator) RollbackError![:0]u8 {
     var suffix_buf: [64]u8 = undefined;
 
-    const timestamp = std.time.milliTimestamp();
+    var ts: std.os.linux.timespec = undefined;
+    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &ts);
+    const timestamp: i64 = @as(i64, ts.sec) * 1000 + @divTrunc(@as(i64, ts.nsec), 1_000_000);
     const suffix = std.fmt.bufPrint(&suffix_buf, "{s}-rollback-{d}", .{ prefix, timestamp }) catch return error.AllocZFailed;
 
     return std.fs.path.joinZ(allocator, &.{ root_path, suffix }) catch return error.AllocZFailed;
@@ -40,13 +42,14 @@ fn atomicSwap(root_path_c: [:0]const u8, staging_path: [:0]const u8) RollbackErr
 
     const result = std.os.linux.syscall5(.renameat2, @bitCast(@as(isize, AT_FDCWD)), @intFromPtr(staging_path.ptr), @bitCast(@as(isize, AT_FDCWD)), @intFromPtr(root_path_c.ptr), RENAME_EXCHANGE);
 
-    const errno_value = std.os.linux.E.init(result);
+    const errno_value = std.os.linux.errno(result);
     if (errno_value != .SUCCESS) return error.SwapFailed;
 }
 
 // Removes the old root tree which now resides at the staging path after the swap.
 fn cleanupOldRoot(staging_path: [:0]const u8) RollbackError!void {
-    std.fs.deleteTreeAbsolute(staging_path) catch |err| return err;
+    const io = std.Io.Threaded.global_single_threaded.io();
+    std.Io.Dir.cwd().deleteTree(io, staging_path) catch |err| return err;
 }
 
 // Moves the OSTree branch ref to point at the target commit via a transaction

@@ -81,9 +81,8 @@ pub fn readMeta(database_path: []const u8, package_checksum: []const u8, allocat
     defer allocator.free(package_meta_path);
 
     const package_meta_content = blk: {
-        const meta_file = try check(std.fs.openFileAbsolute(package_meta_path, .{}), DatabaseError.PackageNotFound);
-        defer meta_file.close();
-        break :blk try check(meta_file.readToEndAlloc(allocator, 1024 * 1024), DatabaseError.PackageNotFound);
+        const io = std.Io.Threaded.global_single_threaded.io();
+        break :blk try check(std.Io.Dir.cwd().readFileAlloc(io, package_meta_path, allocator, .limited(1024 * 1024)), DatabaseError.PackageNotFound);
     };
     defer allocator.free(package_meta_content);
 
@@ -95,10 +94,8 @@ pub fn readFiles(database_path: []const u8, package_checksum: []const u8, alloca
     const package_files_path = try filesPath(database_path, package_checksum, allocator);
     defer allocator.free(package_files_path);
 
-    const package_files_file = try check(std.fs.openFileAbsolute(package_files_path, .{}), DatabaseError.PackageNotFound);
-    defer package_files_file.close();
-
-    const package_files_content = try check(package_files_file.readToEndAlloc(allocator, 16 * 1024 * 1024), DatabaseError.PackageNotFound);
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const package_files_content = try check(std.Io.Dir.cwd().readFileAlloc(io, package_files_path, allocator, .limited(16 * 1024 * 1024)), DatabaseError.PackageNotFound);
     defer allocator.free(package_files_content);
 
     return parseFiles(package_files_content, allocator);
@@ -112,11 +109,12 @@ fn writeMeta(temp_path: []const u8, package_checksum: []const u8, package_meta: 
     const package_meta_path = try check(metaPath(temp_path, package_checksum, allocator), DatabaseError.WriteError);
     defer allocator.free(package_meta_path);
 
-    const package_meta_file = try check(std.fs.createFileAbsolute(package_meta_path, .{}), DatabaseError.WriteError);
-    defer package_meta_file.close();
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const package_meta_file = try check(std.Io.Dir.createFileAbsolute(io, package_meta_path, .{}), DatabaseError.WriteError);
+    defer package_meta_file.close(io);
 
     var write_buf: [1024]u8 = undefined;
-    var meta_writer = package_meta_file.writer(&write_buf);
+    var meta_writer = package_meta_file.writer(io, &write_buf);
     const writer = &meta_writer.interface;
 
     inline for (std.meta.fields(PackageMeta)) |field| {
@@ -134,11 +132,12 @@ fn writeFiles(temp_path: []const u8, package_checksum: []const u8, file_map: Fil
     const package_files_path = try check(filesPath(temp_path, package_checksum, allocator), DatabaseError.WriteError);
     defer allocator.free(package_files_path);
 
-    const package_files_file = try check(std.fs.createFileAbsolute(package_files_path, .{}), DatabaseError.WriteError);
-    defer package_files_file.close();
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const package_files_file = try check(std.Io.Dir.createFileAbsolute(io, package_files_path, .{}), DatabaseError.WriteError);
+    defer package_files_file.close(io);
 
     var write_buf: [4096]u8 = undefined;
-    var file_writer = package_files_file.writer(&write_buf);
+    var file_writer = package_files_file.writer(io, &write_buf);
     const writer = &file_writer.interface;
 
     var package_files_iter = file_map.iterator();

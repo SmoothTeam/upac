@@ -41,13 +41,14 @@ pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_m
     if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
     const prefix_path = std.fs.path.joinZ(allocator, &.{ std.mem.span(root_path_c), prefix }) catch return InitError.PrefixNotFound;
     defer allocator.free(prefix_path);
-    if (!try checkDirExists(prefix_path)) std.fs.makeDirAbsoluteZ(prefix_path) catch return InitError.CreateDirFailed;
+    const io = std.Io.Threaded.global_single_threaded.io();
+    if (!try checkDirExists(prefix_path)) std.Io.Dir.createDirAbsolute(io, prefix_path, .default_dir) catch return InitError.CreateDirFailed;
 
     for (additional_prefixes) |additional_prefix| {
         if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
         const additional_prefix_path = std.fs.path.joinZ(allocator, &.{ std.mem.span(root_path_c), additional_prefix }) catch return InitError.AdditionalPrefixNotFound;
         defer allocator.free(additional_prefix_path);
-        if (!try checkDirExists(additional_prefix_path)) std.fs.makeDirAbsoluteZ(additional_prefix_path) catch return InitError.CreateDirFailed;
+        if (!try checkDirExists(additional_prefix_path)) std.Io.Dir.createDirAbsolute(io, additional_prefix_path, .default_dir) catch return InitError.CreateDirFailed;
     }
 
     if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
@@ -55,14 +56,14 @@ pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_m
 
     if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
     if (!try checkDirExists(repo_path_c)) {
-        std.fs.makeDirAbsoluteZ(repo_path_c) catch return InitError.CreateDirFailed;
+        std.Io.Dir.createDirAbsolute(io, std.mem.span(repo_path_c), .default_dir) catch return InitError.CreateDirFailed;
     } else {
-        var dir = try std.fs.openDirAbsoluteZ(repo_path_c, .{ .iterate = true });
-        defer dir.close();
+        var dir = try std.Io.Dir.openDirAbsolute(io, std.mem.span(repo_path_c), .{ .iterate = true });
+        defer dir.close(io);
 
         var iterator = dir.iterate();
         var is_empty = true;
-        while (try iterator.next()) |entry| {
+        while (try iterator.next(io)) |entry| {
             is_empty = false;
             if (std.mem.eql(u8, entry.name, "config")) return InitError.AlreadyInitialized;
         }
@@ -74,7 +75,8 @@ pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_m
 }
 
 fn checkDirExists(path: [*:0]const u8) !bool {
-    const stat = std.fs.cwd().statFile(std.mem.span(path)) catch |err| switch (err) {
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const stat = std.Io.Dir.cwd().statFile(io, std.mem.span(path), .{}) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => return err,
     };
@@ -82,7 +84,8 @@ fn checkDirExists(path: [*:0]const u8) !bool {
 }
 
 fn checkFileExists(path: [*:0]const u8) !bool {
-    const stat = std.fs.cwd().statFile(std.mem.span(path)) catch |err| switch (err) {
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const stat = std.Io.Dir.cwd().statFile(io, std.mem.span(path), .{}) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => return err,
     };

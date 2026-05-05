@@ -44,15 +44,16 @@ pub fn stateStart(machine: *InstallerMachine) InstallerError!void {
 
 // ── InstallerFSM states ───────────────────────────────────────────────────────
 fn stateVerifying(machine: *InstallerMachine) InstallerError!InstallStateId {
-    for (machine.data.packages) |entry| try machine.check(std.fs.accessAbsolute(std.mem.span(entry.temp_path), .{}), InstallerError.PathNotFound);
+    const io = std.Io.Threaded.global_single_threaded.io();
+    for (machine.data.packages) |entry| try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(entry.temp_path), .{}), InstallerError.PathNotFound);
 
-    try machine.check(std.fs.accessAbsoluteZ(machine.data.root_path, .{}), InstallerError.PathNotFound);
-    try machine.check(std.fs.accessAbsoluteZ(machine.data.repo_path, .{}), InstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.root_path), .{}), InstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.repo_path), .{}), InstallerError.PathNotFound);
 
     const prefix_directory = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), InstallerError.AllocZFailed);
     defer machine.allocator.free(prefix_directory);
 
-    try machine.check(std.fs.accessAbsolute(prefix_directory, .{}), InstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(io, prefix_directory, .{}), InstallerError.PathNotFound);
 
     machine.resetRetries();
     return .check_space;
@@ -142,7 +143,8 @@ fn stateWriteDatabase(machine: *InstallerMachine) InstallerError!InstallStateId 
     const staged_database_dir_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(current_install_entry.temp_path), relative_database_path }), InstallerError.AllocZFailed);
     defer machine.allocator.free(staged_database_dir_path);
 
-    try machine.check(std.fs.cwd().makePath(staged_database_dir_path), InstallerError.AllocZFailed);
+    const io = std.Io.Threaded.global_single_threaded.io();
+    try machine.check(std.Io.Dir.cwd().createDirPath(io, staged_database_dir_path), InstallerError.AllocZFailed);
 
     var file_map = data.FileMap.init(machine.allocator);
     defer data.freeFileMap(&file_map, machine.allocator);
@@ -237,7 +239,9 @@ fn stateCheckout(machine: *InstallerMachine) InstallerError!InstallStateId {
     }
 
     var buf: [256]u8 = undefined;
-    const timestamp = std.time.milliTimestamp();
+    var ts: std.os.linux.timespec = undefined;
+    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &ts);
+    const timestamp: i64 = @as(i64, ts.sec) * 1000 + @divTrunc(@as(i64, ts.nsec), 1_000_000);
     var stat: c_libs.struct_statvfs = undefined;
     if (c_libs.statvfs(machine.data.root_path, &stat) == 0 and estimated * 2 > @as(u64, stat.f_bavail) * @as(u64, stat.f_bsize)) {
         stateFailed(machine);
@@ -257,7 +261,8 @@ fn stateCheckout(machine: *InstallerMachine) InstallerError!InstallStateId {
         stateFailed(machine);
         return InstallerError.CheckoutFailed;
     } else if (c_libs.ostree_repo_checkout_at(repo, &options, std.c.AT.FDCWD, staging_path_c, machine.commit_checksum, machine.cancellable, &machine.gerror) == 0) {
-        std.fs.deleteTreeAbsolute(staging_path_c) catch {};
+        const _io = std.Io.Threaded.global_single_threaded.io();
+        std.Io.Dir.cwd().deleteTree(_io, staging_path_c) catch {};
         machine.allocator.free(staging_path_c);
         machine.staging_path_c = null;
         if (machine.gerror) |err| {
@@ -287,8 +292,9 @@ fn stateAtomicSwap(machine: *InstallerMachine) InstallerError!InstallStateId {
 
     const result = std.os.linux.syscall5(.renameat2, @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(staging_prefix_path_c.ptr), @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(root_prefix_path_c.ptr), 2);
 
-    if (std.os.linux.E.init(result) != .SUCCESS) {
-        try machine.check(std.fs.deleteTreeAbsolute(staging_path), InstallerError.CheckoutFailed);
+    if (std.os.linux.errno(result) != .SUCCESS) {
+        const io = std.Io.Threaded.global_single_threaded.io();
+        try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path), InstallerError.CheckoutFailed);
         stateFailed(machine);
         return InstallerError.CheckoutFailed;
     }
@@ -300,7 +306,8 @@ fn stateAtomicSwap(machine: *InstallerMachine) InstallerError!InstallStateId {
 fn stateCleanupStaging(machine: *InstallerMachine) InstallerError!InstallStateId {
     const staging_path = try machine.unwrap(machine.staging_path_c, InstallerError.CheckoutFailed);
 
-    try machine.check(std.fs.deleteTreeAbsolute(staging_path), InstallerError.CheckoutFailed);
+    const io = std.Io.Threaded.global_single_threaded.io();
+    try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path), InstallerError.CheckoutFailed);
     machine.allocator.free(staging_path);
     machine.staging_path_c = null;
 
@@ -313,7 +320,8 @@ pub fn stateFailed(machine: *InstallerMachine) void {
     defer if (abort_err) |err| c_libs.g_error_free(err);
 
     if (machine.staging_path_c) |staging| {
-        std.fs.deleteTreeAbsolute(staging) catch {};
+        const io = std.Io.Threaded.global_single_threaded.io();
+        std.Io.Dir.cwd().deleteTree(io, staging) catch {};
         machine.allocator.free(staging);
         machine.staging_path_c = null;
     }

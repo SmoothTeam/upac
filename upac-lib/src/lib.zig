@@ -3,8 +3,6 @@ const ffi_symbols = @import("symbols/ffi.zig");
 export const get_abi_version = ffi_symbols.get_abi_version;
 export const cancel = ffi_symbols.cancel;
 
-export const deinit = ffi_symbols.deinit;
-
 const installer_symbols = @import("symbols/installer.zig");
 export const install = installer_symbols.install;
 

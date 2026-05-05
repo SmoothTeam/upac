@@ -47,13 +47,14 @@ pub fn stateStart(machine: *UninstallerMachine) UninstallerError!void {
 
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateVerifying(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
-    try machine.check(std.fs.accessAbsoluteZ(machine.data.root_path, .{}), UninstallerError.PathNotFound);
-    try machine.check(std.fs.accessAbsoluteZ(machine.data.repo_path, .{}), UninstallerError.RepoOpenFailed);
+    const io = std.Io.Threaded.global_single_threaded.io();
+    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.root_path), .{}), UninstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.repo_path), .{}), UninstallerError.RepoOpenFailed);
 
     const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), error.AllocZFailed);
     defer machine.allocator.free(root_prefix_path_c);
 
-    try machine.check(std.fs.accessAbsoluteZ(root_prefix_path_c, .{}), UninstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(io, root_prefix_path_c, .{}), UninstallerError.PathNotFound);
 
     machine.resetRetries();
     return .open_repo;
@@ -219,7 +220,9 @@ fn stateCheckoutStaging(machine: *UninstallerMachine) UninstallerError!Uninstall
     const repo = try machine.unwrap(machine.repo, error.AllocZFailed);
 
     var buf: [256]u8 = undefined;
-    const timestamp = std.time.milliTimestamp();
+    var ts: std.os.linux.timespec = undefined;
+    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &ts);
+    const timestamp: i64 = @as(i64, ts.sec) * 1000 + @divTrunc(@as(i64, ts.nsec), 1_000_000);
 
     const temp_folder_name = try machine.check(std.fmt.bufPrintZ(&buf, "{s}-remove-{d}", .{ machine.data.prefix_path, timestamp }), UninstallerError.AllocZFailed);
     machine.staging_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), temp_folder_name }), UninstallerError.AllocZFailed);
@@ -230,7 +233,8 @@ fn stateCheckoutStaging(machine: *UninstallerMachine) UninstallerError!Uninstall
 
     if (c_libs.ostree_repo_checkout_at(repo, &options, std.c.AT.FDCWD, machine.staging_path_c.?, machine.commit_checksum.?, machine.cancellable, &machine.gerror) == 0) {
         const staging_path_c = try machine.unwrap(machine.staging_path_c, UninstallerError.CheckoutFailed);
-        try machine.check(std.fs.deleteTreeAbsolute(staging_path_c), error.MaxRetriesExceeded);
+        const _io = std.Io.Threaded.global_single_threaded.io();
+        try machine.check(std.Io.Dir.cwd().deleteTree(_io, staging_path_c), error.MaxRetriesExceeded);
 
         machine.staging_path_c = null;
 
@@ -252,14 +256,18 @@ fn stateAtomicSwap(machine: *UninstallerMachine) UninstallerError!UninstallState
 
     const result = std.os.linux.syscall5(.renameat2, @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(staging_prefix_path_c.ptr), @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(root_prefix_path_c.ptr), 2);
 
-    if (std.os.linux.E.init(result) != .SUCCESS) try machine.check(std.fs.deleteTreeAbsolute(staging_path_c), UninstallerError.CheckoutFailed);
+    if (std.os.linux.errno(result) != .SUCCESS) {
+        const io = std.Io.Threaded.global_single_threaded.io();
+        try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path_c), UninstallerError.CheckoutFailed);
+    }
 
     return .cleanup_staging;
 }
 
 fn stateCleanupStaging(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const staging_path_c = try machine.unwrap(machine.staging_path_c, UninstallerError.AllocZFailed);
-    try machine.check(std.fs.deleteTreeAbsolute(staging_path_c), UninstallerError.CheckoutFailed);
+    const io = std.Io.Threaded.global_single_threaded.io();
+    try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path_c), UninstallerError.CheckoutFailed);
 
     return .done;
 }
@@ -267,7 +275,8 @@ fn stateCleanupStaging(machine: *UninstallerMachine) UninstallerError!UninstallS
 pub fn stateFailed(machine: *UninstallerMachine) void {
     if (machine.stack.items.len > 0 and machine.stack.getLast() == .failed) return;
     if (machine.staging_path_c) |staging_path| {
-        std.fs.deleteTreeAbsolute(staging_path) catch {};
+        const io = std.Io.Threaded.global_single_threaded.io();
+        std.Io.Dir.cwd().deleteTree(io, staging_path) catch {};
         machine.allocator.free(staging_path);
         machine.staging_path_c = null;
     }

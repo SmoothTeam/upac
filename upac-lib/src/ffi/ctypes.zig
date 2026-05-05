@@ -1,14 +1,7 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 pub const std = @import("std");
 
-pub const c_libs = @cImport({
-    @cInclude("ostree.h");
-    @cInclude("glib.h");
-    @cInclude("gio/gio.h");
-    @cInclude("fcntl.h");
-    @cInclude("glib-unix.h");
-    @cInclude("sys/statvfs.h");
-});
+pub const c_libs = @import("clibs");
 
 pub const CancelToken = extern struct {
     _flag: u8 = 0,
@@ -17,7 +10,7 @@ pub const CancelToken = extern struct {
 
     pub fn cancel(self: *CancelToken) void {
         @atomicStore(u8, &self._flag, 1, .release);
-        if (self.hook) |f| f(self.hook_ctx);
+        if (self.hook) |function| function(self.hook_ctx);
     }
 
     pub fn isCancelled(self: *const CancelToken) bool {
@@ -246,7 +239,7 @@ pub const CPackageDiffEntry = extern struct {
 
     pub fn validate(self: CPackageDiffEntry) !void {
         if (self.struct_size != @sizeOf(CPackageDiffEntry)) return error.AbiMismatch;
-        _ = std.meta.intToEnum(CPackageDiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
+        _ = intToEnum(CPackageDiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
     }
 };
 
@@ -259,7 +252,7 @@ pub const CAttributedDiffEntry = extern struct {
 
     pub fn validate(self: CAttributedDiffEntry) !void {
         if (self.struct_size != @sizeOf(CAttributedDiffEntry)) return error.AbiMismatch;
-        _ = std.meta.intToEnum(CPackageDiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
+        _ = intToEnum(CPackageDiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
     }
 };
 
@@ -286,13 +279,15 @@ pub const CRepoMode = enum(u8) {
 // struct_size guards layout; this guards the symbol set and calling conventions.
 pub const ABI_VERSION: u32 = 1;
 
-var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true, .thread_safe = true }){};
-
-pub fn allocator() std.mem.Allocator {
-    return gpa.allocator();
+pub fn intToEnum(comptime E: type, value: anytype) error{InvalidValue}!E {
+    const tag_type = @typeInfo(E).@"enum".tag_type;
+    const cast_val = std.math.cast(tag_type, value) orelse return error.InvalidValue;
+    inline for (std.meta.fields(E)) |field| {
+        if (field.value == cast_val) return @field(E, field.name);
+    }
+    return error.InvalidValue;
 }
 
-pub fn deinit() void {
-    const result = gpa.deinit();
-    if (result == .leak) std.debug.print("[upac] WARNING: memory leak detected\n", .{});
+pub fn allocator() std.mem.Allocator {
+    return std.heap.c_allocator;
 }
