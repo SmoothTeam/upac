@@ -44,7 +44,6 @@ pub struct UpacLib {
     pub commits_free: unsafe extern "C" fn(*mut CArray<CommitHandle>),
 
     pub init: unsafe extern "C" fn(CUnmutatedRequest) -> i32,
-    pub deinit: unsafe extern "C" fn(),
     pub cancel: unsafe extern "C" fn(*mut CancelToken),
 
     _lib: Library,
@@ -97,7 +96,6 @@ impl UpacLib {
             commits_free: unsafe { load_symbol(&loaded_library, "commits_free")? },
 
             init: unsafe { load_symbol(&loaded_library, "init")? },
-            deinit: unsafe { load_symbol(&loaded_library, "deinit")? },
             cancel: unsafe { load_symbol(&loaded_library, "cancel")? },
 
             _lib: loaded_library,
@@ -181,8 +179,3 @@ impl UpacLib {
     }
 }
 
-impl Drop for UpacLib {
-    fn drop(&mut self) {
-        unsafe { (self.deinit)() };
-    }
-}
