@@ -172,7 +172,6 @@ pub struct CMutatedRequest {
 
     repo_path: CSlice,
     root_path: CSlice,
-    db_path: CSlice,
     branch: CSlice,
     prefix_directory: CSlice,
 
@@ -198,7 +197,6 @@ impl CMutatedRequest {
     fn base(
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix_directory: &CString,
         max_retries: u8,
@@ -210,7 +208,6 @@ impl CMutatedRequest {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::from_cstring(repo_path),
             root_path: CSlice::from_cstring(root_path),
-            db_path: CSlice::from_cstring(db_path),
             branch: CSlice::from_cstring(branch),
             prefix_directory: CSlice::from_cstring(prefix_directory),
             packages: null(),
@@ -230,7 +227,6 @@ impl CMutatedRequest {
         packages: &[CPackageEntry],
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix_directory: &CString,
         max_retries: u8,
@@ -241,7 +237,6 @@ impl CMutatedRequest {
         let mut req = Self::base(
             repo_path,
             root_path,
-            db_path,
             branch,
             prefix_directory,
             max_retries,
@@ -263,7 +258,6 @@ impl CMutatedRequest {
         package_names: &[CSlice],
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix_directory: &CString,
         max_retries: u8,
@@ -274,7 +268,6 @@ impl CMutatedRequest {
         let mut req = Self::base(
             repo_path,
             root_path,
-            db_path,
             branch,
             prefix_directory,
             max_retries,
@@ -296,7 +289,6 @@ impl CMutatedRequest {
         commit_hash: &CString,
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix_directory: &CString,
         max_retries: u8,
@@ -305,7 +297,6 @@ impl CMutatedRequest {
         let mut req = Self::base(
             repo_path,
             root_path,
-            db_path,
             branch,
             prefix_directory,
             max_retries,
@@ -327,7 +318,6 @@ pub struct CUnmutatedRequest {
 
     repo_path: CSlice,
     root_path: CSlice,
-    db_path: CSlice,
     branch: CSlice,
     prefix: CSlice,
 
@@ -344,7 +334,6 @@ impl CUnmutatedRequest {
     fn base(
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix: &CString,
         cancel_token: *mut CancelToken,
@@ -353,7 +342,6 @@ impl CUnmutatedRequest {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::from_cstring(repo_path),
             root_path: CSlice::from_cstring(root_path),
-            db_path: CSlice::from_cstring(db_path),
             branch: CSlice::from_cstring(branch),
             prefix: CSlice::from_cstring(prefix),
             from_commit_hash: CSlice::empty(),
@@ -367,13 +355,12 @@ impl CUnmutatedRequest {
     pub fn for_init(
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix: &CString,
         repo_mode_val: &u32,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix, cancel_token);
+        let mut req = Self::base(repo_path, root_path, branch, prefix, cancel_token);
         req.repo_mode = repo_mode_val as *const u32 as *mut c_void;
         req
     }
@@ -383,14 +370,13 @@ impl CUnmutatedRequest {
     pub fn for_diff(
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix: &CString,
         from_commit: &CString,
         to_commit: &CString,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(repo_path, root_path, db_path, branch, prefix, cancel_token);
+        let mut req = Self::base(repo_path, root_path, branch, prefix, cancel_token);
         req.from_commit_hash = CSlice::from_cstring(from_commit);
         req.to_commit_hash = CSlice::from_cstring(to_commit);
         req
@@ -400,12 +386,11 @@ impl CUnmutatedRequest {
     pub fn for_list(
         repo_path: &CString,
         root_path: &CString,
-        db_path: &CString,
         branch: &CString,
         prefix: &CString,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        Self::base(repo_path, root_path, db_path, branch, prefix, cancel_token)
+        Self::base(repo_path, root_path, branch, prefix, cancel_token)
     }
 }
 

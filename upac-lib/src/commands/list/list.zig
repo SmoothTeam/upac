@@ -28,7 +28,8 @@ pub const ListError = error{
 pub const ListData = struct {
     repo_path: [*:0]const u8,
     branch: [*:0]const u8,
-    db_path: []const u8,
+    root_path: [*:0]const u8,
+    prefix_path: [*:0]const u8,
 
     cancel_token: *CancelToken,
 };

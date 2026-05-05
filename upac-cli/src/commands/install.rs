@@ -247,7 +247,6 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
         packages_c.as_slice(),
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
-        &machine.config.paths.database_path,
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         machine.config.step_retries,

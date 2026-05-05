@@ -99,7 +99,6 @@ fn state_uninstalling(machine: &mut RemoveMachine) -> Result<()> {
         package_names_c.as_slice(),
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
-        &machine.config.paths.database_path,
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         machine.config.step_retries,

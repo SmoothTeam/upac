@@ -126,7 +126,10 @@ fn stateCheckInstalled(machine: *UninstallerMachine) UninstallerError!UninstallS
 fn stateLoadFiles(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const package_checksum = try machine.unwrap(machine.package_checksum, error.PackageNotFound);
 
-    machine.package_file_map = try machine.check(data.readFiles(std.mem.span(machine.data.database_path), package_checksum, machine.allocator), UninstallerError.FileMapCorrupted);
+    const abs_database_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path), "share/upac/db" }), UninstallerError.AllocZFailed);
+    defer machine.allocator.free(abs_database_path);
+
+    machine.package_file_map = try machine.check(data.readFiles(abs_database_path, package_checksum, machine.allocator), UninstallerError.FileMapCorrupted);
 
     machine.resetRetries();
     return .remove_files;
@@ -157,13 +160,11 @@ fn stateRemoveDbFiles(machine: *UninstallerMachine) UninstallerError!UninstallSt
     const mtree = try machine.unwrap(machine.mtree, error.PackageNotFound);
     const pkg_checksum = try machine.unwrap(machine.package_checksum, error.PackageNotFound);
 
-    const relative_database_path = if (std.mem.startsWith(u8, std.mem.span(machine.data.database_path), std.mem.span(machine.data.root_path)))
-        machine.data.database_path[std.mem.span(machine.data.root_path).len..]
-    else
-        machine.data.database_path;
+    const relative_database_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.prefix_path), "share/upac/db" }), UninstallerError.AllocZFailed);
+    defer machine.allocator.free(relative_database_path);
 
-    try removeDbFile(machine, repo, mtree, pkg_checksum, std.mem.span(relative_database_path), ".meta");
-    try removeDbFile(machine, repo, mtree, pkg_checksum, std.mem.span(relative_database_path), ".files");
+    try removeDbFile(machine, repo, mtree, pkg_checksum, relative_database_path, ".meta");
+    try removeDbFile(machine, repo, mtree, pkg_checksum, relative_database_path, ".files");
 
     if (machine.package_file_map) |*file_map| {
         data.freeFileMap(file_map, machine.allocator);

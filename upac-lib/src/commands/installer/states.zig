@@ -136,10 +136,8 @@ fn stateCheckInstalled(machine: *InstallerMachine) InstallerError!InstallStateId
 fn stateWriteDatabase(machine: *InstallerMachine) InstallerError!InstallStateId {
     const current_install_entry = machine.data.packages[machine.current_package_index];
 
-    const relative_database_path = if (std.mem.startsWith(u8, std.mem.span(machine.data.database_path), std.mem.span(machine.data.root_path)))
-        std.mem.span(machine.data.database_path)[std.mem.span(machine.data.root_path).len..]
-    else
-        std.mem.span(machine.data.database_path);
+    const relative_database_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.prefix_path), "share/upac/db" }), InstallerError.AllocZFailed);
+    defer machine.allocator.free(relative_database_path);
 
     const staged_database_dir_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(current_install_entry.temp_path), relative_database_path }), InstallerError.AllocZFailed);
     defer machine.allocator.free(staged_database_dir_path);
@@ -233,7 +231,10 @@ fn stateCommit(machine: *InstallerMachine) InstallerError!InstallStateId {
 fn stateCheckout(machine: *InstallerMachine) InstallerError!InstallStateId {
     const repo = try machine.unwrap(machine.repo, InstallerError.RepoOpenFailed);
     const estimated = estimateCheckoutSize(machine) catch 0;
-    if (machine.gerror) |err| { c_libs.g_error_free(err); machine.gerror = null; }
+    if (machine.gerror) |err| {
+        c_libs.g_error_free(err);
+        machine.gerror = null;
+    }
 
     var buf: [256]u8 = undefined;
     const timestamp = std.time.milliTimestamp();

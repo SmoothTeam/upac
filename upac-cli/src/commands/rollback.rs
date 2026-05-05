@@ -103,7 +103,6 @@ fn state_rolling_back(machine: &mut RollbackMachine) -> Result<()> {
         &machine.commit_hash,
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
-        &machine.config.paths.database_path,
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         machine.config.step_retries,

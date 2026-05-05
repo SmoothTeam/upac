@@ -11,6 +11,8 @@ use crate::ffi::{
 };
 use crate::utils::BackendKind;
 
+const EXPECTED_ABI_VERSION: u32 = 1;
+
 // ── Wrapper around libupac.so ────────────────────────────────────────────────────
 // A wrapper for dynamically loading libupac.so and mapping its C functions to Rust types
 pub struct UpacLib {
@@ -54,6 +56,16 @@ impl UpacLib {
         let loaded_library = unsafe { Library::new(backend_kind.so_name()) }.map_err(|error| {
             anyhow::anyhow!("Failed to load {}: {error}", backend_kind.so_name())
         })?;
+
+        let get_abi_version: unsafe extern "C" fn() -> u32 =
+            unsafe { load_symbol(&loaded_library, "get_abi_version")? };
+        let abi_version = unsafe { get_abi_version() };
+        if abi_version != EXPECTED_ABI_VERSION {
+            bail!(
+                "{}: ABI version mismatch (library={abi_version}, expected={EXPECTED_ABI_VERSION})",
+                backend_kind.so_name()
+            );
+        }
 
         let lib = Self {
             install: unsafe { load_symbol(&loaded_library, "install")? },

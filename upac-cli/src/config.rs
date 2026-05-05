@@ -33,8 +33,6 @@ impl Default for Config {
 // Set of paths to key system components: database, repository, and OS root
 #[derive(Debug, Deserialize, Clone)]
 pub struct Paths {
-    #[serde(alias = "db_path")]
-    pub database_path: CString,
     pub repo_path: CString,
     pub root_path: CString,
 }
@@ -42,7 +40,6 @@ pub struct Paths {
 impl Default for Paths {
     fn default() -> Self {
         Self {
-            database_path: CString::new("/usr/share/upac/db").unwrap(),
             repo_path: CString::new("/var/share/upac/repo").unwrap(),
             root_path: CString::new("/").unwrap(),
         }
@@ -94,9 +91,6 @@ impl Config {
         }
         if self.paths.root_path.is_empty() {
             anyhow::bail!("config: paths.root path is empty");
-        }
-        if self.paths.database_path.is_empty() {
-            anyhow::bail!("config: paths.database path is empty");
         }
         if self.ostree.branch.is_empty() {
             anyhow::bail!("config: ostree.branch is empty");

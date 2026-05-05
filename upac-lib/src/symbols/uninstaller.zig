@@ -15,7 +15,7 @@ const fromError = uninstaller_module.ffi.fromError;
 pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
     uninstall_request_c.validate() catch |err| return @intFromEnum(fromError(err, Operation.uninstall));
 
-    const required_fields = [_]CSlice{ uninstall_request_c.repo_path, uninstall_request_c.root_path, uninstall_request_c.db_path, uninstall_request_c.branch, uninstall_request_c.prefix_directory };
+    const required_fields = [_]CSlice{ uninstall_request_c.repo_path, uninstall_request_c.root_path, uninstall_request_c.branch, uninstall_request_c.prefix_directory };
     for (required_fields) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall));
 
     const packages_names_c_null = uninstall_request_c.package_names orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall));
@@ -29,7 +29,7 @@ pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
 
     for (packages_names_c, 0..) |name, index| package_names[index] = name.toSlice();
 
-    const uninstall_data = uninstaller_module.UninstallData{ .package_names = package_names, .branch = uninstall_request_c.branch.asZ(), .repo_path = uninstall_request_c.repo_path.asZ(), .root_path = uninstall_request_c.root_path.asZ(), .database_path = uninstall_request_c.db_path.asZ(), .prefix_path = uninstall_request_c.prefix_directory.asZ(), .on_progress = if (uninstall_request_c.on_progress) |cb| @as(UninstallProgressFn, @ptrCast(cb)) else null, .progress_ctx = uninstall_request_c.progress_ctx, .max_retries = uninstall_request_c.max_retries, .cancel_token = uninstall_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall)) };
+    const uninstall_data = uninstaller_module.UninstallData{ .package_names = package_names, .branch = uninstall_request_c.branch.asZ(), .repo_path = uninstall_request_c.repo_path.asZ(), .root_path = uninstall_request_c.root_path.asZ(), .prefix_path = uninstall_request_c.prefix_directory.asZ(), .on_progress = if (uninstall_request_c.on_progress) |cb| @as(UninstallProgressFn, @ptrCast(cb)) else null, .progress_ctx = uninstall_request_c.progress_ctx, .max_retries = uninstall_request_c.max_retries, .cancel_token = uninstall_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall)) };
 
     uninstaller_module.UninstallerMachine.run(uninstall_data, uninstaller_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.uninstall));
 

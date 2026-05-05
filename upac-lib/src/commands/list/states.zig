@@ -62,7 +62,9 @@ pub fn stateListPackages(machine: *ListMachine) ListError!void {
 
     var iter = package_map.iterator();
     while (iter.next()) |entry| {
-        const pkg = data.readMeta(machine.data.db_path, entry.value_ptr.*, machine.allocator) catch continue;
+        const abs_db_path = std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path), "share/upac/db" }) catch continue;
+        defer machine.allocator.free(abs_db_path);
+        const pkg = data.readMeta(abs_db_path, entry.value_ptr.*, machine.allocator) catch continue;
         try machine.check(result.append(machine.allocator, .{
             .name = CSlice.fromSlice(pkg.name),
             .version = CSlice.fromSlice(pkg.version),

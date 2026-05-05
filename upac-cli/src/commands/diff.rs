@@ -165,7 +165,6 @@ fn fetch_commit_checksums(machine: &mut DiffMachine) -> Result<Vec<String>> {
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
-        &machine.config.paths.database_path,
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         &from_c,
@@ -213,7 +212,6 @@ fn state_fetching_files_diff(machine: &mut DiffMachine) -> Result<()> {
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
-        &machine.config.paths.database_path,
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         &from_c,
@@ -264,7 +262,6 @@ fn state_fetching_packages_diff(machine: &mut DiffMachine) -> Result<()> {
     let diff_request_c = CUnmutatedRequest::for_diff(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
-        &machine.config.paths.database_path,
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         &from_c,

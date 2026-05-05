@@ -57,7 +57,6 @@ pub const InstallData = struct {
 
     repo_path: [*:0]const u8,
     root_path: [*:0]const u8,
-    database_path: [*:0]const u8,
     prefix_path: [*:0]const u8,
 
     on_progress: ?InstallProgressFn = null,

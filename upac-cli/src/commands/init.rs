@@ -125,7 +125,6 @@ fn state_initializing(machine: &mut InitMachine) -> Result<()> {
     let init_request_c = CUnmutatedRequest::for_init(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
-        &machine.config.paths.database_path,
         &machine.config.ostree.branch,
         &machine.config.ostree.prefix_directory,
         &repo_mode_val,

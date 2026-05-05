@@ -145,7 +145,6 @@ pub const CMutatedRequest = extern struct {
 
     repo_path: CSlice,
     root_path: CSlice,
-    db_path: CSlice,
     branch: CSlice,
     prefix_directory: CSlice,
 
@@ -170,7 +169,6 @@ pub const CMutatedRequest = extern struct {
         if (self.struct_size != @sizeOf(CMutatedRequest)) return error.AbiMismatch;
         try self.repo_path.validate();
         try self.root_path.validate();
-        try self.db_path.validate();
         try self.branch.validate();
         try self.prefix_directory.validate();
     }
@@ -182,7 +180,6 @@ pub const CUnmutatedRequest = extern struct {
 
     repo_path: CSlice,
     root_path: CSlice,
-    db_path: CSlice,
     branch: CSlice,
     prefix: CSlice,
 
@@ -284,6 +281,10 @@ pub const CRepoMode = enum(u8) {
     bare = 1,
     bare_user = 2,
 };
+
+// Bump this integer whenever a symbol is added/removed or a signature changes.
+// struct_size guards layout; this guards the symbol set and calling conventions.
+pub const ABI_VERSION: u32 = 1;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true, .thread_safe = true }){};
 

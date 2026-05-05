@@ -29,7 +29,8 @@ pub const DiffError = error{
 
 pub const DiffData = struct {
     repo_path: [*:0]const u8,
-    db_path: []const u8,
+    root_path: [*:0]const u8,
+    prefix_path: [*:0]const u8,
 
     from_ref: [*:0]const u8,
     to_ref: [*:0]const u8,
