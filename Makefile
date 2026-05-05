@@ -27,7 +27,7 @@ ifeq ($(strip $(MODE)), release)
     $(info --- INFO: Building in RELEASE mode ---)
     CARGO_BUILD_FLAG := --release
     RUST_BUILD_FLAGS  := -C lto=fat -C opt-level=3 -C strip=symbols -C embed-bitcode=yes -C codegen-units=1 -C panic=abort -C prefer-dynamic=false -C target-cpu=$(subst _,-,$(strip $(CPU)))
-    ZIG_BUILD_FLAGS  := -Doptimize=ReleaseFast -Dstrip=true -Dstack-check=false
+    ZIG_BUILD_FLAGS  := -Doptimize=ReleaseFast -Dstrip=true -Dstack-check=false -Dcpu=$(strip $(CPU))
 else
     $(info --- INFO: Building in DEBUG mode ---)
     CARGO_BUILD_FLAG :=
@@ -69,7 +69,7 @@ build-xbps-backend:
 
 build-cli:
 	@cd $(ROOT_DIR)/upac-cli && \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo build \
+		RUSTFLAGS="$(RUST_BUILD_FLAGS)" cargo build \
 			$(CARGO_BUILD_FLAG) \
 			--target $(CARGO_TARGET) \
 			--target-dir $(OUT_BUILD_DIR) \

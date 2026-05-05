@@ -1,0 +1,47 @@
+name: Build x86_64
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        cpu: [x86_64, x86_64_v2, x86_64_v3, x86_64_v4]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libostree-dev \
+            libarchive-dev \
+            pkg-config \
+            make
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: latest
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build (${{ matrix.cpu }})
+        run: make build MODE=release CPU=${{ matrix.cpu }}
+
+      - name: Upload binaries (${{ matrix.cpu }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: upac-binaries-${{ matrix.cpu }}
+          path: build/
+          retention-days: 5

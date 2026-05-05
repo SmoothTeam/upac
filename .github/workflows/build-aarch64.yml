@@ -1,0 +1,41 @@
+name: Build aarch64
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libostree-dev \
+            libarchive-dev \
+            pkg-config \
+            make
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: latest
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: make build MODE=release
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: upac-binaries-aarch64
+          path: build/
+          retention-days: 5
