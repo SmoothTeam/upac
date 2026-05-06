@@ -329,7 +329,7 @@ pub fn stateFailed(machine: *InstallerMachine) void {
     if (machine.repo) |repo| {
         _ = c_libs.ostree_repo_abort_transaction(repo, null, &abort_err);
 
-        if (machine.commit_checksum != null) _ = c_libs.ostree_repo_set_ref_immediate(repo, null, machine.data.branch, null, null, null);
+        if (machine.commit_checksum != null) _ = c_libs.ostree_repo_set_ref_immediate(repo, null, machine.data.branch, machine.previous_commit_checksum, null, null);
     }
 
     machine.stack.append(machine.allocator, .failed) catch {};
