@@ -45,7 +45,7 @@ prepare-dirs:
 
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-build: prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli
+build: prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli build-removing
 
 build-lib:
 	@echo "--- Building lib in $(MODE) mode ---"
@@ -88,7 +88,6 @@ build-removing:
 pkg-arch-local: build pkg-arch
 
 pkg-arch:
-	@echo "--- Building Arch package v$(VERSION) ---"
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/arch/root/usr/bin
 	@mkdir -p $(PKG_DIR)/arch/root/usr/lib
@@ -125,9 +124,8 @@ pkg-arch:
 pkg-rpm-local: build pkg-rpm
 
 pkg-rpm:
-	@echo "--- Building RPM package v$(VERSION) ---"
 	@echo "--- Making temp directories ---"
-	@mkdir -p $(PKG_DIR)/rpm/{BUILD,RPMS,SOURCES,SPECS}
+	@mkdir -p $(PKG_DIR)/rpm/BUILD $(PKG_DIR)/rpm/RPMS $(PKG_DIR)/rpm/SOURCES $(PKG_DIR)/rpm/SPECS
 	@mkdir -p $(PKG_DIR)/rpm/root/usr/{bin,lib}
 	@mkdir -p $(PKG_DIR)/rpm/root/etc/upac
 
@@ -154,7 +152,6 @@ pkg-rpm:
 pkg-deb-local: build pkg-deb
 
 pkg-deb:
-	@echo "--- Building DEB package v$(VERSION) ---"
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/deb/DEBIAN
 	@mkdir -p $(PKG_DIR)/deb/usr/{bin,lib}
