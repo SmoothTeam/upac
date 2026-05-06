@@ -88,11 +88,6 @@ build-removing:
 pkg-arch-local: build pkg-arch
 
 pkg-arch:
-	@if [ ! -f /etc/arch-release ]; then \
-		echo "error: pkg-arch requires Arch Linux"; \
-		exit 1; \
-	fi
-
 	@echo "--- Building Arch package v$(VERSION) ---"
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/arch/root/usr/bin
@@ -130,13 +125,6 @@ pkg-arch:
 pkg-rpm-local: build pkg-rpm
 
 pkg-rpm:
-	@# Проверяем что есть rpmbuild
-
-	@if ! command -v rpmbuild &> /dev/null; then \
-		echo "error: pkg-rpm requires rpmbuild (install rpm-build)"; \
-		exit 1; \
-	fi
-
 	@echo "--- Building RPM package v$(VERSION) ---"
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/rpm/{BUILD,RPMS,SOURCES,SPECS}

@@ -29,7 +29,7 @@ jobs:
       - name: Install RPM tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm rpmbuild make
+          sudo apt-get install -y rpm make
 
       - name: Build RPM package (${{ matrix.cpu }})
         run: make pkg-rpm
