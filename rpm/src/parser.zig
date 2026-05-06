@@ -70,9 +70,12 @@ fn readExact(io: std.Io, file: std.Io.File, buf: []u8) !void {
     var total: usize = 0;
     while (total < buf.len) {
         const iov = [1][]u8{buf[total..]};
-        const n = try file.readStreaming(io, &iov);
-        if (n == 0) return error.UnexpectedEOF;
-        total += n;
+        const bytes_read_count = file.readStreaming(io, &iov) catch |err| {
+            if (err == error.EndOfStream) return error.UnexpectedEOF;
+            return err;
+        };
+        if (bytes_read_count == 0) return error.UnexpectedEOF;
+        total += bytes_read_count;
     }
 }
 

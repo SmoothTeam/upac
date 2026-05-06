@@ -45,8 +45,11 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
             return BackendError.Cancelled;
         }
         const iov = [1][]u8{hasher_buf[0..]};
-        const index = try machine.check(package_file.readStreaming(machine.io, &iov), BackendError.ReadFailed);
-
+        const index = package_file.readStreaming(machine.io, &iov) catch |err| {
+            if (err == error.EndOfStream) break;
+            stateFailed(machine);
+            return BackendError.ReadFailed;
+        };
         if (index == 0) break;
         hasher.update(hasher_buf[0..index]);
     }
@@ -103,12 +106,15 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
 
     const temp_dir_path_c = try machine.check(std.Io.Dir.path.joinZ(machine.allocator, &.{ std.mem.span(machine.request.temp_dir), tepm_dir_name }), BackendError.OutOfMemory);
 
-    std.Io.Dir.createDirAbsolute(machine.io, temp_dir_path_c, .default_file) catch {
+    std.Io.Dir.createDirAbsolute(machine.io, temp_dir_path_c, .default_dir) catch {
         machine.allocator.free(temp_dir_path_c);
         stateFailed(machine);
         return BackendError.TempDirFailed;
     };
     machine.temp_path = temp_dir_path_c;
+
+    const file_for_archive = try machine.unwrap(machine.file, BackendError.ArchiveOpenFailed);
+    try machine.check(machine.io.vtable.fileSeekTo(machine.io.userdata, file_for_archive, 0), BackendError.ArchiveOpenFailed);
 
     const archive_reader = try machine.unwrap(c_libs.archive_read_new(), BackendError.ArchiveOpenFailed);
     defer _ = c_libs.archive_read_free(archive_reader);
@@ -116,10 +122,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
     _ = c_libs.archive_read_support_format_all(archive_reader);
     _ = c_libs.archive_read_support_filter_all(archive_reader);
 
-    if (c_libs.archive_read_open_filename(archive_reader, machine.request.package_path, 16384) != c_libs.ARCHIVE_OK) {
-        stateFailed(machine);
-        return BackendError.ArchiveOpenFailed;
-    }
+    _ = c_libs.archive_read_open_fd(archive_reader, file_for_archive.handle, 16384);
 
     const archive_writer = try machine.unwrap(c_libs.archive_write_disk_new(), BackendError.ArchiveOpenFailed);
     defer _ = c_libs.archive_write_free(archive_writer);
@@ -132,13 +135,7 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
     );
     _ = c_libs.archive_write_disk_set_standard_lookup(archive_writer);
 
-    var cwd_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const cwd_len = std.Io.Dir.cwd().realPath(machine.io, &cwd_buf) catch {
-        stateFailed(machine);
-        return BackendError.OutOfMemory;
-    };
-
-    var original_directory = try machine.check(std.Io.Dir.openDirAbsolute(machine.io, cwd_buf[0..cwd_len], .{}), BackendError.ReadFailed);
+    var original_directory = try machine.check(std.Io.Dir.cwd().openDir(machine.io, ".", .{}), BackendError.ReadFailed);
     defer original_directory.close(machine.io);
 
     try machine.check(std.Io.Threaded.chdir(temp_dir_path_c), BackendError.TempDirFailed);
