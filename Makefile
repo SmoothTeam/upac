@@ -33,7 +33,6 @@ else
     CARGO_BUILD_FLAG :=
     RUST_BUILD_FLAGS  := -C debuginfo=2 -C force-frame-pointers=yes -C target-cpu=$(subst _,-,$(strip $(CPU)))
     ZIG_BUILD_FLAGS  := -Doptimize=Debug -Dstrip=false -Dstack-check=true -Dcpu=$(strip $(CPU))
-    OSTREE_BUILD_CFLAGS := -g -O0
 endif
 
 export PKG_CONFIG_ALLOW_CROSS = 1

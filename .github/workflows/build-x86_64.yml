@@ -1,5 +1,4 @@
 name: Build x86_64
-
 on:
   push:
     branches: [main]

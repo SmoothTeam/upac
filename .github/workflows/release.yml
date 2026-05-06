@@ -1,86 +1,85 @@
 name: Release
-
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    tags:
+      - 'v*'
 
 jobs:
-  check-and-release:
+  build-x86:
+    uses: ./.github/workflows/build-x86_64.yml
+
+  build-aarch64:
+    uses: ./.github/workflows/build-aarch64.yml
+
+  pkg-arch-x86:
+    needs: build-x86
+    uses: ./.github/workflows/make-arch-x86_64.yml
+    secrets: inherit
+
+  pkg-rpm-x86:
+    needs: build-x86
+    uses: ./.github/workflows/make-rpm-x86_64.yml
+    secrets: inherit
+
+  pkg-deb-x86:
+    needs: build-x86
+    uses: ./.github/workflows/make-deb-x86_64.yml
+    secrets: inherit
+
+  pkg-arch-aarch64:
+    needs: build-aarch64
+    uses: ./.github/workflows/make-arch-aarch64.yml
+    secrets: inherit
+
+  pkg-rpm-aarch64:
+    needs: build-aarch64
+    uses: ./.github/workflows/make-rpm-aarch64.yml
+    secrets: inherit
+
+  pkg-deb-aarch64:
+    needs: build-aarch64
+    uses: ./.github/workflows/make-deb-aarch64.yml
+    secrets: inherit
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - pkg-arch-x86
+      - pkg-rpm-x86
+      - pkg-deb-x86
+      - pkg-arch-aarch64
+      - pkg-rpm-aarch64
+      - pkg-deb-aarch64
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    container:
-      image: archlinux:latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get version from Cargo.toml
-        id: get_version
+      - name: Download all packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-package-*"
+          path: packages/
+          merge-multiple: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create source archive
         run: |
-          VERSION=$(grep '^version' upac-cli/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Stop if version already released
-        if: steps.get_version.outputs.exists == 'true'
-        run: |
-          echo "Версия v${{ steps.get_version.outputs.version }} уже существует. Пропускаю сборку."
-          exit 0
-
-      - name: Install dependencies via pacman
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm git base-devel rust ostree glib2 libarchive zstd rpm-tools dpkg
-
-      - name: Install Zig 0.13.0 via curl
-        run: |
-          curl -L https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz | tar -xJ
-          mv zig-linux-x86_64-0.13.0/zig /usr/local/bin/
-          mv zig-linux-x86_64-0.13.0/lib /usr/local/lib/zig
-
-      - name: Sync
-        run: |
-          make sync
-
-      - name: Build
-        run: |
-          useradd -m builder
-          chown -R builder:builder .
-          su builder -c "make pkg-arch pkg-rpm pkg-deb"
-
-      - name: Create Git tag
-        run: |
-          git config --global --add safe.directory /github/workspace
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git tag "v${{ steps.get_version.outputs.version }}"
-          git push origin "v${{ steps.get_version.outputs.version }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git archive --format=tar.gz \
+            --prefix=upac-${{ github.ref_name }}/ \
+            HEAD \
+            -o packages/upac-${{ github.ref_name }}-source.tar.gz
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ steps.get_version.outputs.version }}"
-          name: "upac v${{ steps.get_version.outputs.version }}"
-          body: |
-            ## Релиз v${{ steps.get_version.outputs.version }}
-          files: |
-            pkg/*.pkg.tar.zst
-            pkg/*.rpm
-            pkg/*.deb
+          tag_name: ${{ github.ref_name }}
+          name: "upac ${{ github.ref_name }}"
+          body_path: CHANGELOG.MD
+          files: packages/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

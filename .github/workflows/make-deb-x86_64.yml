@@ -4,11 +4,11 @@ on:
     workflows: ["Build x86_64"]
     types: [completed]
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   pkg-deb:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name
-      == 'workflow_dispatch' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,7 +24,7 @@ jobs:
         with:
           name: upac-binaries-${{ matrix.cpu }}
           path: build/
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Build Tools

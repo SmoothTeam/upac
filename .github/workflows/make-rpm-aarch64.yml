@@ -1,14 +1,13 @@
 name: Make package RPM (aarch64)
-
 on:
   workflow_run:
     workflows: ["Build aarch64"]
     types: [completed]
+  workflow_call:
 
 jobs:
   pkg-rpm:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name
-      == 'workflow_dispatch' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +19,7 @@ jobs:
         with:
           name: upac-binaries-aarch64
           path: build/
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install RPM tools
