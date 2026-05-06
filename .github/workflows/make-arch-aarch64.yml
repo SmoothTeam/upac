@@ -1,4 +1,4 @@
-name: Package Arch (ARM)
+name: Make package Arch (aarch64)
 
 on:
   workflow_run:

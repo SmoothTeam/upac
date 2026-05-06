@@ -1,4 +1,4 @@
-name: Make package Arch
+name: Make package Arch (x86-64)
 on:
   workflow_run:
     workflows: ["Build x86_64"]
