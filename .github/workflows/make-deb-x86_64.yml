@@ -1,0 +1,44 @@
+name: Make package DEB (x86-64)
+on:
+  workflow_run:
+    workflows: ["Build x86_64"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  pkg-deb:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name
+      == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cpu: [x86_64, x86_64_v2, x86_64_v3, x86_64_v4]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download compiled binaries (${{ matrix.cpu }})
+        uses: actions/download-artifact@v4
+        with:
+          name: upac-binaries-${{ matrix.cpu }}
+          path: build/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Build Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev make
+
+      - name: Build DEB package (${{ matrix.cpu }})
+        run: |
+          make pkg-deb
+
+      - name: Upload DEB Package (${{ matrix.cpu }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package-${{ matrix.cpu }}
+          path: pkg/*.deb
+          retention-days: 5
