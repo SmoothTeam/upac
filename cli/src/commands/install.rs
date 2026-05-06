@@ -258,7 +258,11 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
     UpacLib::check(
         unsafe { (machine.upac_lib.as_ref().install)(install_request_c) },
         "install",
-    )?;
+    )
+    .map_err(|err| {
+        machine.progress_bar.finish_and_clear();
+        err
+    })?;
 
     state_done(machine)
 }

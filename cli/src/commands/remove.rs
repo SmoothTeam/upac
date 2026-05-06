@@ -110,7 +110,11 @@ fn state_uninstalling(machine: &mut RemoveMachine) -> Result<()> {
     UpacLib::check(
         unsafe { (machine.upac_lib.as_ref().uninstall)(remove_request_c) },
         "uninstall",
-    )?;
+    )
+    .map_err(|err| {
+        machine.progress_bar.finish_and_clear();
+        err
+    })?;
 
     state_done(machine)
 }
