@@ -154,7 +154,7 @@ pkg-deb-local: build pkg-deb
 pkg-deb:
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/deb/DEBIAN
-	@mkdir -p $(PKG_DIR)/rpm/root/usr/bin $(PKG_DIR)/rpm/root/usr/lib
+	@mkdir -p $(PKG_DIR)/deb/usr/bin $(PKG_DIR)/deb/usr/lib
 	@mkdir -p $(PKG_DIR)/deb/etc/upac
 
 	@echo "--- Copying DEB files v$(VERSION) ---"
