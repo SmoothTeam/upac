@@ -313,7 +313,7 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: **CPackageMet
 }
 
 fn dupeToCSlice(allocator: std.mem.Allocator, slice: []const u8) BackendError!CSlice {
-    const dupe_slice = allocator.dupe(u8, slice) catch return BackendError.AllocZFailed;
+    const dupe_slice = allocator.dupeZ(u8, slice) catch return BackendError.AllocZFailed;
     return CSlice.fromSlice(dupe_slice);
 }
 

@@ -261,7 +261,6 @@ pub const CBackendProgressFn = *const fn (
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
-
 // ── FFI экспорты ──────────────────────────────────────────────────────────────
 // An exported C function (FFI) for initiating the preparation process from external code
 pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque, out_temp_path: *CSlice) callconv(.c) i32 {
@@ -308,7 +307,7 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque,
 }
 
 fn dupeToCSlice(allocator: std.mem.Allocator, slice: []const u8) BackendError!CSlice {
-    const dupe_slice = allocator.dupe(u8, slice) catch return BackendError.AllocZFailed;
+    const dupe_slice = allocator.dupeZ(u8, slice) catch return BackendError.AllocZFailed;
     return CSlice.fromSlice(dupe_slice);
 }
 
