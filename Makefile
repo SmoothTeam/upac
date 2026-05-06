@@ -198,7 +198,12 @@ sync-pkg:
 
 sync-build:
 	@echo "--- Syncing Zig modules to v$(VERSION) ---"
-	@sed -i -E 's/\.version[[:space:]]*=[[:space:]]*"[^"]*"/\.version = "$(VERSION)"/' $(ROOT_DIR)/lib/build.zig.zon $(ROOT_DIR)/alpm/build.zig.zon $(ROOT_DIR)/rpm/build.zig.zon $(ROOT_DIR)/deb/build.zig.zon $(ROOT_DIR)/xbps/build.zig.zon
+	@sed -i -E 's/\.version[[:space:]]*=[[:space:]]*"[^"]*"/\.version = "$(VERSION)"/' \
+		$(ROOT_DIR)/lib/build.zig.zon \
+		$(ROOT_DIR)/alpm/build.zig.zon \
+		$(ROOT_DIR)/rpm/build.zig.zon \
+		$(ROOT_DIR)/deb/build.zig.zon \
+		$(ROOT_DIR)/xbps/build.zig.zon
 
 # ── Cleaning ───────────────────────────────────────────────────────────────────
 clean: clean-build clean-pkg build-removing
