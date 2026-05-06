@@ -300,7 +300,7 @@ fn state_fetching_packages_diff(machine: &mut DiffMachine) -> Result<()> {
 
 fn state_printing_files_diff(machine: &mut DiffMachine) -> Result<()> {
     machine.state = State::PrintingFilesDiff;
-    spinner(&machine.progress_bar, "Print files diff...");
+    machine.progress_bar.finish_and_clear();
 
     let from_commit_unwraped_short = &machine.from_commit.as_ref().unwrap()
         [..machine.from_commit.as_ref().unwrap().len().min(12)];
@@ -341,7 +341,7 @@ fn state_printing_files_diff(machine: &mut DiffMachine) -> Result<()> {
 
 fn state_printing_packages_diff(machine: &mut DiffMachine) -> Result<()> {
     machine.state = State::PrintingPackagesDiff;
-    spinner(&machine.progress_bar, "Print package diff...");
+    machine.progress_bar.finish_and_clear();
 
     let from_commit_unwraped_short = &machine.from_commit.as_ref().unwrap()
         [..machine.from_commit.as_ref().unwrap().len().min(12)];
@@ -374,7 +374,6 @@ fn state_printing_packages_diff(machine: &mut DiffMachine) -> Result<()> {
 
 fn state_done(machine: &mut DiffMachine) -> Result<()> {
     machine.state = State::Done;
-    machine.progress_bar.finish_and_clear();
 
     Ok(())
 }
