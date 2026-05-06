@@ -126,7 +126,7 @@ pkg-rpm-local: build pkg-rpm
 pkg-rpm:
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/rpm/BUILD $(PKG_DIR)/rpm/RPMS $(PKG_DIR)/rpm/SOURCES $(PKG_DIR)/rpm/SPECS
-	@mkdir -p $(PKG_DIR)/rpm/root/usr/{bin,lib}
+	@mkdir -p $(PKG_DIR)/rpm/root/usr/bin $(PKG_DIR)/rpm/root/usr/lib
 	@mkdir -p $(PKG_DIR)/rpm/root/etc/upac
 
 	@echo "--- Copying .spec v$(VERSION) ---"
@@ -154,7 +154,7 @@ pkg-deb-local: build pkg-deb
 pkg-deb:
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/deb/DEBIAN
-	@mkdir -p $(PKG_DIR)/deb/usr/{bin,lib}
+	@mkdir -p $(PKG_DIR)/rpm/root/usr/bin $(PKG_DIR)/rpm/root/usr/lib
 	@mkdir -p $(PKG_DIR)/deb/etc/upac
 
 	@echo "--- Copying DEB files v$(VERSION) ---"
