@@ -1,7 +1,6 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const backend = @import("backend.zig");
 const std = backend.std;
-const posix = backend.std.posix;
 const c_libs = backend.c_libs;
 
 const Machine = backend.BackendMachine;
@@ -35,7 +34,7 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
     var digest: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
     var expected_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
 
-    const package_file = try machine.check(std.fs.openFileAbsoluteZ(machine.request.package_path_c, .{}), BackendError.ReadFailed);
+    const package_file = try machine.check(std.Io.Dir.openFileAbsolute(machine.io, std.mem.span(machine.request.package_path_c), .{}), BackendError.ReadFailed);
     machine.file = package_file;
 
     while (true) {
@@ -43,7 +42,8 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
-        const index = try machine.check(package_file.read(&hasher_buf), BackendError.ReadFailed);
+        const iov = [1][]u8{hasher_buf[0..]};
+        const index = try machine.check(package_file.readStreaming(machine.io, &iov), BackendError.ReadFailed);
 
         if (index == 0) break;
         hasher.update(hasher_buf[0..index]);
@@ -58,7 +58,7 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
     }
 
     const file_descriptor = try machine.unwrap(machine.file, BackendError.ArchiveOpenFailed);
-    try machine.check(file_descriptor.seekTo(0), BackendError.ArchiveOpenFailed);
+    try machine.check(machine.io.vtable.fileSeekTo(machine.io.userdata, file_descriptor, 0), BackendError.ArchiveOpenFailed);
 
     return .extracting;
 }
@@ -68,12 +68,12 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
     const file_descriptor = try machine.unwrap(machine.file, BackendError.ArchiveOpenFailed);
 
     var tem_dir_buf: [256]u8 = undefined;
-    const timestamp = std.time.milliTimestamp();
+    const timestamp = @divTrunc(std.Io.Clock.real.now(machine.io).nanoseconds, std.time.ns_per_ms);
 
     const tepm_dir_name = try machine.check(std.fmt.bufPrintZ(&tem_dir_buf, "upac-installed-{d}", .{timestamp}), BackendError.AllocZFailed);
-    const temp_dir_path = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.request.temp_dir_path_c), tepm_dir_name }), BackendError.AllocZFailed);
+    const temp_dir_path = try machine.check(std.Io.Dir.path.joinZ(machine.allocator, &.{ std.mem.span(machine.request.temp_dir_path_c), tepm_dir_name }), BackendError.AllocZFailed);
 
-    try machine.check(std.fs.makeDirAbsolute(temp_dir_path), BackendError.TempDirFailed);
+    try machine.check(std.Io.Dir.createDirAbsolute(machine.io, temp_dir_path, .default_file), BackendError.TempDirFailed);
     machine.temp_path = temp_dir_path;
 
     const archive_reader = try machine.unwrap(c_libs.archive_read_new(), BackendError.ArchiveOpenFailed);
@@ -97,17 +97,17 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
         c_libs.ARCHIVE_EXTRACT_FFLAGS);
     _ = c_libs.archive_write_disk_set_standard_lookup(archive_writer);
 
-    var buf: [std.os.linux.PATH_MAX]u8 = undefined;
-    const cwd_path = std.posix.getcwd(&buf) catch {
+    var cwd_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const cwd_len = std.Io.Dir.cwd().realPath(machine.io, &cwd_buf) catch {
         stateFailed(machine);
         return BackendError.TempDirFailed;
     };
 
-    var old_dir = try machine.check(std.fs.openDirAbsolute(cwd_path, .{}), BackendError.ReadFailed);
-    defer old_dir.close();
+    var old_dir = try machine.check(std.Io.Dir.openDirAbsolute(machine.io, cwd_buf[0..cwd_len], .{}), BackendError.ReadFailed);
+    defer old_dir.close(machine.io);
 
-    try machine.check(posix.chdir(temp_dir_path), BackendError.OutOfMemory);
-    defer old_dir.setAsCwd() catch {};
+    try machine.check(std.Io.Threaded.chdir(temp_dir_path), BackendError.TempDirFailed);
+    defer std.Io.Threaded.fchdir(old_dir.handle) catch {};
 
     while (true) {
         if (machine.isCancelRequested()) {
@@ -180,8 +180,8 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
 // Parsing status: searching for and parsing the .PKGINFO file to populate package metadata
 fn stateReadingMeta(machine: *Machine) BackendError!StateId {
     const temp_path_c = try machine.unwrap(machine.temp_path, BackendError.TempDirFailed);
-    var temp_dir = try machine.check(std.fs.openDirAbsolute(temp_path_c, .{}), BackendError.TempDirFailed);
-    defer temp_dir.close();
+    var temp_dir = try machine.check(std.Io.Dir.openDirAbsolute(machine.io, temp_path_c, .{}), BackendError.TempDirFailed);
+    defer temp_dir.close(machine.io);
 
     const content = try machine.unwrap(machine.pkginfo_content, BackendError.MetadataNotFound);
     defer {
@@ -248,11 +248,11 @@ fn stateReadingMeta(machine: *Machine) BackendError!StateId {
         .checksum = try machine.allocator.dupe(u8, machine.request.checksum),
 
         .size = size,
-        .installed_at = std.time.timestamp(),
+        .installed_at = @intCast(@divTrunc(std.Io.Clock.real.now(machine.io).nanoseconds, std.time.ns_per_s)),
     };
 
     const alpm_junk_files = [_][]const u8{ ".BUILDINFO", ".MTREE", ".INSTALL", ".CHANGELOG" };
-    for (alpm_junk_files) |filename| temp_dir.deleteFile(filename) catch {};
+    for (alpm_junk_files) |filename| temp_dir.deleteFile(machine.io, filename) catch {};
 
     return .done;
 }
@@ -261,7 +261,7 @@ fn stateReadingMeta(machine: *Machine) BackendError!StateId {
 pub fn stateFailed(machine: *Machine) void {
     if (machine.stack.items.len > 0 and machine.stack.getLast() == .failed) return;
     if (machine.temp_path) |path| {
-        std.fs.deleteTreeAbsolute(path) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, path) catch {};
         machine.allocator.free(path);
         machine.temp_path = null;
     }

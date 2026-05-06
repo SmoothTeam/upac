@@ -25,8 +25,8 @@ pub fn build(b: *std.Build) void {
         .root_module = upac_root,
     });
 
-    shared_lib.linkLibC();
-    shared_lib.linkSystemLibrary("archive");
+    shared_lib.root_module.link_libc = true;
+    shared_lib.root_module.linkSystemLibrary("archive", .{});
 
     shared_lib.root_module.strip = strip;
     shared_lib.root_module.stack_check = stack_check;
