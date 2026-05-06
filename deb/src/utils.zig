@@ -52,7 +52,10 @@ pub fn computeMd5(io: std.Io, file: std.Io.File, buf: []u8) !([std.crypto.hash.M
     var hasher = std.crypto.hash.Md5.init(.{});
     while (true) {
         const iov = [1][]u8{buf};
-        const n = try file.readStreaming(io, &iov);
+        const n = file.readStreaming(io, &iov) catch |err| {
+            if (err == error.EndOfStream) break;
+            return err;
+        };
         if (n == 0) break;
         hasher.update(buf[0..n]);
     }
