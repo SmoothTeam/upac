@@ -1,7 +1,6 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const backend = @import("backend.zig");
 const std = backend.std;
-const posix = backend.std.posix;
 const c_libs = backend.c_libs;
 
 const Machine = backend.BackendMachine;
@@ -48,7 +47,7 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
     var digest: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
     var expected_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
 
-    const package_file = try machine.check(std.fs.openFileAbsoluteZ(machine.request.pkg_path, .{}), BackendError.ReadFailed);
+    const package_file = try machine.check(std.Io.Dir.openFileAbsolute(machine.io, std.mem.span(machine.request.pkg_path), .{}), BackendError.ReadFailed);
     machine.file = package_file;
 
     while (true) {
@@ -56,7 +55,8 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
             stateFailed(machine);
             return BackendError.Cancelled;
         }
-        const index = try machine.check(package_file.read(&hasher_buf), BackendError.ReadFailed);
+        const iov = [1][]u8{hasher_buf[0..]};
+        const index = try machine.check(package_file.readStreaming(machine.io, &iov), BackendError.ReadFailed);
 
         if (index == 0) break;
         hasher.update(hasher_buf[0..index]);
@@ -71,7 +71,7 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
     }
 
     const file_descriptor = try machine.unwrap(machine.file, BackendError.ArchiveOpenFailed);
-    try machine.check(file_descriptor.seekTo(0), BackendError.ArchiveOpenFailed);
+    try machine.check(machine.io.vtable.fileSeekTo(machine.io.userdata, file_descriptor, 0), BackendError.ArchiveOpenFailed);
 
     return .extracting;
 }
@@ -79,12 +79,12 @@ fn stateVerifying(machine: *Machine) BackendError!StateId {
 // Unpacking state: uses libarchive to extract files to the temp directory
 fn stateExtracting(machine: *Machine) BackendError!StateId {
     var tem_dir_buf: [256]u8 = undefined;
-    const timestamp = std.time.milliTimestamp();
+    const timestamp = @divTrunc(std.Io.Clock.real.now(machine.io).nanoseconds, std.time.ns_per_ms);
 
     const tepm_dir_name = try machine.check(std.fmt.bufPrintZ(&tem_dir_buf, "upac-installed-{d}", .{timestamp}), BackendError.AllocZFailed);
-    const temp_dir_path = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.request.temp_dir), tepm_dir_name }), BackendError.AllocZFailed);
+    const temp_dir_path = try machine.check(std.Io.Dir.path.joinZ(machine.allocator, &.{ std.mem.span(machine.request.temp_dir), tepm_dir_name }), BackendError.AllocZFailed);
 
-    try machine.check(std.fs.makeDirAbsolute(temp_dir_path), BackendError.TempDirFailed);
+    try machine.check(std.Io.Dir.createDirAbsolute(machine.io, temp_dir_path, .default_file), BackendError.TempDirFailed);
     machine.temp_path = temp_dir_path;
 
     const archive_reader = try machine.unwrap(c_libs.archive_read_new(), BackendError.ArchiveOpenFailed);
@@ -112,17 +112,17 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
     );
     _ = c_libs.archive_write_disk_set_standard_lookup(archive_writer);
 
-    var buf: [std.os.linux.PATH_MAX]u8 = undefined;
-    const cwd_path = std.posix.getcwd(&buf) catch {
+    var cwd_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const cwd_len = std.Io.Dir.cwd().realPath(machine.io, &cwd_buf) catch {
         stateFailed(machine);
         return BackendError.OutOfMemory;
     };
 
-    var old_dir = try machine.check(std.fs.openDirAbsolute(cwd_path, .{}), BackendError.ReadFailed);
-    defer old_dir.close();
+    var old_dir = try machine.check(std.Io.Dir.openDirAbsolute(machine.io, cwd_buf[0..cwd_len], .{}), BackendError.ReadFailed);
+    defer old_dir.close(machine.io);
 
-    try machine.check(posix.chdir(temp_dir_path), BackendError.OutOfMemory);
-    defer old_dir.setAsCwd() catch {};
+    try machine.check(std.Io.Threaded.chdir(temp_dir_path), BackendError.OutOfMemory);
+    defer std.Io.Threaded.fchdir(old_dir.handle) catch {};
 
     var entry: ?*c_libs.archive_entry = null;
     while (c_libs.archive_read_next_header(archive_reader, &entry) == c_libs.ARCHIVE_OK) {
@@ -176,18 +176,41 @@ fn stateExtracting(machine: *Machine) BackendError!StateId {
 fn stateVerifyingFiles(machine: *Machine) BackendError!StateId {
     machine.reportDetail("verifying archive integrity...");
 
-    const md5_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.request.temp_dir), "md5sums" }), BackendError.OutOfMemory);
-    defer machine.allocator.free(md5_path);
+    var temp_dir = std.Io.Dir.openDirAbsolute(machine.io, std.mem.span(machine.request.temp_dir), .{}) catch {
+        stateFailed(machine);
+        return BackendError.ReadFailed;
+    };
+    defer temp_dir.close(machine.io);
 
-    const content = std.fs.cwd().readFileAlloc(machine.allocator, md5_path, 10 * 1024 * 1024) catch |err| {
+    const md5sums_file = temp_dir.openFile(machine.io, "md5sums", .{}) catch |err| {
         if (err == error.FileNotFound) return .reading_meta;
         stateFailed(machine);
         return BackendError.ReadFailed;
     };
-    defer machine.allocator.free(content);
+    defer md5sums_file.close(machine.io);
 
-    var temp_dir = try machine.check(std.fs.openDirAbsolute(std.mem.span(machine.request.temp_dir), .{}), BackendError.ReadFailed);
-    defer temp_dir.close();
+    const content = blk: {
+        var list = std.ArrayList(u8).empty;
+        errdefer list.deinit(machine.allocator);
+        var read_buf: [4096]u8 = undefined;
+        while (true) {
+            const iov = [1][]u8{read_buf[0..]};
+            const n = md5sums_file.readStreaming(machine.io, &iov) catch {
+                stateFailed(machine);
+                return BackendError.ReadFailed;
+            };
+            if (n == 0) break;
+            list.appendSlice(machine.allocator, read_buf[0..n]) catch {
+                stateFailed(machine);
+                return BackendError.OutOfMemory;
+            };
+        }
+        break :blk list.toOwnedSlice(machine.allocator) catch {
+            stateFailed(machine);
+            return BackendError.OutOfMemory;
+        };
+    };
+    defer machine.allocator.free(content);
 
     var io_buf: [4096]u8 = undefined;
     var lines = std.mem.splitScalar(u8, content, '\n');
@@ -204,10 +227,10 @@ fn stateVerifyingFiles(machine: *Machine) BackendError!StateId {
         const expected_hex = tokens.next() orelse continue;
         const file_path = std.mem.trim(u8, tokens.rest(), " \t");
 
-        const file = try machine.check(temp_dir.openFile(file_path, .{}), BackendError.ReadFailed);
-        defer file.close();
+        const file = try machine.check(temp_dir.openFile(machine.io, file_path, .{}), BackendError.ReadFailed);
+        defer file.close(machine.io);
 
-        const digest = try machine.check(computeMd5(file, &io_buf), BackendError.ReadFailed);
+        const digest = try machine.check(computeMd5(machine.io, file, &io_buf), BackendError.ReadFailed);
         const actual_hex = std.fmt.bytesToHex(digest, .lower);
 
         if (!std.mem.eql(u8, &actual_hex, expected_hex)) {
@@ -294,7 +317,7 @@ fn stateReadingMeta(machine: *Machine) BackendError!StateId {
         .license = try parseLicenseFromCopyright(copyright_content, machine.allocator),
         .url = url orelse try machine.allocator.dupe(u8, "No url"),
         .packager = packager orelse try machine.allocator.dupe(u8, "Unknown"),
-        .installed_at = std.time.timestamp(),
+        .installed_at = @intCast(@divTrunc(std.Io.Clock.real.now(machine.io).nanoseconds, std.time.ns_per_s)),
         .checksum = try machine.allocator.dupe(u8, machine.request.checksum),
     };
 
@@ -305,7 +328,7 @@ fn stateReadingMeta(machine: *Machine) BackendError!StateId {
 pub fn stateFailed(machine: *Machine) void {
     if (machine.stack.items.len > 0 and machine.stack.getLast() == .failed) return;
     if (machine.temp_path) |path| {
-        std.fs.deleteTreeAbsolute(path) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, path) catch {};
         machine.allocator.free(path);
         machine.temp_path = null;
     }

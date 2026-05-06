@@ -48,10 +48,11 @@ pub fn copyArchiveEntry(reader: *c_libs.archive, writer: *c_libs.archive, machin
     }
 }
 
-pub fn computeMd5(file: std.fs.File, buf: []u8) !([std.crypto.hash.Md5.digest_length]u8) {
+pub fn computeMd5(io: std.Io, file: std.Io.File, buf: []u8) !([std.crypto.hash.Md5.digest_length]u8) {
     var hasher = std.crypto.hash.Md5.init(.{});
     while (true) {
-        const n = try file.read(buf);
+        const iov = [1][]u8{buf};
+        const n = try file.readStreaming(io, &iov);
         if (n == 0) break;
         hasher.update(buf[0..n]);
     }
