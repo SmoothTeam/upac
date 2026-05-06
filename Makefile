@@ -85,7 +85,9 @@ build-removing:
 	@rm -rf $(OUT_BUILD_DIR)/.rustc_info.json
 
 # ── ARCH package ────────────────────────────────────────────────────────────────
-pkg-arch: build
+pkg-arch-local: build pkg-arch
+
+pkg-arch:
 	@if [ ! -f /etc/arch-release ]; then \
 		echo "error: pkg-arch requires Arch Linux"; \
 		exit 1; \
