@@ -2,7 +2,7 @@ ROOT_DIR    := $(shell pwd)
 PKG_DIR     := $(ROOT_DIR)/pkg
 OUT_BUILD_DIR := $(ROOT_DIR)/build
 
-VERSION     := $(shell grep '^version' $(ROOT_DIR)/upac-cli/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+VERSION     := $(shell grep '^version' $(ROOT_DIR)/cli/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
 PKG_NAME    := upac-$(VERSION)-$(ARCH)
 
 MODE        ?= debug
@@ -48,27 +48,27 @@ prepare-dirs:
 build: prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli
 
 build-lib:
-	@echo "--- Building upac-lib in $(MODE) mode ---"
-	@cd $(ROOT_DIR)/upac-lib && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
+	@echo "--- Building lib in $(MODE) mode ---"
+	@cd $(ROOT_DIR)/lib && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
 
 build-alpm-backend:
-	@echo "--- Building upac-alpm in $(MODE) mode ---"
-	@cd $(ROOT_DIR)/upac-alpm && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
+	@echo "--- Building alpm in $(MODE) mode ---"
+	@cd $(ROOT_DIR)/alpm && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
 
 build-rpm-backend:
-	@echo "--- Building upac-rpm in $(MODE) mode ---"
-	@cd $(ROOT_DIR)/upac-rpm && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
+	@echo "--- Building rpm in $(MODE) mode ---"
+	@cd $(ROOT_DIR)/rpm && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
 
 build-deb-backend:
-	@echo "--- Building upac-deb in $(MODE) mode ---"
-	@cd $(ROOT_DIR)/upac-deb && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
+	@echo "--- Building deb in $(MODE) mode ---"
+	@cd $(ROOT_DIR)/deb && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
 
 build-xbps-backend:
-	@echo "--- Building upac-xbps in $(MODE) mode ---"
-	@cd $(ROOT_DIR)/upac-xbps && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
+	@echo "--- Building xbps in $(MODE) mode ---"
+	@cd $(ROOT_DIR)/xbps && zig build --prefix $(OUT_BUILD_DIR) $(ZIG_BUILD_FLAGS)
 
 build-cli:
-	@cd $(ROOT_DIR)/upac-cli && \
+	@cd $(ROOT_DIR)/cli && \
 		RUSTFLAGS="$(RUST_BUILD_FLAGS)" cargo build \
 			$(CARGO_BUILD_FLAG) \
 			--target $(CARGO_TARGET) \
@@ -207,7 +207,7 @@ sync-pkg:
 
 sync-build:
 	@echo "--- Syncing Zig modules to v$(VERSION) ---"
-	@sed -i -E 's/\.version[[:space:]]*=[[:space:]]*"[^"]*"/\.version = "$(VERSION)"/' $(ROOT_DIR)/upac-*/build.zig.zon
+	@sed -i -E 's/\.version[[:space:]]*=[[:space:]]*"[^"]*"/\.version = "$(VERSION)"/' $(ROOT_DIR)/lib/build.zig.zon $(ROOT_DIR)/alpm/build.zig.zon $(ROOT_DIR)/rpm/build.zig.zon $(ROOT_DIR)/deb/build.zig.zon $(ROOT_DIR)/xbps/build.zig.zon
 
 # ── Cleaning ───────────────────────────────────────────────────────────────────
 clean: clean-build clean-pkg build-removing
@@ -217,31 +217,31 @@ clean-build:
 	@rm -rf $(ROOT_DIR)/ostree
 
 	@echo "--- Cleaning build artifacts ---"
-	@echo "--- Cleaning upac-lib build artifacts ---"
-	@rm -rf $(ROOT_DIR)/upac-lib/zig-out
-	@rm -rf $(ROOT_DIR)/upac-lib/.zig-cache
+	@echo "--- Cleaning lib build artifacts ---"
+	@rm -rf $(ROOT_DIR)/lib/zig-out
+	@rm -rf $(ROOT_DIR)/lib/.zig-cache
 
-	@echo "--- Cleaning upac-alpm build artifacts ---"
-	@rm -rf $(ROOT_DIR)/upac-alpm/.zig-cache
-	@rm -rf $(ROOT_DIR)/upac-alpm/zig-out
+	@echo "--- Cleaning alpm build artifacts ---"
+	@rm -rf $(ROOT_DIR)/alpm/.zig-cache
+	@rm -rf $(ROOT_DIR)/alpm/zig-out
 
-	@echo "--- Cleaning upac-rpm build artifacts ---"
-	@rm -rf $(ROOT_DIR)/upac-rpm/.zig-cache
-	@rm -rf $(ROOT_DIR)/upac-rpm/zig-out
+	@echo "--- Cleaning rpm build artifacts ---"
+	@rm -rf $(ROOT_DIR)/rpm/.zig-cache
+	@rm -rf $(ROOT_DIR)/rpm/zig-out
 
-	@echo "--- Cleaning upac-deb build artifacts ---"
-	@rm -rf $(ROOT_DIR)/upac-deb/.zig-cache
-	@rm -rf $(ROOT_DIR)/upac-deb/zig-out
+	@echo "--- Cleaning deb build artifacts ---"
+	@rm -rf $(ROOT_DIR)/deb/.zig-cache
+	@rm -rf $(ROOT_DIR)/deb/zig-out
 
-	@echo "--- Cleaning upac-xbps build artifacts ---"
-	@rm -rf $(ROOT_DIR)/upac-xbps/.zig-cache
-	@rm -rf $(ROOT_DIR)/upac-xbps/zig-out
+	@echo "--- Cleaning xbps build artifacts ---"
+	@rm -rf $(ROOT_DIR)/xbps/.zig-cache
+	@rm -rf $(ROOT_DIR)/xbps/zig-out
 
 	@echo "--- Cleaning global .zig-cache ---"
 	@rm -rf $(ROOT_DIR)/.zig-cache
 
 	@echo "--- Cleaning upac-cli build artifacts ---"
-	@cd $(ROOT_DIR)/upac-cli && cargo clean
+	@cd $(ROOT_DIR)/cli && cargo clean
 
 	@echo "--- Cleaning build directory artifacts ---"
 	@rm -rf $(ROOT_DIR)/build
