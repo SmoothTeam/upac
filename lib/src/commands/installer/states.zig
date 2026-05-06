@@ -39,6 +39,13 @@ pub fn stateStart(machine: *InstallerMachine) InstallerError!void {
             .done, .failed => unreachable,
         };
     }
+    if (machine.repo) |repo| {
+        var objects_total: c_libs.gint = 0;
+        var objects_pruned: c_libs.gint = 0;
+        var pruned_size: c_libs.guint64 = 0;
+        _ = c_libs.ostree_repo_prune(repo, c_libs.OSTREE_REPO_PRUNE_FLAGS_REFS_ONLY, -1, &objects_total, &objects_pruned, &pruned_size, null, null);
+    }
+
     try machine.enter(.done);
 }
 
