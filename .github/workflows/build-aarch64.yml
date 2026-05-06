@@ -26,6 +26,7 @@ jobs:
         uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
+          use-cache: true
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
