@@ -25,6 +25,11 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install dependencies via pacman
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel sudo
+
       - name: Build Package
         run: |
           useradd -m builder
