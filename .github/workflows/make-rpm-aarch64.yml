@@ -1,0 +1,39 @@
+name: Make package RPM (aarch64)
+
+on:
+  workflow_run:
+    workflows: ["Build aarch64"]
+    types: [completed]
+
+jobs:
+  pkg-rpm:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name
+      == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download ARM Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: upac-binaries-aarch64
+          path: build/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install RPM tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm make
+
+      - name: Build Package
+        run: make pkg-rpm
+
+      - name: Upload RPM Package (ARM)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package-aarch64
+          path: pkg/*.rpm
+          retention-days: 5

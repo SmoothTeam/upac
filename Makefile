@@ -127,7 +127,9 @@ pkg-arch:
 	@echo "--- Package built: $(PKG_DIR)/arch/$(PKG_NAME).pkg.tar.zst ---"
 
 # ── RPM package ─────────────────────────────────────────────────────────────────
-pkg-rpm: build
+pkg-rpm-local: build pkg-rpm
+
+pkg-rpm:
 	@# Проверяем что есть rpmbuild
 
 	@if ! command -v rpmbuild &> /dev/null; then \
@@ -161,7 +163,9 @@ pkg-rpm: build
 	find $(PKG_DIR)/rpm/RPMS -name "*.rpm" -exec mv {} $(PKG_DIR)/ \;
 
 # ── DEB package ─────────────────────────────────────────────────────────────────
-pkg-deb: build
+pkg-deb-local: build pkg-deb
+
+pkg-deb:
 	@echo "--- Building DEB package v$(VERSION) ---"
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/deb/DEBIAN
