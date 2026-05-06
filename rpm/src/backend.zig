@@ -82,9 +82,10 @@ pub const BackendMachine = struct {
     meta: ?PackageMeta,
 
     temp_path: ?[:0]const u8 = null,
-    file: ?std.fs.File = null,
+    file: ?std.Io.File = null,
 
     stack: std.ArrayList(StateId),
+    io: std.Io,
     allocator: std.mem.Allocator,
 
     // Method for transitioning to a new state with history addition
@@ -104,7 +105,7 @@ pub const BackendMachine = struct {
     // Releasing resources (stack memory) occupied by the state machine
     pub fn deinit(self: *BackendMachine) void {
         if (self.temp_path) |path| self.allocator.free(path);
-        if (self.file) |file| file.close();
+        if (self.file) |file| file.close(self.io);
 
         self.stack.deinit(self.allocator);
     }
@@ -140,6 +141,7 @@ pub const BackendMachine = struct {
             .request = request,
             .cancel_token = request.cancel_token,
             .stack = std.ArrayList(StateId).empty,
+            .io = std.Io.Threaded.global_single_threaded.io(),
             .allocator = allocator,
             .meta = null,
         };
@@ -238,8 +240,6 @@ pub const CBackendProgressFn = *const fn (
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
-// The main allocator for the entire library
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 // ── FFI экспорты ──────────────────────────────────────────────────────────────
 // An exported C function (FFI) for initiating the preparation process from external code
@@ -260,28 +260,28 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque,
         .cancel_token = cancel_token,
     };
 
-    const result = BackendMachine.run(zig_request, gpa.allocator()) catch |err| return @intFromEnum(fromError(err));
+    const result = BackendMachine.run(zig_request, std.heap.c_allocator) catch |err| return @intFromEnum(fromError(err));
 
-    const out_meta_ptr = gpa.allocator().create(CPackageMeta) catch return @intFromEnum(BackendErrorCode.alloc_failed);
+    const out_meta_ptr = std.heap.c_allocator.create(CPackageMeta) catch return @intFromEnum(BackendErrorCode.alloc_failed);
 
     out_meta_ptr.* = CPackageMeta{
         .struct_size = @sizeOf(CPackageMeta),
 
-        .name = dupeRequiredToCSlice(gpa.allocator(), result.meta.name) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .version = dupeRequiredToCSlice(gpa.allocator(), result.meta.version) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .name = dupeRequiredToCSlice(std.heap.c_allocator, result.meta.name) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .version = dupeRequiredToCSlice(std.heap.c_allocator, result.meta.version) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
         .size = @intCast(result.meta.size),
-        .arch = dupeToCSlice(gpa.allocator(), result.meta.arch) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .author = dupeToCSlice(gpa.allocator(), result.meta.author) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .description = dupeToCSlice(gpa.allocator(), result.meta.description) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .license = dupeToCSlice(gpa.allocator(), result.meta.license) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .url = dupeToCSlice(gpa.allocator(), result.meta.url) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .packager = dupeToCSlice(gpa.allocator(), result.meta.packager) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .arch = dupeToCSlice(std.heap.c_allocator, result.meta.arch) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .author = dupeToCSlice(std.heap.c_allocator, result.meta.author) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .description = dupeToCSlice(std.heap.c_allocator, result.meta.description) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .license = dupeToCSlice(std.heap.c_allocator, result.meta.license) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .url = dupeToCSlice(std.heap.c_allocator, result.meta.url) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .packager = dupeToCSlice(std.heap.c_allocator, result.meta.packager) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
         .installed_at = result.meta.installed_at,
-        .checksum = dupeToCSlice(gpa.allocator(), result.meta.checksum) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .checksum = dupeToCSlice(std.heap.c_allocator, result.meta.checksum) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
     };
 
     out_meta.* = out_meta_ptr;
-    out_temp_path.* = dupeToCSlice(gpa.allocator(), result.temp_path) catch return @intFromEnum(fromError(BackendError.AllocZFailed));
+    out_temp_path.* = dupeToCSlice(std.heap.c_allocator, result.temp_path) catch return @intFromEnum(fromError(BackendError.AllocZFailed));
 
     return @intFromEnum(BackendErrorCode.ok);
 }
@@ -299,23 +299,23 @@ fn dupeRequiredToCSlice(allocator: std.mem.Allocator, slice: []const u8) Backend
 pub export fn cleanup(path_c: CSlice) callconv(.c) void {
     const path = path_c.toSlice();
 
-    std.fs.deleteTreeAbsolute(path) catch {};
-    gpa.allocator().free(path);
+    std.Io.Dir.cwd().deleteTree(std.Io.Threaded.global_single_threaded.io(), path) catch {};
+    std.heap.c_allocator.free(path);
 }
 
 // A function for safely clearing metadata memory allocated on the Zig side
 pub export fn meta_free(package_meta_c: *CPackageMeta) callconv(.c) void {
-    gpa.allocator().free(package_meta_c.name.toSlice());
-    gpa.allocator().free(package_meta_c.version.toSlice());
-    gpa.allocator().free(package_meta_c.arch.toSlice());
-    gpa.allocator().free(package_meta_c.author.toSlice());
-    gpa.allocator().free(package_meta_c.description.toSlice());
-    gpa.allocator().free(package_meta_c.license.toSlice());
-    gpa.allocator().free(package_meta_c.packager.toSlice());
-    gpa.allocator().free(package_meta_c.url.toSlice());
-    gpa.allocator().free(package_meta_c.checksum.toSlice());
+    std.heap.c_allocator.free(package_meta_c.name.toSlice());
+    std.heap.c_allocator.free(package_meta_c.version.toSlice());
+    std.heap.c_allocator.free(package_meta_c.arch.toSlice());
+    std.heap.c_allocator.free(package_meta_c.author.toSlice());
+    std.heap.c_allocator.free(package_meta_c.description.toSlice());
+    std.heap.c_allocator.free(package_meta_c.license.toSlice());
+    std.heap.c_allocator.free(package_meta_c.packager.toSlice());
+    std.heap.c_allocator.free(package_meta_c.url.toSlice());
+    std.heap.c_allocator.free(package_meta_c.checksum.toSlice());
 
-    gpa.allocator().destroy(package_meta_c);
+    std.heap.c_allocator.destroy(package_meta_c);
 }
 
 pub export fn meta_get_name(meta: *const CPackageMeta) callconv(.c) CSlice {

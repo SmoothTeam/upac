@@ -56,40 +56,41 @@ pub const RpmHeader = struct {
 };
 
 // ── Parser ────────────────────────────────────────────────────────────────────
-pub fn parseHeader(allocator: std.mem.Allocator, file: std.fs.File) !RpmHeader {
-    try verifyMagic(file);
-    try skipLeadSection(file);
-    try skipSignatureSection(file);
-    return readHeaderSection(allocator, file);
+pub fn parseHeader(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File) !RpmHeader {
+    try verifyMagic(io, file);
+    try skipLeadSection(io, file);
+    try skipSignatureSection(io, file);
+    return readHeaderSection(allocator, io, file);
 }
 
 // ── Internal functions ────────────────────────────────────────────────────────
 
 // Reads exactly buf.len bytes; returns error.UnexpectedEOF on short read.
-fn readExact(file: std.fs.File, buf: []u8) !void {
+fn readExact(io: std.Io, file: std.Io.File, buf: []u8) !void {
     var total: usize = 0;
     while (total < buf.len) {
-        const n = try file.read(buf[total..]);
+        const iov = [1][]u8{buf[total..]};
+        const n = try file.readStreaming(io, &iov);
         if (n == 0) return error.UnexpectedEOF;
         total += n;
     }
 }
 
-fn verifyMagic(file: std.fs.File) !void {
+fn verifyMagic(io: std.Io, file: std.Io.File) !void {
     var magic_buffer: [4]u8 = undefined;
-    try readExact(file, &magic_buffer);
+    try readExact(io, file, &magic_buffer);
     if (!std.mem.eql(u8, &magic_buffer, &rpm_magic)) return error.InvalidRpmMagic;
 }
 
 // Skips the obsolete Lead section (96 bytes minus the 4 already read for magic)
-fn skipLeadSection(file: std.fs.File) !void {
-    try file.seekBy(96 - 4);
+fn skipLeadSection(io: std.Io, file: std.Io.File) !void {
+    try io.vtable.fileSeekBy(io.userdata, file, 96 - 4);
 }
 
 // Reads the 16-byte section intro; checks magic and returns tag_count + data_size.
-fn readSectionHeader(file: std.fs.File, comptime err: anyerror) !SectionHeader {
+fn readSectionHeader(io: std.Io, file: std.Io.File, comptime err: anyerror) !SectionHeader {
     var buf: [16]u8 = undefined;
-    try readExact(file, &buf);
+    try readExact(io, file, &buf);
     if (!std.mem.eql(u8, buf[0..3], &header_magic)) return err;
     return .{
         .tag_count = std.mem.readInt(u32, buf[8..12], .big),
@@ -98,31 +99,31 @@ fn readSectionHeader(file: std.fs.File, comptime err: anyerror) !SectionHeader {
 }
 
 // Skips the digital signature section, including its 8-byte alignment padding.
-fn skipSignatureSection(file: std.fs.File) !void {
-    const header = try readSectionHeader(file, error.InvalidSignatureMagic);
+fn skipSignatureSection(io: std.Io, file: std.Io.File) !void {
+    const header = try readSectionHeader(io, file, error.InvalidSignatureMagic);
 
     const tags_size: u64 = @as(u64, header.tag_count) * 16;
     const data_size: u64 = header.data_size;
-    try file.seekBy(@intCast(tags_size + data_size));
+    try io.vtable.fileSeekBy(io.userdata, file, @intCast(tags_size + data_size));
 
     // Pad to 8-byte boundary (only index+data counts, header is already 8-aligned)
     const remainder = (tags_size + data_size) % 8;
-    if (remainder != 0) try file.seekBy(@intCast(8 - remainder));
+    if (remainder != 0) try io.vtable.fileSeekBy(io.userdata, file, @intCast(8 - remainder));
 }
 
 // Reads the main header section, extracting the tag table and data block.
-fn readHeaderSection(allocator: std.mem.Allocator, file: std.fs.File) !RpmHeader {
-    const header = try readSectionHeader(file, error.InvalidHeaderMagic);
+fn readHeaderSection(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File) !RpmHeader {
+    const header = try readSectionHeader(io, file, error.InvalidHeaderMagic);
 
     // Read all tag index entries as a flat byte slice, then parse in-place.
     const index_bytes = try allocator.alloc(u8, @as(usize, header.tag_count) * 16);
     defer allocator.free(index_bytes);
-    try readExact(file, index_bytes);
+    try readExact(io, file, index_bytes);
 
     // Read the data store.
     const data_block = try allocator.alloc(u8, header.data_size);
     defer allocator.free(data_block);
-    try readExact(file, data_block);
+    try readExact(io, file, data_block);
 
     var rpm_header = RpmHeader{};
     errdefer rpm_header.deinit(allocator);
@@ -133,7 +134,12 @@ fn readHeaderSection(allocator: std.mem.Allocator, file: std.fs.File) !RpmHeader
         const tag = std.mem.readInt(u32, e[0..4], .big);
         const offset = std.mem.readInt(u32, e[8..12], .big);
 
-        const rpm_tag = std.meta.intToEnum(RpmTag, tag) catch continue;
+        const rpm_tag = blk: {
+            inline for (std.meta.fields(RpmTag)) |field| {
+                if (field.value == tag) break :blk @as(RpmTag, @field(RpmTag, field.name));
+            }
+            break :blk null;
+        } orelse continue;
         switch (rpm_tag) {
             .name => rpm_header.name = try readString(allocator, data_block, offset),
             .version => rpm_header.version = try readString(allocator, data_block, offset),
