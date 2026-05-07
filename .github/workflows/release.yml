@@ -29,20 +29,20 @@ jobs:
       actions: read
       contents: read
     outputs:
-      arch_x86_fresh:    ${{ steps.scan.outputs.arch_x86_fresh }}
-      arch_x86_run_id:   ${{ steps.scan.outputs.arch_x86_run_id }}
-      rpm_x86_fresh:     ${{ steps.scan.outputs.rpm_x86_fresh }}
-      rpm_x86_run_id:    ${{ steps.scan.outputs.rpm_x86_run_id }}
-      deb_x86_fresh:     ${{ steps.scan.outputs.deb_x86_fresh }}
-      deb_x86_run_id:    ${{ steps.scan.outputs.deb_x86_run_id }}
-      arch_arm_fresh:    ${{ steps.scan.outputs.arch_arm_fresh }}
-      arch_arm_run_id:   ${{ steps.scan.outputs.arch_arm_run_id }}
-      rpm_arm_fresh:     ${{ steps.scan.outputs.rpm_arm_fresh }}
-      rpm_arm_run_id:    ${{ steps.scan.outputs.rpm_arm_run_id }}
-      deb_arm_fresh:     ${{ steps.scan.outputs.deb_arm_fresh }}
-      deb_arm_run_id:    ${{ steps.scan.outputs.deb_arm_run_id }}
-      need_build_x86:    ${{ steps.scan.outputs.need_build_x86 }}
-      need_build_arm:    ${{ steps.scan.outputs.need_build_arm }}
+      arch_x86_fresh: ${{ steps.scan.outputs.arch_x86_fresh }}
+      arch_x86_run_id: ${{ steps.scan.outputs.arch_x86_run_id }}
+      rpm_x86_fresh: ${{ steps.scan.outputs.rpm_x86_fresh }}
+      rpm_x86_run_id: ${{ steps.scan.outputs.rpm_x86_run_id }}
+      deb_x86_fresh: ${{ steps.scan.outputs.deb_x86_fresh }}
+      deb_x86_run_id: ${{ steps.scan.outputs.deb_x86_run_id }}
+      arch_arm_fresh: ${{ steps.scan.outputs.arch_arm_fresh }}
+      arch_arm_run_id: ${{ steps.scan.outputs.arch_arm_run_id }}
+      rpm_arm_fresh: ${{ steps.scan.outputs.rpm_arm_fresh }}
+      rpm_arm_run_id: ${{ steps.scan.outputs.rpm_arm_run_id }}
+      deb_arm_fresh: ${{ steps.scan.outputs.deb_arm_fresh }}
+      deb_arm_run_id: ${{ steps.scan.outputs.deb_arm_run_id }}
+      need_build_x86: ${{ steps.scan.outputs.need_build_x86 }}
+      need_build_arm: ${{ steps.scan.outputs.need_build_arm }}
     steps:
       - name: Scan package caches
         id: scan
@@ -50,7 +50,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TTL_MIN: ${{ env.CACHE_TTL_MINUTES }}
-          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || 'false' }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild ||
+            'false' }}
         run: |
           set -euo pipefail
 
@@ -184,7 +185,8 @@ jobs:
 
   # ── Final release: gather everything (fresh from this run + cached) ────────
   release:
-    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.check-cache.result == 'success'
+    if: always() && startsWith(github.ref, 'refs/tags/v') &&
+      needs.check-cache.result == 'success'
     needs:
       - check-cache
       - pkg-arch-x86
@@ -226,7 +228,6 @@ jobs:
         run: mkdir -p packages
 
       - name: Download freshly-built packages from this run
-        # Может не быть ни одного матча, если всё взято из кеша — это норма.
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
