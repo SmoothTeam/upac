@@ -16,7 +16,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev libarchive-dev
+        run: sudo apt-get update && sudo apt-get install -y libarchive-dev libostree-dev
+          \ libglib2.0-dev \ pkg-config
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
