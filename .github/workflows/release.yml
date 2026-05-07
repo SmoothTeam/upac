@@ -222,7 +222,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare packages directory
+        run: mkdir -p packages
+
       - name: Download freshly-built packages from this run
+        # Может не быть ни одного матча, если всё взято из кеша — это норма.
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: "*-package-*"
