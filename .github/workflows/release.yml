@@ -3,47 +3,190 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Ignore cache and rebuild everything"
+        type: boolean
+        default: false
+
+# ── Cache policy ──────────────────────────────────────────────────────────────
+# For every (format, arch) pair we look up the latest successful run of the
+# corresponding `Make package …` workflow and inspect its artifacts. If every
+# expected artifact exists and was created less than CACHE_TTL_MINUTES ago, we
+# reuse them and skip the matching build/package jobs. Anything stale or
+# missing triggers a fresh build for that arch and a rebuild of just the
+# stale package formats.
+
+env:
+  CACHE_TTL_MINUTES: 60
 
 jobs:
+  # ── Discover cached package artifacts ──────────────────────────────────────
+  check-cache:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      arch_x86_fresh:    ${{ steps.scan.outputs.arch_x86_fresh }}
+      arch_x86_run_id:   ${{ steps.scan.outputs.arch_x86_run_id }}
+      rpm_x86_fresh:     ${{ steps.scan.outputs.rpm_x86_fresh }}
+      rpm_x86_run_id:    ${{ steps.scan.outputs.rpm_x86_run_id }}
+      deb_x86_fresh:     ${{ steps.scan.outputs.deb_x86_fresh }}
+      deb_x86_run_id:    ${{ steps.scan.outputs.deb_x86_run_id }}
+      arch_arm_fresh:    ${{ steps.scan.outputs.arch_arm_fresh }}
+      arch_arm_run_id:   ${{ steps.scan.outputs.arch_arm_run_id }}
+      rpm_arm_fresh:     ${{ steps.scan.outputs.rpm_arm_fresh }}
+      rpm_arm_run_id:    ${{ steps.scan.outputs.rpm_arm_run_id }}
+      deb_arm_fresh:     ${{ steps.scan.outputs.deb_arm_fresh }}
+      deb_arm_run_id:    ${{ steps.scan.outputs.deb_arm_run_id }}
+      need_build_x86:    ${{ steps.scan.outputs.need_build_x86 }}
+      need_build_arm:    ${{ steps.scan.outputs.need_build_arm }}
+    steps:
+      - name: Scan package caches
+        id: scan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TTL_MIN: ${{ env.CACHE_TTL_MINUTES }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || 'false' }}
+        run: |
+          set -euo pipefail
+
+          # Expected artifact names per (format, arch) — every name must be
+          # present and fresh for the slot to count as cached.
+          declare -A EXPECTED=(
+            [arch_x86]="arch-package-x86_64 arch-package-x86_64_v2 arch-package-x86_64_v3 arch-package-x86_64_v4"
+            [rpm_x86]="rpm-package-ubuntu-x86_64 rpm-package-ubuntu-x86_64_v2 rpm-package-ubuntu-x86_64_v3 rpm-package-ubuntu-x86_64_v4"
+            [deb_x86]="deb-package-x86_64 deb-package-x86_64_v2 deb-package-x86_64_v3 deb-package-x86_64_v4"
+            [arch_arm]="arch-package-aarch64"
+            [rpm_arm]="rpm-package-aarch64"
+            [deb_arm]="deb-package-aarch64"
+          )
+          declare -A WORKFLOW=(
+            [arch_x86]="make-arch-x86_64.yml"
+            [rpm_x86]="make-rpm-x86_64.yml"
+            [deb_x86]="make-deb-x86_64.yml"
+            [arch_arm]="make-arch-aarch64.yml"
+            [rpm_arm]="make-rpm-aarch64.yml"
+            [deb_arm]="make-deb-aarch64.yml"
+          )
+
+          ttl_seconds=$(( TTL_MIN * 60 ))
+          now_epoch=$(date -u +%s)
+
+          need_build_x86=false
+          need_build_arm=false
+
+          for slot in arch_x86 rpm_x86 deb_x86 arch_arm rpm_arm deb_arm; do
+            wf="${WORKFLOW[$slot]}"
+            expected=( ${EXPECTED[$slot]} )
+            fresh=false
+            run_id=""
+
+            if [ "$FORCE" = "true" ]; then
+              echo "::notice::[$slot] force_rebuild requested — skipping cache"
+            else
+              # Last successful run of the make-* workflow on the default branch
+              run_id=$(gh api \
+                "repos/${REPO}/actions/workflows/${wf}/runs?status=success&per_page=1" \
+                --jq '.workflow_runs[0].id // ""')
+
+              if [ -n "$run_id" ]; then
+                arts_json=$(gh api "repos/${REPO}/actions/runs/${run_id}/artifacts?per_page=100")
+                all_ok=true
+                for name in "${expected[@]}"; do
+                  art=$(echo "$arts_json" | jq -r --arg n "$name" \
+                    '.artifacts[] | select(.name == $n and .expired == false) | "\(.created_at)"' \
+                    | head -n1)
+                  if [ -z "$art" ]; then
+                    echo "::notice::[$slot] artifact '$name' missing in run $run_id"
+                    all_ok=false; break
+                  fi
+                  created_epoch=$(date -u -d "$art" +%s)
+                  age=$(( now_epoch - created_epoch ))
+                  if [ "$age" -gt "$ttl_seconds" ]; then
+                    echo "::notice::[$slot] artifact '$name' is ${age}s old (> ${ttl_seconds}s)"
+                    all_ok=false; break
+                  fi
+                done
+                if [ "$all_ok" = true ]; then
+                  fresh=true
+                  echo "::notice::[$slot] cache HIT (run_id=$run_id)"
+                fi
+              else
+                echo "::notice::[$slot] no successful runs of $wf found"
+              fi
+            fi
+
+            echo "${slot}_fresh=$fresh"   >> "$GITHUB_OUTPUT"
+            echo "${slot}_run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+            if [ "$fresh" = false ]; then
+              case "$slot" in
+                *_x86) need_build_x86=true ;;
+                *_arm) need_build_arm=true ;;
+              esac
+            fi
+          done
+
+          echo "need_build_x86=$need_build_x86" >> "$GITHUB_OUTPUT"
+          echo "need_build_arm=$need_build_arm" >> "$GITHUB_OUTPUT"
+
+  # ── Build binaries (only if any package format for the arch is stale) ──────
   build-x86:
+    needs: check-cache
+    if: needs.check-cache.outputs.need_build_x86 == 'true'
     uses: ./.github/workflows/build-x86_64.yml
 
   build-aarch64:
+    needs: check-cache
+    if: needs.check-cache.outputs.need_build_arm == 'true'
     uses: ./.github/workflows/build-aarch64.yml
 
+  # ── Rebuild only the stale package formats ─────────────────────────────────
   pkg-arch-x86:
-    needs: build-x86
+    needs: [check-cache, build-x86]
+    if: needs.check-cache.outputs.arch_x86_fresh != 'true'
     uses: ./.github/workflows/make-arch-x86_64.yml
     secrets: inherit
 
   pkg-rpm-x86:
-    needs: build-x86
+    needs: [check-cache, build-x86]
+    if: needs.check-cache.outputs.rpm_x86_fresh != 'true'
     uses: ./.github/workflows/make-rpm-x86_64.yml
     secrets: inherit
 
   pkg-deb-x86:
-    needs: build-x86
+    needs: [check-cache, build-x86]
+    if: needs.check-cache.outputs.deb_x86_fresh != 'true'
     uses: ./.github/workflows/make-deb-x86_64.yml
     secrets: inherit
 
   pkg-arch-aarch64:
-    needs: build-aarch64
+    needs: [check-cache, build-aarch64]
+    if: needs.check-cache.outputs.arch_arm_fresh != 'true'
     uses: ./.github/workflows/make-arch-aarch64.yml
     secrets: inherit
 
   pkg-rpm-aarch64:
-    needs: build-aarch64
+    needs: [check-cache, build-aarch64]
+    if: needs.check-cache.outputs.rpm_arm_fresh != 'true'
     uses: ./.github/workflows/make-rpm-aarch64.yml
     secrets: inherit
 
   pkg-deb-aarch64:
-    needs: build-aarch64
+    needs: [check-cache, build-aarch64]
+    if: needs.check-cache.outputs.deb_arm_fresh != 'true'
     uses: ./.github/workflows/make-deb-aarch64.yml
     secrets: inherit
 
+  # ── Final release: gather everything (fresh from this run + cached) ────────
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.check-cache.result == 'success'
     needs:
+      - check-cache
       - pkg-arch-x86
       - pkg-rpm-x86
       - pkg-deb-x86
@@ -53,18 +196,96 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
+      - name: Verify upstream package jobs (skipped is OK, failed is not)
+        env:
+          R1: ${{ needs.pkg-arch-x86.result }}
+          R2: ${{ needs.pkg-rpm-x86.result }}
+          R3: ${{ needs.pkg-deb-x86.result }}
+          R4: ${{ needs.pkg-arch-aarch64.result }}
+          R5: ${{ needs.pkg-rpm-aarch64.result }}
+          R6: ${{ needs.pkg-deb-aarch64.result }}
+        run: |
+          set -euo pipefail
+          fail=false
+          for r in "$R1" "$R2" "$R3" "$R4" "$R5" "$R6"; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::upstream job ended with: $r"; fail=true ;;
+            esac
+          done
+          [ "$fail" = false ]
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download all packages
+      - name: Download freshly-built packages from this run
         uses: actions/download-artifact@v4
         with:
           pattern: "*-package-*"
           path: packages/
           merge-multiple: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Pull cached artifacts from previous runs for slots that were skipped
+      - name: Download cached arch x86 packages
+        if: needs.check-cache.outputs.arch_x86_fresh == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "arch-package-x86_64*"
+          path: packages/
+          merge-multiple: true
+          run-id: ${{ needs.check-cache.outputs.arch_x86_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download cached rpm x86 packages
+        if: needs.check-cache.outputs.rpm_x86_fresh == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "rpm-package-ubuntu-x86_64*"
+          path: packages/
+          merge-multiple: true
+          run-id: ${{ needs.check-cache.outputs.rpm_x86_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download cached deb x86 packages
+        if: needs.check-cache.outputs.deb_x86_fresh == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "deb-package-x86_64*"
+          path: packages/
+          merge-multiple: true
+          run-id: ${{ needs.check-cache.outputs.deb_x86_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download cached arch aarch64 package
+        if: needs.check-cache.outputs.arch_arm_fresh == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: arch-package-aarch64
+          path: packages/
+          run-id: ${{ needs.check-cache.outputs.arch_arm_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download cached rpm aarch64 package
+        if: needs.check-cache.outputs.rpm_arm_fresh == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package-aarch64
+          path: packages/
+          run-id: ${{ needs.check-cache.outputs.rpm_arm_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download cached deb aarch64 package
+        if: needs.check-cache.outputs.deb_arm_fresh == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package-aarch64
+          path: packages/
+          run-id: ${{ needs.check-cache.outputs.deb_arm_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create source archive
@@ -73,6 +294,9 @@ jobs:
             --prefix=upac-${{ github.ref_name }}/ \
             HEAD \
             -o packages/upac-${{ github.ref_name }}-source.tar.gz
+
+      - name: List collected artifacts
+        run: ls -lah packages/
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
