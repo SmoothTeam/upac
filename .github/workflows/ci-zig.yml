@@ -9,6 +9,9 @@ jobs:
   build-and-test:
     name: Zig Build and Test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: ["lib", "alpm", "rpm", "deb", "xbps"]
     steps:
       - uses: actions/checkout@v4
 
@@ -20,11 +23,14 @@ jobs:
         with:
           version: 0.16.0
 
-      - name: Check formatting
+      - name: Check formatting (${{ matrix.component }})
+        working-directory: ${{ matrix.component }}
         run: zig fmt --check .
 
-      - name: Build
+      - name: Build (${{ matrix.component }})
+        working-directory: ${{ matrix.component }}
         run: zig build
 
-      - name: Run tests
+      - name: Run tests (${{ matrix.component }})
+        working-directory: ${{ matrix.component }}
         run: zig build test
