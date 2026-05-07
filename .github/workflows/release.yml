@@ -10,6 +10,10 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+  pull-requests: read
+
 # ── Cache policy ──────────────────────────────────────────────────────────────
 # For every (format, arch) pair we look up the latest successful run of the
 # corresponding `Make package …` workflow and inspect its artifacts. If every
