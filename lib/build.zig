@@ -95,20 +95,20 @@ pub fn build(b: *std.Build) void {
     upac_init.addImport("upac-data", upac_data);
 
     // ── Root ──────────────────────────────────────────────────────────────────
-    const upac_root = b.createModule(.{
+    const upac_lib_root = b.createModule(.{
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    upac_root.strip = strip;
-    upac_root.stack_check = stack_check;
+    upac_lib_root.strip = strip;
+    upac_lib_root.stack_check = stack_check;
 
     // ── Shared library ────────────────────────────────────────────────────────
     const shared_lib = b.addLibrary(.{
         .name = "upac",
         .linkage = .dynamic,
-        .root_module = upac_root,
+        .root_module = upac_lib_root,
     });
 
     shared_lib.root_module.link_libc = true;
@@ -126,4 +126,26 @@ pub fn build(b: *std.Build) void {
     shared_lib.root_module.addImport("upac-init", upac_init);
 
     b.installArtifact(shared_lib);
+
+    // ── Tests for shared library ────────────────────────────────────────────────────────
+    const upac_test_root = b.createModule(.{
+        .root_source_file = b.path("../tests/lib/test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    upac_lib_root.strip = strip;
+    upac_lib_root.stack_check = stack_check;
+
+    const tests = b.addTest(.{
+        .name = "lib-test",
+        .root_module = upac_test_root,
+    });
+
+    tests.root_module.addImport("upac-lib", upac_lib_root);
+
+    const run_tests = b.addRunArtifact(tests);
+
+    const test_step = b.step("test", "Run Lib tests");
+    test_step.dependOn(&run_tests.step);
 }

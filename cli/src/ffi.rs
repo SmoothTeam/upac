@@ -47,6 +47,14 @@ impl CSlice {
         }
     }
 
+    /// Converts the CSlice to a Rust string slice.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that:
+    /// 1. The `ptr` is valid for reads for `len` bytes and is non-null.
+    /// 2. The memory pointed to by `ptr` contains valid UTF-8 data.
+    /// 3. The memory must not be mutated for the duration of the returned lifetime.
     pub unsafe fn as_str(&self) -> &str {
         let bytes = slice::from_raw_parts(self.ptr, self.len);
         str::from_utf8_unchecked(bytes)
@@ -54,10 +62,17 @@ impl CSlice {
 }
 
 impl Validate for CSlice {
+    /// Checks if the slice is valid and null-terminated.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the `ptr` is valid for reads at least up to `len + 1`
+    /// bytes to safely check for the null terminator.
     fn validate(&self) -> Result<()> {
         if self.ptr.is_null() || self.len == 0 {
             return Err(anyhow::anyhow!("empty slice"));
         }
+        // Safety: offset check requires ptr to be valid for len + 1
         if unsafe { *self.ptr.add(self.len) } != 0 {
             return Err(anyhow::anyhow!("not null-terminated"));
         }
@@ -81,7 +96,14 @@ impl<T> CArray<T> {
             _marker: PhantomData,
         }
     }
-
+    /// Returns a Rust slice pointing to the array's memory.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that:
+    /// 1. The `ptr` is valid for reads for `len * size_of::<T>()` bytes.
+    /// 2. The memory is properly aligned for type `T`.
+    /// 3. The data must not be modified while the returned slice is in use.
     pub unsafe fn as_slice(&self) -> &[T] {
         if self.ptr.is_null() || self.len == 0 {
             &[]
@@ -160,6 +182,12 @@ impl CancelToken {
     }
 }
 
+impl Default for CancelToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // unsafe impl Send for CancelToken {}
 // unsafe impl Sync for CancelToken {}
 
@@ -194,6 +222,7 @@ pub struct CMutatedRequest {
 }
 
 impl CMutatedRequest {
+    #[allow(clippy::too_many_arguments)]
     fn base(
         repo_path: &CString,
         root_path: &CString,
@@ -223,6 +252,7 @@ impl CMutatedRequest {
     }
 
     /// Install.  `packages` slice must outlive this request.
+    #[allow(clippy::too_many_arguments)]
     pub fn for_install(
         packages: &[CPackageEntry],
         repo_path: &CString,
@@ -254,6 +284,7 @@ impl CMutatedRequest {
     }
 
     /// Uninstall.  `package_names` slice of CSlices must outlive this request.
+    #[allow(clippy::too_many_arguments)]
     pub fn for_uninstall(
         package_names: &[CSlice],
         repo_path: &CString,
@@ -285,6 +316,7 @@ impl CMutatedRequest {
     }
 
     /// Rollback.
+    #[allow(clippy::too_many_arguments)]
     pub fn for_rollback(
         commit_hash: &CString,
         repo_path: &CString,
@@ -485,6 +517,14 @@ impl Validate for CAttributedDiffEntry {
 }
 
 // ── Symbol loader ─────────────────────────────────────────────────────────────
+/// Loads a symbol from a dynamic library.
+///
+/// # Safety
+///
+/// The caller must ensure that:
+/// 1. A symbol with the specified name actually exists in the library.
+/// 2. The type `T` matches the function signature or data type in the shared library.
+/// 3. The library `lib` remains loaded in memory for the entire duration of the returned value's use.
 pub unsafe fn load_symbol<T: Copy>(lib: &Library, name: &str) -> Result<T> {
     lib.get(name.as_bytes())
         .map(|symbol| *symbol)

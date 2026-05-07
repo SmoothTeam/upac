@@ -77,7 +77,6 @@ pub fn stateDiffPackages(machine: *DiffMachine) DiffError!void {
 }
 
 pub fn stateDiffFilesAttributed(machine: *DiffMachine) DiffError!void {
-
     const modified = c_libs.g_ptr_array_new();
     defer c_libs.g_ptr_array_unref(modified);
 

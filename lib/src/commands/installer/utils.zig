@@ -45,7 +45,10 @@ pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap)
 
             var raw_checksum_bin: [*c]u8 = null;
             if (c_libs.ostree_checksum_file(gfile, c_libs.OSTREE_OBJECT_TYPE_FILE, &raw_checksum_bin, machine.cancellable, &machine.gerror) == 0) {
-                if (machine.gerror) |err| { c_libs.g_error_free(err); machine.gerror = null; }
+                if (machine.gerror) |err| {
+                    c_libs.g_error_free(err);
+                    machine.gerror = null;
+                }
                 return InstallerError.CollectFileChecksumsFailed;
             }
             defer c_libs.g_free(@ptrCast(raw_checksum_bin));

@@ -240,7 +240,6 @@ pub const CBackendProgressFn = *const fn (
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
-
 // ── FFI экспорты ──────────────────────────────────────────────────────────────
 // An exported C function (FFI) for initiating the preparation process from external code
 pub export fn prepare(request_c: *const CPrepareRequest, out_meta: *?*anyopaque, out_temp_path: *CSlice) callconv(.c) i32 {

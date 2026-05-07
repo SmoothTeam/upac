@@ -103,7 +103,7 @@ impl DiffMachine {
             file_rows: Vec::new(),
             files_mode,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: upac_lib,
+            upac_lib,
             config,
             state: State::Validating,
         })
@@ -114,7 +114,7 @@ impl DiffMachine {
 pub fn run(args: DiffArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
     let mut diff_machine = DiffMachine::new(config, upac_lib, args.from, args.to, args.files)?;
 
-    state_validating(&mut diff_machine).map_err(|err| {
+    state_validating(&mut diff_machine).inspect_err(|_| {
         if diff_machine.config.verbose {
             eprintln!(
                 "{} failed at state {:?}",
@@ -122,7 +122,6 @@ pub fn run(args: DiffArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()>
                 diff_machine.state
             );
         }
-        err
     })
 }
 

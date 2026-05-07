@@ -56,7 +56,7 @@ impl InitMachine {
 
             config,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: upac_lib,
+            upac_lib,
             state: State::Validating,
         })
     }
@@ -76,7 +76,7 @@ pub fn run(args: InitArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()>
 
     let mut init_machine = InitMachine::new(repo_mode_c, args.config_path, config, upac_lib)?;
 
-    state_validating(&mut init_machine).map_err(|err| {
+    state_validating(&mut init_machine).inspect_err(|_| {
         if init_machine.config.verbose {
             eprintln!(
                 "{} failed at state {:?}",
@@ -84,7 +84,6 @@ pub fn run(args: InitArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()>
                 init_machine.state
             );
         }
-        err
     })
 }
 

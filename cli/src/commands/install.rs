@@ -59,10 +59,10 @@ impl PreparedPackage {
         backend: Arc<Backend>,
     ) -> Self {
         Self {
-            meta_handle: meta_handle,
-            temp_path_c: temp_path_c,
-            checksum: checksum,
-            backend: backend,
+            meta_handle,
+            temp_path_c,
+            checksum,
+            backend,
         }
     }
 
@@ -122,7 +122,7 @@ impl InstallMachine {
             checksums,
             prepared_packages: Vec::new(),
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: upac_lib,
+            upac_lib,
             loaded_backends: HashMap::new(),
             config,
             state: State::PreparingPackage,
@@ -143,7 +143,7 @@ pub fn run(args: InstallArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<
     let mut install_machine =
         InstallMachine::new(config, upac_lib, args.files, args.backend, args.checksums)?;
 
-    state_preparing_package(&mut install_machine).map_err(|err| {
+    state_preparing_package(&mut install_machine).inspect_err(|_| {
         if install_machine.config.verbose {
             eprintln!(
                 "{} failed at state {:?}",
@@ -151,7 +151,6 @@ pub fn run(args: InstallArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<
                 install_machine.state
             );
         }
-        err
     })
 }
 
@@ -181,7 +180,7 @@ fn state_preparing_package(machine: &mut InstallMachine) -> Result<()> {
             .or_insert_with(|| {
                 Arc::new(
                     Backend::load(&kind)
-                        .expect(format!("Failed to load backend lib for {}", kind).as_str()),
+                        .unwrap_or_else(|_| panic!("Failed to load backend lib for {}", kind)),
                 )
             })
             .clone();
@@ -203,22 +202,21 @@ fn state_preparing_package(machine: &mut InstallMachine) -> Result<()> {
             .ok_or_else(|| anyhow::anyhow!("invalid path encoding"))?;
 
         let checksum = if machine.checksums.is_empty() {
-            CString::from_str(&compute_checksum(&abs_file_str)?)?
+            CString::from_str(&compute_checksum(abs_file_str)?)?
         } else {
             CString::from_str(&machine.checksums[index])?
         };
 
         let (meta_handle, temp_path_c) = backend
             .meta_prepare(
-                &CString::from_str(&abs_file_str)?,
+                &CString::from_str(abs_file_str)?,
                 &tmp_string_path,
                 &checksum,
                 progress_bar_ptr,
                 crate::cancel_token_ptr(),
             )
-            .map_err(|err| {
+            .inspect_err(|_| {
                 machine.progress_bar.finish_and_clear();
-                err
             })?;
 
         let prepared_packege =
@@ -259,9 +257,8 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
         unsafe { (machine.upac_lib.as_ref().install)(install_request_c) },
         "install",
     )
-    .map_err(|err| {
+    .inspect_err(|_| {
         machine.progress_bar.finish_and_clear();
-        err
     })?;
 
     state_done(machine)
@@ -320,7 +317,6 @@ pub unsafe extern "C" fn on_install_progress(event: u32, package_name_c: CSlice,
         11 => progress_bar.println(format!("{} Failed", "✗".red().bold())),
         _ => {
             eprintln!("Unknown event: {}", event);
-            return;
         }
     }
 }

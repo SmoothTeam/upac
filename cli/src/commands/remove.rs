@@ -42,7 +42,7 @@ impl RemoveMachine {
         Ok(Self {
             package_names,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: upac_lib,
+            upac_lib,
             config,
             state: State::Validating,
         })
@@ -53,7 +53,7 @@ impl RemoveMachine {
 pub fn run(args: RemoveArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
     let mut remove_machine = RemoveMachine::new(config, upac_lib, args.name)?;
 
-    state_validating(&mut remove_machine).map_err(|err| {
+    state_validating(&mut remove_machine).inspect_err(|_| {
         if remove_machine.config.verbose {
             eprintln!(
                 "{} failed at state {:?}",
@@ -61,7 +61,6 @@ pub fn run(args: RemoveArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<(
                 remove_machine.state
             );
         }
-        err
     })
 }
 
@@ -88,7 +87,7 @@ fn state_uninstalling(machine: &mut RemoveMachine) -> Result<()> {
     let package_names_c: Vec<CSlice> = machine
         .package_names
         .iter()
-        .map(|name| CSlice::from_cstring(name))
+        .map(CSlice::from_cstring)
         .collect();
 
     let progress_bar_ptr = &machine.progress_bar as *const ProgressBar as *mut c_void;
@@ -111,9 +110,8 @@ fn state_uninstalling(machine: &mut RemoveMachine) -> Result<()> {
         unsafe { (machine.upac_lib.as_ref().uninstall)(remove_request_c) },
         "uninstall",
     )
-    .map_err(|err| {
+    .inspect_err(|_| {
         machine.progress_bar.finish_and_clear();
-        err
     })?;
 
     state_done(machine)
@@ -155,7 +153,6 @@ pub unsafe extern "C" fn on_remove_progress(event: u32, package_name: CSlice, ct
         11 => progress_bar.println(format!("{} Failed", "✗".red().bold())),
         _ => {
             eprintln!("Unknow event: {}", event);
-            return;
         }
     }
 }
