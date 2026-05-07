@@ -17,7 +17,7 @@ jobs:
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y libarchive-dev libostree-dev
-          \ libglib2.0-dev \ pkg-config
+          libglib2.0-dev pkg-config
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
