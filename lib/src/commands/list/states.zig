@@ -12,7 +12,6 @@ const CSlice = list.ffi.CSlice;
 const CPackageMeta = list.ffi.CPackageMeta;
 const CCommitEntry = list.ffi.CCommitEntry;
 
-
 const utils = @import("utils.zig");
 const getRefBody = utils.getRefBody;
 const parsePackageBody = utils.parsePackageBody;
@@ -84,7 +83,6 @@ pub fn stateListPackages(machine: *ListMachine) ListError!void {
 }
 
 pub fn stateListCommits(machine: *ListMachine) ListError!void {
-
     const repo = try machine.unwrap(machine.repo, ListError.RepoOpenFailed);
 
     var entries = std.ArrayList(CCommitEntry).empty;
