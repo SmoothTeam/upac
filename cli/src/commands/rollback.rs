@@ -43,7 +43,7 @@ impl RollbackMachine {
         Ok(Self {
             commit_hash,
             progress_bar: ProgressBar::new_spinner(),
-            upac_lib: upac_lib,
+            upac_lib,
             config,
             state: State::Validating,
         })
@@ -54,7 +54,7 @@ impl RollbackMachine {
 pub fn run(args: RollbackArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()> {
     let mut rolling_machine = RollbackMachine::new(config, upac_lib, args.commit)?;
 
-    state_validating(&mut rolling_machine).map_err(|err| {
+    state_validating(&mut rolling_machine).inspect_err(|_| {
         if rolling_machine.config.verbose {
             eprintln!(
                 "{} failed at state {:?}",
@@ -62,7 +62,6 @@ pub fn run(args: RollbackArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result
                 rolling_machine.state
             );
         }
-        err
     })
 }
 

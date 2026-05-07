@@ -50,7 +50,6 @@ pub struct UpacLib {
 }
 
 impl UpacLib {
-    // Loads the library from a file and initializes pointers to symbols
     pub fn load(backend_kind: &BackendKind) -> Result<Self> {
         let loaded_library = unsafe { Library::new(backend_kind.so_name()) }.map_err(|error| {
             anyhow::anyhow!("Failed to load {}: {error}", backend_kind.so_name())
@@ -178,4 +177,3 @@ impl UpacLib {
         bail!("{context}: {message} (code {code})");
     }
 }
-

@@ -125,7 +125,7 @@ impl ListMachine {
             commits: Vec::new(),
 
             config,
-            upac_lib: upac_lib,
+            upac_lib,
             state: State::Starting,
         })
     }
@@ -136,7 +136,7 @@ pub fn run(args: ListArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()>
     let mut list_machine = ListMachine::new(config, upac_lib, args.commit, args.full)?;
 
     match list_machine.commits_mode {
-        true => state_get_commits_info(&mut list_machine).map_err(|err| {
+        true => state_get_commits_info(&mut list_machine).inspect_err(|_| {
             if list_machine.config.verbose {
                 eprintln!(
                     "{} failed at state {:?}",
@@ -144,9 +144,8 @@ pub fn run(args: ListArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()>
                     list_machine.state
                 );
             }
-            err
         }),
-        false => state_get_packages_list(&mut list_machine).map_err(|err| {
+        false => state_get_packages_list(&mut list_machine).inspect_err(|_| {
             if list_machine.config.verbose {
                 eprintln!(
                     "{} failed at state {:?}",
@@ -154,7 +153,6 @@ pub fn run(args: ListArgs, config: Config, upac_lib: Arc<UpacLib>) -> Result<()>
                     list_machine.state
                 );
             }
-            err
         }),
     }
 }
@@ -239,7 +237,7 @@ fn state_get_packages_list(machine: &mut ListMachine) -> Result<()> {
 
     let package_count =
         unsafe { (machine.upac_lib.as_ref().get_packages_count)(&mut package_array_c) };
-    let mut packages = Vec::with_capacity(package_count as usize);
+    let mut packages = Vec::with_capacity(package_count);
 
     for index in 0..package_count {
         unsafe {
