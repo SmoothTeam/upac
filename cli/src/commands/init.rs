@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use crate::cancel_token_ptr;
 use crate::config::Config;
-use crate::ffi::{CRepoMode, CUnmutatedRequest};
+use crate::ffi::{CRepoMode, CSlice, CUnmutatedRequest};
 use crate::upac::UpacLib;
 use crate::utils::spinner;
 
@@ -120,12 +120,20 @@ fn state_initializing(machine: &mut InitMachine) -> Result<()> {
 
     let token_ptr = cancel_token_ptr();
 
+    let symlinks_c: Vec<CSlice> = machine
+        .config
+        .ostree
+        .symlinks
+        .iter()
+        .map(CSlice::from_cstring)
+        .collect();
+
     let repo_mode_val = machine.repo_mode_c as u32;
     let init_request_c = CUnmutatedRequest::for_init(
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
         &machine.config.ostree.branch,
-        &machine.config.ostree.prefix_directory,
+        symlinks_c.as_slice(),
         &repo_mode_val,
         token_ptr,
     );

@@ -52,7 +52,15 @@ pub struct OstreeConfig {
     pub mode: CString,
     pub branch: CString,
 
-    pub prefix_directory: CString,
+    /// Top-level entries to create at `init` as symlinks pointing inside the
+    /// (hard-coded) `usr/` prefix. Example: `"opt"` → `/opt` becomes a symlink
+    /// to `/usr/opt` and is swapped atomically together with `/usr`.
+    #[serde(default = "default_symlinks")]
+    pub symlinks: Vec<CString>,
+}
+
+fn default_symlinks() -> Vec<CString> {
+    vec![CString::new("opt").unwrap()]
 }
 
 impl Default for OstreeConfig {
@@ -60,7 +68,7 @@ impl Default for OstreeConfig {
         Self {
             mode: CString::new("archive").unwrap(),
             branch: CString::new("packages").unwrap(),
-            prefix_directory: CString::new("usr").unwrap(),
+            symlinks: default_symlinks(),
         }
     }
 }
@@ -97,6 +105,18 @@ impl Config {
         }
         if self.ostree.mode.is_empty() {
             anyhow::bail!("config: ostree.mode is empty");
+        }
+        for symlink in &self.ostree.symlinks {
+            if symlink.is_empty() {
+                anyhow::bail!("config: ostree.symlinks contains empty entry");
+            }
+            let bytes = symlink.as_bytes();
+            if bytes.contains(&b'/') {
+                anyhow::bail!(
+                    "config: ostree.symlinks entry {:?} must be a single path component (no '/')",
+                    symlink
+                );
+            }
         }
 
         Ok(())

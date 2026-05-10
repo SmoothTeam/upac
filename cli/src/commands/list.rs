@@ -169,7 +169,6 @@ fn state_get_commits_info(machine: &mut ListMachine) -> Result<()> {
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
         &machine.config.ostree.branch,
-        &machine.config.ostree.prefix_directory,
         token_ptr,
     );
 
@@ -226,7 +225,6 @@ fn state_get_packages_list(machine: &mut ListMachine) -> Result<()> {
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
         &machine.config.ostree.branch,
-        &machine.config.ostree.prefix_directory,
         token_ptr,
     );
 

@@ -11,7 +11,7 @@ use crate::ffi::{
 };
 use crate::utils::BackendKind;
 
-const EXPECTED_ABI_VERSION: u32 = 1;
+const EXPECTED_ABI_VERSION: u32 = 2;
 
 // ── Wrapper around libupac.so ────────────────────────────────────────────────────
 // A wrapper for dynamically loading libupac.so and mapping its C functions to Rust types
@@ -143,6 +143,7 @@ impl UpacLib {
             55 => "max retries exceeded",
             56 => "check space failed",
             57 => "make failed",
+            58 => "write config files failed",
 
             70 => "package not found for uninstall",
             71 => "uninstall failed",

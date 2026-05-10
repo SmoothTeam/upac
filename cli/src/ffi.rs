@@ -201,7 +201,6 @@ pub struct CMutatedRequest {
     repo_path: CSlice,
     root_path: CSlice,
     branch: CSlice,
-    prefix_directory: CSlice,
 
     // install
     packages: *const CPackageEntry,
@@ -222,12 +221,10 @@ pub struct CMutatedRequest {
 }
 
 impl CMutatedRequest {
-    #[allow(clippy::too_many_arguments)]
     fn base(
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix_directory: &CString,
         max_retries: u8,
         on_progress: Option<CProgressFn>,
         progress_ctx: *mut c_void,
@@ -238,7 +235,6 @@ impl CMutatedRequest {
             repo_path: CSlice::from_cstring(repo_path),
             root_path: CSlice::from_cstring(root_path),
             branch: CSlice::from_cstring(branch),
-            prefix_directory: CSlice::from_cstring(prefix_directory),
             packages: null(),
             packages_count: 0,
             package_names: null(),
@@ -258,27 +254,13 @@ impl CMutatedRequest {
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix_directory: &CString,
         max_retries: u8,
         on_progress: Option<CProgressFn>,
         progress_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            branch,
-            prefix_directory,
-            max_retries,
-            on_progress,
-            progress_ctx,
-            cancel_token,
-        );
-        req.packages = if packages.is_empty() {
-            null()
-        } else {
-            packages.as_ptr()
-        };
+        let mut req = Self::base(repo_path, root_path, branch, max_retries, on_progress, progress_ctx, cancel_token);
+        req.packages = if packages.is_empty() { null() } else { packages.as_ptr() };
         req.packages_count = packages.len();
         req
     }
@@ -290,27 +272,13 @@ impl CMutatedRequest {
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix_directory: &CString,
         max_retries: u8,
         on_progress: Option<CProgressFn>,
         progress_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            branch,
-            prefix_directory,
-            max_retries,
-            on_progress,
-            progress_ctx,
-            cancel_token,
-        );
-        req.package_names = if package_names.is_empty() {
-            null()
-        } else {
-            package_names.as_ptr()
-        };
+        let mut req = Self::base(repo_path, root_path, branch, max_retries, on_progress, progress_ctx, cancel_token);
+        req.package_names = if package_names.is_empty() { null() } else { package_names.as_ptr() };
         req.package_names_len = package_names.len();
         req
     }
@@ -322,20 +290,10 @@ impl CMutatedRequest {
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix_directory: &CString,
         max_retries: u8,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            branch,
-            prefix_directory,
-            max_retries,
-            None,
-            null_mut(),
-            cancel_token,
-        );
+        let mut req = Self::base(repo_path, root_path, branch, max_retries, None, null_mut(), cancel_token);
         req.commit_hash = CSlice::from_cstring(commit_hash);
         req
     }
@@ -351,10 +309,13 @@ pub struct CUnmutatedRequest {
     repo_path: CSlice,
     root_path: CSlice,
     branch: CSlice,
-    prefix: CSlice,
 
     from_commit_hash: CSlice,
     to_commit_hash: CSlice,
+
+    // init only: pointer into a caller-owned &[CSlice]
+    symlinks: *const CSlice,
+    symlinks_len: usize,
 
     // Points to a machine-owned u32; Zig reads it as *const i32 via @ptrCast.
     // Null is accepted for diff and list.
@@ -367,7 +328,6 @@ impl CUnmutatedRequest {
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix: &CString,
         cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
@@ -375,40 +335,41 @@ impl CUnmutatedRequest {
             repo_path: CSlice::from_cstring(repo_path),
             root_path: CSlice::from_cstring(root_path),
             branch: CSlice::from_cstring(branch),
-            prefix: CSlice::from_cstring(prefix),
             from_commit_hash: CSlice::empty(),
             to_commit_hash: CSlice::empty(),
+            symlinks: null(),
+            symlinks_len: 0,
             repo_mode: null_mut(),
             cancel_token,
         }
     }
 
-    /// Init.  `repo_mode_val` must be stored in the machine and outlive the request.
+    /// Init.  `symlinks` slice and `repo_mode_val` must outlive this request.
     pub fn for_init(
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix: &CString,
+        symlinks: &[CSlice],
         repo_mode_val: &u32,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(repo_path, root_path, branch, prefix, cancel_token);
+        let mut req = Self::base(repo_path, root_path, branch, cancel_token);
+        req.symlinks = if symlinks.is_empty() { null() } else { symlinks.as_ptr() };
+        req.symlinks_len = symlinks.len();
         req.repo_mode = repo_mode_val as *const u32 as *mut c_void;
         req
     }
 
     /// Diff packages or diff files attributed.
-    /// `db_path` can be an empty CString for packages-only diff.
     pub fn for_diff(
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix: &CString,
         from_commit: &CString,
         to_commit: &CString,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(repo_path, root_path, branch, prefix, cancel_token);
+        let mut req = Self::base(repo_path, root_path, branch, cancel_token);
         req.from_commit_hash = CSlice::from_cstring(from_commit);
         req.to_commit_hash = CSlice::from_cstring(to_commit);
         req
@@ -419,10 +380,9 @@ impl CUnmutatedRequest {
         repo_path: &CString,
         root_path: &CString,
         branch: &CString,
-        prefix: &CString,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        Self::base(repo_path, root_path, branch, prefix, cancel_token)
+        Self::base(repo_path, root_path, branch, cancel_token)
     }
 }
 

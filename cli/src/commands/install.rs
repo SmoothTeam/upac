@@ -246,7 +246,6 @@ fn state_installing(machine: &mut InstallMachine) -> Result<()> {
         &machine.config.paths.repo_path,
         &machine.config.paths.root_path,
         &machine.config.ostree.branch,
-        &machine.config.ostree.prefix_directory,
         machine.config.step_retries,
         Some(on_install_progress),
         progress_bar_ptr,
@@ -307,14 +306,17 @@ pub unsafe extern "C" fn on_install_progress(event: u32, package_name_c: CSlice,
         2 => progress_bar.set_message("Opening repo...".to_string()),
         3 => progress_bar.set_message(format!("Checking {package_name} was installed...")),
         4 => progress_bar.set_message(format!("Writing database for {package_name}...")),
-        5 => progress_bar.set_message(format!("Writing files for {package_name}...")),
-        6 => progress_bar.set_message(format!("Committing {package_name}...")),
-        7 => progress_bar.set_message(format!("Checking out {package_name}...")),
-        8 => {}
-        9 => {}
+        5 => {}
+        6 => progress_bar.set_message(format!("Writing files for {package_name}...")),
+        7 => progress_bar.set_message(format!("Committing {package_name}...")),
+        8 => progress_bar.set_message(format!("Checking out {package_name}...")),
+        9 => progress_bar.set_message("Preparing config files...".to_string()),
+        10 => {}
+        11 => {}
+        12 => {}
 
-        10 => progress_bar.println(format!("{} Done", "✓".green().bold())),
-        11 => progress_bar.println(format!("{} Failed", "✗".red().bold())),
+        13 => progress_bar.println(format!("{} Done", "✓".green().bold())),
+        14 => progress_bar.println(format!("{} Failed", "✗".red().bold())),
         _ => {
             eprintln!("Unknown event: {}", event);
         }
