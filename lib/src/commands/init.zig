@@ -1,6 +1,9 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const posix = std.posix;
 
+const constants = @import("upac-constants");
+const PREFIX = constants.PREFIX;
+
 pub const ffi = @import("upac-ffi");
 const c_libs = ffi.c_libs;
 
@@ -16,15 +19,15 @@ pub const InitError = error{
     AlreadyInitialized,
     RootNotFound,
     PrefixNotFound,
-    AdditionalPrefixNotFound,
     NotADirectory,
     CreateDirFailed,
     OstreeInitFailed,
     DirectoryNotEmpty,
+    SymlinkFailed,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────
-pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_mode: CRepoMode, branch_c: [*:0]const u8, prefix: []const u8, additional_prefixes: []const []const u8, cancel_token: *CancelToken, allocator: std.mem.Allocator) !void {
+pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_mode: CRepoMode, branch_c: [*:0]const u8, symlinks: []const []const u8, cancel_token: *CancelToken, allocator: std.mem.Allocator) !void {
     var gerror: ?*c_libs.GError = null;
     defer if (gerror) |err| c_libs.g_error_free(err);
 
@@ -39,16 +42,46 @@ pub fn initSystem(repo_path_c: [*:0]const u8, root_path_c: [*:0]const u8, repo_m
     if (!try checkDirExists(root_path_c)) return InitError.RootNotFound;
 
     if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
-    const prefix_path = std.fs.path.joinZ(allocator, &.{ std.mem.span(root_path_c), prefix }) catch return InitError.PrefixNotFound;
-    defer allocator.free(prefix_path);
     const io = std.Io.Threaded.global_single_threaded.io();
-    if (!try checkDirExists(prefix_path)) std.Io.Dir.createDirAbsolute(io, prefix_path, .default_dir) catch return InitError.CreateDirFailed;
 
-    for (additional_prefixes) |additional_prefix| {
+    const prefix_path_c = std.fs.path.joinZ(allocator, &.{ std.mem.span(root_path_c), PREFIX }) catch return InitError.PrefixNotFound;
+    defer allocator.free(prefix_path_c);
+    if (try checkFileExists(prefix_path_c)) return InitError.PrefixNotFound;
+    if (!try checkDirExists(prefix_path_c)) {
+        std.Io.Dir.createDirAbsolute(io, prefix_path_c, .default_dir) catch return InitError.CreateDirFailed;
+    }
+
+    for (symlinks) |symlink_name| {
         if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
-        const additional_prefix_path = std.fs.path.joinZ(allocator, &.{ std.mem.span(root_path_c), additional_prefix }) catch return InitError.AdditionalPrefixNotFound;
-        defer allocator.free(additional_prefix_path);
-        if (!try checkDirExists(additional_prefix_path)) std.Io.Dir.createDirAbsolute(io, additional_prefix_path, .default_dir) catch return InitError.CreateDirFailed;
+
+        // Ensure <root>/<PREFIX>/<name> directory exists (symlink target)
+        const target_dir_path = std.fs.path.joinZ(allocator, &.{ std.mem.span(root_path_c), PREFIX, symlink_name }) catch return error.OutOfMemory;
+        defer allocator.free(target_dir_path);
+        if (!try checkDirExists(target_dir_path)) {
+            std.Io.Dir.createDirAbsolute(io, target_dir_path, .default_dir) catch return InitError.CreateDirFailed;
+        }
+
+        // Relative symlink target: <PREFIX>/<name>
+        const link_target = std.fs.path.joinZ(allocator, &.{ PREFIX, symlink_name }) catch return error.OutOfMemory;
+        defer allocator.free(link_target);
+
+        // Absolute path of the symlink itself: <root>/<name>
+        const link_path = std.fs.path.joinZ(allocator, &.{ std.mem.span(root_path_c), symlink_name }) catch return error.OutOfMemory;
+        defer allocator.free(link_path);
+
+        var readlink_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const existing_len = std.Io.Dir.readLinkAbsolute(io, link_path, &readlink_buf) catch |err| switch (err) {
+            error.FileNotFound => {
+                // target is relative (e.g. "usr/opt"), link_path is absolute
+                std.Io.Dir.cwd().symLink(io, link_target, link_path, .{}) catch return InitError.SymlinkFailed;
+                continue;
+            },
+            // Not a symlink (EINVAL), or any other error — something is in the way
+            else => return InitError.SymlinkFailed,
+        };
+
+        // Symlink exists: accept only if it already points to the right target
+        if (!std.mem.eql(u8, readlink_buf[0..existing_len], link_target)) return InitError.SymlinkFailed;
     }
 
     if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;

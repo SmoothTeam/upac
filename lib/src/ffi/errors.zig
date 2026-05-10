@@ -42,6 +42,7 @@ pub const ErrorCode = enum(i32) {
     install_max_retries_exceeded = 55,
     install_check_space_failed = 56,
     install_write_files_failed = 57,
+    install_write_config_failed = 58,
 
     // --- Uninstaller Errors (70 - 89) ---
     uninstall_not_found = 70,
@@ -68,8 +69,7 @@ pub const ErrorCode = enum(i32) {
     not_a_directory = 112,
     ostree_init_failed = 113,
     directory_not_empty = 114,
-    init_prefix_not_found = 115,
-    init_additional_prefix_not_found = 116,
+    init_symlink_failed = 115,
 
     // --- File Checksum/FSM Errors (120+) ---
     file_checksum_failed = 120,
@@ -86,8 +86,8 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.NotADirectory => .not_a_directory,
             error.DirectoryNotEmpty => .directory_not_empty,
             error.OstreeInitFailed => .ostree_init_failed,
-            error.PrefixNotFound => .init_prefix_not_found,
-            error.AdditionalPrefixNotFound => .init_additional_prefix_not_found,
+            error.PrefixNotFound => .invalid_path,
+            error.SymlinkFailed => .init_symlink_failed,
             else => null,
         },
         .install => switch (err) {
@@ -99,6 +99,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.MaxRetriesExceeded => .install_max_retries_exceeded,
             error.CheckSpaceFailed => .install_check_space_failed,
             error.WriteFilesFailed => .install_write_files_failed,
+            error.WriteConfigFailed => .install_write_config_failed,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
             else => null,

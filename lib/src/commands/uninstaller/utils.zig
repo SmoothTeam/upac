@@ -4,6 +4,8 @@ const uninstaller = @import("uninstaller.zig");
 const std = uninstaller.std;
 const c_libs = uninstaller.c_libs;
 
+const DB_RELATIVE_PATH = uninstaller.DB_RELATIVE_PATH;
+
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
 
@@ -53,30 +55,37 @@ pub fn removeFromMtree(repo: *c_libs.OstreeRepo, root_mtree: *c_libs.OstreeMutab
     if (c_libs.ostree_mutable_tree_remove(current_subtree, file_name_c.ptr, 1, &gerror) == 0) return error.FileNotFound;
 }
 
-pub fn resolveMtree(machine: *UninstallerMachine, repo: *c_libs.OstreeRepo) ?*c_libs.OstreeMutableTree {
+pub fn resolveMtree(machine: *UninstallerMachine) UninstallerError!*c_libs.OstreeMutableTree {
+    const repo = try machine.unwrap(machine.repo, UninstallerError.RepoOpenFailed);
+
     if (c_libs.ostree_repo_resolve_rev(repo, machine.data.branch, 0, &machine.previous_commit_checksum, null) != 0) {
         if (c_libs.ostree_mutable_tree_new_from_commit(repo, machine.previous_commit_checksum, &machine.gerror)) |mtree| {
             return mtree;
         }
     }
-    return c_libs.ostree_mutable_tree_new();
+    return c_libs.ostree_mutable_tree_new() orelse return UninstallerError.RepoOpenFailed;
 }
 
-pub fn removeDbFile(machine: *UninstallerMachine, repo: *c_libs.OstreeRepo, mtree: *c_libs.OstreeMutableTree, pkg_checksum: []const u8, relative_db_path: []const u8, comptime ext: []const u8) UninstallerError!void {
+pub fn removeDbFile(machine: *UninstallerMachine, pkg_checksum: []const u8, comptime ext: []const u8) UninstallerError!void {
     var buf: [256]u8 = undefined;
+    const repo = try machine.unwrap(machine.repo, UninstallerError.RepoOpenFailed);
+    const mtree = try machine.unwrap(machine.mtree, UninstallerError.PackageNotFound);
 
     const filename = std.fmt.bufPrint(&buf, "{s}" ++ ext, .{pkg_checksum}) catch return error.AllocZFailed;
-    const path = std.fs.path.join(machine.allocator, &.{ relative_db_path, filename }) catch return error.AllocZFailed;
+    const path = std.fs.path.join(machine.allocator, &.{ DB_RELATIVE_PATH, filename }) catch return error.AllocZFailed;
     defer machine.allocator.free(path);
 
     try machine.check(removeFromMtree(repo, mtree, path, machine.allocator), UninstallerError.FileNotFound);
 }
 
-pub fn buildCommitBody(machine: *UninstallerMachine, repo: *c_libs.OstreeRepo, prev_checksum: [*:0]u8, writer: *std.Io.Writer) UninstallerError!void {
+pub fn buildCommitBody(machine: *UninstallerMachine, writer: *std.Io.Writer) UninstallerError!void {
+    const repo = try machine.unwrap(machine.repo, UninstallerError.RepoOpenFailed);
+    const previos_commit_checksum = machine.previous_commit_checksum orelse return;
+
     var prev_commit_variant: ?*c_libs.GVariant = null;
     defer if (prev_commit_variant) |variant| c_libs.g_variant_unref(variant);
 
-    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, prev_checksum, &prev_commit_variant, &machine.gerror) == 0) return;
+    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, previos_commit_checksum, &prev_commit_variant, &machine.gerror) == 0) return;
 
     var prev_body_variant: ?*c_libs.GVariant = null;
     defer if (prev_body_variant) |variant| c_libs.g_variant_unref(variant);

@@ -9,12 +9,15 @@ const cancelGCancellable = ffi.cancelGCancellable;
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
+const constants = @import("upac-constants");
 // ── Public imports ───────────────────────────────────────────────────────────
 pub const std = @import("std");
 pub const ffi = @import("upac-ffi");
 pub const c_libs = ffi.c_libs;
 
 pub const data = @import("upac-data");
+
+pub const DB_RELATIVE_PATH = constants.DB_RELATIVE_PATH;
 
 pub const ListError = error{
     RepoOpenFailed,
@@ -29,7 +32,6 @@ pub const ListData = struct {
     repo_path: [*:0]const u8,
     branch: [*:0]const u8,
     root_path: [*:0]const u8,
-    prefix_path: [*:0]const u8,
 
     cancel_token: *CancelToken,
 };
@@ -112,8 +114,10 @@ pub const ListMachine = struct {
 
         try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+
         try machine.enter(.list_packages);
         try states.stateListPackages(&machine);
+
         try machine.enter(.done);
 
         return machine.result_packages orelse &.{};
@@ -135,8 +139,10 @@ pub const ListMachine = struct {
 
         try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+
         try machine.enter(.list_commits);
         try states.stateListCommits(&machine);
+
         try machine.enter(.done);
 
         return machine.result_commits orelse &.{};

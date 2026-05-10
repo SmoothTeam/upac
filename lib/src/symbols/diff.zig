@@ -1,6 +1,7 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const diff_module = @import("upac-diff");
 const std = diff_module.std;
+const constants = @import("upac-constants");
 const c_libs = diff_module.c_libs;
 const data = diff_module.data;
 
@@ -20,7 +21,7 @@ pub fn diff_packages(diff_request_c: CDiffRequest, out_c: *CArray(CPackageDiffEn
     const required = [_]CSlice{ diff_request_c.repo_path, diff_request_c.from_commit_hash, diff_request_c.to_commit_hash };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.diff));
 
-    const package_diff_entrys = diff_module.DiffMachine.runPackages(.{ .repo_path = diff_request_c.repo_path.asZ(), .root_path = diff_request_c.root_path.asZ(), .prefix_path = diff_request_c.prefix.asZ(), .from_ref = diff_request_c.from_commit_hash.asZ(), .to_ref = diff_request_c.to_commit_hash.asZ(), .cancel_token = diff_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)) }, diff_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.diff));
+    const package_diff_entrys = diff_module.DiffMachine.runPackages(.{ .repo_path = diff_request_c.repo_path.asZ(), .root_path = diff_request_c.root_path.asZ(), .from_ref = diff_request_c.from_commit_hash.asZ(), .to_ref = diff_request_c.to_commit_hash.asZ(), .cancel_token = diff_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)) }, diff_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.diff));
 
     out_c.* = .{ .ptr = package_diff_entrys.ptr, .len = package_diff_entrys.len };
     return @intFromEnum(ErrorCode.ok);
@@ -39,7 +40,7 @@ pub fn diff_files(diff_request_c: CDiffRequest, out_c: *CArray(CAttributedDiffEn
     const required = [_]CSlice{ diff_request_c.repo_path, diff_request_c.from_commit_hash, diff_request_c.to_commit_hash };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.diff));
 
-    const files_diff_entrys = diff_module.DiffMachine.runFiles(.{ .repo_path = diff_request_c.repo_path.asZ(), .root_path = diff_request_c.root_path.asZ(), .prefix_path = diff_request_c.prefix.asZ(), .from_ref = diff_request_c.from_commit_hash.asZ(), .to_ref = diff_request_c.to_commit_hash.asZ(), .cancel_token = diff_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)) }, diff_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.diff));
+    const files_diff_entrys = diff_module.DiffMachine.runFiles(.{ .repo_path = diff_request_c.repo_path.asZ(), .root_path = diff_request_c.root_path.asZ(), .from_ref = diff_request_c.from_commit_hash.asZ(), .to_ref = diff_request_c.to_commit_hash.asZ(), .cancel_token = diff_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)) }, diff_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.diff));
 
     out_c.* = .{ .ptr = files_diff_entrys.ptr, .len = files_diff_entrys.len };
     return @intFromEnum(ErrorCode.ok);

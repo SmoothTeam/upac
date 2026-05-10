@@ -3,6 +3,8 @@ const rollback = @import("rollback.zig");
 const std = rollback.std;
 const c_libs = rollback.c_libs;
 
+const PREFIX = rollback.PREFIX;
+
 const RollbackMachine = rollback.RollbackMachine;
 const RollbackError = rollback.RollbackError;
 
@@ -39,14 +41,13 @@ pub fn stateStart(machine: *RollbackMachine) RollbackError!void {
 
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateVerifying(machine: *RollbackMachine) RollbackError!RollbackStateId {
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.root_path), .{}), RollbackError.PathNotFound);
-    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.repo_path), .{}), RollbackError.RepoOpenFailed);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, std.mem.span(machine.data.root_path), .{}), RollbackError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, std.mem.span(machine.data.repo_path), .{}), RollbackError.RepoOpenFailed);
 
-    const prefix_directory = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), RollbackError.AllocZFailed);
+    const prefix_directory = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), PREFIX }), RollbackError.AllocZFailed);
     defer machine.allocator.free(prefix_directory);
 
-    try machine.check(std.Io.Dir.accessAbsolute(io, prefix_directory, .{}), RollbackError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, prefix_directory, .{}), RollbackError.PathNotFound);
 
     machine.resetRetries();
     return .open_repo;
@@ -91,11 +92,10 @@ fn stateCheckoutStaging(machine: *RollbackMachine) RollbackError!RollbackStateId
     const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
     const resolved_checksum = try machine.unwrap(machine.resolved_checksum, error.CommitNotFound);
 
-    machine.staging_path_c = try resolveStagingDir(std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path), machine.allocator);
+    machine.staging_path_c = try resolveStagingDir(std.mem.span(machine.data.root_path), machine.allocator);
     const staging_path_c = try machine.unwrap(machine.staging_path_c, error.StagingFailed);
 
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try machine.check(std.Io.Dir.createDirAbsolute(io, staging_path_c, .default_dir), RollbackError.StagingFailed);
+    try machine.check(std.Io.Dir.createDirAbsolute(machine.io, staging_path_c, .default_dir), RollbackError.StagingFailed);
 
     var options = std.mem.zeroes(c_libs.OstreeRepoCheckoutAtOptions);
     options.mode = c_libs.OSTREE_REPO_CHECKOUT_MODE_NONE;
@@ -103,8 +103,7 @@ fn stateCheckoutStaging(machine: *RollbackMachine) RollbackError!RollbackStateId
     options.no_copy_fallback = 0;
 
     if (c_libs.ostree_repo_checkout_at(repo, &options, std.c.AT.FDCWD, staging_path_c, resolved_checksum, machine.cancellable, &machine.gerror) == 0) {
-        const _io = std.Io.Threaded.global_single_threaded.io();
-        try machine.check(std.Io.Dir.cwd().deleteTree(_io, staging_path_c), RollbackError.RollbackFailed);
+        try machine.check(std.Io.Dir.cwd().deleteTree(machine.io, staging_path_c), RollbackError.RollbackFailed);
 
         machine.allocator.free(staging_path_c);
         machine.staging_path_c = null;
@@ -119,10 +118,10 @@ fn stateCheckoutStaging(machine: *RollbackMachine) RollbackError!RollbackStateId
 fn stateAtomicSwap(machine: *RollbackMachine) RollbackError!RollbackStateId {
     const staging_path_c = try machine.unwrap(machine.staging_path_c, error.StagingFailed);
 
-    const root_prefix_path = try resolveRootDir(std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path), machine.allocator);
+    const root_prefix_path = try resolveRootDir(std.mem.span(machine.data.root_path), machine.allocator);
     defer machine.allocator.free(root_prefix_path);
 
-    const staging_prefix_path = try resolveRootDir(staging_path_c, std.mem.span(machine.data.prefix_path), machine.allocator);
+    const staging_prefix_path = try resolveRootDir(staging_path_c, machine.allocator);
     defer machine.allocator.free(staging_prefix_path);
 
     const result = std.os.linux.syscall5(.renameat2, @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(staging_prefix_path.ptr), @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(root_prefix_path.ptr), 2);
@@ -139,8 +138,7 @@ fn stateAtomicSwap(machine: *RollbackMachine) RollbackError!RollbackStateId {
 fn stateCleanupStaging(machine: *RollbackMachine) RollbackError!RollbackStateId {
     const staging_path_c = try machine.unwrap(machine.staging_path_c, error.StagingFailed);
 
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path_c), RollbackError.CleanupFailed);
+    try machine.check(std.Io.Dir.cwd().deleteTree(machine.io, staging_path_c), RollbackError.CleanupFailed);
 
     machine.allocator.free(staging_path_c);
     machine.staging_path_c = null;
@@ -168,8 +166,7 @@ fn stateUpdateRef(machine: *RollbackMachine) RollbackError!RollbackStateId {
 
 pub fn stateFailed(machine: *RollbackMachine) void {
     if (machine.staging_path_c) |staging_path| {
-        const io = std.Io.Threaded.global_single_threaded.io();
-        std.Io.Dir.cwd().deleteTree(io, staging_path) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, staging_path) catch {};
         machine.allocator.free(staging_path);
         machine.staging_path_c = null;
     }

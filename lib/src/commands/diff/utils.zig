@@ -1,5 +1,6 @@
 const diff = @import("diff.zig");
 const std = diff.std;
+const constants = @import("upac-constants");
 const c_libs = diff.c_libs;
 const data = diff.data;
 
@@ -86,7 +87,7 @@ pub fn buildFilePkgMap(machine: *DiffMachine, ref: [*:0]const u8, out: *std.Stri
 
     var iter = pkg_map.iterator();
     while (iter.next()) |entry| {
-        const abs_db_path = std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path), "share/upac/db" }) catch continue;
+        const abs_db_path = std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), constants.DB_RELATIVE_PATH }) catch continue;
         defer machine.allocator.free(abs_db_path);
         var file_map = data.readFiles(abs_db_path, entry.value_ptr.*, machine.allocator) catch continue;
         defer data.freeFileMap(&file_map, machine.allocator);

@@ -11,6 +11,7 @@ const data = @import("upac-data");
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
+const constants = @import("upac-constants");
 // ── Public imports ─────────────────────────────────────────────────────────────────────
 pub const ffi = @import("upac-ffi");
 pub const c_libs = ffi.c_libs;
@@ -19,6 +20,8 @@ pub const CSlice = ffi.CSlice;
 
 pub const std = @import("std");
 
+pub const PREFIX = constants.PREFIX;
+pub const DB_RELATIVE_PATH = constants.DB_RELATIVE_PATH;
 // ── Errors ─────────────────────────────────────────────────────────────────────
 // Errors specific to the removal process
 pub const UninstallerError = error{
@@ -46,7 +49,6 @@ pub const UninstallData = struct {
 
     repo_path: [*:0]const u8,
     root_path: [*:0]const u8,
-    prefix_path: [*:0]const u8,
 
     on_progress: ?UninstallProgressFn = null,
     progress_ctx: ?*anyopaque = null,
@@ -78,6 +80,7 @@ pub const UninstallerMachine = struct {
 
     stack: std.ArrayList(UninstallStateId),
     allocator: std.mem.Allocator,
+    io: std.Io,
 
     // Registers a transition to a new state, adding it to the stack for progress tracking and debugging
     pub fn enter(self: *UninstallerMachine, state_id: UninstallStateId) !void {
@@ -222,6 +225,7 @@ pub const UninstallerMachine = struct {
 
             .stack = std.ArrayList(UninstallStateId).empty,
             .allocator = allocator,
+            .io = std.Io.Threaded.global_single_threaded.io(),
         };
         defer machine.deinit();
 

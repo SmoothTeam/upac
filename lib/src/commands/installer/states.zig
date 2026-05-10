@@ -4,6 +4,9 @@ const std = installer.std;
 const c_libs = installer.c_libs;
 const data = installer.data;
 
+const PREFIX = installer.PREFIX;
+const DB_RELATIVE_PATH = installer.DB_RELATIVE_PATH;
+
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
 
@@ -17,9 +20,12 @@ const collectFileChecksums = utils.collectFileChecksums;
 const estimateCheckoutSize = utils.estimateCheckoutSize;
 
 const loadCommitBody = utils.loadCommitBody;
+const mergeDirs = utils.mergeDirs;
+const mirrorDir = utils.mirrorDir;
+const overlayDir = utils.overlayDir;
+const copyFileTo = utils.copyFileTo;
 
 const InstallStateId = installer.ffi.InstallStateId;
-
 // ── Trampoline ────────────────────────────────────────────────────────────────
 pub fn stateStart(machine: *InstallerMachine) InstallerError!void {
     var state = InstallStateId.verifying;
@@ -31,10 +37,13 @@ pub fn stateStart(machine: *InstallerMachine) InstallerError!void {
             .open_repo => try stateOpenRepo(machine),
             .check_installed => try stateCheckInstalled(machine),
             .write_database => try stateWriteDatabase(machine),
+            .remap_paths => try stateRemapPaths(machine),
             .process_db_files => try stateProcessDbFiles(machine),
             .commit => try stateCommit(machine),
-            .checkout => try stateCheckout(machine),
+            .checkout_binaries_files => try stateCheckoutBinariesFiles(machine),
+            .prepare_config_staging => try statePrepareConfigStaging(machine),
             .atomic_swap => try stateAtomicSwap(machine),
+            .swap_config_files => try stateSwapConfigFiles(machine),
             .cleanup => try stateCleanupStaging(machine),
             .done, .failed => unreachable,
         };
@@ -51,16 +60,15 @@ pub fn stateStart(machine: *InstallerMachine) InstallerError!void {
 
 // ── InstallerFSM states ───────────────────────────────────────────────────────
 fn stateVerifying(machine: *InstallerMachine) InstallerError!InstallStateId {
-    const io = std.Io.Threaded.global_single_threaded.io();
-    for (machine.data.packages) |entry| try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(entry.temp_path), .{}), InstallerError.PathNotFound);
+    for (machine.data.packages) |entry| try machine.check(std.Io.Dir.accessAbsolute(machine.io, std.mem.span(entry.temp_path), .{}), InstallerError.PathNotFound);
 
-    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.root_path), .{}), InstallerError.PathNotFound);
-    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.repo_path), .{}), InstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, std.mem.span(machine.data.root_path), .{}), InstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, std.mem.span(machine.data.repo_path), .{}), InstallerError.PathNotFound);
 
-    const prefix_directory = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), InstallerError.AllocZFailed);
+    const prefix_directory = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), PREFIX }), InstallerError.AllocZFailed);
     defer machine.allocator.free(prefix_directory);
 
-    try machine.check(std.Io.Dir.accessAbsolute(io, prefix_directory, .{}), InstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, prefix_directory, .{}), InstallerError.PathNotFound);
 
     machine.resetRetries();
     return .check_space;
@@ -68,12 +76,12 @@ fn stateVerifying(machine: *InstallerMachine) InstallerError!InstallStateId {
 
 fn stateCheckSpace(machine: *InstallerMachine) InstallerError!InstallStateId {
     var new_packages_size: u64 = 0;
-    for (machine.data.packages) |entry| new_packages_size += try machine.check(dirSize(machine.allocator, std.mem.span(entry.temp_path)), InstallerError.CheckSpaceFailed);
+    for (machine.data.packages) |entry| new_packages_size += try machine.check(dirSize(machine, std.mem.span(entry.temp_path)), InstallerError.CheckSpaceFailed);
 
     const prefix_path = try machine.prefixPathZ();
     defer machine.allocator.free(prefix_path);
 
-    const existing_prefix_size = dirSize(machine.allocator, prefix_path) catch 0;
+    const existing_prefix_size = dirSize(machine, prefix_path) catch 0;
     const required = existing_prefix_size + new_packages_size * 2;
 
     var stat: c_libs.struct_statvfs = undefined;
@@ -144,14 +152,10 @@ fn stateCheckInstalled(machine: *InstallerMachine) InstallerError!InstallStateId
 fn stateWriteDatabase(machine: *InstallerMachine) InstallerError!InstallStateId {
     const current_install_entry = machine.data.packages[machine.current_package_index];
 
-    const relative_database_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.prefix_path), "share/upac/db" }), InstallerError.AllocZFailed);
-    defer machine.allocator.free(relative_database_path);
-
-    const staged_database_dir_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(current_install_entry.temp_path), relative_database_path }), InstallerError.AllocZFailed);
+    const staged_database_dir_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(current_install_entry.temp_path), DB_RELATIVE_PATH }), InstallerError.AllocZFailed);
     defer machine.allocator.free(staged_database_dir_path);
 
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try machine.check(std.Io.Dir.cwd().createDirPath(io, staged_database_dir_path), InstallerError.AllocZFailed);
+    try machine.check(std.Io.Dir.cwd().createDirPath(machine.io, staged_database_dir_path), InstallerError.AllocZFailed);
 
     var file_map = data.FileMap.init(machine.allocator);
     defer data.freeFileMap(&file_map, machine.allocator);
@@ -166,6 +170,65 @@ fn stateWriteDatabase(machine: *InstallerMachine) InstallerError!InstallStateId 
         stateFailed(machine);
         return InstallerError.WriteDatabaseFailed;
     };
+
+    machine.resetRetries();
+    return .remap_paths;
+}
+
+fn stateRemapPaths(machine: *InstallerMachine) InstallerError!InstallStateId {
+    const current_entry = machine.data.packages[machine.current_package_index];
+    const temp_path = std.mem.span(current_entry.temp_path);
+
+    var temp_dir = try machine.check(
+        std.Io.Dir.openDirAbsolute(machine.io, temp_path, .{ .iterate = true }),
+        InstallerError.WriteFilesFailed,
+    );
+    defer temp_dir.close(machine.io);
+
+    var to_remap = std.ArrayList([]const u8).empty;
+    defer {
+        for (to_remap.items) |name| machine.allocator.free(name);
+        to_remap.deinit(machine.allocator);
+    }
+
+    var walker = try machine.check(temp_dir.walk(machine.allocator), InstallerError.WriteFilesFailed);
+    defer walker.deinit();
+
+    while (try machine.check(walker.next(machine.io), InstallerError.WriteFilesFailed)) |entry| {
+        if (entry.kind != .directory) continue;
+        if (std.mem.indexOfScalar(u8, entry.path, '/') != null) continue;
+        if (std.mem.eql(u8, entry.path, PREFIX)) continue;
+        if (std.mem.eql(u8, entry.path, "etc")) continue;
+        try machine.check(
+            to_remap.append(machine.allocator, try machine.allocator.dupe(u8, entry.path)),
+            InstallerError.AllocZFailed,
+        );
+    }
+
+    for (to_remap.items) |name| {
+        const src = try machine.check(
+            std.fs.path.joinZ(machine.allocator, &.{ temp_path, name }),
+            InstallerError.AllocZFailed,
+        );
+        defer machine.allocator.free(src);
+
+        const dst = try machine.check(
+            std.fs.path.joinZ(machine.allocator, &.{ temp_path, PREFIX, name }),
+            InstallerError.AllocZFailed,
+        );
+        defer machine.allocator.free(dst);
+
+        const rename_result = std.os.linux.syscall4(
+            .renameat,
+            @bitCast(@as(isize, std.c.AT.FDCWD)),
+            @intFromPtr(src.ptr),
+            @bitCast(@as(isize, std.c.AT.FDCWD)),
+            @intFromPtr(dst.ptr),
+        );
+        if (std.os.linux.errno(rename_result) != .SUCCESS) {
+            try machine.check(mergeDirs(src, dst, machine.allocator), InstallerError.WriteFilesFailed);
+        }
+    }
 
     machine.resetRetries();
     return .process_db_files;
@@ -234,10 +297,10 @@ fn stateCommit(machine: *InstallerMachine) InstallerError!InstallStateId {
     if (c_libs.ostree_repo_commit_transaction(repo, null, machine.cancellable, &machine.gerror) == 0) return machine.retry(.commit);
 
     machine.resetRetries();
-    return .checkout;
+    return .checkout_binaries_files;
 }
 
-fn stateCheckout(machine: *InstallerMachine) InstallerError!InstallStateId {
+fn stateCheckoutBinariesFiles(machine: *InstallerMachine) InstallerError!InstallStateId {
     const repo = try machine.unwrap(machine.repo, InstallerError.RepoOpenFailed);
     const estimated = estimateCheckoutSize(machine) catch 0;
     if (machine.gerror) |err| {
@@ -255,7 +318,7 @@ fn stateCheckout(machine: *InstallerMachine) InstallerError!InstallStateId {
         return InstallerError.NotEnoughSpace;
     }
 
-    const temp_folder_name = try machine.check(std.fmt.bufPrintZ(&buf, "{s}-install-{d}", .{ std.mem.span(machine.data.prefix_path), timestamp }), error.AllocZFailed);
+    const temp_folder_name = try machine.check(std.fmt.bufPrintZ(&buf, "{s}-install-{d}", .{ PREFIX, timestamp }), error.AllocZFailed);
 
     const staging_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), temp_folder_name }), InstallerError.AllocZFailed);
     machine.staging_path_c = staging_path_c;
@@ -281,29 +344,100 @@ fn stateCheckout(machine: *InstallerMachine) InstallerError!InstallStateId {
             stateFailed(machine);
             return InstallerError.CheckoutFailed;
         }
-        return .checkout;
+        return .checkout_binaries_files;
     }
 
     machine.resetRetries();
-    return .atomic_swap;
+    return .prepare_config_staging;
 }
 
 fn stateAtomicSwap(machine: *InstallerMachine) InstallerError!InstallStateId {
     const staging_path = try machine.unwrap(machine.staging_path_c, InstallerError.CheckoutFailed);
 
-    const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), InstallerError.AllocZFailed);
+    const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), PREFIX }), InstallerError.AllocZFailed);
     defer machine.allocator.free(root_prefix_path_c);
 
-    const staging_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ staging_path, std.mem.span(machine.data.prefix_path) }), InstallerError.AllocZFailed);
+    const staging_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ staging_path, PREFIX }), InstallerError.AllocZFailed);
     defer machine.allocator.free(staging_prefix_path_c);
 
     const result = std.os.linux.syscall5(.renameat2, @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(staging_prefix_path_c.ptr), @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(root_prefix_path_c.ptr), 2);
 
     if (std.os.linux.errno(result) != .SUCCESS) {
-        const io = std.Io.Threaded.global_single_threaded.io();
-        try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path), InstallerError.CheckoutFailed);
+        try machine.check(std.Io.Dir.cwd().deleteTree(machine.io, staging_path), InstallerError.CheckoutFailed);
         stateFailed(machine);
         return InstallerError.CheckoutFailed;
+    }
+
+    machine.resetRetries();
+    return .swap_config_files;
+}
+
+fn statePrepareConfigStaging(machine: *InstallerMachine) InstallerError!InstallStateId {
+    const staging_path = try machine.unwrap(machine.staging_path_c, InstallerError.CheckoutFailed);
+
+    const staging_etc = try machine.check(
+        std.fs.path.joinZ(machine.allocator, &.{ staging_path, "etc" }),
+        InstallerError.AllocZFailed,
+    );
+    defer machine.allocator.free(staging_etc);
+
+    std.Io.Dir.accessAbsolute(machine.io, staging_etc, .{}) catch {
+        machine.resetRetries();
+        return .atomic_swap;
+    };
+
+    const etc_new = try machine.check(
+        std.fs.path.joinZ(machine.allocator, &.{ staging_path, "etc-new" }),
+        InstallerError.AllocZFailed,
+    );
+    defer machine.allocator.free(etc_new);
+
+    try machine.check(std.Io.Dir.cwd().createDirPath(machine.io, etc_new), InstallerError.WriteConfigFailed);
+
+    const root_etc = try machine.check(
+        std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), "etc" }),
+        InstallerError.AllocZFailed,
+    );
+    defer machine.allocator.free(root_etc);
+
+    std.Io.Dir.accessAbsolute(machine.io, root_etc, .{}) catch {};
+    mirrorDir(machine, root_etc, etc_new) catch {
+        stateFailed(machine);
+        return InstallerError.WriteConfigFailed;
+    };
+    overlayDir(machine, staging_etc, etc_new) catch {
+        stateFailed(machine);
+        return InstallerError.WriteConfigFailed;
+    };
+
+    machine.resetRetries();
+    return .atomic_swap;
+}
+
+fn stateSwapConfigFiles(machine: *InstallerMachine) InstallerError!InstallStateId {
+    const staging_path = try machine.unwrap(machine.staging_path_c, InstallerError.CheckoutFailed);
+
+    const etc_new = try machine.check(
+        std.fs.path.joinZ(machine.allocator, &.{ staging_path, "etc-new" }),
+        InstallerError.AllocZFailed,
+    );
+    defer machine.allocator.free(etc_new);
+
+    std.Io.Dir.accessAbsolute(machine.io, etc_new, .{}) catch {
+        machine.resetRetries();
+        return .cleanup;
+    };
+
+    const root_etc = try machine.check(
+        std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), "etc" }),
+        InstallerError.AllocZFailed,
+    );
+    defer machine.allocator.free(root_etc);
+
+    const result = std.os.linux.syscall5(.renameat2, @bitCast(@as(isize, std.c.AT.FDCWD)), @intFromPtr(etc_new.ptr), @bitCast(@as(isize, std.c.AT.FDCWD)), @intFromPtr(root_etc.ptr), 2);
+    if (std.os.linux.errno(result) != .SUCCESS) {
+        stateFailed(machine);
+        return InstallerError.WriteConfigFailed;
     }
 
     machine.resetRetries();
@@ -313,8 +447,7 @@ fn stateAtomicSwap(machine: *InstallerMachine) InstallerError!InstallStateId {
 fn stateCleanupStaging(machine: *InstallerMachine) InstallerError!InstallStateId {
     const staging_path = try machine.unwrap(machine.staging_path_c, InstallerError.CheckoutFailed);
 
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path), InstallerError.CheckoutFailed);
+    try machine.check(std.Io.Dir.cwd().deleteTree(machine.io, staging_path), InstallerError.CheckoutFailed);
     machine.allocator.free(staging_path);
     machine.staging_path_c = null;
 
@@ -327,8 +460,7 @@ pub fn stateFailed(machine: *InstallerMachine) void {
     defer if (abort_err) |err| c_libs.g_error_free(err);
 
     if (machine.staging_path_c) |staging| {
-        const io = std.Io.Threaded.global_single_threaded.io();
-        std.Io.Dir.cwd().deleteTree(io, staging) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, staging) catch {};
         machine.allocator.free(staging);
         machine.staging_path_c = null;
     }

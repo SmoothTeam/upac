@@ -6,6 +6,9 @@ const data = @import("upac-data");
 const uninstaller = @import("uninstaller.zig");
 const c_libs = uninstaller.c_libs;
 
+const PREFIX = uninstaller.PREFIX;
+const DB_RELATIVE_PATH = uninstaller.DB_RELATIVE_PATH;
+
 const CSlice = uninstaller.CSlice;
 
 const UninstallerMachine = uninstaller.UninstallerMachine;
@@ -53,14 +56,13 @@ pub fn stateStart(machine: *UninstallerMachine) UninstallerError!void {
 
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateVerifying(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.root_path), .{}), UninstallerError.PathNotFound);
-    try machine.check(std.Io.Dir.accessAbsolute(io, std.mem.span(machine.data.repo_path), .{}), UninstallerError.RepoOpenFailed);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, std.mem.span(machine.data.root_path), .{}), UninstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, std.mem.span(machine.data.repo_path), .{}), UninstallerError.RepoOpenFailed);
 
-    const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), error.AllocZFailed);
+    const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), PREFIX }), error.AllocZFailed);
     defer machine.allocator.free(root_prefix_path_c);
 
-    try machine.check(std.Io.Dir.accessAbsolute(io, root_prefix_path_c, .{}), UninstallerError.PathNotFound);
+    try machine.check(std.Io.Dir.accessAbsolute(machine.io, root_prefix_path_c, .{}), UninstallerError.PathNotFound);
 
     machine.resetRetries();
     return .open_repo;
@@ -83,7 +85,7 @@ fn stateOpenRepo(machine: *UninstallerMachine) UninstallerError!UninstallStateId
 
     try machine.gcheck(c_libs.ostree_repo_prepare_transaction(repo, null, machine.cancellable, &machine.gerror), error.RepoTransactionFailed);
 
-    machine.mtree = resolveMtree(machine, repo);
+    machine.mtree = try resolveMtree(machine);
 
     machine.resetRetries();
     return .check_installed;
@@ -133,7 +135,7 @@ fn stateCheckInstalled(machine: *UninstallerMachine) UninstallerError!UninstallS
 fn stateLoadFiles(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const package_checksum = try machine.unwrap(machine.package_checksum, error.PackageNotFound);
 
-    const abs_database_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path), "share/upac/db" }), UninstallerError.AllocZFailed);
+    const abs_database_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), DB_RELATIVE_PATH }), UninstallerError.AllocZFailed);
     defer machine.allocator.free(abs_database_path);
 
     machine.package_file_map = try machine.check(data.readFiles(abs_database_path, package_checksum, machine.allocator), UninstallerError.FileMapCorrupted);
@@ -163,15 +165,10 @@ fn stateRemoveFiles(machine: *UninstallerMachine) UninstallerError!UninstallStat
 }
 
 fn stateRemoveDbFiles(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
-    const repo = try machine.unwrap(machine.repo, error.RepoOpenFailed);
-    const mtree = try machine.unwrap(machine.mtree, error.PackageNotFound);
     const pkg_checksum = try machine.unwrap(machine.package_checksum, error.PackageNotFound);
 
-    const relative_database_path = try machine.check(std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.prefix_path), "share/upac/db" }), UninstallerError.AllocZFailed);
-    defer machine.allocator.free(relative_database_path);
-
-    try removeDbFile(machine, repo, mtree, pkg_checksum, relative_database_path, ".meta");
-    try removeDbFile(machine, repo, mtree, pkg_checksum, relative_database_path, ".files");
+    try removeDbFile(machine, pkg_checksum, ".meta");
+    try removeDbFile(machine, pkg_checksum, ".files");
 
     if (machine.package_file_map) |*file_map| {
         data.freeFileMap(file_map, machine.allocator);
@@ -198,7 +195,7 @@ fn stateCommit(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
 
     var body_alloc = std.Io.Writer.Allocating.init(machine.allocator);
     defer body_alloc.deinit();
-    try buildCommitBody(machine, repo, machine.previous_commit_checksum, &body_alloc.writer);
+    try buildCommitBody(machine, &body_alloc.writer);
 
     const body_c = try machine.check(machine.allocator.dupeZ(u8, body_alloc.written()), UninstallerError.AllocZFailed);
     defer machine.allocator.free(body_c);
@@ -230,7 +227,7 @@ fn stateCheckoutStaging(machine: *UninstallerMachine) UninstallerError!Uninstall
     _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &ts);
     const timestamp: i64 = @as(i64, ts.sec) * 1000 + @divTrunc(@as(i64, ts.nsec), 1_000_000);
 
-    const temp_folder_name = try machine.check(std.fmt.bufPrintZ(&buf, "{s}-remove-{d}", .{ machine.data.prefix_path, timestamp }), UninstallerError.AllocZFailed);
+    const temp_folder_name = try machine.check(std.fmt.bufPrintZ(&buf, "{s}-remove-{d}", .{ PREFIX, timestamp }), UninstallerError.AllocZFailed);
     machine.staging_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), temp_folder_name }), UninstallerError.AllocZFailed);
 
     var options = std.mem.zeroes(c_libs.OstreeRepoCheckoutAtOptions);
@@ -254,17 +251,16 @@ fn stateCheckoutStaging(machine: *UninstallerMachine) UninstallerError!Uninstall
 fn stateAtomicSwap(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const staging_path_c = try machine.unwrap(machine.staging_path_c, error.AllocZFailed);
 
-    const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path) }), UninstallerError.AllocZFailed);
+    const root_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ std.mem.span(machine.data.root_path), PREFIX }), UninstallerError.AllocZFailed);
     defer machine.allocator.free(root_prefix_path_c);
 
-    const staging_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ staging_path_c, std.mem.span(machine.data.prefix_path) }), UninstallerError.AllocZFailed);
+    const staging_prefix_path_c = try machine.check(std.fs.path.joinZ(machine.allocator, &.{ staging_path_c, PREFIX }), UninstallerError.AllocZFailed);
     defer machine.allocator.free(staging_prefix_path_c);
 
     const result = std.os.linux.syscall5(.renameat2, @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(staging_prefix_path_c.ptr), @bitCast(@as(isize, std.os.linux.AT.FDCWD)), @intFromPtr(root_prefix_path_c.ptr), 2);
 
     if (std.os.linux.errno(result) != .SUCCESS) {
-        const io = std.Io.Threaded.global_single_threaded.io();
-        try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path_c), UninstallerError.CheckoutFailed);
+        try machine.check(std.Io.Dir.cwd().deleteTree(machine.io, staging_path_c), UninstallerError.CheckoutFailed);
     }
 
     return .cleanup_staging;
@@ -272,8 +268,7 @@ fn stateAtomicSwap(machine: *UninstallerMachine) UninstallerError!UninstallState
 
 fn stateCleanupStaging(machine: *UninstallerMachine) UninstallerError!UninstallStateId {
     const staging_path_c = try machine.unwrap(machine.staging_path_c, UninstallerError.AllocZFailed);
-    const io = std.Io.Threaded.global_single_threaded.io();
-    try machine.check(std.Io.Dir.cwd().deleteTree(io, staging_path_c), UninstallerError.CheckoutFailed);
+    try machine.check(std.Io.Dir.cwd().deleteTree(machine.io, staging_path_c), UninstallerError.CheckoutFailed);
 
     return .done;
 }
@@ -281,8 +276,7 @@ fn stateCleanupStaging(machine: *UninstallerMachine) UninstallerError!UninstallS
 pub fn stateFailed(machine: *UninstallerMachine) void {
     if (machine.stack.items.len > 0 and machine.stack.getLast() == .failed) return;
     if (machine.staging_path_c) |staging_path| {
-        const io = std.Io.Threaded.global_single_threaded.io();
-        std.Io.Dir.cwd().deleteTree(io, staging_path) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, staging_path) catch {};
         machine.allocator.free(staging_path);
         machine.staging_path_c = null;
     }

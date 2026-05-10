@@ -11,11 +11,13 @@ const cancelGCancellable = ffi.cancelGCancellable;
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
+const constants = @import("upac-constants");
 // ──Public imports ─────────────────────────────────────────────────────────────────────
 pub const ffi = @import("upac-ffi");
 pub const std = @import("std");
 pub const c_libs = ffi.c_libs;
 
+pub const PREFIX = constants.PREFIX;
 // ── Errors ─────────────────────────────────────────────────────────────────────
 // Specific rollback errors: failure to open the repository, missing specified commit, or failure to compute the difference between versions
 pub const RollbackError = error{
@@ -36,7 +38,6 @@ pub const RollbackError = error{
 pub const RollbackData = struct {
     repo_path: [*:0]const u8,
     root_path: [*:0]const u8,
-    prefix_path: [*:0]const u8,
     branch: [*:0]const u8,
     commit_hash: [*:0]const u8,
 
@@ -61,6 +62,7 @@ pub const RollbackMachine = struct {
 
     stack: std.ArrayList(RollbackStateId),
     allocator: std.mem.Allocator,
+    io: std.Io,
 
     pub fn enter(self: *RollbackMachine, state_id: RollbackStateId) !void {
         isBroked(self) catch |err| return err;
@@ -169,6 +171,7 @@ pub const RollbackMachine = struct {
             .stack = std.ArrayList(RollbackStateId).empty,
             .cancellable = c_libs.g_cancellable_new() orelse return RollbackError.OutOfMemory,
             .allocator = allocator,
+            .io = std.Io.Threaded.global_single_threaded.io(),
         };
         defer machine.deinit();
 

@@ -8,6 +8,13 @@ pub fn build(b: *std.Build) void {
     const strip = b.option(bool, "strip", "Strip debug symbols") orelse false;
     const stack_check = b.option(bool, "stack-check", "Check for stack overflows") orelse false;
 
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const upac_constants = b.createModule(.{
+        .root_source_file = b.path("src/constants.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     // ── C libs ─────────────────────────────────────────────────────────────────
     const translated_libs = b.addTranslateC(.{
         .root_source_file = b.path("src/imports.h"),
@@ -40,6 +47,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     upac_data.addImport("upac-ffi", upac_ffi);
+    upac_data.addImport("upac-constants", upac_constants);
 
     // ── Installer ─────────────────────────────────────────────────────────────
     const upac_installer = b.createModule(.{
@@ -49,6 +57,7 @@ pub fn build(b: *std.Build) void {
     });
     upac_installer.addImport("upac-ffi", upac_ffi);
     upac_installer.addImport("upac-data", upac_data);
+    upac_installer.addImport("upac-constants", upac_constants);
 
     // ── Uninstaller ───────────────────────────────────────────────────────────
     const upac_uninstaller = b.createModule(.{
@@ -58,6 +67,7 @@ pub fn build(b: *std.Build) void {
     });
     upac_uninstaller.addImport("upac-ffi", upac_ffi);
     upac_uninstaller.addImport("upac-data", upac_data);
+    upac_uninstaller.addImport("upac-constants", upac_constants);
 
     // ── Rollback ────────────────────────────────────────────────────────────────
     const upac_rollback = b.createModule(.{
@@ -66,6 +76,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     upac_rollback.addImport("upac-ffi", upac_ffi);
+    upac_rollback.addImport("upac-constants", upac_constants);
 
     // ── Diff ────────────────────────────────────────────────────────────────
     const upac_diff = b.createModule(.{
@@ -75,6 +86,7 @@ pub fn build(b: *std.Build) void {
     });
     upac_diff.addImport("upac-ffi", upac_ffi);
     upac_diff.addImport("upac-data", upac_data);
+    upac_diff.addImport("upac-constants", upac_constants);
 
     // ── List ────────────────────────────────────────────────────────────────
     const upac_list = b.createModule(.{
@@ -84,6 +96,7 @@ pub fn build(b: *std.Build) void {
     });
     upac_list.addImport("upac-ffi", upac_ffi);
     upac_list.addImport("upac-data", upac_data);
+    upac_list.addImport("upac-constants", upac_constants);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     const upac_init = b.createModule(.{
@@ -93,6 +106,7 @@ pub fn build(b: *std.Build) void {
     });
     upac_init.addImport("upac-ffi", upac_ffi);
     upac_init.addImport("upac-data", upac_data);
+    upac_init.addImport("upac-constants", upac_constants);
 
     // ── Root ──────────────────────────────────────────────────────────────────
     const upac_lib_root = b.createModule(.{
@@ -116,6 +130,7 @@ pub fn build(b: *std.Build) void {
 
     shared_lib.root_module.addImport("upac-ffi", upac_ffi);
     shared_lib.root_module.addImport("upac-data", upac_data);
+    shared_lib.root_module.addImport("upac-constants", upac_constants);
 
     shared_lib.root_module.addImport("upac-installer", upac_installer);
     shared_lib.root_module.addImport("upac-uninstaller", upac_uninstaller);

@@ -15,8 +15,8 @@ const DiffStateId = ffi.DiffStateId;
 pub const std = @import("std");
 pub const ffi = @import("upac-ffi");
 pub const c_libs = ffi.c_libs;
-pub const data = @import("upac-data");
 
+pub const data = @import("upac-data");
 // ── Errors ───────────────────────────────────────────────────────────────────
 pub const DiffError = error{
     RepoOpenFailed,
@@ -30,7 +30,6 @@ pub const DiffError = error{
 pub const DiffData = struct {
     repo_path: [*:0]const u8,
     root_path: [*:0]const u8,
-    prefix_path: [*:0]const u8,
 
     from_ref: [*:0]const u8,
     to_ref: [*:0]const u8,
@@ -115,8 +114,10 @@ pub const DiffMachine = struct {
 
         try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+
         try machine.enter(.diff_packages);
         try states.stateDiffPackages(&machine);
+
         try machine.enter(.done);
 
         return machine.result_packages orelse &.{};
@@ -137,8 +138,10 @@ pub const DiffMachine = struct {
 
         try machine.enter(.open_repo);
         try states.stateOpenRepo(&machine);
+
         try machine.enter(.diff_files);
         try states.stateDiffFilesAttributed(&machine);
+
         try machine.enter(.done);
 
         return machine.result_files orelse &.{};

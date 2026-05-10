@@ -139,7 +139,6 @@ pub const CMutatedRequest = extern struct {
     repo_path: CSlice,
     root_path: CSlice,
     branch: CSlice,
-    prefix_directory: CSlice,
 
     // Install
     packages: ?[*]const CPackageEntry = null,
@@ -163,7 +162,6 @@ pub const CMutatedRequest = extern struct {
         try self.repo_path.validate();
         try self.root_path.validate();
         try self.branch.validate();
-        try self.prefix_directory.validate();
     }
 };
 
@@ -174,10 +172,12 @@ pub const CUnmutatedRequest = extern struct {
     repo_path: CSlice,
     root_path: CSlice,
     branch: CSlice,
-    prefix: CSlice,
 
     from_commit_hash: CSlice,
     to_commit_hash: CSlice,
+
+    symlinks: ?[*]const CSlice = null,
+    symlinks_len: usize = 0,
 
     repo_mode: *anyopaque,
     cancel_token: ?*CancelToken = null,
@@ -277,7 +277,7 @@ pub const CRepoMode = enum(u8) {
 
 // Bump this integer whenever a symbol is added/removed or a signature changes.
 // struct_size guards layout; this guards the symbol set and calling conventions.
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
 
 pub fn intToEnum(comptime E: type, value: anytype) error{InvalidValue}!E {
     const tag_type = @typeInfo(E).@"enum".tag_type;

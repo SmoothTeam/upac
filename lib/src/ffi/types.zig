@@ -81,14 +81,17 @@ pub const InstallStateId = enum(u8) {
     open_repo = 2,
     check_installed = 3,
     write_database = 4,
-    process_db_files = 5,
-    commit = 6,
-    checkout = 7,
-    atomic_swap = 8,
-    cleanup = 9,
+    remap_paths = 5,
+    process_db_files = 6,
+    commit = 7,
+    checkout_binaries_files = 8,
+    prepare_config_staging = 9,
+    atomic_swap = 10,
+    swap_config_files = 11,
+    cleanup = 12,
 
-    done = 10,
-    failed = 11,
+    done = 13,
+    failed = 14,
 };
 
 pub const UninstallStateId = enum(u8) {

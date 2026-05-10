@@ -12,14 +12,13 @@ const InstallerError = installer.InstallerError;
 // A recursive assistant. It traverses the directory structure, calculates checksums for all files, and populates the FileMap. It is precisely this data that is subsequently written to the `.files` file within the database
 pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap) !void {
     const current_entry = machine.data.packages[machine.current_package_index];
-    const io = std.Io.Threaded.global_single_threaded.io();
-    var dir = try machine.check(std.Io.Dir.openDirAbsolute(io, std.mem.span(current_entry.temp_path), .{ .iterate = true }), InstallerError.CollectFileChecksumsFailed);
-    defer dir.close(io);
+    var dir = try machine.check(std.Io.Dir.openDirAbsolute(machine.io, std.mem.span(current_entry.temp_path), .{ .iterate = true }), InstallerError.CollectFileChecksumsFailed);
+    defer dir.close(machine.io);
 
     var walker = try dir.walk(machine.allocator);
     defer walker.deinit();
 
-    while (try walker.next(io)) |entry| {
+    while (try walker.next(machine.io)) |entry| {
         if (entry.kind != .file and entry.kind != .sym_link) continue;
 
         if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return InstallerError.Cancelled;
@@ -28,7 +27,7 @@ pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap)
 
         if (entry.kind == .sym_link) {
             var link_target_buf: [std.fs.max_path_bytes]u8 = undefined;
-            const link_target_len = entry.dir.readLink(io, entry.basename, &link_target_buf) catch
+            const link_target_len = entry.dir.readLink(machine.io, entry.basename, &link_target_buf) catch
                 return InstallerError.CollectFileChecksumsFailed;
             const link_target = link_target_buf[0..link_target_len];
             var hash_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
@@ -59,19 +58,18 @@ pub fn collectFileChecksums(machine: *InstallerMachine, file_map: *data.FileMap)
     }
 }
 
-pub fn dirSize(allocator: std.mem.Allocator, root_path: []const u8) !u64 {
+pub fn dirSize(machine: *InstallerMachine, root_path: []const u8) !u64 {
     var total_size: u64 = 0;
 
-    const io = std.Io.Threaded.global_single_threaded.io();
-    var dir = std.Io.Dir.openDirAbsolute(io, root_path, .{ .iterate = true }) catch return 0;
-    defer dir.close(io);
+    var dir = std.Io.Dir.openDirAbsolute(machine.io, root_path, .{ .iterate = true }) catch return 0;
+    defer dir.close(machine.io);
 
-    var walker = try dir.walk(allocator);
+    var walker = try dir.walk(machine.allocator);
     defer walker.deinit();
 
-    while (try walker.next(io)) |entry| {
+    while (try walker.next(machine.io)) |entry| {
         if (entry.kind != .file) continue;
-        const stat = entry.dir.statFile(io, entry.basename, .{}) catch continue;
+        const stat = entry.dir.statFile(machine.io, entry.basename, .{}) catch continue;
         total_size += stat.size;
     }
 
@@ -151,4 +149,131 @@ pub fn loadCommitBody(machine: *InstallerMachine, checksum: [*c]const u8) Instal
     const body_ptr = c_libs.g_variant_get_string(commit_body_variant, &body_len);
 
     return try machine.check(machine.allocator.dupe(u8, body_ptr[0..body_len]), InstallerError.AllocZFailed);
+}
+
+pub fn mergeDirs(source_path: [:0]const u8, dest_path: [:0]const u8, allocator: std.mem.Allocator) !void {
+    const io = std.Io.Threaded.global_single_threaded.io();
+
+    const Entry = struct { path: []const u8, is_dir: bool };
+    var entries = std.ArrayList(Entry).empty;
+    defer {
+        for (entries.items) |e| allocator.free(e.path);
+        entries.deinit(allocator);
+    }
+
+    {
+        var source_dir = try std.Io.Dir.openDirAbsolute(io, source_path, .{ .iterate = true });
+        defer source_dir.close(io);
+
+        var source_walker = try source_dir.walk(allocator);
+        defer source_walker.deinit();
+
+        while (try source_walker.next(io)) |entry| {
+            if (entry.kind != .file and entry.kind != .directory) continue;
+            try entries.append(allocator, .{
+                .path = try allocator.dupe(u8, entry.path),
+                .is_dir = entry.kind == .directory,
+            });
+        }
+    }
+
+    for (entries.items) |entry| {
+        if (!entry.is_dir) continue;
+        const dest_child = try std.fs.path.joinZ(allocator, &.{ dest_path, entry.path });
+        defer allocator.free(dest_child);
+        std.Io.Dir.cwd().createDirPath(io, dest_child) catch {};
+    }
+
+    for (entries.items) |entry| {
+        if (entry.is_dir) continue;
+        const source_child = try std.fs.path.joinZ(allocator, &.{ source_path, entry.path });
+        defer allocator.free(source_child);
+        const dest_child = try std.fs.path.joinZ(allocator, &.{ dest_path, entry.path });
+        defer allocator.free(dest_child);
+
+        const result = std.os.linux.syscall4(
+            .renameat,
+            @bitCast(@as(isize, std.c.AT.FDCWD)),
+            @intFromPtr(source_child.ptr),
+            @bitCast(@as(isize, std.c.AT.FDCWD)),
+            @intFromPtr(dest_child.ptr),
+        );
+        if (std.os.linux.errno(result) != .SUCCESS) return error.MergeFailed;
+    }
+
+    try std.Io.Dir.cwd().deleteTree(io, source_path);
+}
+
+pub fn mirrorDir(machine: *InstallerMachine, source_path: [:0]const u8, dest_path: [:0]const u8) !void {
+    var source_dir = std.Io.Dir.openDirAbsolute(machine.io, source_path, .{ .iterate = true }) catch return;
+    defer source_dir.close(machine.io);
+
+    var walker = try source_dir.walk(machine.allocator);
+    defer walker.deinit();
+
+    while (try walker.next(machine.io)) |entry| {
+        const dest_child = try std.fs.path.joinZ(machine.allocator, &.{ dest_path, entry.path });
+        defer machine.allocator.free(dest_child);
+
+        if (entry.kind == .directory) {
+            std.Io.Dir.cwd().createDirPath(machine.io, dest_child) catch {};
+            continue;
+        }
+        if (entry.kind != .file) continue;
+
+        const source_child = try std.fs.path.joinZ(machine.allocator, &.{ source_path, entry.path });
+        defer machine.allocator.free(source_child);
+
+        try copyFileTo(machine, source_child, dest_child);
+    }
+}
+
+pub fn overlayDir(machine: *InstallerMachine, source_path: [:0]const u8, dest_path: [:0]const u8) !void {
+    var source_dir = try std.Io.Dir.openDirAbsolute(machine.io, source_path, .{ .iterate = true });
+    defer source_dir.close(machine.io);
+
+    var walker = try source_dir.walk(machine.allocator);
+    defer walker.deinit();
+
+    while (try walker.next(machine.io)) |entry| {
+        const dest_child = try std.fs.path.joinZ(machine.allocator, &.{ dest_path, entry.path });
+        defer machine.allocator.free(dest_child);
+
+        if (entry.kind == .directory) {
+            std.Io.Dir.cwd().createDirPath(machine.io, dest_child) catch {};
+            continue;
+        }
+        if (entry.kind != .file) continue;
+
+        const source_child = try std.fs.path.joinZ(machine.allocator, &.{ source_path, entry.path });
+        defer machine.allocator.free(source_child);
+
+        const conflict = blk: {
+            std.Io.Dir.accessAbsolute(machine.io, dest_child, .{}) catch break :blk false;
+            break :blk true;
+        };
+
+        if (conflict) {
+            const dest_conflict = try std.fmt.allocPrint(machine.allocator, "{s}.new", .{dest_child});
+            defer machine.allocator.free(dest_conflict);
+
+            try copyFileTo(machine, source_child, dest_conflict);
+        } else {
+            try copyFileTo(machine, source_child, dest_child);
+        }
+    }
+}
+
+pub fn copyFileTo(machine: *InstallerMachine, source_path: [:0]const u8, dest_path: []const u8) !void {
+    const content = try std.Io.Dir.cwd().readFileAlloc(machine.io, source_path, machine.allocator, .limited(10 * 1024 * 1024));
+    defer machine.allocator.free(content);
+
+    const dest_file = try std.Io.Dir.createFileAbsolute(machine.io, dest_path, .{});
+    defer dest_file.close(machine.io);
+
+    var write_buf: [4096]u8 = undefined;
+    var bw = dest_file.writer(machine.io, &write_buf);
+    const writer = &bw.interface;
+    try writer.writeAll(content);
+    try writer.flush();
 }

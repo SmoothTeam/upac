@@ -13,6 +13,7 @@ const cancelGCancellable = ffi.cancelGCancellable;
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;
 
+const constants = @import("upac-constants");
 // ── Public imports ─────────────────────────────────────────────────────────────────────
 pub const std = @import("std");
 
@@ -21,6 +22,8 @@ pub const c_libs = ffi.c_libs;
 
 pub const data = @import("upac-data");
 
+pub const PREFIX = constants.PREFIX;
+pub const DB_RELATIVE_PATH = constants.DB_RELATIVE_PATH;
 // ── Errors ────────────────────────────────────────────────────────────────────
 //
 pub const InstallerError = error{
@@ -37,6 +40,7 @@ pub const InstallerError = error{
     RepoOpenFailed,
     RepoTransactionFailed,
     CheckoutFailed,
+    WriteConfigFailed,
     AllocZFailed,
     OutOfMemory,
     Cancelled,
@@ -57,7 +61,6 @@ pub const InstallData = struct {
 
     repo_path: [*:0]const u8,
     root_path: [*:0]const u8,
-    prefix_path: [*:0]const u8,
 
     on_progress: ?InstallProgressFn = null,
     progress_ctx: ?*anyopaque = null,
@@ -86,6 +89,7 @@ pub const InstallerMachine = struct {
 
     stack: std.ArrayList(InstallStateId),
     allocator: std.mem.Allocator,
+    io: std.Io,
 
     // Registers a transition to a new state, saving it to the stack. This allows for the reconstruction of the sequence of actions during debugging
     pub fn enter(self: *InstallerMachine, state_id: InstallStateId) !void {
@@ -178,7 +182,7 @@ pub const InstallerMachine = struct {
     }
 
     pub fn prefixPathZ(self: *InstallerMachine) InstallerError![:0]const u8 {
-        return self.check(std.fs.path.joinZ(self.allocator, &.{ std.mem.span(self.data.root_path), std.mem.span(self.data.prefix_path) }), InstallerError.AllocZFailed);
+        return self.check(std.fs.path.joinZ(self.allocator, &.{ std.mem.span(self.data.root_path), PREFIX }), InstallerError.AllocZFailed);
     }
 
     // Correct memory deallocation function
@@ -222,6 +226,7 @@ pub const InstallerMachine = struct {
 
             .stack = std.ArrayList(InstallStateId).empty,
             .allocator = allocator,
+            .io = std.Io.Threaded.global_single_threaded.io(),
         };
         defer machine.deinit();
 

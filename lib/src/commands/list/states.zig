@@ -1,7 +1,10 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const list = @import("list.zig");
 const std = list.std;
+const constants = @import("upac-constants");
 const c_libs = list.c_libs;
+
+const DB_RELATIVE_PATH = list.DB_RELATIVE_PATH;
 
 const ListMachine = list.ListMachine;
 const ListError = list.ListError;
@@ -61,8 +64,9 @@ pub fn stateListPackages(machine: *ListMachine) ListError!void {
 
     var iter = package_map.iterator();
     while (iter.next()) |entry| {
-        const abs_db_path = std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), std.mem.span(machine.data.prefix_path), "share/upac/db" }) catch continue;
+        const abs_db_path = std.fs.path.join(machine.allocator, &.{ std.mem.span(machine.data.root_path), DB_RELATIVE_PATH }) catch continue;
         defer machine.allocator.free(abs_db_path);
+
         const pkg = data.readMeta(abs_db_path, entry.value_ptr.*, machine.allocator) catch continue;
         try machine.check(result.append(machine.allocator, .{
             .name = CSlice.fromSlice(pkg.name),
@@ -106,7 +110,7 @@ pub fn stateListCommits(machine: *ListMachine) ListError!void {
     var is_first = true;
 
     while (checksum != null) {
-        if (if (machine.cancellable) |c| list.c_libs.g_cancellable_is_cancelled(c) != 0 else false) return ListError.Cancelled;
+        if (if (machine.cancellable) |cancellable| list.c_libs.g_cancellable_is_cancelled(cancellable) != 0 else false) return ListError.Cancelled;
 
         var commit_variant: ?*c_libs.GVariant = null;
         if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, checksum, &commit_variant, &machine.gerror) == 0) {

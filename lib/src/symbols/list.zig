@@ -1,6 +1,7 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const list_module = @import("upac-list");
 const std = list_module.std;
+const constants = @import("upac-constants");
 const c_libs = list_module.c_libs;
 const data = list_module.data;
 
@@ -21,7 +22,7 @@ pub fn list_packages(list_request_c: CListRequest, out_c: *CArray(CPackageMeta))
     const required = [_]CSlice{ list_request_c.repo_path, list_request_c.branch };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
-    const packages = list_module.ListMachine.runPackages(.{ .repo_path = list_request_c.repo_path.asZ(), .branch = list_request_c.branch.asZ(), .root_path = list_request_c.root_path.asZ(), .prefix_path = list_request_c.prefix.asZ(), .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)) }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
+    const packages = list_module.ListMachine.runPackages(.{ .repo_path = list_request_c.repo_path.asZ(), .branch = list_request_c.branch.asZ(), .root_path = list_request_c.root_path.asZ(), .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)) }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
     out_c.* = .{ .ptr = packages.ptr, .len = packages.len };
     return @intFromEnum(ErrorCode.ok);
@@ -92,7 +93,7 @@ pub fn list_commits(list_request_c: CListRequest, out_c: *CArray(CCommitEntry)) 
     const required = [_]CSlice{ list_request_c.repo_path, list_request_c.branch };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
-    const commit_entries = list_module.ListMachine.runCommits(.{ .repo_path = list_request_c.repo_path.asZ(), .branch = list_request_c.branch.asZ(), .root_path = list_request_c.root_path.asZ(), .prefix_path = list_request_c.prefix.asZ(), .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)) }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
+    const commit_entries = list_module.ListMachine.runCommits(.{ .repo_path = list_request_c.repo_path.asZ(), .branch = list_request_c.branch.asZ(), .root_path = list_request_c.root_path.asZ(), .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)) }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
     out_c.* = .{ .ptr = commit_entries.ptr, .len = commit_entries.len };
     return @intFromEnum(ErrorCode.ok);
