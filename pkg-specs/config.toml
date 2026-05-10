@@ -13,5 +13,6 @@ root_path = "/"
 # Branch name used for OStree commits
 branch  = "packages"
 mode = "archive"
-prefix_directory = "usr"
-addition_prefixes = "opt"
+# Top-level entries created at init as symlinks pointing inside <root>/usr/.
+# Example: "opt" -> /opt is a symlink to /usr/opt, swapped atomically with /usr.
+symlinks = ["opt"]

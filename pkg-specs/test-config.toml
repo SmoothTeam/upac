@@ -13,5 +13,4 @@ root_path = "/tmp/root"
 # Branch name used for OStree commits
 branch  = "packages"
 mode = "archive"
-prefix_directory = "usr"
-addition_prefixes = "opt"
+symlinks = ["opt"]
