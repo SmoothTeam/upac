@@ -18,6 +18,8 @@ pub const std = @import("std");
 pub const c_libs = ffi.c_libs;
 
 pub const PREFIX = constants.PREFIX;
+pub const CONFIG_DIR = constants.CONFIG_DIR;
+pub const CONFIG_STAGING_DIR = constants.CONFIG_STAGING_DIR;
 // ── Errors ─────────────────────────────────────────────────────────────────────
 // Specific rollback errors: failure to open the repository, missing specified commit, or failure to compute the difference between versions
 pub const RollbackError = error{
@@ -43,40 +45,29 @@ pub const RollbackData = struct {
 
     on_progress: ?RollbackProgressFn = null,
     progress_ctx: ?*anyopaque = null,
-    max_retries: u8 = 0,
     cancel_token: *CancelToken,
 };
 
 // ── Rollback ────────────────────────────────────────────────────────────────────
 pub const RollbackMachine = struct {
     data: RollbackData,
-    retries: u8,
 
     repo: ?*c_libs.OstreeRepo = null,
     resolved_checksum: ?[*:0]u8 = null,
 
-    staging_path_c: ?[:0]const u8 = null,
+    staging_prefix_path_c: ?[:0]const u8 = null,
+    staging_config_path_c: ?[:0]const u8 = null,
 
     cancellable: ?*c_libs.GCancellable = null,
     gerror: ?*c_libs.GError = null,
 
-    stack: std.ArrayList(RollbackStateId),
     allocator: std.mem.Allocator,
     io: std.Io,
 
     pub fn enter(self: *RollbackMachine, state_id: RollbackStateId) !void {
         isBroked(self) catch |err| return err;
 
-        try self.stack.append(self.allocator, state_id);
         self.report(state_id);
-    }
-
-    pub fn resetRetries(self: *RollbackMachine) void {
-        self.retries = 0;
-    }
-
-    pub fn exhausted(self: *RollbackMachine) bool {
-        return self.retries > self.data.max_retries;
     }
 
     fn isBroked(self: *RollbackMachine) RollbackError!void {
@@ -94,39 +85,15 @@ pub const RollbackMachine = struct {
                 if (self.cancellable) |cancellable| c_libs.g_cancellable_cancel(cancellable);
                 return RollbackError.Cancelled;
             }
-
-            return RollbackError.MaxRetriesExceeded;
         }
 
-        if (self.cancellable) |cancellable| {
-            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return RollbackError.Cancelled;
-        }
-
-        if (self.exhausted()) return RollbackError.MaxRetriesExceeded;
-    }
-
-    pub fn retry(self: *RollbackMachine, state: RollbackStateId) RollbackError!RollbackStateId {
-        errdefer stateFailed(self);
-
-        if (self.gerror) |err| {
-            c_libs.g_error_free(err);
-            self.gerror = null;
-        }
-
-        if (self.cancellable) |cancellable| {
-            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return error.Cancelled;
-        }
-
-        if (self.exhausted()) return error.MaxRetriesExceeded;
-
-        self.retries += 1;
-        return state;
+        if (self.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return RollbackError.Cancelled;
     }
 
     // Reports an installation progress event to the progress callback, if one is set
     pub fn report(self: *RollbackMachine, event: RollbackStateId) void {
         const cb = self.data.on_progress orelse return;
-        cb(event, CSlice.fromSlice(std.mem.span(self.data.commit_hash)), self.data.progress_ctx);
+        cb(event, self.data.progress_ctx);
     }
 
     pub fn unwrap(self: *RollbackMachine, value: anytype, comptime err: RollbackError) RollbackError!@typeInfo(@TypeOf(value)).optional.child {
@@ -152,23 +119,19 @@ pub const RollbackMachine = struct {
 
     pub fn deinit(self: *RollbackMachine) void {
         if (self.repo) |repo| c_libs.g_object_unref(repo);
-        if (self.resolved_checksum) |checksum| c_libs.g_free(@ptrCast(checksum));
+        if (self.resolved_checksum) |checksum| c_libs.g_free(checksum);
 
-        if (self.staging_path_c) |path| self.allocator.free(path);
+        if (self.staging_prefix_path_c) |path| self.allocator.free(path);
+        if (self.staging_config_path_c) |path| self.allocator.free(path);
 
         if (self.gerror) |err| c_libs.g_error_free(err);
         if (self.cancellable) |cancellable| c_libs.g_object_unref(cancellable);
-
-        self.stack.deinit(self.allocator);
     }
 
     pub fn run(rollback_data: RollbackData, allocator: std.mem.Allocator) !void {
         var machine = RollbackMachine{
             .data = rollback_data,
 
-            .retries = 0,
-
-            .stack = std.ArrayList(RollbackStateId).empty,
             .cancellable = c_libs.g_cancellable_new() orelse return RollbackError.OutOfMemory,
             .allocator = allocator,
             .io = std.Io.Threaded.global_single_threaded.io(),
