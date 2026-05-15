@@ -30,32 +30,16 @@ pub fn cancelGCancellable(ctx: ?*anyopaque) callconv(.c) void {
 }
 
 // ── Reimports types ─────────────────────────────────────────────────────────────────────
-const types = @import("types.zig");
+const types = @import("upac-types");
 
-pub const Package = types.Package;
-pub const PackageMeta = types.PackageMeta;
-pub const PackageFile = types.PackageFile;
+const Package = types.Package;
+const PackageMeta = types.PackageMeta;
 
-pub const PackageDiffKind = types.PackageDiffKind;
-pub const PackageDiffEntry = types.PackageDiffEntry;
+const DiffKind = types.DiffKind;
 
-pub const AttributedDiffEntry = types.AttributedDiffEntry;
-
-pub const DiffKind = types.DiffKind;
-pub const DiffEntry = types.DiffEntry;
-
-pub const InstallStateId = types.InstallStateId;
-pub const UninstallStateId = types.UninstallStateId;
-pub const RollbackStateId = types.RollbackStateId;
-
-pub const ListStateId = types.ListStateId;
-pub const DiffStateId = types.DiffStateId;
-
-// ── Reimports errors ─────────────────────────────────────────────────────────────────────
-const errors = @import("errors.zig");
-pub const ErrorCode = errors.ErrorCode;
-pub const Operation = errors.Operation;
-pub const fromError = errors.fromError;
+const InstallStateId = types.InstallStateId;
+const UninstallStateId = types.UninstallStateId;
+const RollbackStateId = types.RollbackStateId;
 
 // A C-compatible slice analogue. It stores a pointer to the data and its length. It allows for easy conversion of data between Zig and an external interface
 pub const CSlice = extern struct {
@@ -90,12 +74,6 @@ pub fn CArray(comptime T: type) type {
         }
     };
 }
-
-pub const CPackageDiffKind = enum(u8) {
-    added = 0,
-    removed = 1,
-    updated = 2,
-};
 
 pub const CPackageEntry = extern struct {
     struct_size: usize = @sizeOf(CPackageEntry),
@@ -151,7 +129,7 @@ pub const CMutatedRequest = extern struct {
     // Rollback
     commit_hash: CSlice,
 
-    on_progress: ?*const fn (event: u32, package_name: CSlice, ctx: ?*anyopaque) callconv(.c) void = null,
+    on_progress: ?*const fn (event: u32, ctx: ?*anyopaque) callconv(.c) void = null,
     progress_ctx: ?*anyopaque = null,
 
     max_retries: u8 = 0,
@@ -190,69 +168,44 @@ pub const CUnmutatedRequest = extern struct {
 
 pub const InstallProgressFn = *const fn (
     event: InstallStateId,
-    package_name: CSlice,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
 pub const CInstallProgressFn = *const fn (
     event: InstallStateId,
-    package_name: CSlice,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
 pub const UninstallProgressFn = *const fn (
     event: UninstallStateId,
-    package_name: CSlice,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
 pub const CUninstallProgressFn = *const fn (
     event: UninstallStateId,
-    package_name: CSlice,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
 pub const RollbackProgressFn = *const fn (
     event: RollbackStateId,
-    package_name: CSlice,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
 pub const CRollbackProgressFn = *const fn (
     event: RollbackStateId,
-    package_name: CSlice,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
-// Enumeration of file system change types (added, deleted, modified)
-pub const CDiffKind = enum(u8) {
-    added = 0,
-    removed = 1,
-    modified = 2,
-};
-
-pub const CPackageDiffEntry = extern struct {
-    struct_size: usize = @sizeOf(CPackageDiffEntry),
-
-    name: CSlice,
-    kind: CPackageDiffKind,
-
-    pub fn validate(self: CPackageDiffEntry) !void {
-        if (self.struct_size != @sizeOf(CPackageDiffEntry)) return error.AbiMismatch;
-        _ = intToEnum(CPackageDiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
-    }
-};
-
-pub const CAttributedDiffEntry = extern struct {
-    struct_size: usize = @sizeOf(CAttributedDiffEntry),
+pub const CDiffEntry = extern struct {
+    struct_size: usize = @sizeOf(CDiffEntry),
 
     path: CSlice,
-    kind: CDiffKind,
+    kind: DiffKind,
     package_name: CSlice,
 
-    pub fn validate(self: CAttributedDiffEntry) !void {
-        if (self.struct_size != @sizeOf(CAttributedDiffEntry)) return error.AbiMismatch;
-        _ = intToEnum(CPackageDiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
+    pub fn validate(self: CDiffEntry) !void {
+        if (self.struct_size != @sizeOf(CDiffEntry)) return error.AbiMismatch;
+        _ = intToEnum(DiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
     }
 };
 
