@@ -10,14 +10,11 @@ const uninstaller_symbols = @import("symbols/uninstaller.zig");
 export const uninstall = uninstaller_symbols.uninstall;
 
 const rollback_symbols = @import("symbols/rollback.zig");
-export const rollback = rollback_symbols.rollback;
+//export const rollback = rollback_symbols.rollback;
 
 const diff_symbols = @import("symbols/diff.zig");
-export const diff_packages = diff_symbols.diff_packages;
-export const diff_packages_free = diff_symbols.diff_packages_free;
-
-export const diff_files = diff_symbols.diff_files;
-export const diff_files_free = diff_symbols.diff_files_free;
+export const diff = diff_symbols.diff;
+export const diff_free = diff_symbols.diff_free;
 
 const list_symbols = @import("symbols/list.zig");
 export const list_packages = list_symbols.list_packages;
@@ -34,4 +31,4 @@ export const get_commit_slice_field = list_symbols.get_commit_slice_field;
 export const commits_free = list_symbols.commits_free;
 
 const init_symbols = @import("symbols/init.zig");
-export const init = init_symbols.init;
+//export const init = init_symbols.init;

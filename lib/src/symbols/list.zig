@@ -1,30 +1,43 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
+const std = @import("std");
+
+const ffi = @import("upac-ffi");
+const c_libs = ffi.c_libs;
+
+const CSlice = ffi.CSlice;
+const CArray = ffi.CArray;
+const CPackageMeta = ffi.CPackageMeta;
+const CCommitEntry = ffi.CCommitEntry;
+
+const CListRequest = ffi.CUnmutatedRequest;
+
+const types = @import("upac-types");
+
+const ErrorCode = types.ErrorCode;
+const Operation = types.Operation;
+
+const fromError = types.fromError;
+
 const list_module = @import("upac-list");
-const std = list_module.std;
-const constants = @import("upac-constants");
-const c_libs = list_module.c_libs;
-const data = list_module.data;
-
-const CSlice = list_module.ffi.CSlice;
-const CArray = list_module.ffi.CArray;
-const CPackageMeta = list_module.ffi.CPackageMeta;
-
-const CCommitEntry = list_module.ffi.CCommitEntry;
-
-const CListRequest = list_module.ffi.CUnmutatedRequest;
-
-const ErrorCode = list_module.ffi.ErrorCode;
-const Operation = list_module.ffi.Operation;
-
-const fromError = list_module.ffi.fromError;
 
 pub fn list_packages(list_request_c: CListRequest, out_c: *CArray(CPackageMeta)) callconv(.c) i32 {
     const required = [_]CSlice{ list_request_c.repo_path, list_request_c.branch };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
-    const packages = list_module.ListMachine.runPackages(.{ .repo_path = list_request_c.repo_path.asZ(), .branch = list_request_c.branch.asZ(), .root_path = list_request_c.root_path.asZ(), .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)) }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
+    const packages = list_module.ListMachine.runPackages(
+        .{
+            .repo_path = list_request_c.repo_path.asZ(),
+            .branch = list_request_c.branch.asZ(),
+            .root_path = list_request_c.root_path.asZ(),
+            .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)),
+        },
+        ffi.allocator(),
+    ) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
-    out_c.* = .{ .ptr = packages.ptr, .len = packages.len };
+    out_c.* = .{
+        .ptr = packages.ptr,
+        .len = packages.len,
+    };
     return @intFromEnum(ErrorCode.ok);
 }
 
@@ -74,7 +87,7 @@ pub fn get_package_int_field(out_c: *CPackageMeta, field: u8, out: ?*u64) callco
 }
 
 pub fn packages_free(package_meta_array_c: *CArray(CPackageMeta)) callconv(.c) void {
-    const allocator = list_module.ffi.allocator();
+    const allocator = ffi.allocator();
     for (package_meta_array_c.toSlice()) |package_meta_c| {
         allocator.free(package_meta_c.name.toSlice());
         allocator.free(package_meta_c.version.toSlice());
@@ -126,7 +139,7 @@ pub fn get_commit_slice_field(out_c: *CCommitEntry, field: u8, out: ?*CSlice) ca
 }
 
 pub fn commits_free(out_c: *CArray(CCommitEntry)) callconv(.c) void {
-    const allocator = list_module.ffi.allocator();
+    const allocator = ffi.allocator();
     const entries = out_c.toSlice();
     for (entries) |entry| {
         allocator.free(entry.checksum.toSlice());
