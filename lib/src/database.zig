@@ -1,7 +1,7 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const std = @import("std");
 
-const types = @import("upac-ffi");
+const types = @import("upac-types");
 const PackageMeta = types.PackageMeta;
 
 // ── Meta format ─────────────────────────────────────────────────────────────
@@ -119,8 +119,12 @@ fn writeMeta(temp_path: []const u8, package_checksum: []const u8, package_meta: 
 
     inline for (std.meta.fields(PackageMeta)) |field| {
         const val = @field(package_meta, field.name);
-        const fmt = comptime if (field.type == []const u8) "s" else "d";
-        try check(writer.print("{s} {" ++ fmt ++ "}\n", .{ field.name, val }), DatabaseError.WriteError);
+        if (comptime field.type == []const u8) {
+            const single_line = std.mem.sliceTo(val, '\n');
+            try check(writer.print("{s} {s}\n", .{ field.name, single_line }), DatabaseError.WriteError);
+        } else {
+            try check(writer.print("{s} {d}\n", .{ field.name, val }), DatabaseError.WriteError);
+        }
     }
 
     try check(writer.flush(), DatabaseError.WriteError);
@@ -170,10 +174,13 @@ fn parseMeta(content: []const u8, allocator: std.mem.Allocator) DatabaseError!Pa
         const trimmed_content_line = std.mem.trim(u8, content_line, " \t\r");
         if (trimmed_content_line.len == 0) continue;
 
-        const separator_index = try unwrap(std.mem.indexOfScalar(u8, trimmed_content_line, ' '), DatabaseError.MalformedFiles);
+        const separator_index = std.mem.indexOfScalar(u8, trimmed_content_line, ' ') orelse trimmed_content_line.len;
 
         const key = trimmed_content_line[0..separator_index];
-        const value = std.mem.trim(u8, trimmed_content_line[separator_index + 1 ..], " \t");
+        const value = if (separator_index < trimmed_content_line.len)
+            std.mem.trim(u8, trimmed_content_line[separator_index + 1 ..], " \t")
+        else
+            "";
 
         var installed_at_seen = false;
 
