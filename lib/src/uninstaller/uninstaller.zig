@@ -1,0 +1,142 @@
+// ── Imports ─────────────────────────────────────────────────────────────────────
+const std = @import("std");
+
+pub const ffi = @import("upac-ffi");
+const c_libs = ffi.c_libs;
+const CSlice = ffi.CSlice;
+
+pub const types = @import("upac-types");
+const PREFIX = types.PREFIX;
+const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
+const CONFIG_DIR = types.CONFIG_DIR;
+
+const UninstallStateId = types.UninstallStateId;
+
+const CancelToken = ffi.CancelToken;
+
+const UninstallProgressFn = ffi.UninstallProgressFn;
+
+const cancelGCancellable = ffi.cancelGCancellable;
+
+const database = @import("upac-database");
+const FileMap = database.FileMap;
+const freeFileMap = database.freeFileMap;
+
+pub const index = @import("upac-index");
+
+const verifying = @import("verifying/verifying.zig");
+const transaction = @import("transaction/transaction.zig");
+const merge = @import("merge/merge.zig");
+const checkout = @import("checkout/checkout.zig");
+const swap = @import("swap/swap.zig");
+// ── Errors ─────────────────────────────────────────────────────────────────────
+// Errors specific to the removal process
+pub const UninstallerError = error{
+    // Specific errors
+    PackageNotFound,
+    FileNotFound,
+    FileMapCorrupted,
+    CommitNotFound,
+    StagingNotCleaned,
+    // Global errors
+    PathNotFound,
+    RepoOpenFailed,
+    RepoTransactionFailed,
+    CheckoutFailed,
+    AllocZFailed,
+    OutOfMemory,
+    Cancelled,
+    MaxRetriesExceeded,
+};
+
+// ── UninstallerFSM data ─────────────────────────────────────────────────────────────────────
+// Set of input parameters: package name, paths to the repository and database, as well as the target branch for the commit
+pub const UninstallData = struct {
+    package_names: []const []const u8,
+    branch: [*:0]const u8,
+
+    repo_path: [*:0]const u8,
+    root_path: [*:0]const u8,
+
+    on_progress: ?UninstallProgressFn = null,
+    progress_ctx: ?*anyopaque = null,
+    cancel_token: *CancelToken,
+};
+
+// ── UninstallerFSM ─────────────────────────────────────────────────────────────────────
+// Uninstaller state container for fsm data between states
+pub const UninstallerMachine = struct {
+    data: UninstallData,
+
+    temp_prefix_path: ?[*:0]u8 = null,
+    temp_config_path: ?[*:0]u8 = null,
+
+    cancellable: ?*c_libs.GCancellable = null,
+    gerror: ?*c_libs.GError = null,
+
+    allocator: std.mem.Allocator,
+    io: std.Io,
+
+    // Reports an uninstallation progress event to the progress callback, if one is set
+    pub fn report(self: *UninstallerMachine, event: UninstallStateId) void {
+        const cb = self.data.on_progress orelse return;
+        cb(event, self.data.progress_ctx);
+    }
+
+    // Releases all resources: native Zig memory, the file hash map, and OSTree system C objects
+    pub fn deinit(self: *UninstallerMachine) void {
+        if (self.temp_prefix_path) |path| c_libs.g_free(path);
+        if (self.temp_config_path) |path| c_libs.g_free(path);
+
+        if (self.gerror) |err| c_libs.g_error_free(err);
+        if (self.cancellable) |cancellable| c_libs.g_object_unref(cancellable);
+    }
+
+    // Entry point: initializes the uninstallation engine and launches the package removal process
+    pub fn run(uninstall_data: UninstallData, allocator: std.mem.Allocator) !void {
+        var state = UninstallStateId.verifying;
+
+        var machine = UninstallerMachine{
+            .data = uninstall_data,
+
+            .cancellable = c_libs.g_cancellable_new() orelse return error.OutOfMemory,
+
+            .allocator = allocator,
+            .io = std.Io.Threaded.global_single_threaded.io(),
+        };
+        defer machine.deinit();
+
+        uninstall_data.cancel_token.hook = cancelGCancellable;
+        uninstall_data.cancel_token.hook_ctx = machine.cancellable;
+        defer uninstall_data.cancel_token.reset();
+
+        while (state != .done) {
+            machine.report(state);
+
+            switch (state) {
+                .verifying => {
+                    verifying.run(&machine) catch |err| return err;
+                    state = .transaction;
+                },
+                .transaction => {
+                    transaction.run(&machine) catch |err| return err;
+                    state = .merge;
+                },
+                .merge => {
+                    merge.run(&machine) catch |err| return err;
+                    state = .checkout;
+                },
+                .checkout => {
+                    checkout.run(&machine) catch |err| return err;
+                    state = .swap;
+                },
+                .swap => {
+                    swap.run(&machine) catch |err| return err;
+                    state = .done;
+                },
+                .done => state = .done,
+                .failed => state = .failed,
+            }
+        }
+    }
+};
