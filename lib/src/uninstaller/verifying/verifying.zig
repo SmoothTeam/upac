@@ -1,20 +1,19 @@
 const std = @import("std");
 
+const c_libs = @import("c-libs");
+
+const types = @import("upac-types");
+const PREFIX = types.PREFIX;
+const CONFIG_DIR = types.CONFIG_DIR;
+
+const find = @import("upac-index").find;
+
 const uninstaller = @import("../uninstaller.zig");
-const c_libs = uninstaller.ffi.c_libs;
-
-const find = uninstaller.index.find;
-
-const PREFIX = uninstaller.types.PREFIX;
-const CONFIG_DIR = uninstaller.types.CONFIG_DIR;
 
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
 
-const utils = @import("utils.zig");
-const dirSize = utils.dirSize;
-const loadCommitBody = utils.loadCommitBody;
-
+const loadCommitBody = @import("utils.zig").loadCommitBody;
 // ── VerifyingState ────────────────────────────────────────────────────────────
 const VerifyingState = enum {
     check_prefix,

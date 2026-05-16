@@ -1,11 +1,11 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const std = @import("std");
 
+const c_libs = @import("c-libs");
+
+const FileMap = @import("upac-database").FileMap;
+
 const installer = @import("../installer.zig");
-const c_libs = installer.ffi.c_libs;
-
-const FileMap = installer.database.FileMap;
-
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
 

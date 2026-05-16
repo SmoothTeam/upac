@@ -113,17 +113,12 @@ pub const UninstallStateId = enum(u8) {
 
 pub const RollbackStateId = enum(u8) {
     verifying = 0,
-    open_repo = 1,
-    resolve_commit = 2,
-    checkout_staging = 3,
-    prepare_config_staging = 4,
-    swap_binaries_files = 5,
-    swap_config_files = 6,
-    cleanup_staging = 7,
-    update_ref = 8,
+    merge = 1,
+    checkout = 2,
+    swap = 3,
 
-    done = 9,
-    failed = 10,
+    done = 4,
+    failed = 5,
 };
 
 pub const ListStateId = enum(u8) {

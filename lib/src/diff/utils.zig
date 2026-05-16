@@ -1,17 +1,18 @@
 const std = @import("std");
 
-const diff = @import("diff.zig");
-const c_libs = diff.ffi.c_libs;
-const DiffKind = diff.types.DiffKind;
+const c_libs = @import("c-libs");
 
-const DiffMachine = diff.DiffMachine;
-const DiffError = diff.DiffError;
+const types = @import("upac-types");
+const DiffKind = types.DiffKind;
+const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
 
-const database = diff.database;
+const database = @import("upac-database");
 const readFiles = database.readFiles;
 const freeFileMap = database.freeFileMap;
 
-const DB_RELATIVE_PATH = diff.types.DB_RELATIVE_PATH;
+const diff = @import("diff.zig");
+const DiffMachine = diff.DiffMachine;
+const DiffError = diff.DiffError;
 
 pub const RawDiffEntry = struct {
     path: []const u8,

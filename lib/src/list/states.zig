@@ -1,17 +1,18 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 pub const std = @import("std");
 
+const c_libs = @import("c-libs");
+
+const ffi = @import("upac-ffi");
+const CSlice = ffi.CSlice;
+const CPackageMeta = ffi.CPackageMeta;
+const CCommitEntry = ffi.CCommitEntry;
+
+const DB_RELATIVE_PATH = @import("upac-types").DB_RELATIVE_PATH;
+
+const readMeta = @import("upac-database").readMeta;
+
 const list = @import("list.zig");
-const c_libs = list.ffi.c_libs;
-
-const CSlice = list.ffi.CSlice;
-const CPackageMeta = list.ffi.CPackageMeta;
-const CCommitEntry = list.ffi.CCommitEntry;
-
-const DB_RELATIVE_PATH = list.types.DB_RELATIVE_PATH;
-
-const readMeta = list.database.readMeta;
-
 const ListMachine = list.ListMachine;
 const ListError = list.ListError;
 

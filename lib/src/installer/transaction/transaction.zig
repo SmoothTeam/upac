@@ -1,12 +1,12 @@
 const std = @import("std");
 
-const installer = @import("../installer.zig");
-const c_libs = installer.ffi.c_libs;
+const c_libs = @import("c-libs");
 
+const append = @import("upac-index").append;
+
+const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
-
-const append = installer.index.append;
 
 const loadCommitBody = @import("utils.zig").loadCommitBody;
 // ── TransactionState ──────────────────────────────────────────────────────────

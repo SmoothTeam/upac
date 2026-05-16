@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const uninstaller = @import("../uninstaller.zig");
-const c_libs = uninstaller.ffi.c_libs;
+const c_libs = @import("c-libs");
 
+const uninstaller = @import("../uninstaller.zig");
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
 

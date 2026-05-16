@@ -1,13 +1,17 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
+const std = @import("std");
+
+const ffi = @import("upac-ffi");
+
+const CRollbackRequest = ffi.CMutatedRequest;
+
+const types = @import("upac-types");
+
+const ErrorCode = types.ErrorCode;
+const Operation = types.Operation;
+const fromError = types.fromError;
+
 const rollback_module = @import("upac-rollback");
-const std = rollback_module.std;
-const constants = @import("upac-constants");
-
-const CRollbackRequest = rollback_module.ffi.CMutatedRequest;
-
-const ErrorCode = rollback_module.ffi.ErrorCode;
-const Operation = rollback_module.ffi.Operation;
-const fromError = rollback_module.ffi.fromError;
 
 // Reverts the system state to a specific commit hash in the OSTree repository
 pub fn rollback(rollback_request_c: CRollbackRequest) callconv(.c) i32 {
@@ -16,9 +20,15 @@ pub fn rollback(rollback_request_c: CRollbackRequest) callconv(.c) i32 {
     if (rollback_request_c.commit_hash.len == 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback));
     rollback_request_c.commit_hash.validate() catch return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback));
 
-    const rollback_data = rollback_module.RollbackData{ .root_path = rollback_request_c.root_path.asZ(), .repo_path = rollback_request_c.repo_path.asZ(), .branch = rollback_request_c.branch.asZ(), .commit_hash = rollback_request_c.commit_hash.asZ(), .max_retries = rollback_request_c.max_retries, .cancel_token = rollback_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback)) };
+    const rollback_data = rollback_module.RollbackData{
+        .root_path = rollback_request_c.root_path.asZ(),
+        .repo_path = rollback_request_c.repo_path.asZ(),
+        .branch = rollback_request_c.branch.asZ(),
+        .commit_hash = rollback_request_c.commit_hash.asZ(),
+        .cancel_token = rollback_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback)),
+    };
 
-    rollback_module.RollbackMachine.run(rollback_data, rollback_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.rollback));
+    rollback_module.RollbackMachine.run(rollback_data, ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.rollback));
 
     return @intFromEnum(ErrorCode.ok);
 }

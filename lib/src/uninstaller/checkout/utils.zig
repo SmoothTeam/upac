@@ -1,10 +1,8 @@
 const std = @import("std");
 
-const uninstaller = @import("../uninstaller.zig");
+const PREFIX = @import("upac-types").PREFIX;
 
-const PREFIX = uninstaller.types.PREFIX;
-
-const UninstallerError = uninstaller.UninstallerError;
+const UninstallerError = @import("../uninstaller.zig").UninstallerError;
 
 pub fn resolveTempDir(root_path: []const u8, allocator: std.mem.Allocator) UninstallerError![:0]u8 {
     var ts: std.os.linux.timespec = undefined;

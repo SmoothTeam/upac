@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const list = @import("list.zig");
-const c_libs = list.ffi.c_libs;
+const c_libs = @import("c-libs");
 
+const list = @import("list.zig");
 const ListMachine = list.ListMachine;
 const ListError = list.ListError;
 

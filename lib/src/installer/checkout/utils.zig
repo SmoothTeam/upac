@@ -1,10 +1,8 @@
 const std = @import("std");
 
-const installer = @import("../installer.zig");
+const PREFIX = @import("upac-types").PREFIX;
 
-const PREFIX = installer.types.PREFIX;
-
-const InstallerError = installer.InstallerError;
+const InstallerError = @import("../installer.zig").InstallerError;
 
 pub fn resolveTempDir(root_path: []const u8, allocator: std.mem.Allocator) InstallerError![:0]u8 {
     var buf: [128]u8 = undefined;

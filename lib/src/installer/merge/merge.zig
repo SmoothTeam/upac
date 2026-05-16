@@ -1,19 +1,20 @@
 const std = @import("std");
 
-const installer = @import("../installer.zig");
-pub const c_libs = installer.ffi.c_libs;
+const c_libs = @import("c-libs");
 
-const database = installer.database;
+const types = @import("upac-types");
+const PREFIX = types.PREFIX;
+const CONFIG_DIR = types.CONFIG_DIR;
+const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
+
+const database = @import("upac-database");
 const FileMap = database.FileMap;
 const readFiles = database.readFiles;
 const freeFileMap = database.freeFileMap;
 
-const PREFIX = installer.types.PREFIX;
-const CONFIG_DIR = installer.types.CONFIG_DIR;
-const DB_RELATIVE_PATH = installer.types.DB_RELATIVE_PATH;
-
-pub const InstallerMachine = installer.InstallerMachine;
-pub const InstallerError = installer.InstallerError;
+const installer = @import("../installer.zig");
+const InstallerMachine = installer.InstallerMachine;
+const InstallerError = installer.InstallerError;
 
 const utils = @import("utils.zig");
 const copyEntry = utils.copyEntry;

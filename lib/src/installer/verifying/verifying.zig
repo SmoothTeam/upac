@@ -1,13 +1,14 @@
 const std = @import("std");
 
+const c_libs = @import("c-libs");
+
+const find = @import("upac-index").find;
+
+const types = @import("upac-types");
+const PREFIX = types.PREFIX;
+const CONFIG_DIR = types.CONFIG_DIR;
+
 const installer = @import("../installer.zig");
-const c_libs = installer.ffi.c_libs;
-
-const find = installer.index.find;
-
-const PREFIX = installer.types.PREFIX;
-const CONFIG_DIR = installer.types.CONFIG_DIR;
-
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
 

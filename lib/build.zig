@@ -38,7 +38,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    upac_ffi.addImport("clibs", translated_libs_module);
+    upac_ffi.addImport("c-libs", translated_libs_module);
     upac_ffi.addImport("upac-types", upac_types);
 
     // ── Index ──────────────────────────────────────────────────────────────
@@ -63,10 +63,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    upac_installer.addImport("c-libs", translated_libs_module);
+
     upac_installer.addImport("upac-types", upac_types);
     upac_installer.addImport("upac-ffi", upac_ffi);
 
-    upac_installer.addImport("upac-data", upac_database);
+    upac_installer.addImport("upac-database", upac_database);
     upac_installer.addImport("upac-index", upac_index);
 
     // ── Uninstaller ───────────────────────────────────────────────────────────
@@ -75,6 +77,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    upac_uninstaller.addImport("c-libs", translated_libs_module);
+
     upac_uninstaller.addImport("upac-types", upac_types);
     upac_uninstaller.addImport("upac-ffi", upac_ffi);
 
@@ -87,8 +91,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    upac_rollback.addImport("c-libs", translated_libs_module);
+
     upac_rollback.addImport("upac-types", upac_types);
     upac_rollback.addImport("upac-ffi", upac_ffi);
+
+    upac_rollback.addImport("upac-database", upac_database);
 
     // ── Diff ────────────────────────────────────────────────────────────────
     const upac_diff = b.createModule(.{
@@ -96,6 +104,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    upac_diff.addImport("c-libs", translated_libs_module);
 
     upac_diff.addImport("upac-types", upac_types);
     upac_diff.addImport("upac-ffi", upac_ffi);
@@ -108,6 +118,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    upac_list.addImport("c-libs", translated_libs_module);
 
     upac_list.addImport("upac-types", upac_types);
     upac_list.addImport("upac-ffi", upac_ffi);
@@ -152,7 +164,7 @@ pub fn build(b: *std.Build) void {
 
     shared_lib.root_module.addImport("upac-installer", upac_installer);
     shared_lib.root_module.addImport("upac-uninstaller", upac_uninstaller);
-    // shared_lib.root_module.addImport("upac-rollback", upac_rollback);
+    shared_lib.root_module.addImport("upac-rollback", upac_rollback);
 
     shared_lib.root_module.addImport("upac-diff", upac_diff);
     shared_lib.root_module.addImport("upac-list", upac_list);

@@ -2,8 +2,6 @@
 const std = @import("std");
 
 const ffi = @import("upac-ffi");
-const c_libs = ffi.c_libs;
-
 const CSlice = ffi.CSlice;
 const CArray = ffi.CArray;
 const CDiffRequest = ffi.CUnmutatedRequest;

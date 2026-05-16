@@ -1,12 +1,13 @@
 // ── Imports ──────────────────────────────────────────────────────────
 const std = @import("std");
 
+const c_libs = @import("c-libs");
+
+const ffi = @import("upac-ffi");
+const CSlice = ffi.CSlice;
+const CDiffEntry = ffi.CDiffEntry;
+
 const diff = @import("diff.zig");
-const c_libs = diff.ffi.c_libs;
-
-const CSlice = diff.ffi.CSlice;
-const CDiffEntry = diff.ffi.CDiffEntry;
-
 const DiffMachine = diff.DiffMachine;
 const DiffError = diff.DiffError;
 

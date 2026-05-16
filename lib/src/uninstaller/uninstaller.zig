@@ -1,28 +1,21 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const std = @import("std");
 
-pub const ffi = @import("upac-ffi");
-const c_libs = ffi.c_libs;
-const CSlice = ffi.CSlice;
+const c_libs = @import("c-libs");
 
-pub const types = @import("upac-types");
+const types = @import("upac-types");
 const PREFIX = types.PREFIX;
-const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
-const CONFIG_DIR = types.CONFIG_DIR;
-
 const UninstallStateId = types.UninstallStateId;
 
-const CancelToken = ffi.CancelToken;
-
+const ffi = @import("upac-ffi");
 const UninstallProgressFn = ffi.UninstallProgressFn;
 
+const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
 
 const database = @import("upac-database");
 const FileMap = database.FileMap;
 const freeFileMap = database.freeFileMap;
-
-pub const index = @import("upac-index");
 
 const verifying = @import("verifying/verifying.zig");
 const transaction = @import("transaction/transaction.zig");

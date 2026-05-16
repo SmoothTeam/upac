@@ -1,19 +1,14 @@
 // ── Imports ──────────────────────────────────────────────────────────
 const std = @import("std");
 
-pub const ffi = @import("upac-ffi");
-const c_libs = ffi.c_libs;
-const CSlice = ffi.CSlice;
+const c_libs = @import("c-libs");
+
+const ffi = @import("upac-ffi");
 
 const CDiffEntry = ffi.CDiffEntry;
 
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
-
-pub const types = @import("upac-types");
-const DiffStateId = types.DiffStateId;
-
-pub const database = @import("upac-database");
 
 const states = @import("states.zig");
 const stateFailed = states.stateFailed;

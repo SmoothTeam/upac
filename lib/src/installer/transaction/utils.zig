@@ -1,7 +1,6 @@
-const installer = @import("../installer.zig");
-const c_libs = installer.ffi.c_libs;
+const c_libs = @import("c-libs");
 
-const InstallerError = installer.InstallerError;
+const InstallerError = @import("../installer.zig").InstallerError;
 
 const TransactionMachine = @import("transaction.zig").TransactionMachine;
 

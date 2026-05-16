@@ -1,7 +1,7 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
-pub const std = @import("std");
+const std = @import("std");
 
-pub const c_libs = @import("clibs");
+const c_libs = @import("c-libs");
 
 pub const CancelToken = extern struct {
     _flag: u8 = 0,

@@ -126,6 +126,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.StagingFailed => .ostree_staging_failed,
             error.SwapFailed => .ostree_swap_failed,
             error.CleanupFailed => .ostree_cleanup_failed,
+            error.CheckSpaceFailed, error.NotEnoughSpace => .no_space_left,
             else => null,
         },
         .diff => switch (err) {

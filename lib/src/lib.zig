@@ -10,7 +10,7 @@ const uninstaller_symbols = @import("symbols/uninstaller.zig");
 export const uninstall = uninstaller_symbols.uninstall;
 
 const rollback_symbols = @import("symbols/rollback.zig");
-//export const rollback = rollback_symbols.rollback;
+export const rollback = rollback_symbols.rollback;
 
 const diff_symbols = @import("symbols/diff.zig");
 export const diff = diff_symbols.diff;

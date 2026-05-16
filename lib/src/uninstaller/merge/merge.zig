@@ -1,11 +1,12 @@
 const std = @import("std");
 
+const c_libs = @import("c-libs");
+
+const types = @import("upac-types");
+const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
+const CONFIG_DIR = types.CONFIG_DIR;
+
 const uninstaller = @import("../uninstaller.zig");
-const c_libs = uninstaller.ffi.c_libs;
-
-const DB_RELATIVE_PATH = uninstaller.types.DB_RELATIVE_PATH;
-const CONFIG_DIR = uninstaller.types.CONFIG_DIR;
-
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
 

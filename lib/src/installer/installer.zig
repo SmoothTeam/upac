@@ -1,22 +1,17 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
-pub const std = @import("std");
+const std = @import("std");
 
-pub const ffi = @import("upac-ffi");
-const c_libs = ffi.c_libs;
-const CSlice = ffi.CSlice;
+const c_libs = @import("c-libs");
 
+const ffi = @import("upac-ffi");
 const InstallProgressFn = ffi.InstallProgressFn;
 
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
 
-pub const types = @import("upac-types");
+const types = @import("upac-types");
 const Package = types.Package;
-
 const InstallStateId = types.InstallStateId;
-
-pub const database = @import("upac-data");
-pub const index = @import("upac-index");
 
 const verifying = @import("verifying/verifying.zig");
 const preparation = @import("preparation/preparation.zig");

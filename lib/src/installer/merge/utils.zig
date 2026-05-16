@@ -1,16 +1,17 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const std = @import("std");
 
+const c_libs = @import("c-libs");
+
+const FileMap = @import("upac-database").FileMap;
+
+const types = @import("upac-types");
+const PREFIX = types.PREFIX;
+const CONFIG_DIR = types.CONFIG_DIR;
+
 const installer = @import("../installer.zig");
-const c_libs = installer.ffi.c_libs;
-
-const FileMap = installer.database.FileMap;
-
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
-
-const PREFIX = installer.types.PREFIX;
-const CONFIG_DIR = installer.types.CONFIG_DIR;
 
 const MergeMachine = @import("merge.zig").MergeMachine;
 

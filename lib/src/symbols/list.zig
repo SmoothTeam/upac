@@ -2,8 +2,6 @@
 const std = @import("std");
 
 const ffi = @import("upac-ffi");
-const c_libs = ffi.c_libs;
-
 const CSlice = ffi.CSlice;
 const CArray = ffi.CArray;
 const CPackageMeta = ffi.CPackageMeta;
@@ -106,7 +104,12 @@ pub fn list_commits(list_request_c: CListRequest, out_c: *CArray(CCommitEntry)) 
     const required = [_]CSlice{ list_request_c.repo_path, list_request_c.branch };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
-    const commit_entries = list_module.ListMachine.runCommits(.{ .repo_path = list_request_c.repo_path.asZ(), .branch = list_request_c.branch.asZ(), .root_path = list_request_c.root_path.asZ(), .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)) }, list_module.ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
+    const commit_entries = list_module.ListMachine.runCommits(.{
+        .repo_path = list_request_c.repo_path.asZ(),
+        .branch = list_request_c.branch.asZ(),
+        .root_path = list_request_c.root_path.asZ(),
+        .cancel_token = list_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.list)),
+    }, ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
     out_c.* = .{ .ptr = commit_entries.ptr, .len = commit_entries.len };
     return @intFromEnum(ErrorCode.ok);

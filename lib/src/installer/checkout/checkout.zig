@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const installer = @import("../installer.zig");
-const c_libs = installer.ffi.c_libs;
+const c_libs = @import("c-libs");
 
+const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
 
