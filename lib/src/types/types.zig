@@ -12,6 +12,9 @@ pub const PREFIX: [:0]const u8 = "usr";
 // Always read/written as join(root_path, DB_RELATIVE_PATH).
 pub const DB_RELATIVE_PATH: []const u8 = PREFIX ++ "/share/upac/db";
 
+// Path of the JSON table schema files, relative to `root_path`.
+pub const SCHEMA_RELATIVE_PATH: []const u8 = PREFIX ++ "/share/upac/tables";
+
 // The mutable configuration directory. Handled with overlay semantics on
 // install/uninstall: user-modified files are preserved, package-owned
 // unmodified files are replaced or removed.
@@ -135,4 +138,15 @@ pub const DiffStateId = enum(u8) {
     diff_files = 2,
     done = 3,
     failed = 4,
+};
+
+pub const InitStateId = enum(u8) {
+    check_root = 0,
+    setup_prefix = 1,
+    setup_symlinks = 2,
+    check_repo = 3,
+    init_ostree = 4,
+    init_db = 5,
+    done = 6,
+    failed = 7,
 };

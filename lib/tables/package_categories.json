@@ -1,0 +1,41 @@
+{
+  "table": "categories",
+  "columns": [
+    {
+      "name": "package_id",
+      "type": "INTEGER",
+      "not_null": true,
+      "references": "packages(id)"
+    },
+    {
+      "name": "category_id",
+      "type": "INTEGER",
+      "not_null": true,
+      "references": "categories(id)"
+    },
+    {
+      "name": "is_primary",
+      "type": "INTEGER",
+      "not_null": true,
+      "default": 0,
+      "enum": [
+        0,
+        1
+      ]
+    }
+  ],
+  "primary_key": [
+    "package_id",
+    "category_id"
+  ],
+  "indexes": [
+    {
+      "name": "idx_package_primary_category",
+      "unique": true,
+      "columns": [
+        "package_id"
+      ],
+      "where": "is_primary = 1"
+    }
+  ]
+}

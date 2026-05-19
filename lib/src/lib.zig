@@ -31,4 +31,4 @@ export const get_commit_slice_field = list_symbols.get_commit_slice_field;
 export const commits_free = list_symbols.commits_free;
 
 const init_symbols = @import("symbols/init.zig");
-//export const init = init_symbols.init;
+export const init = init_symbols.init;

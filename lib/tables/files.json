@@ -1,0 +1,48 @@
+{
+  "table": "files",
+  "columns": [
+    {
+      "name": "id",
+      "type": "INTEGER",
+      "primary_key": true,
+      "not_null": true
+    },
+    {
+      "name": "package_id",
+      "type": "INTEGER",
+      "not_null": true,
+      "references": "packages(id)"
+    },
+    {
+      "name": "path",
+      "type": "TEXT",
+      "not_null": true,
+      "unique": true
+    },
+    {
+      "name": "checksum",
+      "type": "TEXT",
+      "not_null": true
+    },
+    {
+      "name": "authorship",
+      "type": "TEXT",
+      "not_null": true,
+      "default": "package",
+      "enum": [
+        "package",
+        "user"
+      ]
+    },
+    {
+      "name": "file_type",
+      "type": "TEXT",
+      "not_null": true,
+      "enum": [
+        "prefix",
+        "config",
+        "variable"
+      ]
+    }
+  ]
+}

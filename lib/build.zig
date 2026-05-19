@@ -24,9 +24,22 @@ pub fn build(b: *std.Build) void {
 
     const translated_libs_module = translated_libs.createModule();
 
+    // ── SQLite ──────────────────────────────────────────────────────────────
+    const zqlite = b.dependency("zqlite", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // ── Types ──────────────────────────────────────────────────────────────
     const upac_types = b.createModule(.{
         .root_source_file = b.path("src/types/types.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // ── Schema ──────────────────────────────────────────────────────────────
+    const upac_schema = b.createModule(.{
+        .root_source_file = b.path("src/schema.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -51,11 +64,12 @@ pub fn build(b: *std.Build) void {
 
     // ── Database ──────────────────────────────────────────────────────────────
     const upac_database = b.createModule(.{
-        .root_source_file = b.path("src/database.zig"),
+        .root_source_file = b.path("src/database/database.zig"),
         .target = target,
         .optimize = optimize,
     });
     upac_database.addImport("upac-types", upac_types);
+    upac_database.addImport("zqlite", zqlite.module("zqlite"));
 
     // ── Installer ─────────────────────────────────────────────────────────────
     const upac_installer = b.createModule(.{
@@ -127,14 +141,19 @@ pub fn build(b: *std.Build) void {
     upac_list.addImport("upac-database", upac_database);
 
     // ── Init ──────────────────────────────────────────────────────────────────
-    // const upac_init = b.createModule(.{
-    //     .root_source_file = b.path("src/init.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    // upac_init.addImport("upac-ffi", upac_ffi);
-    // upac_init.addImport("upac-data", upac_data);
-    // upac_init.addImport("upac-constants", upac_constants);
+    const upac_init = b.createModule(.{
+        .root_source_file = b.path("src/init.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    upac_init.addImport("c-libs", translated_libs_module);
+    upac_init.addImport("zqlite", zqlite.module("zqlite"));
+
+    upac_init.addImport("upac-types", upac_types);
+    upac_init.addImport("upac-schema", upac_schema);
+    upac_init.addImport("upac-ffi", upac_ffi);
+
+    upac_init.addImport("upac-database", upac_database);
 
     // ── Root ──────────────────────────────────────────────────────────────────
     const upac_lib_root = b.createModule(.{
@@ -154,9 +173,13 @@ pub fn build(b: *std.Build) void {
     });
 
     shared_lib.root_module.link_libc = true;
+    shared_lib.root_module.linkSystemLibrary("sqlite3", .{});
+
     shared_lib.root_module.addImport("clibs", translated_libs_module);
+    shared_lib.root_module.addImport("zqlite", zqlite.module("zqlite"));
 
     shared_lib.root_module.addImport("upac-types", upac_types);
+    shared_lib.root_module.addImport("upac-schema", upac_schema);
     shared_lib.root_module.addImport("upac-ffi", upac_ffi);
 
     shared_lib.root_module.addImport("upac-database", upac_database);
@@ -168,7 +191,7 @@ pub fn build(b: *std.Build) void {
 
     shared_lib.root_module.addImport("upac-diff", upac_diff);
     shared_lib.root_module.addImport("upac-list", upac_list);
-    // shared_lib.root_module.addImport("upac-init", upac_init);
+    shared_lib.root_module.addImport("upac-init", upac_init);
 
     b.installArtifact(shared_lib);
 

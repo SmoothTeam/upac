@@ -88,6 +88,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.OstreeInitFailed => .ostree_init_failed,
             error.PrefixNotFound => .invalid_path,
             error.SymlinkFailed => .init_symlink_failed,
+            error.DatabaseInitFailed => .db_write_database_failed,
             else => null,
         },
         .install => switch (err) {

@@ -1,0 +1,80 @@
+{
+  "table": "packages",
+  "columns": [
+    {
+      "name": "id",
+      "type": "INTEGER",
+      "primary_key": true,
+      "not_null": true
+    },
+    {
+      "name": "name",
+      "type": "TEXT",
+      "not_null": true
+    },
+    {
+      "name": "version",
+      "type": "TEXT",
+      "not_null": true
+    },
+    {
+      "name": "architecture_id",
+      "type": "INTEGER",
+      "not_null": true,
+      "references": "architectures(id)"
+    },
+    {
+      "name": "size",
+      "type": "INTEGER",
+      "not_null": true
+    },
+    {
+      "name": "checksum",
+      "type": "TEXT",
+      "not_null": true
+    },
+    {
+      "name": "author",
+      "type": "TEXT",
+      "not_null": true
+    },
+    {
+      "name": "packager",
+      "type": "TEXT"
+    },
+    {
+      "name": "maintainer",
+      "type": "TEXT"
+    },
+    {
+      "name": "installed_at",
+      "type": "INTEGER",
+      "not_null": true
+    },
+    {
+      "name": "updated_at",
+      "type": "INTEGER"
+    },
+    {
+      "name": "description",
+      "type": "TEXT"
+    },
+    {
+      "name": "license",
+      "type": "TEXT"
+    },
+    {
+      "name": "url",
+      "type": "TEXT"
+    }
+  ],
+  "unique": [
+    [
+      "name",
+      "architecture_id"
+    ]
+  ],
+  "checks": [
+    "packager IS NOT NULL OR maintainer IS NOT NULL"
+  ]
+}

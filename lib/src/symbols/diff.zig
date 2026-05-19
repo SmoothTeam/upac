@@ -36,11 +36,10 @@ pub fn diff(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.
 }
 
 pub fn diff_free(out_c: *CArray(CDiffEntry)) callconv(.c) void {
-    const allocator = ffi.allocator();
     const attributed_diff_entrys = out_c.toSlice();
     for (attributed_diff_entrys) |attributed_diff_entry| {
-        allocator.free(attributed_diff_entry.path.ptr[0 .. attributed_diff_entry.path.len + 1]);
-        allocator.free(attributed_diff_entry.package_name.ptr[0 .. attributed_diff_entry.package_name.len + 1]);
+        ffi.allocator().free(attributed_diff_entry.path.ptr[0 .. attributed_diff_entry.path.len + 1]);
+        ffi.allocator().free(attributed_diff_entry.package_name.ptr[0 .. attributed_diff_entry.package_name.len + 1]);
     }
-    allocator.free(attributed_diff_entrys);
+    ffi.allocator().free(attributed_diff_entrys);
 }
