@@ -1,6 +1,0 @@
-{
-  "table": "dependencies",
-  "columns": [
-    { "name": "id", "type": "INTEGER", "primary_key": true, "not_null": true }
-  ]
-}

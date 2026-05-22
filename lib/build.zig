@@ -24,22 +24,15 @@ pub fn build(b: *std.Build) void {
 
     const translated_libs_module = translated_libs.createModule();
 
-    // ── SQLite ──────────────────────────────────────────────────────────────
-    const zqlite = b.dependency("zqlite", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    // ── LMDBX ──────────────────────────────────────────────────────────────
+    const lmdbx = b.dependency("lmdbx", .{ .target = target, .optimize = optimize });
+
+    // ── Serde ──────────────────────────────────────────────────────────────
+    const serde = b.dependency("serde", .{ .target = target, .optimize = optimize });
 
     // ── Types ──────────────────────────────────────────────────────────────
     const upac_types = b.createModule(.{
         .root_source_file = b.path("src/types/types.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // ── Schema ──────────────────────────────────────────────────────────────
-    const upac_schema = b.createModule(.{
-        .root_source_file = b.path("src/schema.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -54,22 +47,13 @@ pub fn build(b: *std.Build) void {
     upac_ffi.addImport("c-libs", translated_libs_module);
     upac_ffi.addImport("upac-types", upac_types);
 
-    // ── Index ──────────────────────────────────────────────────────────────
-    const upac_index = b.createModule(.{
-        .root_source_file = b.path("src/index.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    upac_index.addImport("upac-types", upac_types);
-
     // ── Database ──────────────────────────────────────────────────────────────
     const upac_database = b.createModule(.{
-        .root_source_file = b.path("src/database/database.zig"),
+        .root_source_file = b.path("src/database/packages.zig"),
         .target = target,
         .optimize = optimize,
     });
     upac_database.addImport("upac-types", upac_types);
-    upac_database.addImport("zqlite", zqlite.module("zqlite"));
 
     // ── Installer ─────────────────────────────────────────────────────────────
     const upac_installer = b.createModule(.{
@@ -83,7 +67,6 @@ pub fn build(b: *std.Build) void {
     upac_installer.addImport("upac-ffi", upac_ffi);
 
     upac_installer.addImport("upac-database", upac_database);
-    upac_installer.addImport("upac-index", upac_index);
 
     // ── Uninstaller ───────────────────────────────────────────────────────────
     const upac_uninstaller = b.createModule(.{
@@ -96,7 +79,6 @@ pub fn build(b: *std.Build) void {
     upac_uninstaller.addImport("upac-types", upac_types);
     upac_uninstaller.addImport("upac-ffi", upac_ffi);
 
-    upac_uninstaller.addImport("upac-index", upac_index);
     upac_uninstaller.addImport("upac-database", upac_database);
 
     // ── Rollback ────────────────────────────────────────────────────────────────
@@ -147,10 +129,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     upac_init.addImport("c-libs", translated_libs_module);
-    upac_init.addImport("zqlite", zqlite.module("zqlite"));
 
     upac_init.addImport("upac-types", upac_types);
-    upac_init.addImport("upac-schema", upac_schema);
     upac_init.addImport("upac-ffi", upac_ffi);
 
     upac_init.addImport("upac-database", upac_database);
@@ -173,17 +153,14 @@ pub fn build(b: *std.Build) void {
     });
 
     shared_lib.root_module.link_libc = true;
-    shared_lib.root_module.linkSystemLibrary("sqlite3", .{});
-
     shared_lib.root_module.addImport("clibs", translated_libs_module);
-    shared_lib.root_module.addImport("zqlite", zqlite.module("zqlite"));
+    shared_lib.root_module.addImport("serde", serde.module("serde"));
+    shared_lib.root_module.addImport("lmdbx", lmdbx.module("lmdbx"));
 
     shared_lib.root_module.addImport("upac-types", upac_types);
-    shared_lib.root_module.addImport("upac-schema", upac_schema);
     shared_lib.root_module.addImport("upac-ffi", upac_ffi);
 
     shared_lib.root_module.addImport("upac-database", upac_database);
-    shared_lib.root_module.addImport("upac-index", upac_index);
 
     shared_lib.root_module.addImport("upac-installer", upac_installer);
     shared_lib.root_module.addImport("upac-uninstaller", upac_uninstaller);
