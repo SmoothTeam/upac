@@ -1,74 +1,67 @@
-// ── Global constants ─────────────────────────────────────────────────────────
-// Hard-coded paths and identifiers shared across the upac core library.
-// These exist so the rest of the codebase never sprinkles magic strings like
-// "usr" or "usr/share/upac/db" inline.
-
-// The single, atomically-swappable prefix directory. Everything that should be
-// part of an atomic upgrade lives under <root>/<PREFIX>/. External entries like
-// `/opt` are realised as symlinks pointing inside this prefix (see init).
-pub const PREFIX: [:0]const u8 = "usr";
-
-// Path of the upac package database, relative to `root_path`.
-// Always read/written as join(root_path, DB_RELATIVE_PATH).
-pub const DB_RELATIVE_PATH: []const u8 = PREFIX ++ "/share/upac/db";
-
-// Path of the JSON table schema files, relative to `root_path`.
-pub const SCHEMA_RELATIVE_PATH: []const u8 = PREFIX ++ "/share/upac/tables";
-
-// The mutable configuration directory. Handled with overlay semantics on
-// install/uninstall: user-modified files are preserved, package-owned
-// unmodified files are replaced or removed.
-pub const CONFIG_DIR: [:0]const u8 = "etc";
-
-// The mutable var directory.
-pub const VAR_DIR: [:0]const u8 = "var";
-
-pub const std = @import("std");
+const std = @import("std");
 
 const errors = @import("errors.zig");
+
+// ── Paths ─────────────────────────────────────────────────────────────────────
+pub const paths = @import("paths.zon");
+
 pub const Operation = errors.Operation;
 pub const ErrorCode = errors.ErrorCode;
 pub const fromError = errors.fromError;
 
-// ── Package ─────────────────────────────────────────────────────────────────────
-// An aggregating structure containing metadata and a list of all files belonging to the package
+// ── Version ───────────────────────────────────────────────────────────────────
+// Normalised by the backend before passing through FFI.
+pub const Version = struct {
+    epoch: u32 = 0,
+    parts: []const u32,
+    pre: ?[]const u8 = null,
+    release: u32 = 1,
+};
+
+// ── Package ───────────────────────────────────────────────────────────────────
 pub const Package = struct {
     meta: PackageMeta,
-    path: [*c]const u8,
-    checksum: []const u8,
+    temp_package_path: [*:0]const u8,
 
     pub fn deinit(self: *Package, allocator: std.mem.Allocator) void {
         self.meta.deinit(allocator);
-        allocator.free(self.path);
-        allocator.free(self.checksum);
+        allocator.free(self.temp_package_path);
     }
 };
 
-// Stores detailed information: version, author, description, license, installation time and etc
+// arch and arch_sub come from arch_map.zon — no enum, no hardcoded list.
+// Backend splits the package arch string into base + variant before FFI.
 pub const PackageMeta = struct {
     name: []const u8,
-    version: []const u8,
-    size: usize,
-    architecture: []const u8,
-    author: []const u8,
+    version: Version,
+    arch: []const u8,
+    arch_sub: ?[]const u8,
+    maintainer: []const u8,
     description: []const u8,
-    license: []const u8,
-    url: []const u8,
-    packager: []const u8,
-    installed_at: i64,
-    checksum: []const u8,
+    license: ?[]const u8,
+    url: ?[]const u8,
+    sha256: [32]u8,
 
-    // Deinitialization methods that guarantee the release of memory allocated for dynamic strings
     pub fn deinit(self: *PackageMeta, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
-        allocator.free(self.version);
-        allocator.free(self.architecture);
-        allocator.free(self.author);
+        allocator.free(self.version.parts);
+        if (self.version.pre) |pre| allocator.free(pre);
+        allocator.free(self.arch);
+        if (self.arch_sub) |sub| allocator.free(sub);
+        allocator.free(self.maintainer);
         allocator.free(self.description);
-        allocator.free(self.license);
-        allocator.free(self.url);
-        allocator.free(self.packager);
-        allocator.free(self.checksum);
+        if (self.license) |license| allocator.free(license);
+        if (self.url) |url| allocator.free(url);
+    }
+};
+
+pub const FileEntry = struct {
+    path: []const u8,
+    sha256: [32]u8,
+    is_user: bool,
+
+    pub fn deinit(self: *FileEntry, allocator: std.mem.Allocator) void {
+        allocator.free(self.path);
     }
 };
 

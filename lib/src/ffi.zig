@@ -32,33 +32,34 @@ pub fn cancelGCancellable(ctx: ?*anyopaque) callconv(.c) void {
 // ── Reimports types ─────────────────────────────────────────────────────────────────────
 const types = @import("upac-types");
 
-const Package = types.Package;
-const PackageMeta = types.PackageMeta;
-
 const DiffKind = types.DiffKind;
 
 const InstallStateId = types.InstallStateId;
 const UninstallStateId = types.UninstallStateId;
 const RollbackStateId = types.RollbackStateId;
 
-// A C-compatible slice analogue. It stores a pointer to the data and its length. It allows for easy conversion of data between Zig and an external interface
+// C-compatible slice. ptr == null means absent (optional field).
 pub const CSlice = extern struct {
-    ptr: [*:0]const u8,
+    ptr: [*c]const u8,
     len: usize,
 
+    // For required fields — caller guarantees ptr != null.
     pub fn toSlice(self: CSlice) []const u8 {
-        return self.ptr[0..self.len];
+        const not_null_prt = self.ptr orelse return "";
+        return not_null_prt[0..self.len];
     }
 
-    pub fn asZ(self: CSlice) [*:0]const u8 {
+    pub fn asZ(self: CSlice) [*c]const u8 {
         return self.ptr;
     }
 
-    pub fn fromSlice(slice: []const u8) CSlice {
-        return .{ .ptr = @ptrCast(slice.ptr), .len = slice.len };
+    pub fn fromSlice(slice: ?[]const u8) CSlice {
+        const not_null_slice = slice orelse return .{ .ptr = null, .len = 0 };
+        return .{ .ptr = @ptrCast(not_null_slice.ptr), .len = not_null_slice.len };
     }
 
     pub fn validate(self: CSlice) !void {
+        if (self.ptr == null) return error.InvalidEntry;
         if (self.ptr[self.len] != 0) return error.InvalidEntry;
         if (std.mem.len(self.ptr) != self.len) return error.InvalidEntry;
     }
@@ -75,39 +76,58 @@ pub fn CArray(comptime T: type) type {
     };
 }
 
-pub const CPackageEntry = extern struct {
-    struct_size: usize = @sizeOf(CPackageEntry),
+pub const CVersion = extern struct {
+    epoch: u32,
+    release: u32,
+    parts: CArray(u32),
+    pre: CSlice,
 
-    meta: *anyopaque,
-    temp_path: CSlice,
-    checksum: CSlice,
-
-    pub fn validate(self: CPackageEntry) !void {
-        if (self.struct_size != @sizeOf(CPackageEntry)) return error.AbiMismatch;
-
-        if (@intFromPtr(self.meta) == 0) return error.InvalidEntry;
+    pub fn toVersion(self: CVersion) @import("upac-types").Version {
+        return .{
+            .epoch = self.epoch,
+            .release = self.release,
+            .parts = self.parts.toSlice(),
+            .pre = if (self.pre.ptr != null) self.pre.toSlice() else null,
+        };
     }
 };
 
-// A packet metadata structure adapted for transmission via C
 pub const CPackageMeta = extern struct {
     struct_size: usize = @sizeOf(CPackageMeta),
 
     name: CSlice,
-    version: CSlice,
-    architecture: CSlice,
-    author: CSlice,
+    version: CVersion,
+    arch: CSlice,
+    arch_sub: CSlice,
+    maintainer: CSlice,
     description: CSlice,
     license: CSlice,
     url: CSlice,
-    packager: CSlice,
-    checksum: CSlice,
-    size: u32,
-    _padding: u32 = 0,
-    installed_at: i64,
+    sha256: [32]u8,
 
     pub fn validate(self: CPackageMeta) !void {
         if (self.struct_size != @sizeOf(CPackageMeta)) return error.AbiMismatch;
+        try self.name.validate();
+        try self.arch.validate();
+        try self.arch_sub.validate();
+        try self.maintainer.validate();
+        try self.description.validate();
+        try self.license.validate();
+        try self.url.validate();
+        if (self.version.parts.len == 0) return error.InvalidEntry;
+    }
+};
+
+pub const CPackage = extern struct {
+    struct_size: usize = @sizeOf(CPackage),
+
+    meta: *CPackageMeta,
+    temp_path: CSlice,
+
+    pub fn validate(self: CPackage) !void {
+        if (self.struct_size != @sizeOf(CPackage)) return error.AbiMismatch;
+        try self.meta.validate();
+        try self.temp_path.validate();
     }
 };
 
@@ -116,10 +136,12 @@ pub const CMutatedRequest = extern struct {
 
     repo_path: CSlice,
     root_path: CSlice,
+    tmp_path: CSlice,
+    arch_config_path: CSlice,
     branch: CSlice,
 
     // Install
-    packages: ?[*]const CPackageEntry = null,
+    packages: ?[*]const CPackage = null,
     packages_count: usize = 0,
 
     // Uninstall
@@ -139,6 +161,8 @@ pub const CMutatedRequest = extern struct {
         if (self.struct_size != @sizeOf(CMutatedRequest)) return error.AbiMismatch;
         try self.repo_path.validate();
         try self.root_path.validate();
+        try self.tmp_path.validate();
+        try self.arch_config_path.validate();
         try self.branch.validate();
     }
 };
@@ -149,6 +173,7 @@ pub const CUnmutatedRequest = extern struct {
 
     repo_path: CSlice,
     root_path: CSlice,
+    arch_config_path: CSlice,
     branch: CSlice,
 
     from_commit_hash: CSlice,
@@ -163,6 +188,9 @@ pub const CUnmutatedRequest = extern struct {
     pub fn validate(self: CUnmutatedRequest) !void {
         if (self.struct_size != @sizeOf(CUnmutatedRequest)) return error.AbiMismatch;
         try self.repo_path.validate();
+        try self.root_path.validate();
+        try self.arch_config_path.validate();
+        try self.branch.validate();
     }
 };
 
