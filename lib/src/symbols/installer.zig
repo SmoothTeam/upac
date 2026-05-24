@@ -32,6 +32,7 @@ pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
         .branch = install_request_c.branch.asZ(),
         .repo_path = install_request_c.repo_path.asZ(),
         .root_path = install_request_c.root_path.asZ(),
+        .tmp_path = install_request_c.tmp_path.asZ(),
         .on_progress = if (install_request_c.on_progress) |cb| @as(InstallProgressFn, @ptrCast(cb)) else null,
         .progress_ctx = install_request_c.progress_ctx,
         .cancel_token = install_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.install)),
@@ -58,19 +59,16 @@ fn collectInstallEntries(install_request_c: CInstallRequest, allocator: std.mem.
         install_packges[index] = .{
             .meta = .{
                 .name = package_meta_c.name.toSlice(),
-                .version = package_meta_c.version.toSlice(),
-                .size = @intCast(package_meta_c.size),
-                .architecture = package_meta_c.architecture.toSlice(),
-                .author = package_meta_c.author.toSlice(),
+                .version = package_meta_c.version.toVersion(),
+                .arch = package_meta_c.arch.toSlice(),
+                .arch_sub = if (package_meta_c.arch_sub.ptr != null) package_meta_c.arch_sub.toSlice() else null,
+                .maintainer = package_meta_c.maintainer.toSlice(),
                 .description = package_meta_c.description.toSlice(),
                 .license = package_meta_c.license.toSlice(),
                 .url = package_meta_c.url.toSlice(),
-                .packager = package_meta_c.packager.toSlice(),
-                .installed_at = package_meta_c.installed_at,
-                .checksum = package_meta_c.checksum.toSlice(),
+                .sha256 = package_meta_c.sha256,
             },
-            .path = package_entry_c.temp_path.asZ(),
-            .checksum = package_entry_c.checksum.toSlice(),
+            .temp_package_path = package_entry_c.temp_path.asZ(),
         };
     }
 
