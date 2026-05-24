@@ -8,7 +8,7 @@ const database_path = types.paths.db_path;
 pub const packages = @import("packages.zig");
 pub const files = @import("files.zig");
 
-const database_config = @import("../../../config/database.zon");
+const database_config = @import("database.zon");
 
 // ── Errors ────────────────────────────────────────────────────────────────────
 pub const DatabaseError = error{
@@ -23,8 +23,8 @@ pub const DatabaseError = error{
 
 pub const Database = struct {
     environment: lmdbx.Environment,
-    packages_dbi: ?lmdbx.Dbi,
-    files_dbi: ?lmdbx.Dbi,
+    packages_dbi: ?lmdbx.Database,
+    files_dbi: ?lmdbx.Database,
 
     allocator: std.mem.Allocator,
 
@@ -33,13 +33,13 @@ pub const Database = struct {
         const path = std.fs.path.joinZ(allocator, &.{ root_path, prefix, database_path }) catch return DatabaseError.AllocZFailed;
         defer allocator.free(path);
 
-        const environment = lmdbx.Environment.open(path, .{ .max_dbs = 2 }) catch return DatabaseError.ReadError;
+        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch return DatabaseError.ReadError;
 
-        const setup_transaction = environment.begin(.readwrite) catch return DatabaseError.WriteError;
-        errdefer setup_transaction.abort();
+        const setup_transaction = lmdbx.Transaction.init(environment, .{}) catch return DatabaseError.WriteError;
+        errdefer setup_transaction.abort() catch {};
 
-        const packages_dbi = setup_transaction.openDatabase(database_config.packages_dbi, .{}) catch return DatabaseError.ReadError;
-        const files_dbi = setup_transaction.openDatabase(database_config.files_dbi, .{}) catch return DatabaseError.ReadError;
+        const packages_dbi = lmdbx.Database.open(setup_transaction, database_config.packages_dbi, .{}) catch return DatabaseError.ReadError;
+        const files_dbi = lmdbx.Database.open(setup_transaction, database_config.files_dbi, .{}) catch return DatabaseError.ReadError;
 
         setup_transaction.commit() catch return DatabaseError.WriteError;
 
@@ -53,20 +53,20 @@ pub const Database = struct {
 
     // Called only from init — creates the DBIs for the first time.
     pub fn createPackagesDbi(self: Database) DatabaseError!void {
-        const create_transaction = self.environment.begin(.readwrite) catch return DatabaseError.WriteError;
-        errdefer create_transaction.abort();
-        _ = create_transaction.openDatabase(database_config.packages_dbi, .{ .create = true }) catch return DatabaseError.WriteError;
+        const create_transaction = lmdbx.Transaction.init(self.environment, .{}) catch return DatabaseError.WriteError;
+        errdefer create_transaction.abort() catch {};
+        _ = lmdbx.Database.open(create_transaction, database_config.packages_dbi, .{ .create = true }) catch return DatabaseError.WriteError;
         create_transaction.commit() catch return DatabaseError.WriteError;
     }
 
     pub fn createFilesDbi(self: Database) DatabaseError!void {
-        const create_transaction = self.environment.begin(.readwrite) catch return DatabaseError.WriteError;
-        errdefer create_transaction.abort();
-        _ = create_transaction.openDatabase(database_config.files_dbi, .{ .create = true }) catch return DatabaseError.WriteError;
+        const create_transaction = lmdbx.Transaction.init(self.environment, .{}) catch return DatabaseError.WriteError;
+        errdefer create_transaction.abort() catch {};
+        _ = lmdbx.Database.open(create_transaction, database_config.files_dbi, .{ .create = true }) catch return DatabaseError.WriteError;
         create_transaction.commit() catch return DatabaseError.WriteError;
     }
 
     pub fn close(self: Database) void {
-        self.environment.close();
+        self.environment.deinit() catch {};
     }
 };
