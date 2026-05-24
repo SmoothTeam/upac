@@ -6,8 +6,8 @@ const c_libs = @import("c-libs");
 const FileMap = @import("upac-database").FileMap;
 
 const types = @import("upac-types");
-const PREFIX = types.PREFIX;
-const CONFIG_DIR = types.CONFIG_DIR;
+const PREFIX = types.paths.prefix;
+const CONFIG_DIR = types.paths.config_dir;
 
 const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
@@ -68,18 +68,13 @@ pub fn copyEntry(machine: *MergeMachine, kind: std.Io.File.Kind, source: [:0]con
     }
 }
 
-pub fn resolveConflict(machine: *MergeMachine, db: FileMap, kind: std.Io.File.Kind, source: [:0]const u8, dest: [:0]const u8, entry_path: []const u8) InstallerError!void {
-    const db_key = std.fs.path.join(machine.installer.allocator, &.{ PREFIX, CONFIG_DIR, entry_path }) catch return InstallerError.AllocZFailed;
-    defer machine.installer.allocator.free(db_key);
-
-    const shipped_checksum = db.get(db_key);
-
+pub fn resolveConflict(machine: *MergeMachine, checksum: ?[32]u8, kind: std.Io.File.Kind, source: [:0]const u8, dest: [:0]const u8) InstallerError!void {
     const user_modified = blk: {
         if (kind == .sym_link) break :blk true;
-        const shipped = shipped_checksum orelse break :blk true;
+        const shipped = checksum orelse break :blk true;
         const current_hex = fileChecksum(machine.installer, dest, machine.installer.allocator) catch break :blk true;
         defer machine.installer.allocator.free(current_hex);
-        break :blk !std.mem.eql(u8, current_hex, shipped);
+        break :blk !std.mem.eql(u8, current_hex, &shipped);
     };
 
     if (!user_modified) {

@@ -3,14 +3,16 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
-const PREFIX = types.PREFIX;
-const CONFIG_DIR = types.CONFIG_DIR;
-const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
+const PREFIX = types.paths.prefix;
+const CONFIG_DIR = types.paths.config_dir;
+const DB_RELATIVE_PATH = types.paths.db_relative_path;
+
+const FileEntry = types.FileEntry;
 
 const database = @import("upac-database");
-const FileMap = database.FileMap;
-const readFiles = database.readFiles;
-const freeFileMap = database.freeFileMap;
+const Database = database.Database;
+const exists = database.packages.exists;
+const list = database.files.list;
 
 const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
@@ -35,13 +37,14 @@ pub const MergeMachine = struct {
 
     temp_config_path: ?[]u8 = null,
 
-    current_package_database: ?FileMap = null,
+    current_package_files: ?[]FileEntry = null,
     current_package_index: usize = 0,
 
     fn stateFailed(self: *MergeMachine, err: InstallerError) InstallerError {
-        if (self.current_package_database) |*package_database| {
-            freeFileMap(package_database, self.installer.allocator);
-            self.current_package_database = null;
+        if (self.current_package_files) |package_files| {
+            for (package_files) |*entry| entry.deinit(self.installer.allocator);
+            self.installer.allocator.free(package_files);
+            self.current_package_files = null;
         }
 
         if (self.temp_config_path) |path| {
@@ -94,7 +97,7 @@ fn stateCheckPackageConfigDir(machine: *MergeMachine) InstallerError!MergeState 
     if (machine.current_package_index >= machine.installer.data.packages.len) return .done;
 
     const package = machine.installer.data.packages[machine.current_package_index];
-    const package_path = std.mem.span(package.path);
+    const package_path = std.mem.span(package.temp_package_path);
 
     const package_config_path = std.fs.path.joinZ(machine.installer.allocator, &.{ package_path, PREFIX, CONFIG_DIR }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(package_config_path);
@@ -108,26 +111,24 @@ fn stateCheckPackageConfigDir(machine: *MergeMachine) InstallerError!MergeState 
 
 fn stateLoadPackageDatabase(machine: *MergeMachine) InstallerError!MergeState {
     const package = machine.installer.data.packages[machine.current_package_index];
-    const package_path = std.mem.span(package.path);
 
-    const package_database_path = std.fs.path.join(machine.installer.allocator, &.{ package_path, DB_RELATIVE_PATH }) catch return machine.stateFailed(InstallerError.AllocZFailed);
-    defer machine.installer.allocator.free(package_database_path);
+    const temp_database_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
-    if (machine.current_package_database) |*package_database| {
-        freeFileMap(package_database, machine.installer.allocator);
-        machine.current_package_database = null;
-    }
+    var base = Database.open(machine.installer.allocator, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    defer base.close();
 
-    machine.current_package_database = readFiles(package_database_path, package.checksum, machine.installer.allocator) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const package_uuid = (exists(base, package.meta.name, package.meta.arch, package.meta.arch_sub) catch return machine.stateFailed(InstallerError.PackageNotFound)) orelse return machine.stateFailed(InstallerError.PackageNotFound);
+
+    machine.current_package_files = list(base, package_uuid) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
     return .overlay_package_config_dir;
 }
 
 fn stateOverlayPackageConfigDir(machine: *MergeMachine) InstallerError!MergeState {
-    const package_database = machine.current_package_database orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const package_files = machine.current_package_files orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
     const package = machine.installer.data.packages[machine.current_package_index];
-    const package_path = std.mem.span(package.path);
+    const package_path = std.mem.span(package.temp_package_path);
 
     const package_config_path = std.fs.path.join(machine.installer.allocator, &.{ package_path, PREFIX, CONFIG_DIR }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(package_config_path);
@@ -152,13 +153,22 @@ fn stateOverlayPackageConfigDir(machine: *MergeMachine) InstallerError!MergeStat
 
         switch (entry.kind) {
             .directory => std.Io.Dir.cwd().createDirPath(machine.installer.io, destination_path) catch {},
-            .file, .sym_link => if (conflict)
-                resolveConflict(machine, package_database, entry.kind, source_path, destination_path, entry.path) catch return machine.stateFailed(InstallerError.WriteConfigFailed)
-            else
-                copyEntry(machine, entry.kind, source_path, destination_path) catch return machine.stateFailed(InstallerError.WriteConfigFailed),
+            .file, .sym_link => if (conflict) {
+                const checksum: ?[32]u8 = blk: {
+                    for (package_files) |file_entry| {
+                        if (std.mem.eql(u8, file_entry.path, entry.path)) break :blk file_entry.sha256;
+                    }
+                    break :blk null;
+                };
+                resolveConflict(machine, checksum, entry.kind, source_path, destination_path) catch return machine.stateFailed(InstallerError.WriteConfigFailed);
+            } else copyEntry(machine, entry.kind, source_path, destination_path) catch return machine.stateFailed(InstallerError.WriteConfigFailed),
             else => {},
         }
     }
+
+    for (package_files) |*file_entry| file_entry.deinit(machine.installer.allocator);
+    machine.installer.allocator.free(package_files);
+    machine.current_package_files = null;
 
     machine.current_package_index += 1;
     if (machine.current_package_index < machine.installer.data.packages.len) return .check_package_config_dir;

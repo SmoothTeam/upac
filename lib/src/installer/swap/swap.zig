@@ -3,8 +3,8 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
-const PREFIX = types.PREFIX;
-const CONFIG_DIR = types.CONFIG_DIR;
+const PREFIX = types.paths.prefix;
+const CONFIG_DIR = types.paths.config_dir;
 
 const installer = @import("../installer.zig");
 
@@ -61,5 +61,11 @@ fn cleanup(machine: *InstallerMachine) void {
 
         machine.allocator.free(snap_temp_config_path);
         machine.temp_config_path = null;
+    }
+    if (machine.temp_db_path) |path| {
+        std.Io.Dir.cwd().deleteTree(machine.io, path) catch {};
+
+        machine.allocator.free(path);
+        machine.temp_db_path = null;
     }
 }

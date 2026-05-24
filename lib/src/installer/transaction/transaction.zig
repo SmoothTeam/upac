@@ -2,13 +2,12 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
-const append = @import("upac-index").append;
-
 const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
 
-const loadCommitBody = @import("utils.zig").loadCommitBody;
+const utils = @import("utils.zig");
+const formatVersion = utils.formatVersion;
 // ── TransactionState ──────────────────────────────────────────────────────────
 const TransactionState = enum {
     open_repo,
@@ -17,8 +16,7 @@ const TransactionState = enum {
     open_transaction,
     write_package,
     write_mtree,
-    load_body,
-    build_body,
+    write_db_mtree,
     build_subject,
     write_commit,
     set_ref,
@@ -60,7 +58,6 @@ pub const TransactionMachine = struct {
             c_libs.g_object_unref(mtree);
             self.mtree = null;
         }
-        if (self.commit_body.len > 0) self.installer.allocator.free(self.commit_body);
         if (self.commit_subject.len > 0) self.installer.allocator.free(self.commit_subject);
 
         return err;
@@ -91,8 +88,7 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
             .open_transaction => try stateOpenTransaction(&transaction_machine),
             .write_package => try stateWritePackageMtree(&transaction_machine),
             .write_mtree => try stateWriteGeneralMtree(&transaction_machine),
-            .load_body => try stateLoadPreviosBody(&transaction_machine),
-            .build_body => try stateBuildBody(&transaction_machine),
+            .write_db_mtree => try stateWriteDbMtree(&transaction_machine),
             .build_subject => try stateBuildSubject(&transaction_machine),
             .write_commit => try stateWriteCommit(&transaction_machine),
             .set_ref => try stateSetRef(&transaction_machine),
@@ -137,14 +133,6 @@ fn stateGetPreviousMtree(machine: *TransactionMachine) InstallerError!Transactio
 
     if (c_libs.ostree_repo_write_directory_to_mtree(repo, previos_root, machine.mtree, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
 
-    return .load_body;
-}
-
-fn stateLoadPreviosBody(machine: *TransactionMachine) InstallerError!TransactionState {
-    const previos_checksum = machine.previous_commit_checksum orelse return machine.stateFailed(InstallerError.CommitNotFound);
-
-    machine.commit_body = loadCommitBody(machine, previos_checksum) catch |err| return machine.stateFailed(err);
-
     return .open_transaction;
 }
 
@@ -161,7 +149,7 @@ fn stateWritePackageMtree(machine: *TransactionMachine) InstallerError!Transacti
     const mtree = machine.mtree orelse return machine.stateFailed(InstallerError.RepoOpenFailed);
 
     const package = machine.installer.data.packages[machine.current_package_index];
-    const package_path = std.mem.span(package.path);
+    const package_path = package.temp_package_path;
 
     if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, package_path, mtree, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
 
@@ -178,21 +166,20 @@ fn stateWriteGeneralMtree(machine: *TransactionMachine) InstallerError!Transacti
 
     if (c_libs.ostree_repo_write_mtree(repo, mtree, &machine.mtree_root, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
 
-    return .build_body;
+    return .write_db_mtree;
 }
 
-fn stateBuildBody(machine: *TransactionMachine) InstallerError!TransactionState {
-    const package = machine.installer.data.packages[machine.current_package_index];
+fn stateWriteDbMtree(machine: *TransactionMachine) InstallerError!TransactionState {
+    const repo = machine.repo orelse return machine.stateFailed(InstallerError.RepoOpenFailed);
+    const mtree = machine.mtree orelse return machine.stateFailed(InstallerError.RepoOpenFailed);
 
-    const new_body = append(machine.commit_body, package.meta.name, package.checksum, machine.installer.allocator) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    const temp_database_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
-    if (machine.commit_body.len > 0) machine.installer.allocator.free(machine.commit_body);
-    machine.commit_body = new_body;
+    const temp_database_path_c = machine.installer.allocator.dupeZ(u8, temp_database_path) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(temp_database_path_c);
 
-    machine.current_package_index += 1;
-    if (machine.current_package_index < machine.installer.data.packages.len) return .build_body;
+    if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, temp_database_path_c, mtree, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
 
-    machine.current_package_index = 0;
     return .build_subject;
 }
 
@@ -200,11 +187,14 @@ fn stateBuildSubject(machine: *TransactionMachine) InstallerError!TransactionSta
     var subject_buf = std.Io.Writer.Allocating.init(machine.installer.allocator);
     defer subject_buf.deinit();
 
-    const first_package = machine.installer.data.packages[0];
-    subject_buf.writer.print("install: {s} {s}", .{ first_package.meta.name, first_package.meta.version }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    subject_buf.writer.print("install:", .{}) catch return machine.stateFailed(InstallerError.AllocZFailed);
 
-    for (machine.installer.data.packages[1..]) |package| {
-        subject_buf.writer.print(", {s} {s}", .{ package.meta.name, package.meta.version }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    for (machine.installer.data.packages, 0..) |package, index| {
+        const separator: []const u8 = if (index == 0) " " else ", ";
+
+        subject_buf.writer.print("{s}{s} ", .{ separator, package.meta.name }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+
+        formatVersion(package.meta.version, &subject_buf.writer) catch return machine.stateFailed(InstallerError.AllocZFailed);
     }
 
     machine.commit_subject = machine.installer.allocator.dupeZ(u8, subject_buf.written()) catch return machine.stateFailed(InstallerError.AllocZFailed);
@@ -220,7 +210,7 @@ fn stateWriteCommit(machine: *TransactionMachine) InstallerError!TransactionStat
         repo,
         machine.previous_commit_checksum,
         machine.commit_subject,
-        machine.commit_body.ptr,
+        null,
         null,
         @ptrCast(mtree_root),
         @ptrCast(&machine.commit_checksum),
@@ -245,10 +235,6 @@ fn stateCloseTransaction(machine: *TransactionMachine) InstallerError!Transactio
     if (machine.commit_subject.len > 0) {
         machine.installer.allocator.free(machine.commit_subject);
         machine.commit_subject = "";
-    }
-    if (machine.commit_body.len > 0) {
-        machine.installer.allocator.free(machine.commit_body);
-        machine.commit_body = "";
     }
 
     if (machine.mtree_root) |root| {

@@ -3,14 +3,15 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
-const FileMap = @import("upac-database").FileMap;
+const types = @import("upac-types");
+const FileEntry = types.FileEntry;
 
 const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
 
-pub fn collectChecksums(machine: *InstallerMachine, currnet_temp_path: []const u8, file_map: *FileMap) InstallerError!void {
-    var dir = std.Io.Dir.openDirAbsolute(machine.io, currnet_temp_path, .{ .iterate = true }) catch return InstallerError.CollectFileChecksumsFailed;
+pub fn collectChecksums(machine: *InstallerMachine, current_temp_path: []const u8, file_entries: *std.ArrayList(FileEntry)) InstallerError!void {
+    var dir = std.Io.Dir.openDirAbsolute(machine.io, current_temp_path, .{ .iterate = true }) catch return InstallerError.CollectFileChecksumsFailed;
     defer dir.close(machine.io);
 
     var walker = dir.walk(machine.allocator) catch return InstallerError.CollectFileChecksumsFailed;
@@ -23,12 +24,15 @@ pub fn collectChecksums(machine: *InstallerMachine, currnet_temp_path: []const u
 
         switch (entry.kind) {
             .sym_link => collectSymlinkChecksums(machine, entry, &hash_bytes) catch |err| return err,
-            .file => collectFileChecksums(machine, currnet_temp_path, entry, &hash_bytes) catch |err| return err,
+            .file => collectFileChecksums(machine, current_temp_path, entry, &hash_bytes) catch |err| return err,
             else => continue,
         }
 
-        const hex = std.fmt.bytesToHex(hash_bytes, .lower);
-        file_map.put(try machine.allocator.dupe(u8, entry.path), try machine.allocator.dupe(u8, &hex)) catch return InstallerError.CollectFileChecksumsFailed;
+        const path = machine.allocator.dupe(u8, entry.path) catch return InstallerError.CollectFileChecksumsFailed;
+        file_entries.append(machine.allocator, .{ .path = path, .sha256 = hash_bytes, .is_user = false }) catch {
+            machine.allocator.free(path);
+            return InstallerError.CollectFileChecksumsFailed;
+        };
     }
 }
 
