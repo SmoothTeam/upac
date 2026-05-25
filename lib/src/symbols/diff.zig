@@ -22,7 +22,7 @@ pub fn diff(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.
 
     const attributed_diff_entrys = diff_module.DiffMachine.run(.{
         .repo_path = diff_request_c.repo_path.asZ(),
-        .root_path = diff_request_c.root_path.asZ(),
+        .tmp_path = diff_request_c.tmp_path.asZ(),
         .from_ref = diff_request_c.from_commit_hash.asZ(),
         .to_ref = diff_request_c.to_commit_hash.asZ(),
         .cancel_token = diff_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)),
