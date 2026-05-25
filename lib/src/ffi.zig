@@ -173,6 +173,7 @@ pub const CUnmutatedRequest = extern struct {
 
     repo_path: CSlice,
     root_path: CSlice,
+    tmp_path: CSlice,
     arch_config_path: CSlice,
     branch: CSlice,
 
@@ -189,6 +190,7 @@ pub const CUnmutatedRequest = extern struct {
         if (self.struct_size != @sizeOf(CUnmutatedRequest)) return error.AbiMismatch;
         try self.repo_path.validate();
         try self.root_path.validate();
+        try self.tmp_path.validate();
         try self.arch_config_path.validate();
         try self.branch.validate();
     }
@@ -230,6 +232,7 @@ pub const CDiffEntry = extern struct {
     path: CSlice,
     kind: DiffKind,
     package_name: CSlice,
+    is_user: bool,
 
     pub fn validate(self: CDiffEntry) !void {
         if (self.struct_size != @sizeOf(CDiffEntry)) return error.AbiMismatch;

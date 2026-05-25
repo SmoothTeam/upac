@@ -65,10 +65,17 @@ pub const FileEntry = struct {
     }
 };
 
-pub const AttributedDiffEntry = struct {
+pub const FileRecord = struct {
+    sha256: [32]u8,
+    is_user: bool,
+    pkg_name: []const u8,
+};
+
+pub const DiffEntry = struct {
     path: []const u8,
     kind: DiffKind,
     package_name: []const u8,
+    is_user: bool,
 };
 
 // Enumeration of file system change types (added, deleted, modified)
@@ -76,12 +83,6 @@ pub const DiffKind = enum(u8) {
     added = 0,
     removed = 1,
     modified = 2,
-};
-
-// Description of the specific change: the file path and exactly what happened to it
-pub const DiffEntry = struct {
-    path: []const u8,
-    kind: DiffKind,
 };
 
 pub const InstallStateId = enum(u8) {
@@ -118,7 +119,7 @@ pub const RollbackStateId = enum(u8) {
 };
 
 pub const ListStateId = enum(u8) {
-    open_repo = 0,
+    verifying = 0,
     list_packages = 1,
     list_commits = 2,
     done = 3,
@@ -126,9 +127,10 @@ pub const ListStateId = enum(u8) {
 };
 
 pub const DiffStateId = enum(u8) {
-    open_repo = 0,
-    diff_packages = 1,
-    diff_files = 2,
+    verifying = 0,
+    preparing = 1,
+    comparing = 2,
+
     done = 3,
     failed = 4,
 };
