@@ -30,12 +30,18 @@ pub fn build(b: *std.Build) void {
     // ── Serde ──────────────────────────────────────────────────────────────
     const serde = b.dependency("serde", .{ .target = target, .optimize = optimize });
 
+    // ── Config ZON modules ─────────────────────────────────────────────────
+    const paths_file = b.createModule(.{ .root_source_file = b.path("config/paths.zon") });
+    const database_file = b.createModule(.{ .root_source_file = b.path("config/database.zon") });
+
     // ── Types ──────────────────────────────────────────────────────────────
     const upac_types = b.createModule(.{
         .root_source_file = b.path("src/types/types.zig"),
         .target = target,
         .optimize = optimize,
     });
+    upac_types.addImport("paths.zon", paths_file);
+    upac_types.addImport("database.zon", database_file);
 
     // ── FFI ─────────────────────────────────────────────────────────────────
     const upac_ffi = b.createModule(.{
@@ -49,11 +55,15 @@ pub fn build(b: *std.Build) void {
 
     // ── Database ──────────────────────────────────────────────────────────────
     const upac_database = b.createModule(.{
-        .root_source_file = b.path("src/database/packages.zig"),
+        .root_source_file = b.path("src/database/database.zig"),
         .target = target,
         .optimize = optimize,
     });
+    upac_database.addImport("database.zon", database_file);
     upac_database.addImport("upac-types", upac_types);
+
+    upac_database.addImport("lmdbx", lmdbx.module("lmdbx"));
+    upac_database.addImport("serde", serde.module("serde"));
 
     // ── Installer ─────────────────────────────────────────────────────────────
     const upac_installer = b.createModule(.{
