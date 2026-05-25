@@ -29,10 +29,7 @@ pub const Database = struct {
     allocator: std.mem.Allocator,
 
     // Opens an existing database. Fails if DBIs don't exist (init was not run).
-    pub fn open(allocator: std.mem.Allocator, root_path: []const u8) DatabaseError!Database {
-        const path = std.fs.path.joinZ(allocator, &.{ root_path, prefix, database_path }) catch return DatabaseError.AllocZFailed;
-        defer allocator.free(path);
-
+    pub fn open(allocator: std.mem.Allocator, path: [*:0]const u8) DatabaseError!Database {
         const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch return DatabaseError.ReadError;
 
         const setup_transaction = lmdbx.Transaction.init(environment, .{}) catch return DatabaseError.WriteError;
