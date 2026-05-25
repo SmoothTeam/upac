@@ -63,9 +63,9 @@ fn cleanup(machine: *InstallerMachine) void {
         machine.temp_config_path = null;
     }
     if (machine.temp_db_path) |path| {
-        std.Io.Dir.cwd().deleteTree(machine.io, path) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, std.mem.span(path)) catch {};
 
-        machine.allocator.free(path);
+        machine.allocator.free(std.mem.span(path));
         machine.temp_db_path = null;
     }
 }

@@ -148,10 +148,13 @@ fn stateCheckInstalled(machine: *VerifyingMachine) InstallerError!VerifyingState
     const package = machine.installer.data.packages[machine.current_package_index];
     const root_path = std.mem.span(machine.installer.data.root_path);
 
-    var db = database.Database.open(machine.installer.allocator, root_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
-    defer db.close();
+    const database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(database_path);
 
-    const is_installed = database.packages.exists(db, package.meta.name, package.meta.arch, package.meta.arch_sub) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    var base = database.Database.open(machine.installer.allocator, database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    defer base.close();
+
+    const is_installed = database.packages.exists(base, package.meta.name, package.meta.arch, package.meta.arch_sub) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
     if (is_installed != null) return machine.stateFailed(InstallerError.AlreadyInstalled);
 
     machine.current_package_index += 1;

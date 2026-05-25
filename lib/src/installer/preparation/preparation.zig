@@ -11,7 +11,10 @@ const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 
 const database = @import("upac-database");
+const Database = database.Database;
 const FileEntry = types.FileEntry;
+
+const insert = database.packages.insert;
 
 const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
@@ -42,8 +45,8 @@ const PreparationMachine = struct {
 
     fn stateFailed(self: *PreparationMachine, err: InstallerError) InstallerError {
         if (self.installer.temp_db_path) |path| {
-            std.Io.Dir.cwd().deleteTree(self.installer.io, path) catch {};
-            self.installer.allocator.free(path);
+            std.Io.Dir.cwd().deleteTree(self.installer.io, std.mem.span(path)) catch {};
+            self.installer.allocator.free(std.mem.span(path));
             self.installer.temp_db_path = null;
         }
 
@@ -82,16 +85,15 @@ fn stateCreateDbTemp(machine: *PreparationMachine) InstallerError!PreparationSta
     _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
     const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
 
-    const temp_database_path = std.fmt.allocPrint(
-        machine.installer.allocator,
-        "{s}/upac-db-{d}",
-        .{ tmp_path, timestamp },
-    ) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    const temp_database_name = std.fmt.allocPrint(machine.installer.allocator, "upac-db-{d}", .{timestamp}) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    errdefer machine.installer.allocator.free(temp_database_name);
+
+    const temp_database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ tmp_path, temp_database_name }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     errdefer machine.installer.allocator.free(temp_database_path);
 
-    std.Io.Dir.cwd().createDirPath(machine.installer.io, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
-
     machine.installer.temp_db_path = temp_database_path;
+
+    std.Io.Dir.cwd().createDirPath(machine.installer.io, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
     return .copy_current_db;
 }
@@ -103,10 +105,7 @@ fn stateCopyCurrentDb(machine: *PreparationMachine) InstallerError!PreparationSt
     const source_database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(source_database_path);
 
-    const destination_database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_database_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
-    defer machine.installer.allocator.free(destination_database_path);
-
-    std.Io.Dir.copyFileAbsolute(source_database_path, destination_database_path, machine.installer.io, .{}) catch return InstallerError.WriteDatabaseFailed;
+    std.Io.Dir.copyFileAbsolute(source_database_path, std.mem.span(temp_database_path), machine.installer.io, .{}) catch return InstallerError.WriteDatabaseFailed;
 
     return .move_symlinks_to_prefix;
 }
@@ -240,10 +239,10 @@ fn stateWriteDatabases(machine: *PreparationMachine) InstallerError!PreparationS
 
     const temp_database_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
-    var base = database.Database.open(machine.installer.allocator, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    var base = Database.open(machine.installer.allocator, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
     defer base.close();
 
-    const package_uuid = database.packages.insert(base, package.meta) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const package_uuid = insert(base, package.meta) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
     for (file_entries.items) |file_entry| _ = database.files.insert(base, package_uuid, file_entry) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 

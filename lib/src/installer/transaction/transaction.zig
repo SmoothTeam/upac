@@ -175,7 +175,7 @@ fn stateWriteDbMtree(machine: *TransactionMachine) InstallerError!TransactionSta
 
     const temp_database_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
-    const temp_database_path_c = machine.installer.allocator.dupeZ(u8, temp_database_path) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    const temp_database_path_c = machine.installer.allocator.dupeZ(u8, std.mem.span(temp_database_path)) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(temp_database_path_c);
 
     if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, temp_database_path_c, mtree, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);

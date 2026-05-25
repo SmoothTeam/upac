@@ -64,7 +64,7 @@ pub const InstallerMachine = struct {
 
     temp_prefix_path: ?[*:0]u8 = null,
     temp_config_path: ?[*:0]u8 = null,
-    temp_db_path: ?[]u8 = null,
+    temp_db_path: ?[*:0]u8 = null,
 
     cancellable: ?*c_libs.GCancellable = null,
     gerror: ?*c_libs.GError = null,
