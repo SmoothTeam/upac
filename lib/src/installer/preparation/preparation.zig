@@ -232,8 +232,10 @@ fn stateWriteDatabases(machine: *PreparationMachine) InstallerError!PreparationS
     const package_path = std.mem.span(package.temp_package_path);
 
     var file_entries = std.ArrayList(FileEntry).empty;
-    defer for (file_entries.items) |*file_entry| file_entry.deinit(machine.installer.allocator);
-    file_entries.deinit(machine.installer.allocator);
+    defer {
+        for (file_entries.items) |*file_entry| file_entry.deinit(machine.installer.allocator);
+        file_entries.deinit(machine.installer.allocator);
+    }
 
     try collectChecksums(machine.installer, package_path, &file_entries);
 
