@@ -6,8 +6,6 @@ const diff = @import("../diff.zig");
 const DiffMachine = diff.DiffMachine;
 const DiffError = diff.DiffError;
 
-const check = DiffMachine.check;
-
 const utils = @import("utils.zig");
 
 // ── VerifyingState ────────────────────────────────────────────────────────────
@@ -85,7 +83,7 @@ fn stateOpenRepo(machine: *VerifyingMachine) DiffError!VerifyingState {
     defer c_libs.g_object_unref(gfile);
 
     const repo = c_libs.ostree_repo_new(gfile);
-    check(c_libs.ostree_repo_open(repo, machine.diff.cancellable, &machine.diff.gerror), .RepoOpenFailed) catch |err| {
+    machine.diff.check(c_libs.ostree_repo_open(repo, machine.diff.cancellable, &machine.diff.gerror), error.RepoOpenFailed) catch |err| {
         c_libs.g_object_unref(repo);
         return machine.stateFailed(err);
     };
@@ -97,7 +95,7 @@ fn stateOpenRepo(machine: *VerifyingMachine) DiffError!VerifyingState {
 fn stateCheckFromRef(machine: *VerifyingMachine) DiffError!VerifyingState {
     const repo = machine.repo orelse return machine.stateFailed(DiffError.RepoOpenFailed);
 
-    check(c_libs.ostree_repo_resolve_rev(repo, machine.diff.data.from_ref, 0, &machine.from_checksum, &machine.diff.gerror), .CommitNotFound) catch |err| return machine.stateFailed(err);
+    machine.diff.check(c_libs.ostree_repo_resolve_rev(repo, machine.diff.data.from_ref, 0, &machine.from_checksum, &machine.diff.gerror), error.CommitNotFound) catch |err| return machine.stateFailed(err);
 
     return .check_to_ref;
 }
@@ -105,7 +103,7 @@ fn stateCheckFromRef(machine: *VerifyingMachine) DiffError!VerifyingState {
 fn stateCheckToRef(machine: *VerifyingMachine) DiffError!VerifyingState {
     const repo = machine.repo orelse return machine.stateFailed(DiffError.RepoOpenFailed);
 
-    check(c_libs.ostree_repo_resolve_rev(repo, machine.diff.data.to_ref, 0, &machine.to_checksum, &machine.diff.gerror), .CommitNotFound) catch |err| return machine.stateFailed(err);
+    machine.diff.check(c_libs.ostree_repo_resolve_rev(repo, machine.diff.data.to_ref, 0, &machine.to_checksum, &machine.diff.gerror), error.CommitNotFound) catch |err| return machine.stateFailed(err);
 
     return .check_space;
 }

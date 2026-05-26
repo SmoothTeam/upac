@@ -60,7 +60,7 @@ pub const FileEntry = struct {
     sha256: [32]u8,
     is_user: bool,
 
-    pub fn deinit(self: *FileEntry, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *const FileEntry, allocator: std.mem.Allocator) void {
         allocator.free(self.path);
     }
 };
@@ -119,7 +119,6 @@ pub const RollbackStateId = enum(u8) {
     swap = 3,
 
     done = 4,
-    failed = 5,
 };
 
 pub const ListStateId = enum(u8) {

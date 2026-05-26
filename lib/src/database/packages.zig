@@ -71,21 +71,21 @@ pub fn list(base: Database) DatabaseError![]PackageMeta {
     var cursor = package_base.cursor() catch return DatabaseError.ReadError;
     defer cursor.deinit();
 
-    var list_packages_metas = std.ArrayList(PackageMeta).init(base.allocator);
+    var list_packages_metas = std.ArrayList(PackageMeta).empty;
     errdefer {
         for (list_packages_metas.items) |*item| item.deinit(base.allocator);
-        list_packages_metas.deinit();
+        list_packages_metas.deinit(base.allocator);
     }
 
     var has_next = cursor.goToFirst() catch return DatabaseError.ReadError;
     while (has_next != null) {
         const entry = cursor.getCurrentEntry() catch return DatabaseError.ReadError;
         const package_meta = serde.msgpack.fromSlice(PackageMeta, base.allocator, entry.value) catch return DatabaseError.ReadError;
-        list_packages_metas.append(package_meta) catch return DatabaseError.AllocZFailed;
+        list_packages_metas.append(base.allocator, package_meta) catch return DatabaseError.AllocZFailed;
         has_next = cursor.goToNext() catch return DatabaseError.ReadError;
     }
 
-    return list_packages_metas.toOwnedSlice() catch return DatabaseError.AllocZFailed;
+    return list_packages_metas.toOwnedSlice(base.allocator) catch return DatabaseError.AllocZFailed;
 }
 
 fn matchesIdentity(meta: PackageMeta, name: []const u8, arch: []const u8, arch_sub: ?[]const u8) bool {

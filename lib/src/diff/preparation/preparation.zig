@@ -11,8 +11,6 @@ const diff_module = @import("../diff.zig");
 const DiffMachine = diff_module.DiffMachine;
 const DiffError = diff_module.DiffError;
 
-const check = DiffMachine.check;
-
 const utils = @import("utils.zig");
 const buildFilePkgMap = utils.buildFilePkgMap;
 const checkoutDb = utils.checkoutDb;
@@ -81,7 +79,7 @@ fn stateOpenRepo(machine: *PreparationMachine) DiffError!PreparationState {
     defer c_libs.g_object_unref(gfile);
 
     const repo = c_libs.ostree_repo_new(gfile);
-    check(c_libs.ostree_repo_open(repo, machine.diff.cancellable, &machine.diff.gerror), .RepoOpenFailed) catch |err| {
+    machine.diff.check(c_libs.ostree_repo_open(repo, machine.diff.cancellable, &machine.diff.gerror), error.RepoOpenFailed) catch |err| {
         c_libs.g_object_unref(repo);
         return machine.stateFailed(err);
     };
@@ -101,7 +99,7 @@ fn stateCheckoutDatabase(machine: *PreparationMachine) DiffError!PreparationStat
     const repo = machine.repo orelse return machine.stateFailed(DiffError.RepoOpenFailed);
     const tmp_path = std.mem.span(machine.diff.data.tmp_path);
 
-    check(c_libs.ostree_repo_resolve_rev(repo, machine.currentRef(), 0, &checksum, &machine.diff.gerror), .CommitNotFound) catch |err| return machine.stateFailed(err);
+    machine.diff.check(c_libs.ostree_repo_resolve_rev(repo, machine.currentRef(), 0, &checksum, &machine.diff.gerror), error.CommitNotFound) catch |err| return machine.stateFailed(err);
 
     const database_temp_dir_name = std.fmt.allocPrint(machine.diff.allocator, "upac-diff-{d}", .{timestamp}) catch return machine.stateFailed(DiffError.AllocFailed);
     defer machine.diff.allocator.free(database_temp_dir_name);
