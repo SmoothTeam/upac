@@ -77,11 +77,12 @@ pub fn list(base: Database) DatabaseError![]PackageMeta {
         list_packages_metas.deinit();
     }
 
-    var value = cursor.goToFirst() catch return DatabaseError.ReadError;
-    while (value) |bytes| {
-        const package_meta = serde.msgpack.fromSlice(PackageMeta, base.allocator, bytes) catch return DatabaseError.ReadError;
+    var has_next = cursor.goToFirst() catch return DatabaseError.ReadError;
+    while (has_next != null) {
+        const entry = cursor.getCurrentEntry() catch return DatabaseError.ReadError;
+        const package_meta = serde.msgpack.fromSlice(PackageMeta, base.allocator, entry.value) catch return DatabaseError.ReadError;
         list_packages_metas.append(package_meta) catch return DatabaseError.AllocZFailed;
-        value = cursor.goToNext() catch return DatabaseError.ReadError;
+        has_next = cursor.goToNext() catch return DatabaseError.ReadError;
     }
 
     return list_packages_metas.toOwnedSlice() catch return DatabaseError.AllocZFailed;

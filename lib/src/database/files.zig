@@ -1,6 +1,7 @@
 const std = @import("std");
-const lmdbx = @import("lmdbx");
 const serde = @import("serde");
+const toSlice = serde.msgpack.toSlice;
+const fromSlice = serde.msgpack.fromSlice;
 
 const types = @import("upac-types");
 const FileEntry = types.FileEntry;
@@ -9,71 +10,106 @@ const database = @import("database.zig");
 const Database = database.Database;
 const DatabaseError = database.DatabaseError;
 
-fn buildKey(allocator: std.mem.Allocator, uuid: [16]u8, file_path: []const u8) std.mem.Allocator.Error![]u8 {
-    const key = try allocator.alloc(u8, 16 + file_path.len);
-    @memcpy(key[0..16], &uuid);
-    @memcpy(key[16..], file_path);
-    return key;
-}
-
 pub fn insert(base: Database, uuid: [16]u8, file_entry: FileEntry) DatabaseError!void {
     const files_base = base.files_dbi orelse return DatabaseError.PackageNotFound;
-    const key = buildKey(base.allocator, uuid, file_entry.path) catch return DatabaseError.AllocZFailed;
-    defer base.allocator.free(key);
 
-    if (files_base.get(key) catch return DatabaseError.ReadError) |existing_bytes| {
-        var existing_entry = serde.msgpack.fromSlice(FileEntry, base.allocator, existing_bytes) catch return DatabaseError.ReadError;
-        defer existing_entry.deinit(base.allocator);
+    var cursor = files_base.cursor() catch return DatabaseError.ReadError;
+    defer cursor.deinit();
 
-        if (existing_entry.is_user) return;
+    const seek_result = cursor.seekLowerBound(&uuid) catch return DatabaseError.ReadError;
+    if (seek_result) |result| {
+        if (result.exact) {
+            var current_value: []const u8 = result.entry.value;
+            while (true) {
+                var existing = fromSlice(FileEntry, base.allocator, current_value) catch return DatabaseError.ReadError;
+                defer existing.deinit(base.allocator);
+                if (std.mem.eql(u8, existing.path, file_entry.path)) {
+                    if (existing.is_user) return;
+                    cursor.del(.Current) catch return DatabaseError.WriteError;
+                    break;
+                }
+                const next_dup = cursor.nextDup() catch return DatabaseError.ReadError;
+                current_value = (next_dup orelse break).value;
+            }
+        }
     }
 
-    const file_entry_as_bytes = serde.msgpack.toSlice(base.allocator, file_entry) catch return DatabaseError.WriteError;
-    defer base.allocator.free(file_entry_as_bytes);
-
-    files_base.set(key, file_entry_as_bytes, .Upsert) catch return DatabaseError.WriteError;
+    const serialized = toSlice(base.allocator, file_entry) catch return DatabaseError.WriteError;
+    defer base.allocator.free(serialized);
+    cursor.put(&uuid, serialized, .Upsert) catch return DatabaseError.WriteError;
 }
 
 pub fn delete(base: Database, uuid: [16]u8, file_path: []const u8) DatabaseError!void {
     const files_base = base.files_dbi orelse return DatabaseError.PackageNotFound;
-    const key = buildKey(base.allocator, uuid, file_path) catch return DatabaseError.AllocZFailed;
-    defer base.allocator.free(key);
 
-    if (files_base.get(key) catch return DatabaseError.ReadError) |existing_bytes| {
-        const existing_entry = serde.msgpack.fromSlice(FileEntry, base.allocator, existing_bytes) catch return DatabaseError.ReadError;
-        defer existing_entry.deinit(base.allocator);
+    var cursor = files_base.cursor() catch return DatabaseError.ReadError;
+    defer cursor.deinit();
 
-        if (existing_entry.is_user) return;
+    const seek_result = cursor.seekLowerBound(&uuid) catch return DatabaseError.ReadError;
+    const result = seek_result orelse return;
+    if (!result.exact) return;
+
+    var current_value: []const u8 = result.entry.value;
+    while (true) {
+        var existing = fromSlice(FileEntry, base.allocator, current_value) catch return DatabaseError.ReadError;
+        defer existing.deinit(base.allocator);
+        if (std.mem.eql(u8, existing.path, file_path)) {
+            if (existing.is_user) return;
+            cursor.del(.Current) catch return DatabaseError.WriteError;
+            return;
+        }
+        const next_dup = cursor.nextDup() catch return DatabaseError.ReadError;
+        current_value = (next_dup orelse return).value;
     }
-
-    files_base.delete(key) catch return DatabaseError.WriteError;
 }
 
 pub fn update(base: Database, uuid: [16]u8, file_entry: FileEntry) DatabaseError!void {
     const files_base = base.files_dbi orelse return DatabaseError.PackageNotFound;
-    const key = buildKey(base.allocator, uuid, file_entry.path) catch return DatabaseError.AllocZFailed;
-    defer base.allocator.free(key);
 
-    if (files_base.get(key) catch return DatabaseError.ReadError) |existing_bytes| {
-        const existing_entry = serde.msgpack.fromSlice(FileEntry, base.allocator, existing_bytes) catch return DatabaseError.ReadError;
-        defer existing_entry.deinit(base.allocator);
+    var cursor = files_base.cursor() catch return DatabaseError.ReadError;
+    defer cursor.deinit();
 
-        if (existing_entry.is_user) return;
+    const seek_result = cursor.seekLowerBound(&uuid) catch return DatabaseError.ReadError;
+    if (seek_result) |result| {
+        if (result.exact) {
+            var current_value: []const u8 = result.entry.value;
+            while (true) {
+                var existing = fromSlice(FileEntry, base.allocator, current_value) catch return DatabaseError.ReadError;
+                defer existing.deinit(base.allocator);
+                if (std.mem.eql(u8, existing.path, file_entry.path)) {
+                    if (existing.is_user) return;
+                    cursor.del(.Current) catch return DatabaseError.WriteError;
+                    break;
+                }
+                const next_dup = cursor.nextDup() catch return DatabaseError.ReadError;
+                current_value = (next_dup orelse break).value;
+            }
+        }
     }
 
-    const file_entry_as_bytes = serde.msgpack.toSlice(base.allocator, file_entry) catch return DatabaseError.WriteError;
-    defer base.allocator.free(file_entry_as_bytes);
-
-    files_base.set(key, file_entry_as_bytes, .Upsert) catch return DatabaseError.WriteError;
+    const serialized = toSlice(base.allocator, file_entry) catch return DatabaseError.WriteError;
+    defer base.allocator.free(serialized);
+    cursor.put(&uuid, serialized, .Upsert) catch return DatabaseError.WriteError;
 }
 
 pub fn exists(base: Database, uuid: [16]u8, file_path: []const u8) DatabaseError!bool {
     const files_base = base.files_dbi orelse return DatabaseError.PackageNotFound;
-    const key = buildKey(base.allocator, uuid, file_path) catch return DatabaseError.AllocZFailed;
-    defer base.allocator.free(key);
 
-    const result = files_base.get(key) catch return DatabaseError.ReadError;
-    return result != null;
+    var cursor = files_base.cursor() catch return DatabaseError.ReadError;
+    defer cursor.deinit();
+
+    const seek_result = cursor.seekLowerBound(&uuid) catch return DatabaseError.ReadError;
+    const result = seek_result orelse return false;
+    if (!result.exact) return false;
+
+    var current_value: []const u8 = result.entry.value;
+    while (true) {
+        var existing = fromSlice(FileEntry, base.allocator, current_value) catch return DatabaseError.ReadError;
+        defer existing.deinit(base.allocator);
+        if (std.mem.eql(u8, existing.path, file_path)) return true;
+        const next_dup = cursor.nextDup() catch return DatabaseError.ReadError;
+        current_value = (next_dup orelse return false).value;
+    }
 }
 
 pub fn list(base: Database, uuid: [16]u8) DatabaseError![]FileEntry {
@@ -88,16 +124,19 @@ pub fn list(base: Database, uuid: [16]u8) DatabaseError![]FileEntry {
         file_entries_list.deinit(base.allocator);
     }
 
-    const first = cursor.seekLowerBound(&uuid) catch return DatabaseError.ReadError;
-    var current_entry: ?lmdbx.Cursor.Entry = if (first) |result| result.entry else null;
-    while (current_entry) |key_value_pair| {
-        if (!std.mem.startsWith(u8, key_value_pair.key, &uuid)) break;
+    const seek_result = cursor.seekLowerBound(&uuid) catch return DatabaseError.ReadError;
+    const result = seek_result orelse return file_entries_list.toOwnedSlice(base.allocator) catch return DatabaseError.AllocZFailed;
+    if (!result.exact) return file_entries_list.toOwnedSlice(base.allocator) catch return DatabaseError.AllocZFailed;
 
-        const file_entry = serde.msgpack.fromSlice(FileEntry, base.allocator, key_value_pair.value) catch return DatabaseError.ReadError;
-        file_entries_list.append(base.allocator, file_entry) catch return DatabaseError.AllocZFailed;
-
-        const has_next = cursor.goToNext() catch return DatabaseError.ReadError;
-        current_entry = if (has_next != null) cursor.getCurrentEntry() catch return DatabaseError.ReadError else null;
+    var current_value: []const u8 = result.entry.value;
+    while (true) {
+        var file_entry = fromSlice(FileEntry, base.allocator, current_value) catch return DatabaseError.ReadError;
+        file_entries_list.append(base.allocator, file_entry) catch {
+            file_entry.deinit(base.allocator);
+            return DatabaseError.AllocZFailed;
+        };
+        const next_dup = cursor.nextDup() catch return DatabaseError.ReadError;
+        current_value = (next_dup orelse break).value;
     }
 
     return file_entries_list.toOwnedSlice(base.allocator) catch return DatabaseError.AllocZFailed;

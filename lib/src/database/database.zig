@@ -36,7 +36,7 @@ pub const Database = struct {
         errdefer setup_transaction.abort() catch {};
 
         const packages_dbi = lmdbx.Database.open(setup_transaction, database_config.packages_dbi, .{}) catch return DatabaseError.ReadError;
-        const files_dbi = lmdbx.Database.open(setup_transaction, database_config.files_dbi, .{}) catch return DatabaseError.ReadError;
+        const files_dbi = lmdbx.Database.open(setup_transaction, database_config.files_dbi, .{ .dup_sort = true }) catch return DatabaseError.ReadError;
 
         setup_transaction.commit() catch return DatabaseError.WriteError;
 
@@ -59,7 +59,7 @@ pub const Database = struct {
     pub fn createFilesDbi(self: Database) DatabaseError!void {
         const create_transaction = lmdbx.Transaction.init(self.environment, .{}) catch return DatabaseError.WriteError;
         errdefer create_transaction.abort() catch {};
-        _ = lmdbx.Database.open(create_transaction, database_config.files_dbi, .{ .create = true }) catch return DatabaseError.WriteError;
+        _ = lmdbx.Database.open(create_transaction, database_config.files_dbi, .{ .create = true, .dup_sort = true }) catch return DatabaseError.WriteError;
         create_transaction.commit() catch return DatabaseError.WriteError;
     }
 
