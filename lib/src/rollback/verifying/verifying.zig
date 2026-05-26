@@ -2,7 +2,7 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
-const PREFIX = @import("upac-types").PREFIX;
+const PREFIX = @import("upac-types").paths.prefix;
 
 const rollback = @import("../rollback.zig");
 

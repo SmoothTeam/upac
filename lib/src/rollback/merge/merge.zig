@@ -3,33 +3,34 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
-const PREFIX = types.PREFIX;
-const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
-const CONFIG_DIR = types.CONFIG_DIR;
+const PREFIX = types.paths.prefix;
+const CONFIG_DIR = types.paths.config_dir;
+const DB_PATH = types.paths.db_path;
+const DB_NAME = types.paths.db_name;
 
 const database = @import("upac-database");
-const FileMap = database.FileMap;
-const freeFileMap = database.freeFileMap;
+const Database = database.Database;
+const packages_list = database.packages.list;
+const packages_exists = database.packages.exists;
+const files_list = database.files.list;
 
 const rollback = @import("../rollback.zig");
 const RollbackMachine = rollback.RollbackMachine;
 const RollbackError = rollback.RollbackError;
 
 const utils = @import("utils.zig");
-const loadCurrentCommitBody = utils.loadCurrentCommitBody;
-const buildCombinedFileMap = utils.buildCombinedFileMap;
 const computeLiveChecksum = utils.computeLiveChecksum;
 const removeEmptyDirs = utils.removeEmptyDirs;
 const mirrorDir = utils.mirrorDir;
-
 const copyFileTo = utils.copyFileTo;
 const copySymlinkTo = utils.copySymlinkTo;
 
 // ── MergeState ────────────────────────────────────────────────────────────────
 const MergeState = enum {
     create_temp_config,
-    open_repo,
-    load_commit_body,
+    open_database,
+    build_file_map,
+    close_database,
     overlay_rollback_configs,
     remove_stale_configs,
     remove_empty_dirs,
@@ -41,22 +42,20 @@ pub const MergeMachine = struct {
     rollback: *RollbackMachine,
 
     temp_config_path: ?[:0]u8 = null,
-    repo: ?*c_libs.OstreeRepo = null,
-    commit_body: []const u8 = "",
-    combined_file_map: ?FileMap = null,
+
+    base: ?Database = null,
+    file_map: ?std.StringHashMap([32]u8) = null,
 
     fn stateFailed(self: *MergeMachine, err: RollbackError) RollbackError {
-        if (self.repo) |repo| {
-            c_libs.g_object_unref(repo);
-            self.repo = null;
+        if (self.base) |*base| {
+            base.close();
+            self.base = null;
         }
-        if (self.commit_body.len > 0) {
-            self.rollback.allocator.free(self.commit_body);
-            self.commit_body = "";
-        }
-        if (self.combined_file_map) |*file_map| {
-            freeFileMap(file_map, self.rollback.allocator);
-            self.combined_file_map = null;
+        if (self.file_map) |*file_map| {
+            var iter = file_map.iterator();
+            while (iter.next()) |entry| self.rollback.allocator.free(entry.key_ptr.*);
+            file_map.deinit();
+            self.file_map = null;
         }
         if (self.temp_config_path) |path| {
             std.Io.Dir.cwd().deleteTree(self.rollback.io, path) catch {};
@@ -78,8 +77,9 @@ pub fn run(machine: *RollbackMachine) RollbackError!void {
     while (state != .done) {
         state = switch (state) {
             .create_temp_config => try stateCreateTempConfigDir(&merge_machine),
-            .open_repo => try stateOpenRepo(&merge_machine),
-            .load_commit_body => try stateLoadCommitBody(&merge_machine),
+            .open_database => try stateOpenDatabase(&merge_machine),
+            .build_file_map => try stateBuildFileMap(&merge_machine),
+            .close_database => stateCloseDatabase(&merge_machine),
             .overlay_rollback_configs => try stateOverlayRollbackConfigs(&merge_machine),
             .remove_stale_configs => try stateRemoveStaleConfigs(&merge_machine),
             .remove_empty_dirs => stateRemoveEmptyDirs(&merge_machine),
@@ -110,37 +110,64 @@ fn stateCreateTempConfigDir(machine: *MergeMachine) RollbackError!MergeState {
 
     mirrorDir(machine.rollback, root_config_path, temp_config_path) catch return machine.stateFailed(RollbackError.StagingFailed);
 
-    return .open_repo;
+    return .open_database;
 }
 
-fn stateOpenRepo(machine: *MergeMachine) RollbackError!MergeState {
-    const gfile = c_libs.g_file_new_for_path(machine.rollback.data.repo_path);
-    defer c_libs.g_object_unref(gfile);
-
-    const repo = c_libs.ostree_repo_new(gfile);
-    if (c_libs.ostree_repo_open(repo, machine.rollback.cancellable, &machine.rollback.gerror) == 0) {
-        c_libs.g_object_unref(repo);
-        return machine.stateFailed(RollbackError.RepoOpenFailed);
-    }
-    machine.repo = repo;
-
-    return .load_commit_body;
-}
-
-fn stateLoadCommitBody(machine: *MergeMachine) RollbackError!MergeState {
-    machine.commit_body = loadCurrentCommitBody(machine) catch |err| return machine.stateFailed(err);
-
-    if (machine.commit_body.len == 0) return .overlay_rollback_configs;
-
+fn stateOpenDatabase(machine: *MergeMachine) RollbackError!MergeState {
     const root_path = std.mem.span(machine.rollback.data.root_path);
-    const db_path = std.fs.path.join(machine.rollback.allocator, &.{ root_path, DB_RELATIVE_PATH }) catch return machine.stateFailed(RollbackError.AllocZFailed);
-    defer machine.rollback.allocator.free(db_path);
 
-    machine.combined_file_map = buildCombinedFileMap(machine, db_path) catch return machine.stateFailed(RollbackError.StagingFailed);
+    const database_file_path = std.fs.path.joinZ(machine.rollback.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(RollbackError.AllocZFailed);
+    defer machine.rollback.allocator.free(database_file_path);
 
-    machine.rollback.allocator.free(machine.commit_body);
-    machine.commit_body = "";
+    machine.base = Database.open(machine.rollback.allocator, database_file_path) catch return machine.stateFailed(RollbackError.StagingFailed);
 
+    return .build_file_map;
+}
+
+fn stateBuildFileMap(machine: *MergeMachine) RollbackError!MergeState {
+    const base = machine.base orelse return machine.stateFailed(RollbackError.StagingFailed);
+
+    var file_map = std.StringHashMap([32]u8).init(machine.rollback.allocator);
+    errdefer {
+        var iter = file_map.iterator();
+        while (iter.next()) |entry| machine.rollback.allocator.free(entry.key_ptr.*);
+        file_map.deinit();
+    }
+
+    const package_metas = packages_list(base) catch return machine.stateFailed(RollbackError.StagingFailed);
+    defer {
+        for (package_metas) |*meta| meta.deinit(machine.rollback.allocator);
+        machine.rollback.allocator.free(package_metas);
+    }
+
+    for (package_metas) |meta| {
+        const uuid = packages_exists(base, meta.name, meta.arch, meta.arch_sub) catch continue orelse continue;
+        const package_files = files_list(base, uuid) catch continue;
+        defer {
+            for (package_files) |*file_entry| file_entry.deinit(machine.rollback.allocator);
+            machine.rollback.allocator.free(package_files);
+        }
+
+        for (package_files) |file_entry| {
+            if (!std.mem.startsWith(u8, file_entry.path, CONFIG_DIR ++ "/")) continue;
+
+            const key = machine.rollback.allocator.dupe(u8, file_entry.path) catch continue;
+            file_map.put(key, file_entry.sha256) catch {
+                machine.rollback.allocator.free(key);
+                continue;
+            };
+        }
+    }
+
+    machine.file_map = file_map;
+    return .close_database;
+}
+
+fn stateCloseDatabase(machine: *MergeMachine) MergeState {
+    if (machine.base) |*base| {
+        base.close();
+        machine.base = null;
+    }
     return .overlay_rollback_configs;
 }
 
@@ -195,13 +222,12 @@ fn stateOverlayRollbackConfigs(machine: *MergeMachine) RollbackError!MergeState 
             const db_key = std.fs.path.join(machine.rollback.allocator, &.{ CONFIG_DIR, entry.path }) catch break :blk true;
             defer machine.rollback.allocator.free(db_key);
 
-            const file_map = machine.combined_file_map orelse break :blk true;
+            const file_map = machine.file_map orelse break :blk true;
             const shipped = file_map.get(db_key) orelse break :blk true;
 
-            const live_hex = computeLiveChecksum(machine.rollback, live_path) catch break :blk true;
-            defer machine.rollback.allocator.free(live_hex);
+            const live_checksum = computeLiveChecksum(machine.rollback, live_path) catch break :blk true;
 
-            break :blk !std.mem.eql(u8, live_hex, shipped);
+            break :blk !std.mem.eql(u8, &live_checksum, &shipped);
         };
 
         if (!user_modified) {
@@ -229,7 +255,7 @@ fn stateRemoveStaleConfigs(machine: *MergeMachine) RollbackError!MergeState {
     const temp_config_path = machine.temp_config_path orelse return .remove_empty_dirs;
     const temp_prefix_path = std.mem.span(machine.rollback.temp_prefix_path orelse return .remove_empty_dirs);
     const root_path = std.mem.span(machine.rollback.data.root_path);
-    const file_map = machine.combined_file_map orelse return .remove_empty_dirs;
+    if (machine.file_map == null) return .remove_empty_dirs;
 
     var dir = std.Io.Dir.openDirAbsolute(machine.rollback.io, temp_config_path, .{ .iterate = true }) catch return .remove_empty_dirs;
     defer dir.close(machine.rollback.io);
@@ -253,35 +279,31 @@ fn stateRemoveStaleConfigs(machine: *MergeMachine) RollbackError!MergeState {
         const db_key = std.fs.path.join(machine.rollback.allocator, &.{ CONFIG_DIR, entry.path }) catch continue;
         defer machine.rollback.allocator.free(db_key);
 
-        const shipped = file_map.get(db_key) orelse continue;
+        const shipped = machine.file_map.?.get(db_key) orelse continue;
 
         const live_path = std.fs.path.joinZ(machine.rollback.allocator, &.{ root_path, CONFIG_DIR, entry.path }) catch continue;
         defer machine.rollback.allocator.free(live_path);
 
-        const live_hex = computeLiveChecksum(machine.rollback, live_path) catch continue;
-        defer machine.rollback.allocator.free(live_hex);
+        const live_checksum = computeLiveChecksum(machine.rollback, live_path) catch continue;
 
-        if (std.mem.eql(u8, live_hex, shipped)) {
+        if (std.mem.eql(u8, &live_checksum, &shipped)) {
             const file_in_temp = std.fs.path.joinZ(machine.rollback.allocator, &.{ temp_config_path, entry.path }) catch continue;
             defer machine.rollback.allocator.free(file_in_temp);
             std.Io.Dir.deleteFileAbsolute(machine.rollback.io, file_in_temp) catch {};
         }
     }
 
-    if (machine.combined_file_map) |*fm| {
-        freeFileMap(fm, machine.rollback.allocator);
-        machine.combined_file_map = null;
+    if (machine.file_map) |*file_map| {
+        var iter = file_map.iterator();
+        while (iter.next()) |entry| machine.rollback.allocator.free(entry.key_ptr.*);
+        file_map.deinit();
+        machine.file_map = null;
     }
 
     return .remove_empty_dirs;
 }
 
 fn stateRemoveEmptyDirs(machine: *MergeMachine) MergeState {
-    if (machine.repo) |repo| {
-        c_libs.g_object_unref(repo);
-        machine.repo = null;
-    }
-
     const temp_config_path = machine.temp_config_path orelse return .done;
     removeEmptyDirs(machine.rollback, temp_config_path);
     return .done;

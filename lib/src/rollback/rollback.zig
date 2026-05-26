@@ -109,8 +109,7 @@ pub const RollbackMachine = struct {
                     swap.run(&machine) catch |err| return err;
                     state = .done;
                 },
-                .done => state = .done,
-                .failed => state = .failed,
+                .done => {},
             }
         }
     }
