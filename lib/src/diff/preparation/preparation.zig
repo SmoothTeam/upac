@@ -2,7 +2,7 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
-const DB_NAME = @import("upac-types").paths.DB_NAME;
+const DB_NAME = @import("upac-types").paths.db_name;
 
 const database = @import("upac-database");
 const Database = database.Database;
@@ -10,6 +10,8 @@ const Database = database.Database;
 const diff_module = @import("../diff.zig");
 const DiffMachine = diff_module.DiffMachine;
 const DiffError = diff_module.DiffError;
+
+const check = DiffMachine.check;
 
 const utils = @import("utils.zig");
 const buildFilePkgMap = utils.buildFilePkgMap;
@@ -79,10 +81,10 @@ fn stateOpenRepo(machine: *PreparationMachine) DiffError!PreparationState {
     defer c_libs.g_object_unref(gfile);
 
     const repo = c_libs.ostree_repo_new(gfile);
-    if (c_libs.ostree_repo_open(repo, machine.diff.cancellable, &machine.diff.gerror) == 0) {
+    check(c_libs.ostree_repo_open(repo, machine.diff.cancellable, &machine.diff.gerror), .RepoOpenFailed) catch |err| {
         c_libs.g_object_unref(repo);
-        return machine.stateFailed(DiffError.RepoOpenFailed);
-    }
+        return machine.stateFailed(err);
+    };
     machine.repo = repo;
 
     return .checkout_database;
@@ -99,7 +101,7 @@ fn stateCheckoutDatabase(machine: *PreparationMachine) DiffError!PreparationStat
     const repo = machine.repo orelse return machine.stateFailed(DiffError.RepoOpenFailed);
     const tmp_path = std.mem.span(machine.diff.data.tmp_path);
 
-    if (c_libs.ostree_repo_resolve_rev(repo, machine.currentRef(), 0, &checksum, &machine.diff.gerror) == 0) return machine.stateFailed(DiffError.CommitNotFound);
+    check(c_libs.ostree_repo_resolve_rev(repo, machine.currentRef(), 0, &checksum, &machine.diff.gerror), .CommitNotFound) catch |err| return machine.stateFailed(err);
 
     const database_temp_dir_name = std.fmt.allocPrint(machine.diff.allocator, "upac-diff-{d}", .{timestamp}) catch return machine.stateFailed(DiffError.AllocFailed);
     defer machine.diff.allocator.free(database_temp_dir_name);
@@ -118,7 +120,7 @@ fn stateCheckoutDatabase(machine: *PreparationMachine) DiffError!PreparationStat
 fn stateLoadPackageFileMap(machine: *PreparationMachine) DiffError!PreparationState {
     const database_path = machine.current_database_path orelse return machine.stateFailed(DiffError.CheckoutFailed);
 
-    const database_file_path = std.fs.path.join(machine.diff.allocator, &.{ database_path, DB_NAME }) catch return machine.stateFailed(DiffError.AllocFailed);
+    const database_file_path = std.fs.path.joinZ(machine.diff.allocator, &.{ database_path, DB_NAME }) catch return machine.stateFailed(DiffError.AllocFailed);
     defer machine.diff.allocator.free(database_file_path);
 
     var base = Database.open(machine.diff.allocator, database_file_path) catch return machine.stateFailed(DiffError.ReadDatabaseFailed);

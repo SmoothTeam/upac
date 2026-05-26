@@ -14,6 +14,8 @@ const exists = database.packages.exists;
 const diff_module = @import("../diff.zig");
 const DiffError = diff_module.DiffError;
 
+const check = diff_module.DiffMachine.check;
+
 const PreparationMachine = @import("preparation.zig").PreparationMachine;
 
 pub fn checkoutDb(machine: *PreparationMachine, checksum: [*c]const u8) DiffError!void {
@@ -28,7 +30,7 @@ pub fn checkoutDb(machine: *PreparationMachine, checksum: [*c]const u8) DiffErro
     var checkout_options = std.mem.zeroes(c_libs.OstreeRepoCheckoutAtOptions);
     checkout_options.subpath = subpath;
 
-    if (c_libs.ostree_repo_checkout_at(machine.repo orelse return DiffError.CheckoutFailed, &checkout_options, c_libs.AT_FDCWD, destination_pathz, checksum, machine.diff.cancellable, &machine.diff.gerror) == 0) return DiffError.CheckoutFailed;
+    try check(c_libs.ostree_repo_checkout_at(machine.repo orelse return DiffError.CheckoutFailed, &checkout_options, c_libs.AT_FDCWD, destination_pathz, checksum, machine.diff.cancellable, &machine.diff.gerror), .CheckoutFailed);
 }
 
 pub fn buildFilePkgMap(base: Database, allocator: std.mem.Allocator, out: *std.StringHashMap(FileRecord)) DiffError!void {

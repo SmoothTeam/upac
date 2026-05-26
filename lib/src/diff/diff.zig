@@ -6,6 +6,7 @@ const c_libs = @import("c-libs");
 const ffi = @import("upac-ffi");
 
 const types = @import("upac-types");
+const DiffEntry = types.DiffEntry;
 const FileRecord = types.FileRecord;
 
 const DiffStateId = types.DiffStateId;
@@ -57,22 +58,19 @@ pub const DiffMachine = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
 
-    pub fn check(self: *DiffMachine) DiffError!void {
-        if (self.gerror) |err| {
-            const is_cancel = err.domain == c_libs.g_io_error_quark() and err.code == c_libs.G_IO_ERROR_CANCELLED;
-
-            c_libs.g_error_free(err);
-            self.gerror = null;
-
-            return if (is_cancel) DiffError.Cancelled else DiffError.DiffFailed;
-        }
-
-        if (self.cancellable) |cancellable| {
-            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) {
-                c_libs.g_cancellable_cancel(cancellable);
-                return DiffError.Cancelled;
+    pub fn check(self: *DiffMachine, result: c_int, fallback: DiffError) DiffError!void {
+        if (result != 0) return;
+        defer {
+            if (self.gerror) |err| {
+                c_libs.g_error_free(err);
+                self.gerror = null;
             }
         }
+        if (self.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and err.code == c_libs.G_IO_ERROR_CANCELLED)
+                return DiffError.Cancelled;
+        }
+        return fallback;
     }
 
     pub fn deinit(self: *DiffMachine) void {
@@ -91,6 +89,14 @@ pub const DiffMachine = struct {
 
     pub fn run(diff_data: DiffData, allocator: std.mem.Allocator) DiffError![]CDiffEntry {
         var state = DiffStateId.verifying;
+        var entries: []DiffEntry = &.{};
+        errdefer if (entries.len > 0) {
+            for (entries) |entry| {
+                allocator.free(entry.path);
+                allocator.free(entry.package_name);
+            }
+            allocator.free(entries);
+        };
 
         var machine = DiffMachine{
             .data = diff_data,
@@ -122,34 +128,25 @@ pub const DiffMachine = struct {
                     state = .comparing;
                 },
                 .comparing => {
-                    const entries = comparing.run(&machine) catch |err| return err;
-
-                    const c_entries = allocator.alloc(CDiffEntry, entries.len) catch {
-                        for (entries) |entry| {
-                            allocator.free(entry.path);
-                            allocator.free(entry.package_name);
-                        }
-                        allocator.free(entries);
-                        return DiffError.AllocFailed;
-                    };
-
-                    for (entries, c_entries) |entry, *c_entry| {
-                        c_entry.* = .{
-                            .path = CSlice.fromSlice(entry.path),
-                            .kind = entry.kind,
-                            .package_name = CSlice.fromSlice(entry.package_name),
-                            .is_user = entry.is_user,
-                        };
-                    }
-                    allocator.free(entries);
-
-                    return c_entries;
+                    entries = comparing.run(&machine) catch |err| return err;
+                    state = .done;
                 },
-                .done => state = .done,
-                .failed => state = .failed,
+                .done => {},
             }
         }
 
-        return &{};
+        const c_entries = allocator.alloc(CDiffEntry, entries.len) catch return DiffError.AllocFailed;
+
+        for (entries, c_entries) |entry, *c_entry| {
+            c_entry.* = .{
+                .path = CSlice.fromSlice(entry.path),
+                .kind = entry.kind,
+                .package_name = CSlice.fromSlice(entry.package_name),
+                .is_user = entry.is_user,
+            };
+        }
+        allocator.free(entries);
+
+        return c_entries;
     }
 };
