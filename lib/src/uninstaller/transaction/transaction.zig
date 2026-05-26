@@ -3,23 +3,25 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
-const CONFIG_DIR = types.CONFIG_DIR;
-const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
+const PREFIX = types.paths.prefix;
+const CONFIG_DIR = types.paths.config_dir;
+const DB_PATH = types.paths.db_path;
+const DB_NAME = types.paths.db_name;
+
+const FileEntry = types.FileEntry;
 
 const uninstaller = @import("../uninstaller.zig");
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
 
 const database = @import("upac-database");
-const FileMap = database.FileMap;
-const freeFileMap = database.freeFileMap;
-const readFiles = database.readFiles;
-
-const find = @import("upac-index").find;
+const Database = database.Database;
+const exists = database.packages.exists;
+const packages_delete = database.packages.delete;
+const list = database.files.list;
+const files_delete = database.files.delete;
 
 const utils = @import("utils.zig");
-const loadCommitBody = utils.loadCommitBody;
-const removeDbEntry = utils.removeDbEntry;
 const removeEmptyDirs = utils.removeEmptyDirs;
 const removeFromMtree = utils.removeFromMtree;
 
@@ -28,12 +30,12 @@ const TransactionState = enum {
     open_repo,
     get_prev_commit,
     get_mtree,
-    check_package_installed,
+    open_database,
     load_package_files,
     remove_package_files,
+    remove_package_records,
     remove_empty_dirs,
-    remove_package_db,
-    build_commit_body,
+    close_database,
     build_commit_subject,
     open_transaction,
     write_commit,
@@ -47,18 +49,17 @@ pub const TransactionMachine = struct {
     uninstaller: *UninstallerMachine,
 
     current_package_index: usize = 0,
-    current_package_checksum: ?[]const u8 = null,
-    current_package_file_map: ?FileMap = null,
+    current_package_uuid: ?[16]u8 = null,
+    current_package_files: ?[]FileEntry = null,
+
+    base: ?Database = null,
 
     repo: ?*c_libs.OstreeRepo = null,
     mtree: ?*c_libs.OstreeMutableTree = null,
-    mtree_root: ?*c_libs.GFile = null,
 
     previos_commit_checksum: [65:0]u8 = std.mem.zeroes([65:0]u8),
-    previos_commit_body: []const u8 = "",
 
     commit_checksum: ?[*c]u8 = null,
-    commit_body: [:0]const u8 = "",
     commit_subject: [:0]const u8 = "",
 
     fn stateFailed(self: *TransactionMachine, err: UninstallerError) UninstallerError {
@@ -80,21 +81,20 @@ pub const TransactionMachine = struct {
             }
         }
 
-        if (self.current_package_checksum) |checksum| {
-            self.uninstaller.allocator.free(checksum);
-            self.current_package_checksum = null;
+        if (self.current_package_files) |package_files| {
+            for (package_files) |*file_entry| file_entry.deinit(self.uninstaller.allocator);
+            self.uninstaller.allocator.free(package_files);
+            self.current_package_files = null;
         }
-        if (self.previos_commit_body.len > 0) {
-            self.uninstaller.allocator.free(self.previos_commit_body);
-            self.previos_commit_body = "";
+
+        if (self.base) |*base| {
+            base.close();
+            self.base = null;
         }
+
         if (self.commit_checksum) |checksum| {
             c_libs.g_free(checksum);
             self.commit_checksum = null;
-        }
-        if (self.commit_body.len > 0) {
-            self.uninstaller.allocator.free(self.commit_body);
-            self.commit_body = "";
         }
         if (self.commit_subject.len > 0) {
             self.uninstaller.allocator.free(self.commit_subject);
@@ -119,12 +119,12 @@ pub fn run(machine: *UninstallerMachine) UninstallerError!void {
             .open_repo => try stateOpenRepo(&transaction_machine),
             .get_prev_commit => try stateGetPrevCommit(&transaction_machine),
             .get_mtree => try stateGetMtree(&transaction_machine),
-            .check_package_installed => try checkPackageInstalled(&transaction_machine),
+            .open_database => try stateOpenDatabase(&transaction_machine),
             .load_package_files => try stateLoadPackageFiles(&transaction_machine),
             .remove_package_files => try stateRemovePackageFiles(&transaction_machine),
+            .remove_package_records => try stateRemovePackageRecords(&transaction_machine),
             .remove_empty_dirs => try stateRemoveEmptyDirs(&transaction_machine),
-            .remove_package_db => try stateRemovePackageDb(&transaction_machine),
-            .build_commit_body => try stateBuildCommitBody(&transaction_machine),
+            .close_database => stateCloseDatabase(&transaction_machine),
             .build_commit_subject => try stateBuildCommitSubject(&transaction_machine),
             .open_transaction => try stateOpenTransaction(&transaction_machine),
             .write_commit => try stateWriteCommit(&transaction_machine),
@@ -163,8 +163,6 @@ fn stateGetPrevCommit(machine: *TransactionMachine) UninstallerError!Transaction
     @memcpy(machine.previos_commit_checksum[0..len], checksum_ptr[0..len]);
     machine.previos_commit_checksum[len] = 0;
 
-    machine.previos_commit_body = loadCommitBody(machine, checksum_ptr) catch |err| return machine.stateFailed(err);
-
     return .get_mtree;
 }
 
@@ -173,42 +171,66 @@ fn stateGetMtree(machine: *TransactionMachine) UninstallerError!TransactionState
     const mtree = c_libs.ostree_mutable_tree_new_from_commit(repo, &machine.previos_commit_checksum, &machine.uninstaller.gerror) orelse return machine.stateFailed(UninstallerError.RepoOpenFailed);
     machine.mtree = mtree;
 
-    return .check_package_installed;
+    return .open_database;
 }
 
-fn checkPackageInstalled(machine: *TransactionMachine) UninstallerError!TransactionState {
-    const package_name = machine.uninstaller.data.package_names[machine.current_package_index];
+fn stateOpenDatabase(machine: *TransactionMachine) UninstallerError!TransactionState {
+    const root_path = std.mem.span(machine.uninstaller.data.root_path);
 
-    const package_entry = find(machine.previos_commit_body, package_name, machine.uninstaller.allocator) catch return machine.stateFailed(UninstallerError.AllocZFailed);
-    const found_package = package_entry orelse return machine.stateFailed(UninstallerError.PackageNotFound);
+    const database_file_path = std.fs.path.joinZ(machine.uninstaller.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(UninstallerError.AllocZFailed);
+    defer machine.uninstaller.allocator.free(database_file_path);
 
-    machine.current_package_checksum = machine.uninstaller.allocator.dupe(u8, found_package.checksum) catch return machine.stateFailed(UninstallerError.AllocZFailed);
+    machine.base = Database.open(machine.uninstaller.allocator, database_file_path) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
 
     return .load_package_files;
 }
 
 fn stateLoadPackageFiles(machine: *TransactionMachine) UninstallerError!TransactionState {
-    const package_checksum = machine.current_package_checksum orelse return machine.stateFailed(UninstallerError.PackageNotFound);
+    const base = machine.base orelse return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+    const package = machine.uninstaller.data.packages[machine.current_package_index];
 
-    const package_database_path = std.fs.path.join(machine.uninstaller.allocator, &.{ std.mem.span(machine.uninstaller.data.root_path), DB_RELATIVE_PATH }) catch return machine.stateFailed(UninstallerError.AllocZFailed);
-    defer machine.uninstaller.allocator.free(package_database_path);
+    const uuid = exists(base, package.name, package.arch, package.arch_sub) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+    machine.current_package_uuid = uuid orelse return machine.stateFailed(UninstallerError.PackageNotFound);
 
-    machine.current_package_file_map = readFiles(package_database_path, package_checksum, machine.uninstaller.allocator) catch return machine.stateFailed(UninstallerError.FileMapCorrupted);
+    machine.current_package_files = list(base, machine.current_package_uuid.?) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
 
     return .remove_package_files;
 }
 
 fn stateRemovePackageFiles(machine: *TransactionMachine) UninstallerError!TransactionState {
-    const package_file_map = machine.current_package_file_map orelse return machine.stateFailed(UninstallerError.PackageNotFound);
+    const package_files = machine.current_package_files orelse return machine.stateFailed(UninstallerError.FileMapCorrupted);
 
-    var pcakage_file_map_iter = package_file_map.iterator();
-    while (pcakage_file_map_iter.next()) |package_file| {
-        removeFromMtree(machine, package_file.key_ptr.*) catch |err| {
-            if (err == error.FileNotFound and std.mem.startsWith(u8, package_file.key_ptr.*, CONFIG_DIR ++ "/")) continue;
+    for (package_files) |file_entry| {
+        removeFromMtree(machine, file_entry.path) catch |err| {
+            if (err == error.FileNotFound and std.mem.startsWith(u8, file_entry.path, CONFIG_DIR ++ "/")) continue;
             return machine.stateFailed(UninstallerError.FileMapCorrupted);
         };
     }
 
+    return .remove_package_records;
+}
+
+fn stateRemovePackageRecords(machine: *TransactionMachine) UninstallerError!TransactionState {
+    const base = machine.base orelse return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+    const uuid = machine.current_package_uuid orelse return machine.stateFailed(UninstallerError.PackageNotFound);
+    const package = machine.uninstaller.data.packages[machine.current_package_index];
+
+    const package_files = machine.current_package_files orelse return machine.stateFailed(UninstallerError.FileMapCorrupted);
+    for (package_files) |file_entry| {
+        files_delete(base, uuid, file_entry.path) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+    }
+
+    packages_delete(base, package.name, package.arch, package.arch_sub) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+
+    for (package_files) |*file_entry| file_entry.deinit(machine.uninstaller.allocator);
+    machine.uninstaller.allocator.free(package_files);
+    machine.current_package_files = null;
+    machine.current_package_uuid = null;
+
+    machine.current_package_index += 1;
+    if (machine.current_package_index < machine.uninstaller.data.packages.len) return .load_package_files;
+
+    machine.current_package_index = 0;
     return .remove_empty_dirs;
 }
 
@@ -217,50 +239,14 @@ fn stateRemoveEmptyDirs(machine: *TransactionMachine) UninstallerError!Transacti
 
     removeEmptyDirs(mtree, machine.uninstaller.allocator) catch return machine.stateFailed(UninstallerError.AllocZFailed);
 
-    return .remove_package_db;
+    return .close_database;
 }
 
-fn stateRemovePackageDb(machine: *TransactionMachine) UninstallerError!TransactionState {
-    const checksum = machine.current_package_checksum orelse return machine.stateFailed(UninstallerError.PackageNotFound);
-
-    removeDbEntry(machine, checksum, ".meta");
-    removeDbEntry(machine, checksum, ".files");
-
-    if (machine.current_package_file_map) |*file_map| {
-        freeFileMap(file_map, machine.uninstaller.allocator);
-        machine.current_package_file_map = null;
+fn stateCloseDatabase(machine: *TransactionMachine) TransactionState {
+    if (machine.base) |*base| {
+        base.close();
+        machine.base = null;
     }
-
-    machine.uninstaller.allocator.free(checksum);
-    machine.current_package_checksum = null;
-
-    machine.current_package_index += 1;
-    if (machine.current_package_index < machine.uninstaller.data.package_names.len) return .check_package_installed;
-
-    machine.current_package_index = 0;
-    return .build_commit_body;
-}
-
-fn stateBuildCommitBody(machine: *TransactionMachine) UninstallerError!TransactionState {
-    var commit_body_buf = std.Io.Writer.Allocating.init(machine.uninstaller.allocator);
-    defer commit_body_buf.deinit();
-
-    var prevoios_commit_body_iter = std.mem.splitScalar(u8, machine.previos_commit_body, '\n');
-    while (prevoios_commit_body_iter.next()) |line| {
-        const trimmed_line = std.mem.trim(u8, line, " \t\r");
-        if (trimmed_line.len == 0) continue;
-
-        const separator_index = std.mem.indexOfScalar(u8, trimmed_line, ' ') orelse continue;
-        const package_name = trimmed_line[0..separator_index];
-
-        const should_remove = for (machine.uninstaller.data.package_names) |name| {
-            if (std.ascii.eqlIgnoreCase(package_name, name)) break true;
-        } else false;
-
-        if (!should_remove) commit_body_buf.writer.print("{s}\n", .{trimmed_line}) catch return machine.stateFailed(UninstallerError.AllocZFailed);
-    }
-
-    machine.commit_body = machine.uninstaller.allocator.dupeZ(u8, commit_body_buf.written()) catch return machine.stateFailed(UninstallerError.AllocZFailed);
 
     return .build_commit_subject;
 }
@@ -270,7 +256,8 @@ fn stateBuildCommitSubject(machine: *TransactionMachine) UninstallerError!Transa
     defer commit_subject_buf.deinit();
 
     commit_subject_buf.writer.writeAll("remove:") catch return machine.stateFailed(UninstallerError.AllocZFailed);
-    for (machine.uninstaller.data.package_names, 0..) |name, index| commit_subject_buf.writer.print("{s}{s}", .{ if (index == 0) " " else ", ", name }) catch return machine.stateFailed(UninstallerError.AllocZFailed);
+    for (machine.uninstaller.data.packages, 0..) |package, index|
+        commit_subject_buf.writer.print("{s}{s}", .{ if (index == 0) " " else ", ", package.name }) catch return machine.stateFailed(UninstallerError.AllocZFailed);
 
     machine.commit_subject = machine.uninstaller.allocator.dupeZ(u8, commit_subject_buf.written()) catch return machine.stateFailed(UninstallerError.AllocZFailed);
 
@@ -299,7 +286,7 @@ fn stateWriteCommit(machine: *TransactionMachine) UninstallerError!TransactionSt
         repo,
         &machine.previos_commit_checksum,
         machine.commit_subject.ptr,
-        machine.commit_body.ptr,
+        null,
         null,
         @as(?*c_libs.OstreeRepoFile, @ptrCast(out_file)),
         &new_checksum,
@@ -327,10 +314,6 @@ fn stateCloseTransaction(machine: *TransactionMachine) UninstallerError!Transact
     if (machine.commit_subject.len > 0) {
         machine.uninstaller.allocator.free(machine.commit_subject);
         machine.commit_subject = "";
-    }
-    if (machine.commit_body.len > 0) {
-        machine.uninstaller.allocator.free(machine.commit_body);
-        machine.commit_body = "";
     }
 
     if (c_libs.ostree_repo_commit_transaction(repo, null, machine.uninstaller.cancellable, &machine.uninstaller.gerror) == 0) return machine.stateFailed(UninstallerError.RepoTransactionFailed);

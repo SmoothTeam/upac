@@ -94,7 +94,12 @@ pub const InstallStateId = enum(u8) {
     swap = 5,
 
     done = 6,
-    failed = 7,
+};
+
+pub const UninstallPackage = struct {
+    name: []const u8,
+    arch: []const u8,
+    arch_sub: ?[]const u8,
 };
 
 pub const UninstallStateId = enum(u8) {
@@ -105,7 +110,6 @@ pub const UninstallStateId = enum(u8) {
     swap = 4,
 
     done = 5,
-    failed = 6,
 };
 
 pub const RollbackStateId = enum(u8) {
@@ -122,8 +126,8 @@ pub const ListStateId = enum(u8) {
     verifying = 0,
     list_packages = 1,
     list_commits = 2,
+
     done = 3,
-    failed = 4,
 };
 
 pub const DiffStateId = enum(u8) {
@@ -132,7 +136,6 @@ pub const DiffStateId = enum(u8) {
     comparing = 2,
 
     done = 3,
-    failed = 4,
 };
 
 pub const InitStateId = enum(u8) {

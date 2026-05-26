@@ -2,9 +2,6 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
-const types = @import("upac-types");
-const DB_RELATIVE_PATH = types.DB_RELATIVE_PATH;
-
 const uninstaller = @import("../uninstaller.zig");
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
@@ -12,32 +9,6 @@ const UninstallerError = uninstaller.UninstallerError;
 const TransactionMachine = @import("transaction.zig").TransactionMachine;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-pub fn loadCommitBody(machine: *TransactionMachine, checksum: [*c]const u8) UninstallerError![]const u8 {
-    var commit_variant: ?*c_libs.GVariant = null;
-    defer if (commit_variant) |variant| c_libs.g_variant_unref(variant);
-
-    const repo = machine.repo orelse return UninstallerError.RepoOpenFailed;
-
-    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, checksum, &commit_variant, &machine.uninstaller.gerror) == 0) return UninstallerError.RepoTransactionFailed;
-
-    const body_variant = c_libs.g_variant_get_child_value(commit_variant, 4);
-    defer if (body_variant) |variant| c_libs.g_variant_unref(variant);
-
-    var body_len: usize = 0;
-    const body_ptr = c_libs.g_variant_get_string(body_variant, &body_len);
-    if (body_len == 0) return UninstallerError.CommitNotFound;
-
-    return machine.uninstaller.allocator.dupe(u8, body_ptr[0..body_len]) catch UninstallerError.AllocZFailed;
-}
-
-pub fn removeDbEntry(machine: *TransactionMachine, checksum: []const u8, comptime ext: []const u8) void {
-    var buf: [300]u8 = undefined;
-    const filename = std.fmt.bufPrint(&buf, "{s}" ++ ext, .{checksum}) catch return;
-    const path = std.fs.path.join(machine.uninstaller.allocator, &.{ DB_RELATIVE_PATH, filename }) catch return;
-    defer machine.uninstaller.allocator.free(path);
-    removeFromMtree(machine, path) catch {};
-}
-
 pub fn removeEmptyDirs(tree: *c_libs.OstreeMutableTree, allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
     const subdirs = c_libs.ostree_mutable_tree_get_subdirs(tree);
 

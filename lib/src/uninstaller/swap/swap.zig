@@ -3,8 +3,8 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
-const PREFIX = types.PREFIX;
-const CONFIG_DIR = types.CONFIG_DIR;
+const PREFIX = types.paths.prefix;
+const CONFIG_DIR = types.paths.config_dir;
 
 const uninstaller = @import("../uninstaller.zig");
 const UninstallerMachine = uninstaller.UninstallerMachine;

@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const PREFIX = @import("upac-types").PREFIX;
+const PREFIX = @import("upac-types").paths.prefix;
 
 const UninstallerError = @import("../uninstaller.zig").UninstallerError;
 

@@ -131,6 +131,20 @@ pub const CPackage = extern struct {
     }
 };
 
+pub const CUninstallPackage = extern struct {
+    struct_size: usize = @sizeOf(CUninstallPackage),
+
+    name: CSlice,
+    arch: CSlice,
+    arch_sub: CSlice,
+
+    pub fn validate(self: CUninstallPackage) !void {
+        if (self.struct_size != @sizeOf(CUninstallPackage)) return error.AbiMismatch;
+        try self.name.validate();
+        try self.arch.validate();
+    }
+};
+
 pub const CMutatedRequest = extern struct {
     struct_size: usize = @sizeOf(CMutatedRequest),
 
@@ -145,8 +159,8 @@ pub const CMutatedRequest = extern struct {
     packages_count: usize = 0,
 
     // Uninstall
-    package_names: ?[*]const CSlice = null,
-    package_names_len: usize = 0,
+    uninstall_packages: ?[*]const CUninstallPackage = null,
+    uninstall_packages_len: usize = 0,
 
     // Rollback
     commit_hash: CSlice,

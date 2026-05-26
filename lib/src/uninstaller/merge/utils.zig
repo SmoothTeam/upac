@@ -6,48 +6,6 @@ const uninstaller = @import("../uninstaller.zig");
 const UninstallerMachine = uninstaller.UninstallerMachine;
 const UninstallerError = uninstaller.UninstallerError;
 
-const MergeMachine = @import("merge.zig").MergeMachine;
-
-pub fn loadParentBody(machine: *MergeMachine) UninstallerError![]const u8 {
-    const repo = machine.repo orelse return UninstallerError.RepoOpenFailed;
-
-    var head_checksum: [*c]u8 = null;
-    defer c_libs.g_free(head_checksum);
-
-    if (c_libs.ostree_repo_resolve_rev(repo, machine.uninstaller.data.branch, 0, &head_checksum, &machine.uninstaller.gerror) == 0) return UninstallerError.CommitNotFound;
-    if (head_checksum == null) return UninstallerError.CommitNotFound;
-
-    var head_variant: ?*c_libs.GVariant = null;
-    defer if (head_variant) |variant| c_libs.g_variant_unref(variant);
-
-    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, head_checksum, &head_variant, &machine.uninstaller.gerror) == 0) return UninstallerError.CommitNotFound;
-
-    const parent_bytes_variant = c_libs.g_variant_get_child_value(head_variant, 1) orelse return UninstallerError.CommitNotFound;
-    defer c_libs.g_variant_unref(parent_bytes_variant);
-
-    var n_bytes: usize = 0;
-    const parent_raw = c_libs.g_variant_get_fixed_array(parent_bytes_variant, &n_bytes, 1);
-    if (n_bytes != 32) return UninstallerError.CommitNotFound;
-
-    const parent_bytes: *const [32]u8 = @ptrCast(parent_raw);
-    var parent_checksum: [65:0]u8 = std.mem.zeroes([65:0]u8);
-    @memcpy(parent_checksum[0..64], &std.fmt.bytesToHex(parent_bytes.*, .lower));
-
-    var parent_variant: ?*c_libs.GVariant = null;
-    defer if (parent_variant) |v| c_libs.g_variant_unref(v);
-
-    if (c_libs.ostree_repo_load_variant(repo, c_libs.OSTREE_OBJECT_TYPE_COMMIT, &parent_checksum, &parent_variant, &machine.uninstaller.gerror) == 0) return UninstallerError.CommitNotFound;
-
-    const body_variant = c_libs.g_variant_get_child_value(parent_variant, 4) orelse return UninstallerError.CommitNotFound;
-    defer c_libs.g_variant_unref(body_variant);
-
-    var body_len: usize = 0;
-    const body_ptr = c_libs.g_variant_get_string(body_variant, &body_len);
-    if (body_len == 0) return UninstallerError.CommitNotFound;
-
-    return machine.uninstaller.allocator.dupe(u8, body_ptr[0..body_len]) catch UninstallerError.AllocZFailed;
-}
-
 fn copyFileTo(machine: *UninstallerMachine, src: [:0]const u8, dst: [:0]const u8) UninstallerError!void {
     const content = std.Io.Dir.cwd().readFileAlloc(machine.io, src, machine.allocator, .limited(10 * 1024 * 1024)) catch return UninstallerError.AllocZFailed;
     defer machine.allocator.free(content);
@@ -101,19 +59,18 @@ pub fn mirrorDir(machine: *UninstallerMachine, src: [:0]const u8, dst: [:0]const
     }
 }
 
-pub fn computeLiveChecksum(machine: *UninstallerMachine, abs_path: [:0]const u8) UninstallerError![]const u8 {
+pub fn computeLiveChecksum(machine: *UninstallerMachine, abs_path: [:0]const u8) UninstallerError![32]u8 {
+    var hash_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
+
     var link_buf: [std.fs.max_path_bytes]u8 = undefined;
     if (std.Io.Dir.readLinkAbsolute(machine.io, abs_path, &link_buf)) |len| {
-        var hash_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
         std.crypto.hash.sha2.Sha256.hash(link_buf[0..len], &hash_bytes, .{});
-        const hex = std.fmt.bytesToHex(hash_bytes, .lower);
-        return machine.allocator.dupe(u8, &hex) catch UninstallerError.AllocZFailed;
+        return hash_bytes;
     } else |_| {}
 
     const file = std.Io.Dir.openFileAbsolute(machine.io, abs_path, .{}) catch return UninstallerError.FileNotFound;
     defer file.close(machine.io);
 
-    var hash_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
     var file_buf: [4096]u8 = undefined;
     var hash_buf: [4096]u8 = undefined;
     var reader = file.reader(machine.io, &file_buf);
@@ -121,8 +78,7 @@ pub fn computeLiveChecksum(machine: *UninstallerMachine, abs_path: [:0]const u8)
     _ = hasher.reader.discardRemaining() catch return UninstallerError.FileMapCorrupted;
     hasher.hasher.final(&hash_bytes);
 
-    const hex = std.fmt.bytesToHex(hash_bytes, .lower);
-    return machine.allocator.dupe(u8, &hex) catch UninstallerError.AllocZFailed;
+    return hash_bytes;
 }
 
 pub fn removeEmptyDirs(machine: *UninstallerMachine, root: [:0]const u8) void {

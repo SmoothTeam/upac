@@ -4,7 +4,7 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
-const PREFIX = types.PREFIX;
+const UninstallPackage = types.UninstallPackage;
 const UninstallStateId = types.UninstallStateId;
 
 const ffi = @import("upac-ffi");
@@ -12,10 +12,6 @@ const UninstallProgressFn = ffi.UninstallProgressFn;
 
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
-
-const database = @import("upac-database");
-const FileMap = database.FileMap;
-const freeFileMap = database.freeFileMap;
 
 const verifying = @import("verifying/verifying.zig");
 const transaction = @import("transaction/transaction.zig");
@@ -31,6 +27,7 @@ pub const UninstallerError = error{
     FileMapCorrupted,
     CommitNotFound,
     StagingNotCleaned,
+    ReadDatabaseFailed,
     // Global errors
     PathNotFound,
     RepoOpenFailed,
@@ -45,7 +42,7 @@ pub const UninstallerError = error{
 // ── UninstallerFSM data ─────────────────────────────────────────────────────────────────────
 // Set of input parameters: package name, paths to the repository and database, as well as the target branch for the commit
 pub const UninstallData = struct {
-    package_names: []const []const u8,
+    packages: []const UninstallPackage,
     branch: [*:0]const u8,
 
     repo_path: [*:0]const u8,
@@ -127,8 +124,7 @@ pub const UninstallerMachine = struct {
                     swap.run(&machine) catch |err| return err;
                     state = .done;
                 },
-                .done => state = .done,
-                .failed => state = .failed,
+                .done => {},
             }
         }
     }
