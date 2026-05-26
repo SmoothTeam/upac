@@ -134,7 +134,7 @@ pub const BackendMachine = struct {
     // Reports an installation progress event to the progress callback, if one is set
     pub fn report(self: *BackendMachine, event: StateId) void {
         const cb = self.request.on_progress orelse return;
-        cb(event, CSlice.fromSlice(std.mem.span(self.request.pkg_path)), self.request.progress_ctx);
+        cb(event, CSlice.fromSlice(std.fs.path.basename(std.mem.span(self.request.pkg_path))), self.request.progress_ctx);
     }
 
     pub fn reportDetail(self: *BackendMachine, message: []const u8) void {
