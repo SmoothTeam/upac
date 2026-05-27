@@ -62,9 +62,9 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
     var merge_machine = MergeMachine{ .installer = machine };
 
     var state = MergeState.create_temp_config_dir;
-    if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return merge_machine.stateFailed(InstallerError.Cancelled);
-
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return merge_machine.stateFailed(InstallerError.Cancelled);
+
         state = switch (state) {
             .create_temp_config_dir => try stateCreateTempConfigDir(&merge_machine),
             .check_package_config_dir => try stateCheckPackageConfigDir(&merge_machine),

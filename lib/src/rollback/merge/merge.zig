@@ -51,18 +51,21 @@ pub const MergeMachine = struct {
             base.close();
             self.base = null;
         }
+
         if (self.file_map) |*file_map| {
             var iter = file_map.iterator();
             while (iter.next()) |entry| self.rollback.allocator.free(entry.key_ptr.*);
             file_map.deinit();
             self.file_map = null;
         }
+
         if (self.temp_config_path) |path| {
             std.Io.Dir.cwd().deleteTree(self.rollback.io, path) catch {};
             self.rollback.allocator.free(path);
             self.temp_config_path = null;
             self.rollback.temp_config_path = null;
         }
+
         return err;
     }
 };
@@ -72,9 +75,9 @@ pub fn run(machine: *RollbackMachine) RollbackError!void {
     var merge_machine = MergeMachine{ .rollback = machine };
 
     var state = MergeState.create_temp_config;
-    if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return merge_machine.stateFailed(RollbackError.Cancelled);
-
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return merge_machine.stateFailed(RollbackError.Cancelled);
+
         state = switch (state) {
             .create_temp_config => try stateCreateTempConfigDir(&merge_machine),
             .open_database => try stateOpenDatabase(&merge_machine),

@@ -50,10 +50,10 @@ pub const CheckoutMachine = struct {
 pub fn run(machine: *InstallerMachine) InstallerError!void {
     var checkout_machine = CheckoutMachine{ .uninstaller = machine };
 
-    if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return checkout_machine.stateFailed(InstallerError.Cancelled);
-
     var state = CheckoutState.open_repo;
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return checkout_machine.stateFailed(InstallerError.Cancelled);
+
         state = switch (state) {
             .open_repo => try stateOpenRepo(&checkout_machine),
             .resolve_commit => try stateResolveCommit(&checkout_machine),

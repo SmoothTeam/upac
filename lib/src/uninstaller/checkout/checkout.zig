@@ -32,16 +32,19 @@ pub const CheckoutMachine = struct {
             c_libs.g_object_unref(repo);
             self.repo = null;
         }
+
         if (self.commit_checksum != null) {
             c_libs.g_free(self.commit_checksum);
             self.commit_checksum = null;
         }
+
         if (self.temp_prefix_path) |path| {
             std.Io.Dir.cwd().deleteTree(self.uninstaller.io, path) catch {};
             self.uninstaller.allocator.free(path);
             self.temp_prefix_path = null;
             self.uninstaller.temp_prefix_path = null;
         }
+
         return err;
     }
 };
@@ -50,10 +53,10 @@ pub const CheckoutMachine = struct {
 pub fn run(machine: *UninstallerMachine) UninstallerError!void {
     var checkout_machine = CheckoutMachine{ .uninstaller = machine };
 
-    if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return checkout_machine.stateFailed(UninstallerError.Cancelled);
-
     var state = CheckoutState.open_repo;
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return checkout_machine.stateFailed(UninstallerError.Cancelled);
+
         state = switch (state) {
             .open_repo => try stateOpenRepo(&checkout_machine),
             .resolve_commit => try stateResolveCommit(&checkout_machine),

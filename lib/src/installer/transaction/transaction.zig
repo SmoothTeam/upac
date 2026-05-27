@@ -76,11 +76,9 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
     }
 
     var state = TransactionState.open_repo;
-    if (machine.cancellable) |cancellable| {
-        if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return transaction_machine.stateFailed(InstallerError.Cancelled);
-    }
-
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return transaction_machine.stateFailed(InstallerError.Cancelled);
+
         state = switch (state) {
             .open_repo => try stateOpenRepo(&transaction_machine),
             .get_prev_commit => try stateGetPreviosCommit(&transaction_machine),

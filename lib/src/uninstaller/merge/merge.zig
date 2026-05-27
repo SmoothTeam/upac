@@ -79,9 +79,9 @@ pub fn run(machine: *UninstallerMachine) UninstallerError!void {
     var merge_machine = MergeMachine{ .uninstaller = machine };
 
     var state = MergeState.open_repo;
-    if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return merge_machine.stateFailed(UninstallerError.Cancelled);
-
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return merge_machine.stateFailed(UninstallerError.Cancelled);
+
         state = switch (state) {
             .open_repo => try stateOpenRepo(&merge_machine),
             .resolve_parent => try stateResolveParent(&merge_machine),

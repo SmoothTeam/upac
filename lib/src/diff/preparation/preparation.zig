@@ -59,9 +59,9 @@ pub fn run(machine: *DiffMachine) DiffError!void {
     var preparation_machine = PreparationMachine{ .diff = machine };
 
     var state = PreparationState.open_repo;
-    if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return preparation_machine.stateFailed(DiffError.Cancelled);
-
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return preparation_machine.stateFailed(DiffError.Cancelled);
+
         state = switch (state) {
             .open_repo => try stateOpenRepo(&preparation_machine),
             .checkout_database => try stateCheckoutDatabase(&preparation_machine),

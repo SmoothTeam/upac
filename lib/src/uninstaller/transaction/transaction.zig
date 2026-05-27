@@ -109,12 +109,10 @@ pub const TransactionMachine = struct {
 pub fn run(machine: *UninstallerMachine) UninstallerError!void {
     var transaction_machine = TransactionMachine{ .uninstaller = machine };
 
-    if (machine.cancellable) |cancellable| {
-        if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return transaction_machine.stateFailed(UninstallerError.Cancelled);
-    }
-
     var state = TransactionState.open_repo;
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return transaction_machine.stateFailed(UninstallerError.Cancelled);
+
         state = switch (state) {
             .open_repo => try stateOpenRepo(&transaction_machine),
             .get_prev_commit => try stateGetPrevCommit(&transaction_machine),

@@ -29,6 +29,7 @@ pub const CheckoutMachine = struct {
             c_libs.g_object_unref(repo);
             self.repo = null;
         }
+
         if (self.temp_prefix_path) |path| {
             std.Io.Dir.cwd().deleteTree(self.rollback.io, path) catch {};
 
@@ -46,9 +47,9 @@ pub fn run(machine: *RollbackMachine) RollbackError!void {
     var checkout_machine = CheckoutMachine{ .rollback = machine };
 
     var state = CheckoutState.open_repo;
-    if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return checkout_machine.stateFailed(RollbackError.Cancelled);
-
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return checkout_machine.stateFailed(RollbackError.Cancelled);
+
         state = switch (state) {
             .open_repo => try stateOpenRepo(&checkout_machine),
             .checkout => try stateCheckout(&checkout_machine),

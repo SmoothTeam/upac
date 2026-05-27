@@ -59,11 +59,9 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
     var preparation_machine = PreparationMachine{ .installer = machine, .current_packages_index = 0 };
 
     var state = PreparationState.create_db_temp;
-    if (machine.cancellable) |cancellable| {
-        if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return preparation_machine.stateFailed(InstallerError.Cancelled);
-    }
-
     while (state != .done) {
+        if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return preparation_machine.stateFailed(InstallerError.Cancelled);
+
         state = switch (state) {
             .create_db_temp => try stateCreateDbTemp(&preparation_machine),
             .copy_current_db => try stateCopyCurrentDb(&preparation_machine),

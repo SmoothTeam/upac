@@ -19,8 +19,8 @@ const PreparationMachine = @import("preparation.zig").PreparationMachine;
 pub fn checkoutDb(machine: *PreparationMachine, checksum: [*c]const u8) DiffError!void {
     const destination_path = machine.current_database_path orelse return DiffError.CheckoutFailed;
 
-    const destination_pathz = machine.diff.allocator.dupeZ(u8, destination_path) catch return DiffError.AllocFailed;
-    defer machine.diff.allocator.free(destination_pathz);
+    const destination_path_c = machine.diff.allocator.dupeZ(u8, destination_path) catch return DiffError.AllocFailed;
+    defer machine.diff.allocator.free(destination_path_c);
 
     const subpath = std.fs.path.joinZ(machine.diff.allocator, &.{ types.paths.prefix, types.paths.db_path }) catch return DiffError.AllocFailed;
     defer machine.diff.allocator.free(subpath);
@@ -28,7 +28,7 @@ pub fn checkoutDb(machine: *PreparationMachine, checksum: [*c]const u8) DiffErro
     var checkout_options = std.mem.zeroes(c_libs.OstreeRepoCheckoutAtOptions);
     checkout_options.subpath = subpath;
 
-    try machine.diff.check(c_libs.ostree_repo_checkout_at(machine.repo orelse return DiffError.CheckoutFailed, &checkout_options, c_libs.AT_FDCWD, destination_pathz, checksum, machine.diff.cancellable, &machine.diff.gerror), error.CheckoutFailed);
+    try machine.diff.check(c_libs.ostree_repo_checkout_at(machine.repo orelse return DiffError.CheckoutFailed, &checkout_options, c_libs.AT_FDCWD, destination_path_c, checksum, machine.diff.cancellable, &machine.diff.gerror), error.CheckoutFailed);
 }
 
 pub fn buildFilePkgMap(base: Database, allocator: std.mem.Allocator, out: *std.StringHashMap(FileRecord)) DiffError!void {
