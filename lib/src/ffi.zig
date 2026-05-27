@@ -116,6 +116,18 @@ pub const CPackageMeta = extern struct {
         try self.url.validate();
         if (self.version.parts.len == 0) return error.InvalidEntry;
     }
+
+    pub fn free(self: *CPackageMeta, allocator: std.mem.Allocator) void {
+        inline for (std.meta.fields(CPackageMeta)) |field| {
+            if (field.type == CSlice) {
+                const slice = @field(self, field.name);
+                if (slice.ptr != null) allocator.free(slice.toSlice());
+            }
+        }
+
+        if (self.version.parts.len > 0) allocator.free(self.version.parts.toSlice());
+        if (self.version.pre.ptr != null) allocator.free(self.version.pre.toSlice());
+    }
 };
 
 pub const CPackage = extern struct {
@@ -252,6 +264,15 @@ pub const CDiffEntry = extern struct {
         if (self.struct_size != @sizeOf(CDiffEntry)) return error.AbiMismatch;
         _ = intToEnum(DiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
     }
+
+    pub fn free(self: *CDiffEntry, allocator: std.mem.Allocator) void {
+        inline for (std.meta.fields(CDiffEntry)) |field| {
+            if (field.type == CSlice) {
+                const slice = @field(self, field.name);
+                if (slice.ptr != null) allocator.free(slice.toSlice());
+            }
+        }
+    }
 };
 
 //
@@ -263,6 +284,15 @@ pub const CCommitEntry = extern struct {
 
     pub fn validate(self: CCommitEntry) !void {
         if (self.struct_size != @sizeOf(CCommitEntry)) return error.AbiMismatch;
+    }
+
+    pub fn free(self: *CCommitEntry, allocator: std.mem.Allocator) void {
+        inline for (std.meta.fields(CCommitEntry)) |field| {
+            if (field.type == CSlice) {
+                const slice = @field(self, field.name);
+                if (slice.ptr != null) allocator.free(slice.toSlice());
+            }
+        }
     }
 };
 
@@ -286,6 +316,6 @@ pub fn intToEnum(comptime E: type, value: anytype) error{InvalidValue}!E {
     return error.InvalidValue;
 }
 
-pub fn allocator() std.mem.Allocator {
+pub fn getAllocator() std.mem.Allocator {
     return std.heap.c_allocator;
 }

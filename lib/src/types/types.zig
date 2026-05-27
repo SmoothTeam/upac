@@ -123,10 +123,16 @@ pub const RollbackStateId = enum(u8) {
 
 pub const ListStateId = enum(u8) {
     verifying = 0,
-    list_packages = 1,
-    list_commits = 2,
+    fetching = 1,
 
     done = 3,
+};
+
+pub const CommitStateId = enum(u8) {
+    verifying = 0,
+    fetching = 1,
+
+    done = 2,
 };
 
 pub const DiffStateId = enum(u8) {
