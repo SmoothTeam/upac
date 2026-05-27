@@ -119,18 +119,30 @@ pub fn build(b: *std.Build) void {
     upac_diff.addImport("upac-database", upac_database);
 
     // ── List ────────────────────────────────────────────────────────────────
-    const upac_list = b.createModule(.{
+    const upac_list_packages = b.createModule(.{
         .root_source_file = b.path("src/list/list.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    upac_list.addImport("c-libs", translated_libs_module);
+    upac_list_packages.addImport("c-libs", translated_libs_module);
 
-    upac_list.addImport("upac-types", upac_types);
-    upac_list.addImport("upac-ffi", upac_ffi);
+    upac_list_packages.addImport("upac-types", upac_types);
+    upac_list_packages.addImport("upac-ffi", upac_ffi);
 
-    upac_list.addImport("upac-database", upac_database);
+    upac_list_packages.addImport("upac-database", upac_database);
+
+    // ── Commits ────────────────────────────────────────────────────────────────
+    const upac_list_commits = b.createModule(.{
+        .root_source_file = b.path("src/commit/commit.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    upac_list_commits.addImport("c-libs", translated_libs_module);
+
+    upac_list_commits.addImport("upac-types", upac_types);
+    upac_list_commits.addImport("upac-ffi", upac_ffi);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     const upac_init = b.createModule(.{
@@ -175,10 +187,11 @@ pub fn build(b: *std.Build) void {
     shared_lib.root_module.addImport("upac-installer", upac_installer);
     shared_lib.root_module.addImport("upac-uninstaller", upac_uninstaller);
     shared_lib.root_module.addImport("upac-rollback", upac_rollback);
+    shared_lib.root_module.addImport("upac-init", upac_init);
 
     shared_lib.root_module.addImport("upac-diff", upac_diff);
-    shared_lib.root_module.addImport("upac-list", upac_list);
-    shared_lib.root_module.addImport("upac-init", upac_init);
+    shared_lib.root_module.addImport("upac-list-packages", upac_list_packages);
+    shared_lib.root_module.addImport("upac-list-commits", upac_list_commits);
 
     b.installArtifact(shared_lib);
 
