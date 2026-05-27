@@ -32,7 +32,7 @@ pub fn cancelGCancellable(ctx: ?*anyopaque) callconv(.c) void {
 // ── Reimports types ─────────────────────────────────────────────────────────────────────
 const types = @import("upac-types");
 
-const DiffKind = types.DiffKind;
+const FileKind = types.FileKind;
 
 const InstallStateId = types.InstallStateId;
 const UninstallStateId = types.UninstallStateId;
@@ -256,13 +256,13 @@ pub const CDiffEntry = extern struct {
     struct_size: usize = @sizeOf(CDiffEntry),
 
     path: CSlice,
-    kind: DiffKind,
+    kind: FileKind,
     package_name: CSlice,
     is_user: bool,
 
     pub fn validate(self: CDiffEntry) !void {
         if (self.struct_size != @sizeOf(CDiffEntry)) return error.AbiMismatch;
-        _ = intToEnum(DiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
+        _ = intToEnum(FileKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
     }
 
     pub fn free(self: *CDiffEntry, allocator: std.mem.Allocator) void {

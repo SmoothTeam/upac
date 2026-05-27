@@ -12,7 +12,7 @@ const CPackageMeta = ffi.CPackageMeta;
 const database = @import("upac-database");
 const Database = database.Database;
 
-const list = @import("../list.zig");
+const list = @import("../meta.zig");
 const ListMachine = list.ListMachine;
 const ListError = list.ListError;
 

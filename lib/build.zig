@@ -119,18 +119,18 @@ pub fn build(b: *std.Build) void {
     upac_diff.addImport("upac-database", upac_database);
 
     // ── List ────────────────────────────────────────────────────────────────
-    const upac_list_packages = b.createModule(.{
-        .root_source_file = b.path("src/packages/packages.zig"),
+    const upac_list_metas = b.createModule(.{
+        .root_source_file = b.path("src/meta/meta.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    upac_list_packages.addImport("c-libs", translated_libs_module);
+    upac_list_metas.addImport("c-libs", translated_libs_module);
 
-    upac_list_packages.addImport("upac-types", upac_types);
-    upac_list_packages.addImport("upac-ffi", upac_ffi);
+    upac_list_metas.addImport("upac-types", upac_types);
+    upac_list_metas.addImport("upac-ffi", upac_ffi);
 
-    upac_list_packages.addImport("upac-database", upac_database);
+    upac_list_metas.addImport("upac-database", upac_database);
 
     // ── Commits ────────────────────────────────────────────────────────────────
     const upac_list_commits = b.createModule(.{
@@ -190,7 +190,7 @@ pub fn build(b: *std.Build) void {
     shared_lib.root_module.addImport("upac-init", upac_init);
 
     shared_lib.root_module.addImport("upac-diff", upac_diff);
-    shared_lib.root_module.addImport("upac-list-packages", upac_list_packages);
+    shared_lib.root_module.addImport("upac-list-packages", upac_list_metas);
     shared_lib.root_module.addImport("upac-list-commits", upac_list_commits);
 
     b.installArtifact(shared_lib);

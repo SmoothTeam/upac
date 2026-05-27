@@ -73,13 +73,13 @@ pub const FileRecord = struct {
 
 pub const DiffEntry = struct {
     path: []const u8,
-    kind: DiffKind,
+    kind: FileKind,
     package_name: []const u8,
     is_user: bool,
 };
 
 // Enumeration of file system change types (added, deleted, modified)
-pub const DiffKind = enum(u8) {
+pub const FileKind = enum(u8) {
     added = 0,
     removed = 1,
     modified = 2,
@@ -118,6 +118,14 @@ pub const RollbackStateId = enum(u8) {
     checkout = 2,
     swap = 3,
 
+    done = 4,
+};
+
+pub const FilesStateId = enum(u8) {
+    verifying = 0,
+    transaction = 1,
+    checkout = 2,
+    swap = 3,
     done = 4,
 };
 

@@ -2,9 +2,9 @@ const std = @import("std");
 
 const types = @import("upac-types");
 const DiffEntry = types.DiffEntry;
-const DiffKind = types.DiffKind;
+const FileKind = types.FileKind;
 
-pub fn appendEntry(entries: *std.ArrayList(DiffEntry), allocator: std.mem.Allocator, path: []const u8, kind: DiffKind, pkg_name: []const u8, is_user: bool) !void {
+pub fn appendEntry(entries: *std.ArrayList(DiffEntry), allocator: std.mem.Allocator, path: []const u8, kind: FileKind, pkg_name: []const u8, is_user: bool) !void {
     const path_dupe = try allocator.dupe(u8, path);
     errdefer allocator.free(path_dupe);
 

@@ -7,7 +7,7 @@ const CPackageMeta = ffi.CPackageMeta;
 const types = @import("upac-types");
 const PackageMeta = types.PackageMeta;
 
-const list = @import("../list.zig");
+const list = @import("../meta.zig");
 const ListError = list.ListError;
 
 const required_string_fields = .{ "name", "arch", "maintainer", "description" };

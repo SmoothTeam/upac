@@ -3,7 +3,7 @@ const std = @import("std");
 const types = @import("upac-types");
 const FileRecord = types.FileRecord;
 const DiffEntry = types.DiffEntry;
-const DiffKind = types.DiffKind;
+const FileKind = types.FileKind;
 
 const diff_module = @import("../diff.zig");
 const DiffMachine = diff_module.DiffMachine;
