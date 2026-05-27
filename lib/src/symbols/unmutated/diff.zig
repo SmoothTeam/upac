@@ -8,19 +8,19 @@ const CDiffRequest = ffi.CUnmutatedRequest;
 
 const CDiffEntry = ffi.CDiffEntry;
 
-const diff_module = @import("upac-diff");
-
 const types = @import("upac-types");
 const ErrorCode = types.ErrorCode;
 const Operation = types.Operation;
 
 const fromError = types.fromError;
 
+const DiffMachine = @import("upac-diff").DiffMachine;
+
 pub fn diff(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.c) i32 {
     const required = [_]CSlice{ diff_request_c.repo_path, diff_request_c.from_commit_hash, diff_request_c.to_commit_hash };
     for (required) |required_field| if (required_field.len == 0 or required_field.ptr[required_field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.diff));
 
-    const diff_entrys = diff_module.DiffMachine.run(.{
+    const diff_entrys = DiffMachine.run(.{
         .repo_path = diff_request_c.repo_path.asZ(),
         .tmp_path = diff_request_c.tmp_path.asZ(),
         .from_ref = diff_request_c.from_commit_hash.asZ(),

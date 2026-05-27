@@ -19,6 +19,8 @@ const InstallProgressFn = ffi.InstallProgressFn;
 const InstallProgressEvent = ffi.InstallProgressEvent;
 
 const installer_module = @import("upac-installer");
+const InstallData = installer_module.InstallData;
+const InstallerMachine = installer_module.InstallerMachine;
 
 // The main entry point for package installation. It gathers installation data from the request, initializes the installation engine, and returns an error code as an i32
 pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
@@ -27,7 +29,7 @@ pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
     const install_packages = collectInstallEntries(install_request_c, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
     defer ffi.getAllocator().free(install_packages);
 
-    const install_data = installer_module.InstallData{
+    const install_data = InstallData{
         .packages = install_packages,
         .branch = install_request_c.branch.asZ(),
         .repo_path = install_request_c.repo_path.asZ(),
@@ -38,7 +40,7 @@ pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
         .cancel_token = install_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.install)),
     };
 
-    installer_module.InstallerMachine.run(install_data, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
+    InstallerMachine.run(install_data, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
 
     return @intFromEnum(ErrorCode.ok);
 }

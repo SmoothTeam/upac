@@ -120,7 +120,7 @@ pub fn build(b: *std.Build) void {
 
     // ── List ────────────────────────────────────────────────────────────────
     const upac_list_packages = b.createModule(.{
-        .root_source_file = b.path("src/list/list.zig"),
+        .root_source_file = b.path("src/packages/packages.zig"),
         .target = target,
         .optimize = optimize,
     });

@@ -16,6 +16,8 @@ const UninstallProgressFn = ffi.UninstallProgressFn;
 const UninstallPackage = types.UninstallPackage;
 
 const uninstaller_module = @import("upac-uninstaller");
+const UninstallData = uninstaller_module.UninstallData;
+const UninstallerMachine = uninstaller_module.UninstallerMachine;
 
 // An exported function for deleting a package. It extracts the parameters (paths, package name, retry limits) and initiates the deletion process
 pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
@@ -39,7 +41,7 @@ pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
         .arch_sub = if (pkg_c.arch_sub.ptr != null) pkg_c.arch_sub.toSlice() else null,
     };
 
-    const uninstall_data = uninstaller_module.UninstallData{
+    const uninstall_data = UninstallData{
         .packages = packages,
         .branch = uninstall_request_c.branch.asZ(),
         .repo_path = uninstall_request_c.repo_path.asZ(),
@@ -49,7 +51,7 @@ pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
         .cancel_token = uninstall_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall)),
     };
 
-    uninstaller_module.UninstallerMachine.run(uninstall_data, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.uninstall));
+    UninstallerMachine.run(uninstall_data, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.uninstall));
 
     return @intFromEnum(ErrorCode.ok);
 }
