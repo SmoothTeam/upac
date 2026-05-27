@@ -20,26 +20,22 @@ pub fn diff(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.
     const required = [_]CSlice{ diff_request_c.repo_path, diff_request_c.from_commit_hash, diff_request_c.to_commit_hash };
     for (required) |required_field| if (required_field.len == 0 or required_field.ptr[required_field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.diff));
 
-    const attributed_diff_entrys = diff_module.DiffMachine.run(.{
+    const diff_entrys = diff_module.DiffMachine.run(.{
         .repo_path = diff_request_c.repo_path.asZ(),
         .tmp_path = diff_request_c.tmp_path.asZ(),
         .from_ref = diff_request_c.from_commit_hash.asZ(),
         .to_ref = diff_request_c.to_commit_hash.asZ(),
         .cancel_token = diff_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)),
-    }, ffi.allocator()) catch |diff_err| return @intFromEnum(fromError(diff_err, Operation.diff));
+    }, ffi.getAllocator()) catch |diff_err| return @intFromEnum(fromError(diff_err, Operation.diff));
 
     out_c.* = .{
-        .ptr = attributed_diff_entrys.ptr,
-        .len = attributed_diff_entrys.len,
+        .ptr = diff_entrys.ptr,
+        .len = diff_entrys.len,
     };
     return @intFromEnum(ErrorCode.ok);
 }
 
 pub fn diff_free(out_c: *CArray(CDiffEntry)) callconv(.c) void {
-    const attributed_diff_entrys = out_c.toSlice();
-    for (attributed_diff_entrys) |attributed_diff_entry| {
-        ffi.allocator().free(attributed_diff_entry.path.ptr[0 .. attributed_diff_entry.path.len + 1]);
-        ffi.allocator().free(attributed_diff_entry.package_name.ptr[0 .. attributed_diff_entry.package_name.len + 1]);
-    }
-    ffi.allocator().free(attributed_diff_entrys);
+    for (out_c.toSlice()) |*entry| entry.free(ffi.getAllocator());
+    ffi.getAllocator().free(out_c.toSlice());
 }

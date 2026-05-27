@@ -30,8 +30,8 @@ pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
     const packages_c = packages_c_null[0..uninstall_request_c.uninstall_packages_len];
     for (packages_c) |pkg| pkg.validate() catch return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall));
 
-    const packages = ffi.allocator().alloc(UninstallPackage, packages_c.len) catch return @intFromEnum(ErrorCode.out_of_memory);
-    defer ffi.allocator().free(packages);
+    const packages = ffi.getAllocator().alloc(UninstallPackage, packages_c.len) catch return @intFromEnum(ErrorCode.out_of_memory);
+    defer ffi.getAllocator().free(packages);
 
     for (packages_c, packages) |pkg_c, *pkg| pkg.* = .{
         .name = pkg_c.name.toSlice(),
@@ -49,7 +49,7 @@ pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
         .cancel_token = uninstall_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall)),
     };
 
-    uninstaller_module.UninstallerMachine.run(uninstall_data, ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.uninstall));
+    uninstaller_module.UninstallerMachine.run(uninstall_data, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.uninstall));
 
     return @intFromEnum(ErrorCode.ok);
 }

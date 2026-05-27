@@ -24,8 +24,8 @@ const installer_module = @import("upac-installer");
 pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
     install_request_c.validate() catch |err| return @intFromEnum(fromError(err, Operation.install));
 
-    const install_packages = collectInstallEntries(install_request_c, ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
-    defer ffi.allocator().free(install_packages);
+    const install_packages = collectInstallEntries(install_request_c, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
+    defer ffi.getAllocator().free(install_packages);
 
     const install_data = installer_module.InstallData{
         .packages = install_packages,
@@ -38,7 +38,7 @@ pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
         .cancel_token = install_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.install)),
     };
 
-    installer_module.InstallerMachine.run(install_data, ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
+    installer_module.InstallerMachine.run(install_data, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
 
     return @intFromEnum(ErrorCode.ok);
 }

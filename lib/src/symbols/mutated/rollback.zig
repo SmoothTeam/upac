@@ -28,7 +28,7 @@ pub fn rollback(rollback_request_c: CRollbackRequest) callconv(.c) i32 {
         .cancel_token = rollback_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback)),
     };
 
-    rollback_module.RollbackMachine.run(rollback_data, ffi.allocator()) catch |err| return @intFromEnum(fromError(err, Operation.rollback));
+    rollback_module.RollbackMachine.run(rollback_data, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.rollback));
 
     return @intFromEnum(ErrorCode.ok);
 }

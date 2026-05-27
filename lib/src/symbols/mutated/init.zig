@@ -33,8 +33,8 @@ pub fn init(init_request_c: CInitRequest) callconv(.c) i32 {
 
     const symlinks_c = if (init_request_c.symlinks) |ptr| ptr[0..init_request_c.symlinks_len] else &.{};
 
-    const symlinks = ffi.allocator().alloc([]const u8, symlinks_c.len) catch return @intFromEnum(ErrorCode.out_of_memory);
-    defer ffi.allocator().free(symlinks);
+    const symlinks = ffi.getAllocator().alloc([]const u8, symlinks_c.len) catch return @intFromEnum(ErrorCode.out_of_memory);
+    defer ffi.getAllocator().free(symlinks);
 
     for (symlinks_c, 0..) |symlink, index| symlinks[index] = symlink.toSlice();
 
