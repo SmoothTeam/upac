@@ -12,6 +12,9 @@ export const uninstall = uninstaller_symbols.uninstall;
 const rollback_symbols = @import("symbols/mutated/rollback.zig");
 export const rollback = rollback_symbols.rollback;
 
+const file_symbols = @import("symbols/mutated/file.zig");
+export const files = file_symbols.files;
+
 const diff_symbols = @import("symbols/unmutated/diff.zig");
 export const diff = diff_symbols.diff;
 export const diff_free = diff_symbols.diff_free;
