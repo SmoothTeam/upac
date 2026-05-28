@@ -37,6 +37,7 @@ const FileKind = types.FileKind;
 const InstallStateId = types.InstallStateId;
 const UninstallStateId = types.UninstallStateId;
 const RollbackStateId = types.RollbackStateId;
+const FilesStateId = types.FilesStateId;
 
 // C-compatible slice. ptr == null means absent (optional field).
 pub const CSlice = extern struct {
@@ -143,15 +144,15 @@ pub const CPackage = extern struct {
     }
 };
 
-pub const CUninstallPackage = extern struct {
-    struct_size: usize = @sizeOf(CUninstallPackage),
+pub const CPackageInfo = extern struct {
+    struct_size: usize = @sizeOf(CPackageInfo),
 
     name: CSlice,
     arch: CSlice,
     arch_sub: CSlice,
 
-    pub fn validate(self: CUninstallPackage) !void {
-        if (self.struct_size != @sizeOf(CUninstallPackage)) return error.AbiMismatch;
+    pub fn validate(self: CPackageInfo) !void {
+        if (self.struct_size != @sizeOf(CPackageInfo)) return error.AbiMismatch;
         try self.name.validate();
         try self.arch.validate();
     }
@@ -171,11 +172,17 @@ pub const CMutatedRequest = extern struct {
     packages_count: usize = 0,
 
     // Uninstall
-    uninstall_packages: ?[*]const CUninstallPackage = null,
+    uninstall_packages: ?[*]const CPackageInfo = null,
     uninstall_packages_len: usize = 0,
 
     // Rollback
     commit_hash: CSlice,
+
+    // Files
+    files: ?[*]const CSlice = null,
+    files_len: usize = 0,
+    file_kind: FileKind,
+    file_package: ?*const CPackageInfo = null,
 
     on_progress: ?*const fn (event: u32, ctx: ?*anyopaque) callconv(.c) void = null,
     progress_ctx: ?*anyopaque = null,
@@ -249,6 +256,16 @@ pub const RollbackProgressFn = *const fn (
 
 pub const CRollbackProgressFn = *const fn (
     event: RollbackStateId,
+    ctx: ?*anyopaque,
+) callconv(.c) void;
+
+pub const FilesProgressFn = *const fn (
+    event: FilesStateId,
+    ctx: ?*anyopaque,
+) callconv(.c) void;
+
+pub const CFilesProgressFn = *const fn (
+    event: FilesStateId,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 

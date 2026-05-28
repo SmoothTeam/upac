@@ -8,8 +8,7 @@ const Operation = types.Operation;
 const fromError = types.fromError;
 
 const ffi = @import("upac-ffi");
-const CSlice = ffi.CSlice;
-const CUninstallPackage = ffi.CUninstallPackage;
+const CPackageInfo = ffi.CPackageInfo;
 const CUninstallRequest = ffi.CMutatedRequest;
 const UninstallProgressFn = ffi.UninstallProgressFn;
 
@@ -22,9 +21,6 @@ const UninstallerMachine = uninstaller_module.UninstallerMachine;
 // An exported function for deleting a package. It extracts the parameters (paths, package name, retry limits) and initiates the deletion process
 pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
     uninstall_request_c.validate() catch |err| return @intFromEnum(fromError(err, Operation.uninstall));
-
-    const required_fields = [_]CSlice{ uninstall_request_c.repo_path, uninstall_request_c.root_path, uninstall_request_c.branch };
-    for (required_fields) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall));
 
     const packages_c_null = uninstall_request_c.uninstall_packages orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall));
     if (uninstall_request_c.uninstall_packages_len == 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall));

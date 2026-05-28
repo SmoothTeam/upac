@@ -11,12 +11,9 @@ const Operation = types.Operation;
 const fromError = types.fromError;
 
 const ffi = @import("upac-ffi");
-const CSlice = ffi.CSlice;
 const CPackageMeta = ffi.CPackageMeta;
 const CInstallRequest = ffi.CMutatedRequest;
 const InstallProgressFn = ffi.InstallProgressFn;
-
-const InstallProgressEvent = ffi.InstallProgressEvent;
 
 const installer_module = @import("upac-installer");
 const InstallData = installer_module.InstallData;
