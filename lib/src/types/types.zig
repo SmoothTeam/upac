@@ -152,12 +152,7 @@ pub const DiffStateId = enum(u8) {
 };
 
 pub const InitStateId = enum(u8) {
-    check_root = 0,
-    setup_prefix = 1,
-    setup_symlinks = 2,
-    check_repo = 3,
-    init_ostree = 4,
-    init_db = 5,
-    done = 6,
-    failed = 7,
+    verifying = 0,
+    setup = 1,
+    done = 2,
 };

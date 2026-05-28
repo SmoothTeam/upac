@@ -28,4 +28,4 @@ export const list_commits = list_commits_symbols.list_commits;
 export const commits_free = list_commits_symbols.commits_free;
 
 const init_symbols = @import("symbols/mutated/init.zig");
-//export const init = init_symbols.init;
+export const init = init_symbols.init;
