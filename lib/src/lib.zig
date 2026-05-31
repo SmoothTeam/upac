@@ -6,6 +6,9 @@ export const cancel = ffi_symbols.cancel;
 const installer_symbols = @import("symbols/mutated/installer.zig");
 export const install = installer_symbols.install;
 
+const update_symbols = @import("symbols/mutated/update.zig");
+export const update = update_symbols.update;
+
 const uninstaller_symbols = @import("symbols/mutated/uninstaller.zig");
 export const uninstall = uninstaller_symbols.uninstall;
 

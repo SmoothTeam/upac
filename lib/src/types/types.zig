@@ -156,3 +156,14 @@ pub const InitStateId = enum(u8) {
     setup = 1,
     done = 2,
 };
+
+pub const UpdateStateId = enum(u8) {
+    verifying = 0,
+    preparation = 1,
+    transaction = 2,
+    merge = 3,
+    checkout = 4,
+    swap = 5,
+
+    done = 6,
+};

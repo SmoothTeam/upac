@@ -1,4 +1,4 @@
-pub const Operation = enum { install, uninstall, rollback, init, diff, list, files };
+pub const Operation = enum { install, uninstall, update, rollback, init, diff, list, files };
 
 // A listing of all possible return codes used to signal success or specific runtime errors
 pub const ErrorCode = enum(i32) {
@@ -43,6 +43,15 @@ pub const ErrorCode = enum(i32) {
     install_check_space_failed = 56,
     install_write_files_failed = 57,
     install_write_config_failed = 58,
+
+    // --- Updater Errors (60 - 69) ---
+    update_package_not_found = 60,
+    update_collect_file_checksum_failed = 61,
+    update_checkout_failed = 62,
+    update_cancelled = 63,
+    update_check_space_failed = 64,
+    update_write_files_failed = 65,
+    update_write_config_failed = 66,
 
     // --- Uninstaller Errors (70 - 89) ---
     uninstall_not_found = 70,
@@ -101,6 +110,18 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.CheckSpaceFailed => .install_check_space_failed,
             error.WriteFilesFailed => .install_write_files_failed,
             error.WriteConfigFailed => .install_write_config_failed,
+            error.RepoOpenFailed => .ostree_repo_open_failed,
+            error.RepoTransactionFailed => .ostree_repo_transaction_failed,
+            else => null,
+        },
+        .update => switch (err) {
+            error.PackageNotFound => .update_package_not_found,
+            error.CollectFileChecksumsFailed => .update_collect_file_checksum_failed,
+            error.CheckoutFailed => .update_checkout_failed,
+            error.Cancelled => .update_cancelled,
+            error.CheckSpaceFailed => .update_check_space_failed,
+            error.WriteFilesFailed => .update_write_files_failed,
+            error.WriteConfigFailed => .update_write_config_failed,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
             else => null,

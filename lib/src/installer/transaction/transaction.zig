@@ -21,6 +21,7 @@ const TransactionState = enum {
     write_commit,
     set_ref,
     close_transaction,
+    close_repo,
     done,
 };
 
@@ -48,6 +49,9 @@ pub const TransactionMachine = struct {
             _ = c_libs.ostree_repo_abort_transaction(repo, null, &abort_error);
 
             if (self.commit_checksum != null) _ = c_libs.ostree_repo_set_ref_immediate(repo, null, self.installer.data.branch, self.previous_commit_checksum, null, null);
+
+            c_libs.g_object_unref(repo);
+            self.repo = null;
         }
 
         if (self.mtree_root) |root| {
@@ -91,6 +95,7 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
             .write_commit => try stateWriteCommit(&transaction_machine),
             .set_ref => try stateSetRef(&transaction_machine),
             .close_transaction => try stateCloseTransaction(&transaction_machine),
+            .close_repo => stateCloseRepo(&transaction_machine),
             .done => unreachable,
         };
     }
@@ -245,6 +250,15 @@ fn stateCloseTransaction(machine: *TransactionMachine) InstallerError!Transactio
     }
 
     if (c_libs.ostree_repo_commit_transaction(repo, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.RepoTransactionFailed);
+
+    return .close_repo;
+}
+
+fn stateCloseRepo(machine: *TransactionMachine) TransactionState {
+    if (machine.repo) |repo| {
+        c_libs.g_object_unref(repo);
+        machine.repo = null;
+    }
 
     return .done;
 }

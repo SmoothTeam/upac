@@ -38,6 +38,7 @@ const InstallStateId = types.InstallStateId;
 const UninstallStateId = types.UninstallStateId;
 const RollbackStateId = types.RollbackStateId;
 const FilesStateId = types.FilesStateId;
+const UpdateStateId = types.UpdateStateId;
 
 // C-compatible slice. ptr == null means absent (optional field).
 pub const CSlice = extern struct {
@@ -266,6 +267,11 @@ pub const FilesProgressFn = *const fn (
 
 pub const CFilesProgressFn = *const fn (
     event: FilesStateId,
+    ctx: ?*anyopaque,
+) callconv(.c) void;
+
+pub const UpdateProgressFn = *const fn (
+    event: UpdateStateId,
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 

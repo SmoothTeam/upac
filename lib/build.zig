@@ -78,6 +78,19 @@ pub fn build(b: *std.Build) void {
 
     upac_installer.addImport("upac-database", upac_database);
 
+    // ── Update ─────────────────────────────────────────────────────────────
+    const upac_update = b.createModule(.{
+        .root_source_file = b.path("src/update/update.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    upac_update.addImport("c-libs", translated_libs_module);
+
+    upac_update.addImport("upac-types", upac_types);
+    upac_update.addImport("upac-ffi", upac_ffi);
+
+    upac_update.addImport("upac-database", upac_database);
+
     // ── Uninstaller ───────────────────────────────────────────────────────────
     const upac_uninstaller = b.createModule(.{
         .root_source_file = b.path("src/uninstaller/uninstaller.zig"),
@@ -198,6 +211,7 @@ pub fn build(b: *std.Build) void {
     shared_lib.root_module.addImport("upac-database", upac_database);
 
     shared_lib.root_module.addImport("upac-installer", upac_installer);
+    shared_lib.root_module.addImport("upac-update", upac_update);
     shared_lib.root_module.addImport("upac-uninstaller", upac_uninstaller);
     shared_lib.root_module.addImport("upac-rollback", upac_rollback);
     shared_lib.root_module.addImport("upac-files", upac_files);

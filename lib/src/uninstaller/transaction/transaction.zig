@@ -41,6 +41,7 @@ const TransactionState = enum {
     write_commit,
     set_ref,
     close_transaction,
+    close_repo,
     done,
 };
 
@@ -79,6 +80,9 @@ pub const TransactionMachine = struct {
                     null,
                 );
             }
+
+            c_libs.g_object_unref(repo);
+            self.repo = null;
         }
 
         if (self.current_package_files) |package_files| {
@@ -128,6 +132,7 @@ pub fn run(machine: *UninstallerMachine) UninstallerError!void {
             .write_commit => try stateWriteCommit(&transaction_machine),
             .set_ref => try stateSetRef(&transaction_machine),
             .close_transaction => try stateCloseTransaction(&transaction_machine),
+            .close_repo => stateCloseRepo(&transaction_machine),
             .done => unreachable,
         };
     }
@@ -315,6 +320,15 @@ fn stateCloseTransaction(machine: *TransactionMachine) UninstallerError!Transact
     }
 
     if (c_libs.ostree_repo_commit_transaction(repo, null, machine.uninstaller.cancellable, &machine.uninstaller.gerror) == 0) return machine.stateFailed(UninstallerError.RepoTransactionFailed);
+
+    return .close_repo;
+}
+
+fn stateCloseRepo(machine: *TransactionMachine) TransactionState {
+    if (machine.repo) |repo| {
+        c_libs.g_object_unref(repo);
+        machine.repo = null;
+    }
 
     return .done;
 }
