@@ -1,4 +1,4 @@
-pub const Operation = enum { install, uninstall, update, rollback, init, diff, list, files };
+pub const Operation = enum { install, uninstall, update, rollback, init, diff, list, files, search };
 
 // A listing of all possible return codes used to signal success or specific runtime errors
 pub const ErrorCode = enum(i32) {
@@ -170,6 +170,12 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.ListError => .list_failed,
             error.Cancelled => .cancelled,
             error.MaxRetriesExceeded => .max_retries_exceeded,
+            else => null,
+        },
+        .search => switch (err) {
+            error.PathNotFound => .invalid_path,
+            error.ReadDatabaseFailed => .db_missing_section,
+            error.Cancelled => .cancelled,
             else => null,
         },
         .files => switch (err) {

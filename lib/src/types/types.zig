@@ -167,3 +167,17 @@ pub const UpdateStateId = enum(u8) {
 
     done = 6,
 };
+
+pub const SearchMetaStateId = enum(u8) {
+    verifying = 0,
+    searching = 1,
+
+    done = 2,
+};
+
+pub const SearchFilesStateId = enum(u8) {
+    verifying = 0,
+    searching = 1,
+
+    done = 2,
+};

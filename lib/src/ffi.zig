@@ -214,6 +214,8 @@ pub const CUnmutatedRequest = extern struct {
     from_commit_hash: CSlice,
     to_commit_hash: CSlice,
 
+    search: CSlice,
+
     symlinks: ?[*]const CSlice = null,
     symlinks_len: usize = 0,
 
@@ -315,6 +317,31 @@ pub const CCommitEntry = extern struct {
                 const slice = @field(self, field.name);
                 if (slice.ptr != null) allocator.free(slice.toSlice());
             }
+        }
+    }
+};
+
+pub const CUnmutatedResponse = extern struct {
+    struct_size: usize = @sizeOf(CUnmutatedResponse),
+
+    metas: CArray(CPackageMeta),
+    files: CArray(CDiffEntry),
+    commits: CArray(CCommitEntry),
+
+    pub fn free(self: *CUnmutatedResponse, allocator: std.mem.Allocator) void {
+        if (self.metas.len > 0) {
+            for (self.metas.toSlice()) |*entry| entry.free(allocator);
+            allocator.free(self.metas.toSlice());
+        }
+
+        if (self.files.len > 0) {
+            for (self.files.toSlice()) |*entry| entry.free(allocator);
+            allocator.free(self.files.toSlice());
+        }
+
+        if (self.commits.len > 0) {
+            for (self.commits.toSlice()) |*entry| entry.free(allocator);
+            allocator.free(self.commits.toSlice());
         }
     }
 };

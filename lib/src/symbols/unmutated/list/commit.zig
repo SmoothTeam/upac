@@ -1,7 +1,6 @@
 const ffi = @import("upac-ffi");
-const CArray = ffi.CArray;
-const CCommitEntry = ffi.CCommitEntry;
 const CUnmutatedRequest = ffi.CUnmutatedRequest;
+const CUnmutatedResponse = ffi.CUnmutatedResponse;
 
 const types = @import("upac-types");
 const ErrorCode = types.ErrorCode;
@@ -10,7 +9,7 @@ const fromError = types.fromError;
 
 const CommitMachine = @import("upac-list-commits").CommitMachine;
 
-pub fn list_commits(request_c: CUnmutatedRequest, out_c: *CArray(CCommitEntry)) callconv(.c) i32 {
+pub fn list_commits(request_c: CUnmutatedRequest, out_c: *CUnmutatedResponse) callconv(.c) i32 {
     const required = [_]ffi.CSlice{ request_c.repo_path, request_c.branch };
     for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.list));
 
@@ -24,13 +23,7 @@ pub fn list_commits(request_c: CUnmutatedRequest, out_c: *CArray(CCommitEntry)) 
         ffi.getAllocator(),
     ) catch |err| return @intFromEnum(fromError(err, Operation.list));
 
-    out_c.* = .{ .ptr = commits.ptr, .len = commits.len };
+    out_c.commits = .{ .ptr = commits.ptr, .len = commits.len };
 
     return @intFromEnum(ErrorCode.ok);
-}
-
-pub fn commits_free(out_c: *CArray(CCommitEntry)) callconv(.c) void {
-    const allocator = ffi.getAllocator();
-    for (out_c.toSlice()) |*entry| entry.free(allocator);
-    allocator.free(out_c.toSlice());
 }

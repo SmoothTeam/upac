@@ -1,41 +1,28 @@
-// ── Imports ─────────────────────────────────────────────────────────────────────
-const std = @import("std");
-
 const ffi = @import("upac-ffi");
 const CSlice = ffi.CSlice;
-const CArray = ffi.CArray;
-const CDiffRequest = ffi.CUnmutatedRequest;
-
-const CDiffEntry = ffi.CDiffEntry;
+const CUnmutatedRequest = ffi.CUnmutatedRequest;
+const CUnmutatedResponse = ffi.CUnmutatedResponse;
 
 const types = @import("upac-types");
 const ErrorCode = types.ErrorCode;
 const Operation = types.Operation;
-
 const fromError = types.fromError;
 
-const DiffMachine = @import("upac-diff").DiffMachine;
+const DiffMachine = @import("upac-diff-files").DiffMachine;
 
-pub fn diff_files(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.c) i32 {
-    const required = [_]CSlice{ diff_request_c.repo_path, diff_request_c.from_commit_hash, diff_request_c.to_commit_hash };
-    for (required) |required_field| if (required_field.len == 0 or required_field.ptr[required_field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.diff));
+pub fn diff_files(request_c: CUnmutatedRequest, out_c: *CUnmutatedResponse) callconv(.c) i32 {
+    const required = [_]CSlice{ request_c.repo_path, request_c.from_commit_hash, request_c.to_commit_hash };
+    for (required) |field| if (field.len == 0 or field.ptr[field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.diff));
 
-    const diff_entrys = DiffMachine.run(.{
-        .repo_path = diff_request_c.repo_path.asZ(),
-        .tmp_path = diff_request_c.tmp_path.asZ(),
-        .from_ref = diff_request_c.from_commit_hash.asZ(),
-        .to_ref = diff_request_c.to_commit_hash.asZ(),
-        .cancel_token = diff_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)),
-    }, ffi.getAllocator()) catch |diff_err| return @intFromEnum(fromError(diff_err, Operation.diff));
+    const diff_entries = DiffMachine.run(.{
+        .repo_path = request_c.repo_path.asZ(),
+        .tmp_path = request_c.tmp_path.asZ(),
+        .from_ref = request_c.from_commit_hash.asZ(),
+        .to_ref = request_c.to_commit_hash.asZ(),
+        .cancel_token = request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.diff)),
+    }, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.diff));
 
-    out_c.* = .{
-        .ptr = diff_entrys.ptr,
-        .len = diff_entrys.len,
-    };
+    out_c.files = .{ .ptr = diff_entries.ptr, .len = diff_entries.len };
+
     return @intFromEnum(ErrorCode.ok);
-}
-
-pub fn diff_files_free(out_c: *CArray(CDiffEntry)) callconv(.c) void {
-    for (out_c.toSlice()) |*entry| entry.free(ffi.getAllocator());
-    ffi.getAllocator().free(out_c.toSlice());
 }
