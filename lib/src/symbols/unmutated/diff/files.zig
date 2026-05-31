@@ -16,7 +16,7 @@ const fromError = types.fromError;
 
 const DiffMachine = @import("upac-diff").DiffMachine;
 
-pub fn diff(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.c) i32 {
+pub fn diff_files(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.c) i32 {
     const required = [_]CSlice{ diff_request_c.repo_path, diff_request_c.from_commit_hash, diff_request_c.to_commit_hash };
     for (required) |required_field| if (required_field.len == 0 or required_field.ptr[required_field.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.diff));
 
@@ -35,7 +35,7 @@ pub fn diff(diff_request_c: CDiffRequest, out_c: *CArray(CDiffEntry)) callconv(.
     return @intFromEnum(ErrorCode.ok);
 }
 
-pub fn diff_free(out_c: *CArray(CDiffEntry)) callconv(.c) void {
+pub fn diff_files_free(out_c: *CArray(CDiffEntry)) callconv(.c) void {
     for (out_c.toSlice()) |*entry| entry.free(ffi.getAllocator());
     ffi.getAllocator().free(out_c.toSlice());
 }

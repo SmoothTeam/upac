@@ -7,7 +7,7 @@ const DB_NAME = @import("upac-types").paths.db_name;
 const database = @import("upac-database");
 const Database = database.Database;
 
-const diff_module = @import("../diff.zig");
+const diff_module = @import("../files.zig");
 const DiffMachine = diff_module.DiffMachine;
 const DiffError = diff_module.DiffError;
 

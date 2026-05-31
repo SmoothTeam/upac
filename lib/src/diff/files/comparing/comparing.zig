@@ -5,7 +5,7 @@ const FileRecord = types.FileRecord;
 const DiffEntry = types.DiffEntry;
 const FileKind = types.FileKind;
 
-const diff_module = @import("../diff.zig");
+const diff_module = @import("../files.zig");
 const DiffMachine = diff_module.DiffMachine;
 const DiffError = diff_module.DiffError;
 

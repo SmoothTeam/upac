@@ -18,17 +18,17 @@ export const rollback = rollback_symbols.rollback;
 const file_symbols = @import("symbols/mutated/file.zig");
 export const files = file_symbols.files;
 
-const diff_symbols = @import("symbols/unmutated/diff.zig");
-export const diff = diff_symbols.diff;
-export const diff_free = diff_symbols.diff_free;
+const init_symbols = @import("symbols/mutated/init.zig");
+export const init = init_symbols.init;
 
-const list_packages_symbols = @import("symbols/unmutated/meta.zig");
+const diff_symbols = @import("symbols/unmutated/diff/files.zig");
+export const diff_files = diff_symbols.diff_files;
+export const diff_files_free = diff_symbols.diff_files_free;
+
+const list_packages_symbols = @import("symbols/unmutated/list/meta.zig");
 export const list_metas = list_packages_symbols.list_metas;
 export const metas_free = list_packages_symbols.metas_free;
 
-const list_commits_symbols = @import("symbols/unmutated/commit.zig");
+const list_commits_symbols = @import("symbols/unmutated/list/commit.zig");
 export const list_commits = list_commits_symbols.list_commits;
 export const commits_free = list_commits_symbols.commits_free;
-
-const init_symbols = @import("symbols/mutated/init.zig");
-export const init = init_symbols.init;

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
-const diff = @import("../diff.zig");
+const diff = @import("../files.zig");
 const DiffMachine = diff.DiffMachine;
 const DiffError = diff.DiffError;
 

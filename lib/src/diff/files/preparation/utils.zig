@@ -11,7 +11,7 @@ const package_list = database.packages.list;
 const files_list = database.files.list;
 const exists = database.packages.exists;
 
-const diff_module = @import("../diff.zig");
+const diff_module = @import("../files.zig");
 const DiffError = diff_module.DiffError;
 
 const PreparationMachine = @import("preparation.zig").PreparationMachine;
