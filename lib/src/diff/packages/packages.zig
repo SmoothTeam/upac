@@ -4,24 +4,28 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
-const DiffEntry = types.DiffEntry;
-const FileRecord = types.FileRecord;
-
+const PackageMeta = types.PackageMeta;
+const Version = types.Version;
+const DiffKind = types.DiffKind;
 const DiffStateId = types.DiffStateId;
-
 const DiffError = types.DiffError;
 
 const ffi = @import("upac-ffi");
-
-const CDiffFileEntry = ffi.CDiffFileEntry;
+const CDiffPackageEntry = ffi.CDiffPackageEntry;
 const CSlice = ffi.CSlice;
-
+const CArray = ffi.CArray;
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
 
 const verifying = @import("verifying/verifying.zig");
 const preparation = @import("preparation/preparation.zig");
 const comparing = @import("comparing/comparing.zig");
+
+pub const PackageDiffEntry = struct {
+    name: []const u8,
+    kind: DiffKind,
+    version: Version,
+};
 
 pub const DiffData = struct {
     repo_path: [*:0]const u8,
@@ -37,7 +41,7 @@ pub const DiffMachine = struct {
     data: DiffData,
     repo: ?*c_libs.OstreeRepo = null,
 
-    file_pkg_maps: [2]std.StringHashMap(FileRecord) = undefined,
+    packages_lists: [2]std.ArrayList(PackageMeta) = undefined,
 
     cancellable: ?*c_libs.GCancellable = null,
     gerror: ?*c_libs.GError = null,
@@ -61,26 +65,23 @@ pub const DiffMachine = struct {
     }
 
     pub fn deinit(self: *DiffMachine) void {
-        for (&self.file_pkg_maps) |*map| {
-            var iter = map.iterator();
-            while (iter.next()) |entry| {
-                self.allocator.free(entry.key_ptr.*);
-                self.allocator.free(entry.value_ptr.*.pkg_name);
-            }
-            map.deinit();
+        for (&self.packages_lists) |*list| {
+            for (list.items) |*meta| meta.deinit(self.allocator);
+            list.deinit(self.allocator);
         }
         if (self.repo) |repo| c_libs.g_object_unref(repo);
         if (self.gerror) |err| c_libs.g_error_free(err);
         if (self.cancellable) |cancellable| c_libs.g_object_unref(cancellable);
     }
 
-    pub fn run(diff_data: DiffData, allocator: std.mem.Allocator) DiffError![]CDiffFileEntry {
+    pub fn run(diff_data: DiffData, allocator: std.mem.Allocator) DiffError![]CDiffPackageEntry {
         var state = DiffStateId.verifying;
-        var entries: []DiffEntry = &.{};
+        var entries: []PackageDiffEntry = &.{};
         errdefer if (entries.len > 0) {
             for (entries) |entry| {
-                allocator.free(entry.path);
-                allocator.free(entry.package_name);
+                allocator.free(entry.name);
+                allocator.free(entry.version.parts);
+                if (entry.version.pre) |pre| allocator.free(pre);
             }
             allocator.free(entries);
         };
@@ -88,15 +89,15 @@ pub const DiffMachine = struct {
         var machine = DiffMachine{
             .data = diff_data,
 
+            .packages_lists = .{
+                std.ArrayList(PackageMeta).empty,
+                std.ArrayList(PackageMeta).empty,
+            },
+
             .cancellable = c_libs.g_cancellable_new() orelse return DiffError.Cancelled,
 
             .allocator = allocator,
             .io = std.Io.Threaded.global_single_threaded.io(),
-
-            .file_pkg_maps = .{
-                std.StringHashMap(FileRecord).init(allocator),
-                std.StringHashMap(FileRecord).init(allocator),
-            },
         };
         defer machine.deinit();
 
@@ -122,14 +123,18 @@ pub const DiffMachine = struct {
             }
         }
 
-        const c_entries = allocator.alloc(CDiffFileEntry, entries.len) catch return DiffError.AllocFailed;
+        const c_entries = allocator.alloc(CDiffPackageEntry, entries.len) catch return DiffError.AllocFailed;
 
         for (entries, c_entries) |entry, *c_entry| {
             c_entry.* = .{
-                .path = CSlice.fromSlice(entry.path),
+                .name = CSlice.fromSlice(entry.name),
                 .kind = entry.kind,
-                .package_name = CSlice.fromSlice(entry.package_name),
-                .is_user = entry.is_user,
+                .version = .{
+                    .epoch = entry.version.epoch,
+                    .release = entry.version.release,
+                    .parts = .{ .ptr = @constCast(entry.version.parts.ptr), .len = entry.version.parts.len },
+                    .pre = CSlice.fromSlice(entry.version.pre),
+                },
             };
         }
         allocator.free(entries);

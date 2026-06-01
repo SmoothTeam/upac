@@ -130,6 +130,20 @@ pub fn build(b: *std.Build) void {
 
     upac_files.addImport("upac-database", upac_database);
 
+    // ── Diff packages ────────────────────────────────────────────────────────────────
+    const upac_diff_packages = b.createModule(.{
+        .root_source_file = b.path("src/diff/packages/packages.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    upac_diff_packages.addImport("c-libs", translated_libs_module);
+
+    upac_diff_packages.addImport("upac-types", upac_types);
+    upac_diff_packages.addImport("upac-ffi", upac_ffi);
+
+    upac_diff_packages.addImport("upac-database", upac_database);
+
     // ── Diff files ────────────────────────────────────────────────────────────────
     const upac_diff_files = b.createModule(.{
         .root_source_file = b.path("src/diff/files/files.zig"),
@@ -245,6 +259,7 @@ pub fn build(b: *std.Build) void {
     shared_lib.root_module.addImport("upac-files", upac_files);
     shared_lib.root_module.addImport("upac-init", upac_init);
 
+    shared_lib.root_module.addImport("upac-diff-packages", upac_diff_packages);
     shared_lib.root_module.addImport("upac-diff-files", upac_diff_files);
 
     shared_lib.root_module.addImport("upac-list-packages", upac_list_metas);

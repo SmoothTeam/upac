@@ -5,8 +5,7 @@ const PREFIX = types.paths.prefix;
 const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 
-const database = @import("upac-database");
-const Database = database.Database;
+const Database = @import("upac-database").Database;
 
 const files = @import("../files.zig");
 const SearchFilesMachine = files.SearchFilesMachine;

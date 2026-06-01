@@ -2,13 +2,14 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
+const ListError = @import("upac-types").ListError;
+
 const CCommitEntry = @import("upac-ffi").CCommitEntry;
 
 const commit = @import("../commit.zig");
 const CommitEntry = commit.CommitEntry;
 
 const CommitMachine = commit.CommitMachine;
-const CommitError = commit.CommitError;
 
 const utils = @import("utils.zig");
 const convertCommitEntry = utils.convertCommitEntry;
@@ -31,7 +32,7 @@ const FetchMachine = struct {
     commits: std.ArrayList(CommitEntry),
     converted_commits: std.ArrayList(CCommitEntry),
 
-    fn stateFailed(self: *FetchMachine, err: CommitError) CommitError {
+    fn stateFailed(self: *FetchMachine, err: ListError) ListError {
         for (self.commits.items) |row| row.deinit(self.commit.allocator);
         self.commits.deinit(self.commit.allocator);
 
@@ -48,7 +49,7 @@ const FetchMachine = struct {
 };
 
 // ── Trampoline ────────────────────────────────────────────────────────────────
-pub fn run(machine: *CommitMachine) CommitError![]CCommitEntry {
+pub fn run(machine: *CommitMachine) ListError![]CCommitEntry {
     var fetch_machine = FetchMachine{
         .commit = machine,
         .commits = std.ArrayList(CommitEntry).empty,
@@ -68,27 +69,27 @@ pub fn run(machine: *CommitMachine) CommitError![]CCommitEntry {
         };
     }
 
-    commits = fetch_machine.converted_commits.toOwnedSlice(machine.allocator) catch return CommitError.AllocFailed;
+    commits = fetch_machine.converted_commits.toOwnedSlice(machine.allocator) catch return ListError.AllocFailed;
     return commits;
 }
 
 // ── States ────────────────────────────────────────────────────────────────────
-fn stateOpenRepo(machine: *FetchMachine) CommitError!FetchState {
+fn stateOpenRepo(machine: *FetchMachine) ListError!FetchState {
     const gfile = c_libs.g_file_new_for_path(machine.commit.data.repo_path);
     defer c_libs.g_object_unref(gfile);
 
     const repo = c_libs.ostree_repo_new(gfile);
     if (c_libs.ostree_repo_open(repo, machine.commit.cancellable, &machine.commit.gerror) == 0) {
         c_libs.g_object_unref(repo);
-        return machine.stateFailed(CommitError.RepoOpenFailed);
+        return machine.stateFailed(ListError.RepoOpenFailed);
     }
     machine.repo = repo;
 
     return .get_commits;
 }
 
-fn stateGetCommits(machine: *FetchMachine) CommitError!FetchState {
-    const repo = machine.repo orelse return machine.stateFailed(CommitError.RepoOpenFailed);
+fn stateGetCommits(machine: *FetchMachine) ListError!FetchState {
+    const repo = machine.repo orelse return machine.stateFailed(ListError.RepoOpenFailed);
 
     var current_checksum: [*c]u8 = null;
     if (c_libs.ostree_repo_resolve_rev(repo, machine.commit.data.branch, 1, &current_checksum, &machine.commit.gerror) == 0) return .convert_commits;
@@ -99,7 +100,7 @@ fn stateGetCommits(machine: *FetchMachine) CommitError!FetchState {
 
     while (checksum != null) {
         if (machine.commit.cancellable) |cancellable| {
-            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return machine.stateFailed(CommitError.Cancelled);
+            if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return machine.stateFailed(ListError.Cancelled);
         }
 
         var commit_variant: ?*c_libs.GVariant = null;
@@ -115,10 +116,10 @@ fn stateGetCommits(machine: *FetchMachine) CommitError!FetchState {
         var subject_len: usize = 0;
         const subject_ptr = c_libs.g_variant_get_string(subject_variant, &subject_len);
 
-        const row = dupeRow(checksum, subject_ptr[0..subject_len], machine.commit.allocator) catch return machine.stateFailed(CommitError.AllocFailed);
+        const row = dupeRow(checksum, subject_ptr[0..subject_len], machine.commit.allocator) catch return machine.stateFailed(ListError.AllocFailed);
         machine.commits.append(machine.commit.allocator, row) catch {
             row.deinit(machine.commit.allocator);
-            return machine.stateFailed(CommitError.AllocFailed);
+            return machine.stateFailed(ListError.AllocFailed);
         };
 
         const parent = c_libs.ostree_commit_get_parent(commit_variant);
@@ -130,10 +131,10 @@ fn stateGetCommits(machine: *FetchMachine) CommitError!FetchState {
     return .convert_commits;
 }
 
-fn stateConvertCommits(machine: *FetchMachine) CommitError!FetchState {
+fn stateConvertCommits(machine: *FetchMachine) ListError!FetchState {
     for (machine.commits.items) |row| {
         const entry = convertCommitEntry(row);
-        machine.converted_commits.append(machine.commit.allocator, entry) catch return machine.stateFailed(CommitError.AllocFailed);
+        machine.converted_commits.append(machine.commit.allocator, entry) catch return machine.stateFailed(ListError.AllocFailed);
     }
 
     machine.commits.deinit(machine.commit.allocator);

@@ -4,7 +4,7 @@ const c_libs = @import("c-libs");
 
 const DiffError = @import("upac-types").DiffError;
 
-const diff = @import("../files.zig");
+const diff = @import("../packages.zig");
 const DiffMachine = diff.DiffMachine;
 
 const utils = @import("utils.zig");

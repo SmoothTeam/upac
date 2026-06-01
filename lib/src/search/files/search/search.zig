@@ -1,18 +1,21 @@
 const std = @import("std");
 
 const ffi = @import("upac-ffi");
-const CDiffEntry = ffi.CDiffEntry;
 const CSlice = ffi.CSlice;
+const CDiffFileEntry = ffi.CDiffFileEntry;
 
 const types = @import("upac-types");
 const PREFIX = types.paths.prefix;
 const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 
-const FileKind = types.FileKind;
+const DiffKind = types.DiffKind;
 
 const database = @import("upac-database");
 const Database = database.Database;
+const exists = database.packages.exists;
+const list_packages = database.packages.list;
+const list_files = database.files.list;
 
 const files = @import("../files.zig");
 const SearchFilesMachine = files.SearchFilesMachine;
@@ -78,22 +81,22 @@ fn stateFetch(machine: *SearchMachine) SearchFilesError!SearchState {
     const query = machine.searcher.data.query;
     const allocator = machine.searcher.allocator;
 
-    const all_packages = database.packages.list(base) catch return machine.stateFailed(SearchFilesError.ReadDatabaseFailed);
+    const all_packages = list_packages(base) catch return machine.stateFailed(SearchFilesError.ReadDatabaseFailed);
     defer {
         for (all_packages) |*pkg| pkg.deinit(allocator);
         allocator.free(all_packages);
     }
 
-    var matching = std.ArrayList(CDiffEntry).empty;
+    var matching = std.ArrayList(CDiffFileEntry).empty;
     errdefer {
         for (matching.items) |*entry| entry.free(allocator);
         matching.deinit(allocator);
     }
 
     for (all_packages) |*pkg| {
-        const uuid = (database.packages.exists(base, pkg.name, pkg.arch, pkg.arch_sub) catch continue) orelse continue;
+        const uuid = exists(base, pkg.name, pkg.arch, pkg.arch_sub) catch continue orelse continue;
 
-        const file_entries = database.files.list(base, uuid) catch continue;
+        const file_entries = list_files(base, uuid) catch continue;
         defer {
             for (file_entries) |*file_entry| file_entry.deinit(allocator);
             allocator.free(file_entries);
@@ -110,7 +113,7 @@ fn stateFetch(machine: *SearchMachine) SearchFilesError!SearchState {
 
             matching.append(allocator, .{
                 .path = CSlice.fromSlice(path_copy),
-                .kind = if (file_entry.is_user) FileKind.modified else FileKind.added,
+                .kind = if (file_entry.is_user) DiffKind.modified else DiffKind.added,
                 .package_name = CSlice.fromSlice(pkg_name_copy),
                 .is_user = file_entry.is_user,
             }) catch {

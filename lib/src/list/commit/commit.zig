@@ -7,7 +7,10 @@ const CCommitEntry = ffi.CCommitEntry;
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
 
-const CommitStateId = @import("upac-types").CommitStateId;
+const types = @import("upac-types");
+const CommitStateId = types.CommitStateId;
+
+const ListError = types.ListError;
 
 const verifying = @import("verifying/verifying.zig");
 const fetch = @import("fetch/fetch.zig");
@@ -21,16 +24,6 @@ pub const CommitEntry = struct {
         allocator.free(self.checksum);
         allocator.free(self.subject);
     }
-};
-
-// ── Errors ────────────────────────────────────────────────────────────────────
-pub const CommitError = error{
-    PathNotFound,
-    RepoOpenFailed,
-    AllocFailed,
-    OutOfMemory,
-    CommitFailed,
-    Cancelled,
 };
 
 // ── CommitData ────────────────────────────────────────────────────────────────
@@ -57,13 +50,13 @@ pub const CommitMachine = struct {
         if (self.cancellable) |cancellable| c_libs.g_object_unref(cancellable);
     }
 
-    pub fn run(commit_data: CommitData, allocator: std.mem.Allocator) CommitError![]CCommitEntry {
+    pub fn run(commit_data: CommitData, allocator: std.mem.Allocator) ListError![]CCommitEntry {
         var commits: []CCommitEntry = &.{};
         var state = CommitStateId.verifying;
 
         var machine = CommitMachine{
             .data = commit_data,
-            .cancellable = c_libs.g_cancellable_new() orelse return CommitError.OutOfMemory,
+            .cancellable = c_libs.g_cancellable_new() orelse return ListError.OutOfMemory,
             .allocator = allocator,
             .io = std.Io.Threaded.global_single_threaded.io(),
         };

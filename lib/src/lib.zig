@@ -22,8 +22,11 @@ export const files = file_symbols.files;
 const init_symbols = @import("symbols/mutated/init.zig");
 export const init = init_symbols.init;
 
-const diff_symbols = @import("symbols/unmutated/diff/files.zig");
-export const diff_files = diff_symbols.diff_files;
+const diff_packages_symbols = @import("symbols/unmutated/diff/packages.zig");
+export const diff_packages = diff_packages_symbols.diff_packages;
+
+const diff_files_symbols = @import("symbols/unmutated/diff/files.zig");
+export const diff_files = diff_files_symbols.diff_files;
 
 const list_packages_symbols = @import("symbols/unmutated/list/meta.zig");
 export const list_metas = list_packages_symbols.list_metas;

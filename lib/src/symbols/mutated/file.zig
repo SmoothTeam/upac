@@ -6,7 +6,7 @@ const CPackageInfo = ffi.CPackageInfo;
 const FilesProgressFn = ffi.FilesProgressFn;
 
 const types = @import("upac-types");
-const FileKind = types.FileKind;
+const DiffKind = types.DiffKind;
 const ErrorCode = types.ErrorCode;
 const Operation = types.Operation;
 const fromError = types.fromError;
@@ -23,7 +23,7 @@ pub fn files(request_c: CFilesRequest) callconv(.c) i32 {
     const files_c = files_c_ptr[0..request_c.files_len];
     for (files_c) |f| if (f.ptr == null or f.len == 0 or f.ptr[f.len] != 0) return @intFromEnum(fromError(error.InvalidEntry, Operation.files));
 
-    _ = ffi.intToEnum(FileKind, @intFromEnum(request_c.file_kind)) catch return @intFromEnum(fromError(error.InvalidEntry, Operation.files));
+    _ = ffi.intToEnum(DiffKind, @intFromEnum(request_c.file_kind)) catch return @intFromEnum(fromError(error.InvalidEntry, Operation.files));
 
     const package_c = request_c.file_package orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.files));
     package_c.validate() catch return @intFromEnum(fromError(error.InvalidEntry, Operation.files));

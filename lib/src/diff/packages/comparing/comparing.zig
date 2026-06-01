@@ -1,16 +1,14 @@
 const std = @import("std");
 
 const types = @import("upac-types");
-const FileRecord = types.FileRecord;
-const DiffEntry = types.DiffEntry;
-
+const DiffKind = types.DiffKind;
 const DiffError = types.DiffError;
 
-const diff = @import("../files.zig");
-const DiffMachine = diff.DiffMachine;
+const packages_module = @import("../packages.zig");
+const DiffMachine = packages_module.DiffMachine;
+const PackageDiffEntry = packages_module.PackageDiffEntry;
 
 const utils = @import("utils.zig");
-const appendEntry = utils.appendEntry;
 
 // ── ComparingState ────────────────────────────────────────────────────────────
 const ComparingState = enum {
@@ -23,12 +21,13 @@ const ComparingState = enum {
 const ComparingMachine = struct {
     diff: *DiffMachine,
 
-    entries: std.ArrayList(DiffEntry) = std.ArrayList(DiffEntry).empty,
+    entries: std.ArrayList(PackageDiffEntry) = std.ArrayList(PackageDiffEntry).empty,
 
     fn stateFailed(self: *ComparingMachine, err: DiffError) DiffError {
         for (self.entries.items) |entry| {
-            self.diff.allocator.free(entry.path);
-            self.diff.allocator.free(entry.package_name);
+            self.diff.allocator.free(entry.name);
+            self.diff.allocator.free(entry.version.parts);
+            if (entry.version.pre) |pre| self.diff.allocator.free(pre);
         }
         self.entries.deinit(self.diff.allocator);
         return err;
@@ -36,7 +35,7 @@ const ComparingMachine = struct {
 };
 
 // ── Trampoline ────────────────────────────────────────────────────────────────
-pub fn run(machine: *DiffMachine) DiffError![]DiffEntry {
+pub fn run(machine: *DiffMachine) DiffError![]PackageDiffEntry {
     var comparing_machine = ComparingMachine{ .diff = machine };
 
     var state = ComparingState.find_removed_and_modified;
@@ -53,16 +52,15 @@ pub fn run(machine: *DiffMachine) DiffError![]DiffEntry {
 
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateFindRemovedAndModified(machine: *ComparingMachine) DiffError!ComparingState {
-    var iter = machine.diff.file_pkg_maps[0].iterator();
-    while (iter.next()) |entry| {
-        const path = entry.key_ptr.*;
-        const from_record = entry.value_ptr.*;
+    const from_list = machine.diff.packages_lists[0].items;
+    const to_list = machine.diff.packages_lists[1].items;
 
-        if (machine.diff.file_pkg_maps[1].get(path)) |to_record| {
-            if (std.mem.eql(u8, &from_record.sha256, &to_record.sha256)) continue;
-            appendEntry(&machine.entries, machine.diff.allocator, path, .modified, from_record.pkg_name, from_record.is_user) catch return machine.stateFailed(DiffError.AllocFailed);
+    for (from_list) |from_meta| {
+        if (utils.findInList(to_list, from_meta)) |to_meta| {
+            if (utils.versionEql(from_meta.version, to_meta.version)) continue;
+            utils.appendEntry(&machine.entries, machine.diff.allocator, to_meta, .modified) catch return machine.stateFailed(DiffError.AllocFailed);
         } else {
-            appendEntry(&machine.entries, machine.diff.allocator, path, .removed, from_record.pkg_name, from_record.is_user) catch return machine.stateFailed(DiffError.AllocFailed);
+            utils.appendEntry(&machine.entries, machine.diff.allocator, from_meta, .removed) catch return machine.stateFailed(DiffError.AllocFailed);
         }
     }
 
@@ -70,13 +68,12 @@ fn stateFindRemovedAndModified(machine: *ComparingMachine) DiffError!ComparingSt
 }
 
 fn stateFindAdded(machine: *ComparingMachine) DiffError!ComparingState {
-    var iter = machine.diff.file_pkg_maps[1].iterator();
-    while (iter.next()) |entry| {
-        const path = entry.key_ptr.*;
-        const to_record = entry.value_ptr.*;
+    const from_list = machine.diff.packages_lists[0].items;
+    const to_list = machine.diff.packages_lists[1].items;
 
-        if (machine.diff.file_pkg_maps[0].contains(path)) continue;
-        appendEntry(&machine.entries, machine.diff.allocator, path, .added, to_record.pkg_name, to_record.is_user) catch return machine.stateFailed(DiffError.AllocFailed);
+    for (to_list) |to_meta| {
+        if (utils.findInList(from_list, to_meta) != null) continue;
+        utils.appendEntry(&machine.entries, machine.diff.allocator, to_meta, .added) catch return machine.stateFailed(DiffError.AllocFailed);
     }
 
     return .done;

@@ -9,6 +9,9 @@ pub const Operation = errors.Operation;
 pub const ErrorCode = errors.ErrorCode;
 pub const fromError = errors.fromError;
 
+pub const DiffError = @import("diff.zig").DiffError;
+pub const ListError = @import("list.zig").ListError;
+
 // ── Version ───────────────────────────────────────────────────────────────────
 // Normalised by the backend before passing through FFI.
 pub const Version = struct {
@@ -73,13 +76,13 @@ pub const FileRecord = struct {
 
 pub const DiffEntry = struct {
     path: []const u8,
-    kind: FileKind,
+    kind: DiffKind,
     package_name: []const u8,
     is_user: bool,
 };
 
 // Enumeration of file system change types (added, deleted, modified)
-pub const FileKind = enum(u8) {
+pub const DiffKind = enum(u8) {
     added = 0,
     removed = 1,
     modified = 2,

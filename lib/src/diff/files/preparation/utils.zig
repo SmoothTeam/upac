@@ -3,16 +3,18 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
+const PREFIX = types.paths.prefix;
+const DB_PATH = types.paths.db_path;
+
 const FileRecord = types.FileRecord;
+
+const DiffError = types.DiffError;
 
 const database = @import("upac-database");
 const Database = database.Database;
 const package_list = database.packages.list;
 const files_list = database.files.list;
 const exists = database.packages.exists;
-
-const diff_module = @import("../files.zig");
-const DiffError = diff_module.DiffError;
 
 const PreparationMachine = @import("preparation.zig").PreparationMachine;
 
@@ -22,7 +24,7 @@ pub fn checkoutDb(machine: *PreparationMachine, checksum: [*c]const u8) DiffErro
     const destination_path_c = machine.diff.allocator.dupeZ(u8, destination_path) catch return DiffError.AllocFailed;
     defer machine.diff.allocator.free(destination_path_c);
 
-    const subpath = std.fs.path.joinZ(machine.diff.allocator, &.{ types.paths.prefix, types.paths.db_path }) catch return DiffError.AllocFailed;
+    const subpath = std.fs.path.joinZ(machine.diff.allocator, &.{ PREFIX, DB_PATH }) catch return DiffError.AllocFailed;
     defer machine.diff.allocator.free(subpath);
 
     var checkout_options = std.mem.zeroes(c_libs.OstreeRepoCheckoutAtOptions);

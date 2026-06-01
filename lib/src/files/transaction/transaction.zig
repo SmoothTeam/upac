@@ -7,15 +7,12 @@ const PREFIX = types.paths.prefix;
 const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 
-const FileKind = types.FileKind;
-const FileEntry = types.FileEntry;
-
 const database = @import("upac-database");
 const Database = database.Database;
 
-const files_module = @import("../files.zig");
-const FilesMachine = files_module.FilesMachine;
-const FilesError = files_module.FilesError;
+const files = @import("../files.zig");
+const FilesMachine = files.FilesMachine;
+const FilesError = files.FilesError;
 
 const utils = @import("utils.zig");
 const computeFileChecksum = utils.computeFileChecksum;

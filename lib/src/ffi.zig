@@ -32,7 +32,7 @@ pub fn cancelGCancellable(ctx: ?*anyopaque) callconv(.c) void {
 // ── Reimports types ─────────────────────────────────────────────────────────────────────
 const types = @import("upac-types");
 
-const FileKind = types.FileKind;
+const DiffKind = types.DiffKind;
 
 const InstallStateId = types.InstallStateId;
 const UninstallStateId = types.UninstallStateId;
@@ -182,7 +182,7 @@ pub const CMutatedRequest = extern struct {
     // Files
     files: ?[*]const CSlice = null,
     files_len: usize = 0,
-    file_kind: FileKind,
+    file_kind: DiffKind,
     file_package: ?*const CPackageInfo = null,
 
     on_progress: ?*const fn (event: u32, ctx: ?*anyopaque) callconv(.c) void = null,
@@ -277,21 +277,35 @@ pub const UpdateProgressFn = *const fn (
     ctx: ?*anyopaque,
 ) callconv(.c) void;
 
-pub const CDiffEntry = extern struct {
-    struct_size: usize = @sizeOf(CDiffEntry),
+pub const CDiffPackageEntry = extern struct {
+    struct_size: usize = @sizeOf(CDiffPackageEntry),
+
+    name: CSlice,
+    kind: DiffKind,
+    version: CVersion,
+
+    pub fn free(self: *CDiffPackageEntry, allocator: std.mem.Allocator) void {
+        if (self.name.ptr != null) allocator.free(self.name.toSlice());
+        if (self.version.parts.len > 0) allocator.free(self.version.parts.toSlice());
+        if (self.version.pre.ptr != null) allocator.free(self.version.pre.toSlice());
+    }
+};
+
+pub const CDiffFileEntry = extern struct {
+    struct_size: usize = @sizeOf(CDiffFileEntry),
 
     path: CSlice,
-    kind: FileKind,
+    kind: DiffKind,
     package_name: CSlice,
     is_user: bool,
 
-    pub fn validate(self: CDiffEntry) !void {
-        if (self.struct_size != @sizeOf(CDiffEntry)) return error.AbiMismatch;
-        _ = intToEnum(FileKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
+    pub fn validate(self: CDiffFileEntry) !void {
+        if (self.struct_size != @sizeOf(CDiffFileEntry)) return error.AbiMismatch;
+        _ = intToEnum(DiffKind, @intFromEnum(self.kind)) catch return error.InvalidEntry;
     }
 
-    pub fn free(self: *CDiffEntry, allocator: std.mem.Allocator) void {
-        inline for (std.meta.fields(CDiffEntry)) |field| {
+    pub fn free(self: *CDiffFileEntry, allocator: std.mem.Allocator) void {
+        inline for (std.meta.fields(CDiffFileEntry)) |field| {
             if (field.type == CSlice) {
                 const slice = @field(self, field.name);
                 if (slice.ptr != null) allocator.free(slice.toSlice());
@@ -325,8 +339,9 @@ pub const CUnmutatedResponse = extern struct {
     struct_size: usize = @sizeOf(CUnmutatedResponse),
 
     metas: CArray(CPackageMeta),
-    files: CArray(CDiffEntry),
+    files: CArray(CDiffFileEntry),
     commits: CArray(CCommitEntry),
+    diff_packages: CArray(CDiffPackageEntry),
 
     pub fn free(self: *CUnmutatedResponse, allocator: std.mem.Allocator) void {
         if (self.metas.len > 0) {
@@ -342,6 +357,11 @@ pub const CUnmutatedResponse = extern struct {
         if (self.commits.len > 0) {
             for (self.commits.toSlice()) |*entry| entry.free(allocator);
             allocator.free(self.commits.toSlice());
+        }
+
+        if (self.diff_packages.len > 0) {
+            for (self.diff_packages.toSlice()) |*entry| entry.free(allocator);
+            allocator.free(self.diff_packages.toSlice());
         }
     }
 };

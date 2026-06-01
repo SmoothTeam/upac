@@ -8,7 +8,7 @@ const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
 
 const types = @import("upac-types");
-const FileKind = types.FileKind;
+const DiffKind = types.DiffKind;
 const FilesStateId = types.FilesStateId;
 
 const verifying = @import("verifying/verifiyng.zig");
@@ -34,7 +34,7 @@ pub const FilesError = error{
 // ── FilesData ─────────────────────────────────────────────────────────────────
 pub const FilesData = struct {
     file_paths: [][*:0]const u8,
-    kind: FileKind,
+    kind: DiffKind,
 
     pkg_name: [*:0]const u8,
     pkg_arch: [*:0]const u8,

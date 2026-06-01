@@ -10,18 +10,18 @@ const DiffError = types.DiffError;
 const database = @import("upac-database");
 const Database = database.Database;
 
-const diff = @import("../files.zig");
-const DiffMachine = diff.DiffMachine;
+const packages = @import("../packages.zig");
+const DiffMachine = packages.DiffMachine;
 
 const utils = @import("utils.zig");
-const buildFilePkgMap = utils.buildFilePkgMap;
+const buildPkgList = utils.buildPkgList;
 const checkoutDb = utils.checkoutDb;
 
 // ── PreparationState ──────────────────────────────────────────────────────────
 const PreparationState = enum {
     open_repo,
     checkout_database,
-    load_package_file_map,
+    load_package_list,
     cleanup_database,
     close_repo,
     done,
@@ -67,8 +67,8 @@ pub fn run(machine: *DiffMachine) DiffError!void {
         state = switch (state) {
             .open_repo => try stateOpenRepo(&preparation_machine),
             .checkout_database => try stateCheckoutDatabase(&preparation_machine),
-            .load_package_file_map => try stateLoadPackageFileMap(&preparation_machine),
-            .cleanup_database => try stateCleanupDatabase(&preparation_machine),
+            .load_package_list => try stateLoadPackageList(&preparation_machine),
+            .cleanup_database => stateCleanupDatabase(&preparation_machine),
             .close_repo => stateCloseRepo(&preparation_machine),
             .done => unreachable,
         };
@@ -114,10 +114,10 @@ fn stateCheckoutDatabase(machine: *PreparationMachine) DiffError!PreparationStat
 
     checkoutDb(machine, checksum) catch |err| return machine.stateFailed(err);
 
-    return .load_package_file_map;
+    return .load_package_list;
 }
 
-fn stateLoadPackageFileMap(machine: *PreparationMachine) DiffError!PreparationState {
+fn stateLoadPackageList(machine: *PreparationMachine) DiffError!PreparationState {
     const database_path = machine.current_database_path orelse return machine.stateFailed(DiffError.CheckoutFailed);
 
     const database_file_path = std.fs.path.joinZ(machine.diff.allocator, &.{ database_path, DB_NAME }) catch return machine.stateFailed(DiffError.AllocFailed);
@@ -126,12 +126,12 @@ fn stateLoadPackageFileMap(machine: *PreparationMachine) DiffError!PreparationSt
     var base = Database.open(machine.diff.allocator, database_file_path) catch return machine.stateFailed(DiffError.ReadDatabaseFailed);
     defer base.close();
 
-    buildFilePkgMap(base, machine.diff.allocator, &machine.diff.file_pkg_maps[machine.current_ref_index]) catch |err| return machine.stateFailed(err);
+    buildPkgList(base, machine.diff.allocator, &machine.diff.packages_lists[machine.current_ref_index]) catch |err| return machine.stateFailed(err);
 
     return .cleanup_database;
 }
 
-fn stateCleanupDatabase(machine: *PreparationMachine) DiffError!PreparationState {
+fn stateCleanupDatabase(machine: *PreparationMachine) PreparationState {
     if (machine.current_database_path) |path| {
         std.Io.Dir.cwd().deleteTree(machine.diff.io, path) catch {};
         machine.diff.allocator.free(path);

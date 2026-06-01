@@ -3,19 +3,13 @@ const std = @import("std");
 const ffi = @import("upac-ffi");
 const CPackageMeta = ffi.CPackageMeta;
 
-const ListStateId = @import("upac-types").ListStateId;
+const types = @import("upac-types");
+const ListStateId = types.ListStateId;
+
+const ListError = types.ListError;
 
 const verifying = @import("verifying/verifying.zig");
 const fetch = @import("fetch/fetch.zig");
-
-// ── Errors ────────────────────────────────────────────────────────────────────
-pub const ListError = error{
-    PathNotFound,
-    DatabaseNotFound,
-    FetchFailed,
-    AllocFailed,
-    OutOfMemory,
-};
 
 // ── ListData ──────────────────────────────────────────────────────────────────
 pub const ListData = struct {

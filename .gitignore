@@ -5,6 +5,7 @@ zig-out/
 
 # Rust
 target/
+Cargo.lock
 
 # Package building
 build

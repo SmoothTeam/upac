@@ -2,7 +2,7 @@ const std = @import("std");
 
 const ffi = @import("upac-ffi");
 const CancelToken = ffi.CancelToken;
-const CDiffEntry = ffi.CDiffEntry;
+const CDiffFileEntry = ffi.CDiffFileEntry;
 
 const types = @import("upac-types");
 const SearchFilesStateId = types.SearchFilesStateId;
@@ -30,12 +30,12 @@ pub const SearchFilesData = struct {
 pub const SearchFilesMachine = struct {
     data: SearchFilesData,
 
-    results: ?[]CDiffEntry = null,
+    results: ?[]CDiffFileEntry = null,
 
     allocator: std.mem.Allocator,
     io: std.Io,
 
-    pub fn run(data: SearchFilesData, allocator: std.mem.Allocator) SearchFilesError![]CDiffEntry {
+    pub fn run(data: SearchFilesData, allocator: std.mem.Allocator) SearchFilesError![]CDiffFileEntry {
         var machine = SearchFilesMachine{
             .data = data,
 

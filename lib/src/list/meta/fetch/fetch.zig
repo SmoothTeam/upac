@@ -6,6 +6,8 @@ const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 const PackageMeta = types.PackageMeta;
 
+const ListError = types.ListError;
+
 const ffi = @import("upac-ffi");
 const CPackageMeta = ffi.CPackageMeta;
 
@@ -14,7 +16,6 @@ const Database = database.Database;
 
 const list = @import("../meta.zig");
 const ListMachine = list.ListMachine;
-const ListError = list.ListError;
 
 const utils = @import("utils.zig");
 const convertPackageMeta = utils.convertPackageMeta;

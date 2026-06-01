@@ -5,9 +5,9 @@ const c_libs = @import("c-libs");
 const types = @import("upac-types");
 const PREFIX = types.paths.prefix;
 
-const files_module = @import("../files.zig");
-const FilesMachine = files_module.FilesMachine;
-const FilesError = files_module.FilesError;
+const files = @import("../files.zig");
+const FilesMachine = files.FilesMachine;
+const FilesError = files.FilesError;
 
 // ── CheckoutState ─────────────────────────────────────────────────────────────
 const CheckoutState = enum {

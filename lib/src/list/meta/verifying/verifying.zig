@@ -5,12 +5,13 @@ const PREFIX = types.paths.prefix;
 const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 
+const ListError = types.ListError;
+
 const database = @import("upac-database");
 const Database = database.Database;
 
 const list = @import("../meta.zig");
 const ListMachine = list.ListMachine;
-const ListError = list.ListError;
 
 // ── VerifyingState ────────────────────────────────────────────────────────────
 const VerifyingState = enum {
