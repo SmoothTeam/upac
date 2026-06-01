@@ -4,7 +4,7 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const ffi = @import("upac-ffi");
-const RollbackProgressFn = ffi.RollbackProgressFn;
+const HookFn = ffi.HookFn;
 
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
@@ -41,8 +41,8 @@ pub const RollbackData = struct {
     branch: [*:0]const u8,
     commit_hash: [*c]const u8,
 
-    on_progress: ?RollbackProgressFn = null,
-    progress_ctx: ?*anyopaque = null,
+    on_hook: ?*const HookFn = null,
+    hook_ctx: ?*anyopaque = null,
     cancel_token: *CancelToken,
 };
 
@@ -59,10 +59,9 @@ pub const RollbackMachine = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
 
-    // Reports an installation progress event to the progress callback, if one is set
-    pub fn report(self: *RollbackMachine, event: RollbackStateId) void {
-        const cb = self.data.on_progress orelse return;
-        cb(event, self.data.progress_ctx);
+    pub fn hook(self: *RollbackMachine, event: u32, data: ?*const anyopaque) RollbackError!void {
+        const cb = self.data.on_hook orelse return;
+        if (cb(event, data, self.data.hook_ctx) == .cancel) return RollbackError.Cancelled;
     }
 
     pub fn deinit(self: *RollbackMachine) void {
@@ -90,7 +89,7 @@ pub const RollbackMachine = struct {
         defer rollback_data.cancel_token.reset();
 
         while (state != .done) {
-            machine.report(state);
+            try machine.hook(@intFromEnum(state), null);
 
             switch (state) {
                 .verifying => {

@@ -34,6 +34,11 @@ pub const Package = struct {
 
 // arch and arch_sub come from arch_map.zon — no enum, no hardcoded list.
 // Backend splits the package arch string into base + variant before FFI.
+pub const HookResponse = enum(u8) {
+    proceed = 0,
+    cancel = 1,
+};
+
 pub const PackageMeta = struct {
     name: []const u8,
     version: Version,
@@ -44,6 +49,7 @@ pub const PackageMeta = struct {
     license: ?[]const u8,
     url: ?[]const u8,
     sha256: [32]u8,
+    installed_size: u64 = 0,
 
     pub fn deinit(self: *PackageMeta, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
@@ -94,8 +100,8 @@ pub const InstallStateId = enum(u8) {
     transaction = 2,
     merge = 3,
     checkout = 4,
-    swap = 5,
 
+    swap = 5,
     done = 6,
 };
 

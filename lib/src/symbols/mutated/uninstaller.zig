@@ -10,7 +10,7 @@ const fromError = types.fromError;
 const ffi = @import("upac-ffi");
 const CPackageInfo = ffi.CPackageInfo;
 const CUninstallRequest = ffi.CMutatedRequest;
-const UninstallProgressFn = ffi.UninstallProgressFn;
+const HookFn = ffi.HookFn;
 
 const UninstallPackage = types.UninstallPackage;
 
@@ -42,8 +42,8 @@ pub fn uninstall(uninstall_request_c: CUninstallRequest) callconv(.c) i32 {
         .branch = uninstall_request_c.branch.asZ(),
         .repo_path = uninstall_request_c.repo_path.asZ(),
         .root_path = uninstall_request_c.root_path.asZ(),
-        .on_progress = if (uninstall_request_c.on_progress) |cb| @as(UninstallProgressFn, @ptrCast(cb)) else null,
-        .progress_ctx = uninstall_request_c.progress_ctx,
+        .on_hook = uninstall_request_c.on_hook,
+        .hook_ctx = uninstall_request_c.hook_ctx,
         .cancel_token = uninstall_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.uninstall)),
     };
 

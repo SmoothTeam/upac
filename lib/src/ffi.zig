@@ -33,12 +33,7 @@ pub fn cancelGCancellable(ctx: ?*anyopaque) callconv(.c) void {
 const types = @import("upac-types");
 
 const DiffKind = types.DiffKind;
-
-const InstallStateId = types.InstallStateId;
-const UninstallStateId = types.UninstallStateId;
-const RollbackStateId = types.RollbackStateId;
-const FilesStateId = types.FilesStateId;
-const UpdateStateId = types.UpdateStateId;
+pub const HookResponse = types.HookResponse;
 
 // C-compatible slice. ptr == null means absent (optional field).
 pub const CSlice = extern struct {
@@ -106,6 +101,7 @@ pub const CPackageMeta = extern struct {
     license: CSlice,
     url: CSlice,
     sha256: [32]u8,
+    installed_size: u64 = 0,
 
     pub fn validate(self: CPackageMeta) !void {
         if (self.struct_size != @sizeOf(CPackageMeta)) return error.AbiMismatch;
@@ -185,8 +181,8 @@ pub const CMutatedRequest = extern struct {
     file_kind: DiffKind,
     file_package: ?*const CPackageInfo = null,
 
-    on_progress: ?*const fn (event: u32, ctx: ?*anyopaque) callconv(.c) void = null,
-    progress_ctx: ?*anyopaque = null,
+    on_hook: ?*const HookFn = null,
+    hook_ctx: ?*anyopaque = null,
 
     max_retries: u8 = 0,
     cancel_token: ?*CancelToken = null,
@@ -232,50 +228,13 @@ pub const CUnmutatedRequest = extern struct {
     }
 };
 
-pub const InstallProgressFn = *const fn (
-    event: InstallStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
+pub const HookFn = fn (event: u32, data: ?*const anyopaque, ctx: ?*anyopaque) callconv(.c) HookResponse;
 
-pub const CInstallProgressFn = *const fn (
-    event: InstallStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
-
-pub const UninstallProgressFn = *const fn (
-    event: UninstallStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
-
-pub const CUninstallProgressFn = *const fn (
-    event: UninstallStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
-
-pub const RollbackProgressFn = *const fn (
-    event: RollbackStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
-
-pub const CRollbackProgressFn = *const fn (
-    event: RollbackStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
-
-pub const FilesProgressFn = *const fn (
-    event: FilesStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
-
-pub const CFilesProgressFn = *const fn (
-    event: FilesStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
-
-pub const UpdateProgressFn = *const fn (
-    event: UpdateStateId,
-    ctx: ?*anyopaque,
-) callconv(.c) void;
+pub const CHookPreInstall = extern struct {
+    packages_count: u32,
+    required_space: u64,
+    free_space: u64,
+};
 
 pub const CDiffPackageEntry = extern struct {
     struct_size: usize = @sizeOf(CDiffPackageEntry),
@@ -375,7 +334,7 @@ pub const CRepoMode = enum(u8) {
 
 // Bump this integer whenever a symbol is added/removed or a signature changes.
 // struct_size guards layout; this guards the symbol set and calling conventions.
-pub const ABI_VERSION: u32 = 2;
+pub const ABI_VERSION: u32 = 3;
 
 pub fn intToEnum(comptime E: type, value: anytype) error{InvalidValue}!E {
     const tag_type = @typeInfo(E).@"enum".tag_type;

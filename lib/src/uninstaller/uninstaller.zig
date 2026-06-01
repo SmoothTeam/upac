@@ -8,7 +8,7 @@ const UninstallPackage = types.UninstallPackage;
 const UninstallStateId = types.UninstallStateId;
 
 const ffi = @import("upac-ffi");
-const UninstallProgressFn = ffi.UninstallProgressFn;
+const HookFn = ffi.HookFn;
 
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
@@ -48,8 +48,8 @@ pub const UninstallData = struct {
     repo_path: [*:0]const u8,
     root_path: [*:0]const u8,
 
-    on_progress: ?UninstallProgressFn = null,
-    progress_ctx: ?*anyopaque = null,
+    on_hook: ?*const HookFn = null,
+    hook_ctx: ?*anyopaque = null,
     cancel_token: *CancelToken,
 };
 
@@ -67,10 +67,9 @@ pub const UninstallerMachine = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
 
-    // Reports an uninstallation progress event to the progress callback, if one is set
-    pub fn report(self: *UninstallerMachine, event: UninstallStateId) void {
-        const cb = self.data.on_progress orelse return;
-        cb(event, self.data.progress_ctx);
+    pub fn hook(self: *UninstallerMachine, event: u32, data: ?*const anyopaque) UninstallerError!void {
+        const cb = self.data.on_hook orelse return;
+        if (cb(event, data, self.data.hook_ctx) == .cancel) return UninstallerError.Cancelled;
     }
 
     // Releases all resources: native Zig memory, the file hash map, and OSTree system C objects
@@ -101,7 +100,7 @@ pub const UninstallerMachine = struct {
         defer uninstall_data.cancel_token.reset();
 
         while (state != .done) {
-            machine.report(state);
+            try machine.hook(@intFromEnum(state), null);
 
             switch (state) {
                 .verifying => {

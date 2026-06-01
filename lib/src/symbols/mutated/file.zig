@@ -3,7 +3,7 @@ const CSlice = ffi.CSlice;
 
 const CFilesRequest = ffi.CMutatedRequest;
 const CPackageInfo = ffi.CPackageInfo;
-const FilesProgressFn = ffi.FilesProgressFn;
+const HookFn = ffi.HookFn;
 
 const types = @import("upac-types");
 const DiffKind = types.DiffKind;
@@ -45,8 +45,8 @@ pub fn files(request_c: CFilesRequest) callconv(.c) i32 {
         .tmp_path = request_c.tmp_path.asZ(),
         .branch = request_c.branch.asZ(),
 
-        .on_progress = if (request_c.on_progress) |cb| @as(FilesProgressFn, @ptrCast(cb)) else null,
-        .progress_ctx = request_c.progress_ctx,
+        .on_hook = request_c.on_hook,
+        .hook_ctx = request_c.hook_ctx,
 
         .cancel_token = request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.files)),
     };

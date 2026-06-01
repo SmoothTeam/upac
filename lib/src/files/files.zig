@@ -3,7 +3,7 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const ffi = @import("upac-ffi");
-const FilesProgressFn = ffi.FilesProgressFn;
+const HookFn = ffi.HookFn;
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
 
@@ -45,8 +45,8 @@ pub const FilesData = struct {
     tmp_path: [*:0]const u8,
     branch: [*:0]const u8,
 
-    on_progress: ?FilesProgressFn = null,
-    progress_ctx: ?*anyopaque = null,
+    on_hook: ?*const HookFn = null,
+    hook_ctx: ?*anyopaque = null,
     cancel_token: *CancelToken,
 };
 
@@ -63,9 +63,9 @@ pub const FilesMachine = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
 
-    pub fn report(self: *FilesMachine, event: FilesStateId) void {
-        const cb = self.data.on_progress orelse return;
-        cb(event, self.data.progress_ctx);
+    pub fn hook(self: *FilesMachine, event: u32, data: ?*const anyopaque) FilesError!void {
+        const cb = self.data.on_hook orelse return;
+        if (cb(event, data, self.data.hook_ctx) == .cancel) return FilesError.Cancelled;
     }
 
     pub fn deinit(self: *FilesMachine) void {
@@ -104,7 +104,7 @@ pub const FilesMachine = struct {
         defer files_data.cancel_token.reset();
 
         while (state != .done) {
-            machine.report(state);
+            try machine.hook(@intFromEnum(state), null);
 
             if (machine.cancellable) |cancellable| if (c_libs.g_cancellable_is_cancelled(cancellable) != 0) return FilesError.Cancelled;
 

@@ -13,7 +13,7 @@ const fromError = types.fromError;
 const ffi = @import("upac-ffi");
 const CPackageMeta = ffi.CPackageMeta;
 const CUpdateRequest = ffi.CMutatedRequest;
-const UpdateProgressFn = ffi.UpdateProgressFn;
+const HookFn = ffi.HookFn;
 
 const update_module = @import("upac-update");
 const UpdateData = update_module.UpdateData;
@@ -31,8 +31,8 @@ pub fn update(update_request_c: CUpdateRequest) callconv(.c) i32 {
         .repo_path = update_request_c.repo_path.asZ(),
         .root_path = update_request_c.root_path.asZ(),
         .tmp_path = update_request_c.tmp_path.asZ(),
-        .on_progress = if (update_request_c.on_progress) |cb| @as(UpdateProgressFn, @ptrCast(cb)) else null,
-        .progress_ctx = update_request_c.progress_ctx,
+        .on_hook = update_request_c.on_hook,
+        .hook_ctx = update_request_c.hook_ctx,
         .cancel_token = update_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.update)),
     };
 

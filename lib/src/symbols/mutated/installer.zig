@@ -13,7 +13,7 @@ const fromError = types.fromError;
 const ffi = @import("upac-ffi");
 const CPackageMeta = ffi.CPackageMeta;
 const CInstallRequest = ffi.CMutatedRequest;
-const InstallProgressFn = ffi.InstallProgressFn;
+const HookFn = ffi.HookFn;
 
 const installer_module = @import("upac-installer");
 const InstallData = installer_module.InstallData;
@@ -32,8 +32,8 @@ pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
         .repo_path = install_request_c.repo_path.asZ(),
         .root_path = install_request_c.root_path.asZ(),
         .tmp_path = install_request_c.tmp_path.asZ(),
-        .on_progress = if (install_request_c.on_progress) |cb| @as(InstallProgressFn, @ptrCast(cb)) else null,
-        .progress_ctx = install_request_c.progress_ctx,
+        .on_hook = install_request_c.on_hook,
+        .hook_ctx = install_request_c.hook_ctx,
         .cancel_token = install_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.install)),
     };
 

@@ -4,7 +4,7 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const ffi = @import("upac-ffi");
-const UpdateProgressFn = ffi.UpdateProgressFn;
+const HookFn = ffi.HookFn;
 
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
@@ -52,8 +52,8 @@ pub const UpdateData = struct {
     root_path: [*:0]const u8,
     tmp_path: [*:0]const u8,
 
-    on_progress: ?UpdateProgressFn = null,
-    progress_ctx: ?*anyopaque = null,
+    on_hook: ?*const HookFn = null,
+    hook_ctx: ?*anyopaque = null,
     cancel_token: *CancelToken,
 };
 
@@ -73,9 +73,9 @@ pub const UpdateMachine = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
 
-    pub fn report(self: *UpdateMachine, event: UpdateStateId) void {
-        const cb = self.data.on_progress orelse return;
-        cb(event, self.data.progress_ctx);
+    pub fn hook(self: *UpdateMachine, event: u32, data: ?*const anyopaque) UpdateError!void {
+        const cb = self.data.on_hook orelse return;
+        if (cb(event, data, self.data.hook_ctx) == .cancel) return UpdateError.Cancelled;
     }
 
     pub fn deinit(self: *UpdateMachine) void {
@@ -106,7 +106,7 @@ pub const UpdateMachine = struct {
         defer update_data.cancel_token.reset();
 
         while (state != .done) {
-            machine.report(state);
+            try machine.hook(@intFromEnum(state), null);
 
             switch (state) {
                 .verifying => {

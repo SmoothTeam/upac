@@ -27,6 +27,8 @@ pub fn rollback(rollback_request_c: CRollbackRequest) callconv(.c) i32 {
         .repo_path = rollback_request_c.repo_path.asZ(),
         .branch = rollback_request_c.branch.asZ(),
         .commit_hash = rollback_request_c.commit_hash.asZ(),
+        .on_hook = rollback_request_c.on_hook,
+        .hook_ctx = rollback_request_c.hook_ctx,
         .cancel_token = rollback_request_c.cancel_token orelse return @intFromEnum(fromError(error.InvalidEntry, Operation.rollback)),
     };
 

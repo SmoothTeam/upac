@@ -3,12 +3,16 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
+const InstallStateId = types.InstallStateId;
 const PREFIX = types.paths.prefix;
 const CONFIG_DIR = types.paths.config_dir;
 const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 
 const database = @import("upac-database");
+
+const ffi = @import("upac-ffi");
+const CHookPreInstall = ffi.CHookPreInstall;
 
 const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
@@ -37,6 +41,9 @@ pub const VerifyingMachine = struct {
     installer: *InstallerMachine,
 
     packages_size: usize = 0,
+
+    available_space: usize = 0,
+
     current_package_index: usize = 0,
 
     repo: ?*c_libs.OstreeRepo = null,
@@ -168,8 +175,15 @@ fn stateCheckSpace(machine: *VerifyingMachine) InstallerError!VerifyingState {
     var file_system_stats: c_libs.struct_statvfs = undefined;
     if (c_libs.statvfs(machine.installer.data.root_path, &file_system_stats) != 0) return machine.stateFailed(InstallerError.CheckSpaceFailed);
 
-    const available_space: usize = @as(usize, @intCast(file_system_stats.f_bavail)) * @as(usize, @intCast(file_system_stats.f_bsize));
-    if (machine.packages_size * 2 > available_space) return machine.stateFailed(InstallerError.NotEnoughSpace);
+    machine.available_space = @as(usize, @intCast(file_system_stats.f_bavail)) * @as(usize, @intCast(file_system_stats.f_bsize));
+    if (machine.packages_size * 2 > machine.available_space) return machine.stateFailed(InstallerError.NotEnoughSpace);
+
+    const pre_install = CHookPreInstall{
+        .packages_count = @intCast(machine.installer.data.packages.len),
+        .required_space = @intCast(machine.packages_size * 2),
+        .free_space = @intCast(machine.available_space),
+    };
+    machine.installer.hook(@intFromEnum(InstallStateId.verifying), &pre_install) catch |err| return machine.stateFailed(err);
 
     return .open_repo;
 }

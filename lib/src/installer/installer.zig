@@ -4,7 +4,7 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const ffi = @import("upac-ffi");
-const InstallProgressFn = ffi.InstallProgressFn;
+const HookFn = ffi.HookFn;
 
 const CancelToken = ffi.CancelToken;
 const cancelGCancellable = ffi.cancelGCancellable;
@@ -52,8 +52,8 @@ pub const InstallData = struct {
     root_path: [*:0]const u8,
     tmp_path: [*:0]const u8,
 
-    on_progress: ?InstallProgressFn = null,
-    progress_ctx: ?*anyopaque = null,
+    on_hook: ?*const HookFn = null,
+    hook_ctx: ?*anyopaque = null,
     cancel_token: *CancelToken,
 };
 
@@ -72,10 +72,9 @@ pub const InstallerMachine = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
 
-    // Reports an installation progress event to the progress callback, if one is set
-    pub fn report(self: *InstallerMachine, event: InstallStateId) void {
-        const cb = self.data.on_progress orelse return;
-        cb(event, self.data.progress_ctx);
+    pub fn hook(self: *InstallerMachine, event: u32, data: ?*const anyopaque) InstallerError!void {
+        const cb = self.data.on_hook orelse return;
+        if (cb(event, data, self.data.hook_ctx) == .cancel) return InstallerError.Cancelled;
     }
 
     // Correct memory deallocation function
@@ -103,7 +102,7 @@ pub const InstallerMachine = struct {
         defer install_data.cancel_token.reset();
 
         while (state != .done) {
-            machine.report(state);
+            try machine.hook(@intFromEnum(state), null);
 
             switch (state) {
                 .verifying => {
