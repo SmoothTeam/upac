@@ -4,7 +4,7 @@ const ffi = @import("upac-ffi");
 const CancelToken = ffi.CancelToken;
 const CUnmutatedResponse = ffi.CUnmutatedResponse;
 
-pub fn get_abi_version() callconv(.c) u32 {
+pub fn version_abi() callconv(.c) u32 {
     return ffi.ABI_VERSION;
 }
 
@@ -12,6 +12,6 @@ pub fn cancel(token: *CancelToken) callconv(.c) void {
     token.cancel();
 }
 
-pub fn response_free(response: *CUnmutatedResponse) callconv(.c) void {
+pub fn free_response(response: *CUnmutatedResponse) callconv(.c) void {
     response.free(ffi.getAllocator());
 }
