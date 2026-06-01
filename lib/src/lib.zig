@@ -1,8 +1,8 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const ffi_symbols = @import("symbols/ffi.zig");
-export const get_abi_version = ffi_symbols.get_abi_version;
+export const version_abi = ffi_symbols.version_abi;
 export const cancel = ffi_symbols.cancel;
-export const response_free = ffi_symbols.response_free;
+export const free_response = ffi_symbols.free_response;
 
 const installer_symbols = @import("symbols/mutated/installer.zig");
 export const install = installer_symbols.install;
