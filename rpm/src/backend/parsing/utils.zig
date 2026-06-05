@@ -1,6 +1,5 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
-const backend = @import("backend.zig");
-const std = backend.std;
+const std = @import("std");
 
 // ── Contains RPM magic bytes and header magic bytes ─────────────────────────────────────────────────────────────
 const rpm_magic: [4]u8 = .{ 0xED, 0xAB, 0xEE, 0xDB };
@@ -66,7 +65,7 @@ pub fn parseHeader(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File) 
 // ── Internal functions ────────────────────────────────────────────────────────
 
 // Reads exactly buf.len bytes; returns error.UnexpectedEOF on short read.
-fn readExact(io: std.Io, file: std.Io.File, buf: []u8) !void {
+pub fn readExact(io: std.Io, file: std.Io.File, buf: []u8) !void {
     var total: usize = 0;
     while (total < buf.len) {
         const iov = [1][]u8{buf[total..]};
@@ -165,7 +164,7 @@ fn readHeaderSection(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File
 }
 
 // Reads a null-terminated string from a data block at a specified offset.
-fn readString(allocator: std.mem.Allocator, data_block: []const u8, offset: u32) ![]const u8 {
+pub fn readString(allocator: std.mem.Allocator, data_block: []const u8, offset: u32) ![]const u8 {
     if (offset >= data_block.len) return error.InvalidTagOffset;
     const start = data_block[offset..];
     const end = std.mem.indexOfScalar(u8, start, 0) orelse return error.UnterminatedString;
