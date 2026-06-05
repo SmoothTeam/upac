@@ -1,30 +1,14 @@
 // ── Imports ───────────────────────────────────────────────────────────────────
-const std = backend.std;
+const std = @import("std");
 
-const types = @import("upac-backend-types");
-const PackageMetaField = types.PackageMetaField;
-
-const meta_fields = @import("upac-meta-fields");
-
-const parseVersion = @import("utils.zig").parseVersion;
+const package_meta_field_map = @import("upac-backend-types").buildFieldMap();
 
 const backend = @import("../backend.zig");
 const Machine = backend.BackendMachine;
 const BackendError = backend.BackendError;
 const PackageMeta = backend.PackageMeta;
 
-const package_meta_field_map = blk: {
-    const fields = std.meta.fields(@TypeOf(meta_fields));
-    var kvs: [fields.len]struct { []const u8, PackageMetaField } = undefined;
-    for (fields, 0..) |field, i| {
-        kvs[i] = .{
-            @field(meta_fields, field.name),
-            @field(PackageMetaField, field.name),
-        };
-    }
-    break :blk std.StaticStringMap(PackageMetaField).initComptime(kvs);
-};
-
+const parseVersion = @import("utils.zig").parseVersion;
 // ── ParsingState ──────────────────────────────────────────────────────────────
 const ParsingState = enum {
     parse_pkginfo,
@@ -120,7 +104,7 @@ fn stateParsePkginfo(machine: *ParsingMachine) BackendError!ParsingState {
 fn stateBuildMeta(machine: *ParsingMachine) BackendError!ParsingState {
     var sha256: [32]u8 = undefined;
 
-    std.fmt.hexToBytes(&sha256, machine.backend.data.checksum) catch return machine.stateFailed(BackendError.InvalidPackage);
+    _ = std.fmt.hexToBytes(&sha256, machine.backend.data.checksum) catch return machine.stateFailed(BackendError.InvalidPackage);
 
     const raw_version_str = machine.raw_meta.version_str orelse return machine.stateFailed(BackendError.MetadataNotFound);
     defer machine.backend.allocator.free(raw_version_str);
@@ -161,7 +145,7 @@ fn stateBuildMeta(machine: *ParsingMachine) BackendError!ParsingState {
         .license = license,
         .url = url,
         .sha256 = sha256,
-        .installed_size = machine.raw.installed_size,
+        .installed_size = machine.raw_meta.installed_size,
     };
 
     return .cleanup_junk;

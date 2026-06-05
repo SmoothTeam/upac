@@ -1,13 +1,7 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
-const verifying = @import("verifying/verifying.zig");
-const unpacking = @import("unpacking/unpacking.zig");
-const parsing = @import("parsing/parsing.zig");
-
 pub const std = @import("std");
-pub const c_libs = @cImport({
-    @cInclude("archive.h");
-    @cInclude("archive_entry.h");
-});
+
+pub const c_libs = @import("c-libs");
 
 const types = @import("upac-backend-types");
 pub const BackendError = types.BackendError;
@@ -17,6 +11,9 @@ pub const PrepareData = types.PrepareData;
 pub const PrepareResult = types.PrepareResult;
 pub const CancelToken = types.CancelToken;
 
+const verifying = @import("verifying/verifying.zig");
+const unpacking = @import("unpacking/unpacking.zig");
+const parsing = @import("parsing/parsing.zig");
 // ── BackendMachine ────────────────────────────────────────────────────────────
 pub const BackendMachine = struct {
     data: PrepareData,

@@ -1,8 +1,21 @@
 pub const std = @import("std");
 
+const meta_fields = @import("upac-meta-fields");
+
 const errors = @import("errors.zig");
 pub const BackendErrorCode = errors.BackendErrorCode;
 pub const fromError = errors.fromError;
+
+pub const PackageMetaField = enum {
+    Package,
+    Version,
+    @"Installed-Size",
+    Architecture,
+    Description,
+    License,
+    Homepage,
+    Maintainer,
+};
 
 // Listing specific backend errors when working with archives and metadata
 pub const BackendError = error{
@@ -103,3 +116,16 @@ pub const PackageMeta = struct {
         if (self.url) |url| allocator.free(url);
     }
 };
+
+pub fn buildFieldMap() std.StaticStringMap(PackageMetaField) {
+    return std.StaticStringMap(PackageMetaField).initComptime(.{
+        .{ meta_fields.Package,           .Package },
+        .{ meta_fields.Version,           .Version },
+        .{ meta_fields.@"Installed-Size", .@"Installed-Size" },
+        .{ meta_fields.Architecture,      .Architecture },
+        .{ meta_fields.Description,       .Description },
+        .{ meta_fields.License,           .License },
+        .{ meta_fields.Homepage,          .Homepage },
+        .{ meta_fields.Maintainer,        .Maintainer },
+    });
+}

@@ -59,7 +59,7 @@ fn stateCheckFile(machine: *VerifyingMachine) BackendError!VerifyingState {
 }
 
 fn stateCheckTempDir(machine: *VerifyingMachine) BackendError!VerifyingState {
-    const temp_path = std.mem.span(machine.backend.data.temp_dir_path_c);
+    const temp_path = std.mem.span(machine.backend.data.temp_path_c);
 
     std.Io.Dir.accessAbsolute(machine.backend.io, temp_path, .{}) catch return machine.stateFailed(BackendError.TempDirFailed);
 
@@ -95,7 +95,7 @@ fn stateHash(machine: *VerifyingMachine) BackendError!VerifyingState {
 fn stateCompare(machine: *VerifyingMachine) BackendError!VerifyingState {
     var checksum_as_bytes: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
 
-    std.fmt.hexToBytes(&checksum_as_bytes, machine.backend.data.checksum) catch return machine.stateFailed(BackendError.InvalidPackage);
+    _ = std.fmt.hexToBytes(&checksum_as_bytes, machine.backend.data.checksum) catch return machine.stateFailed(BackendError.InvalidPackage);
 
     if (!std.mem.eql(u8, &machine.digest_checksum, &checksum_as_bytes)) return machine.stateFailed(BackendError.ChecksumMismatch);
 

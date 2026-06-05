@@ -1,6 +1,7 @@
 // ── Imports ───────────────────────────────────────────────────────────────────
-const std = backend.std;
-const c_libs = backend.c_libs;
+const std = @import("std");
+
+const c_libs = @import("c-libs");
 
 const backend = @import("../backend.zig");
 const Machine = backend.BackendMachine;
