@@ -94,9 +94,7 @@ pub fn run(machine: *RollbackMachine) RollbackError!void {
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateCreateTempConfigDir(machine: *MergeMachine) RollbackError!MergeState {
     var temp_dir_name_buf: [128]u8 = undefined;
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.rollback.io).nanoseconds, std.time.ns_per_ms));
 
     const root_path = std.mem.span(machine.rollback.data.root_path);
 

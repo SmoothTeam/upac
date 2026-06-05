@@ -79,7 +79,7 @@ fn stateCheckout(machine: *CheckoutMachine) RollbackError!CheckoutState {
 
     const root_path = std.mem.span(machine.rollback.data.root_path);
 
-    const temp_prefix_path = resolveTempDir(root_path, machine.rollback.allocator) catch return machine.stateFailed(RollbackError.StagingFailed);
+    const temp_prefix_path = resolveTempDir(root_path, machine.rollback.allocator, machine.rollback.io) catch return machine.stateFailed(RollbackError.StagingFailed);
     machine.temp_prefix_path = temp_prefix_path;
     machine.rollback.temp_prefix_path = temp_prefix_path.ptr;
 

@@ -25,9 +25,7 @@ pub fn computeFileChecksum(machine: *TransactionMachine, absolute_file_path: [*:
 }
 
 pub fn addToMtree(machine: *TransactionMachine, repo: *c_libs.OstreeRepo, mtree: *c_libs.OstreeMutableTree) !void {
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.files.io).nanoseconds, std.time.ns_per_ms));
 
     const file_path = std.mem.span(machine.files.data.file_paths[machine.current_file_index]);
     const tmp_path = std.mem.span(machine.files.data.tmp_path);

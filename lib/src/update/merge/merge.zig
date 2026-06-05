@@ -78,10 +78,7 @@ pub fn run(machine: *UpdateMachine) UpdateError!void {
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateCreateTempConfigDir(machine: *MergeMachine) UpdateError!MergeState {
     var temp_folder_name_buf: [256]u8 = undefined;
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.updater.io).nanoseconds, std.time.ns_per_ms));
     const temp_config_folder_name = std.fmt.bufPrintZ(&temp_folder_name_buf, "{s}-install-{d}", .{ CONFIG_DIR, timestamp }) catch return UpdateError.AllocZFailed;
 
     const temp_config_path = std.fs.path.joinZ(machine.updater.allocator, &.{ std.mem.span(machine.updater.data.root_path), temp_config_folder_name }) catch return machine.stateFailed(UpdateError.AllocZFailed);

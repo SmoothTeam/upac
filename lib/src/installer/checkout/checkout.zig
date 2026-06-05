@@ -93,7 +93,7 @@ fn stateCheckout(machine: *CheckoutMachine) InstallerError!CheckoutState {
 
     const root_path = std.mem.span(machine.uninstaller.data.root_path);
 
-    const temp_prefix_path = resolveTempDir(root_path, machine.uninstaller.allocator) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    const temp_prefix_path = resolveTempDir(root_path, machine.uninstaller.allocator, machine.uninstaller.io) catch return machine.stateFailed(InstallerError.AllocZFailed);
     machine.temp_prefix_path = temp_prefix_path;
     machine.uninstaller.temp_prefix_path = temp_prefix_path.ptr;
 

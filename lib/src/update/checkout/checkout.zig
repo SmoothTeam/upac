@@ -93,7 +93,7 @@ fn stateCheckout(machine: *CheckoutMachine) UpdateError!CheckoutState {
 
     const root_path = std.mem.span(machine.updater.data.root_path);
 
-    const temp_prefix_path = resolveTempDir(root_path, machine.updater.allocator) catch return machine.stateFailed(UpdateError.AllocZFailed);
+    const temp_prefix_path = resolveTempDir(root_path, machine.updater.allocator, machine.updater.io) catch return machine.stateFailed(UpdateError.AllocZFailed);
     machine.temp_prefix_path = temp_prefix_path;
     machine.updater.temp_prefix_path = temp_prefix_path.ptr;
 

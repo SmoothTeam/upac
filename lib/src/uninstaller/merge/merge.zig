@@ -143,9 +143,7 @@ fn stateCheckoutDatabase(machine: *MergeMachine) UninstallerError!MergeState {
     const repo = machine.repo orelse return machine.stateFailed(UninstallerError.RepoOpenFailed);
     const root_path = std.mem.span(machine.uninstaller.data.root_path);
 
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.uninstaller.io).nanoseconds, std.time.ns_per_ms));
 
     const temp_dir_name = std.fmt.allocPrint(machine.uninstaller.allocator, "upac-db-uninstall-{d}", .{timestamp}) catch return machine.stateFailed(UninstallerError.AllocZFailed);
     defer machine.uninstaller.allocator.free(temp_dir_name);
@@ -190,10 +188,8 @@ fn stateOpenDatabase(machine: *MergeMachine) UninstallerError!MergeState {
 }
 
 fn stateMirrorConfig(machine: *MergeMachine) UninstallerError!MergeState {
-    var timespec: std.os.linux.timespec = undefined;
     var temp_config_dir_name_buf: [128]u8 = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.uninstaller.io).nanoseconds, std.time.ns_per_ms));
 
     const root_path = std.mem.span(machine.uninstaller.data.root_path);
 

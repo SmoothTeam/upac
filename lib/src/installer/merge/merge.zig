@@ -78,10 +78,7 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateCreateTempConfigDir(machine: *MergeMachine) InstallerError!MergeState {
     var temp_folder_name_buf: [256]u8 = undefined;
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.installer.io).nanoseconds, std.time.ns_per_ms));
     const temp_config_folder_name = std.fmt.bufPrintZ(&temp_folder_name_buf, "{s}-install-{d}", .{ CONFIG_DIR, timestamp }) catch return InstallerError.AllocZFailed;
 
     const temp_config_path = std.fs.path.joinZ(machine.installer.allocator, &.{ std.mem.span(machine.installer.data.root_path), temp_config_folder_name }) catch return machine.stateFailed(InstallerError.AllocZFailed);

@@ -136,9 +136,7 @@ pub fn run(machine: *FilesMachine) FilesError!void {
 
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateCopyDatabase(machine: *TransactionMachine) FilesError!TransactionState {
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.files.io).nanoseconds, std.time.ns_per_ms));
 
     const tmp_path = std.mem.span(machine.files.data.tmp_path);
     const root_path = std.mem.span(machine.files.data.root_path);

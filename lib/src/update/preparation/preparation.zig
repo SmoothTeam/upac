@@ -98,9 +98,7 @@ pub fn run(machine: *UpdateMachine) UpdateError!void {
 
 // ── States ────────────────────────────────────────────────────────────────────
 fn stateCreateDbTemp(machine: *PreparationMachine) UpdateError!PreparationState {
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.updater.io).nanoseconds, std.time.ns_per_ms));
 
     const tmp_path = std.mem.span(machine.updater.data.tmp_path);
 

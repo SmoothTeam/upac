@@ -79,9 +79,7 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
 fn stateCreateDbTemp(machine: *PreparationMachine) InstallerError!PreparationState {
     const tmp_path = std.mem.span(machine.installer.data.tmp_path);
 
-    var timespec: std.os.linux.timespec = undefined;
-    _ = std.os.linux.clock_gettime(std.os.linux.CLOCK.REALTIME, &timespec);
-    const timestamp: i64 = @as(i64, timespec.sec) * 1000 + @divTrunc(@as(i64, timespec.nsec), 1_000_000);
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.installer.io).nanoseconds, std.time.ns_per_ms));
 
     const temp_database_name = std.fmt.allocPrint(machine.installer.allocator, "upac-db-{d}", .{timestamp}) catch return machine.stateFailed(InstallerError.AllocZFailed);
     errdefer machine.installer.allocator.free(temp_database_name);
