@@ -3,6 +3,8 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
+const Version = @import("upac-types").Version;
+
 pub const CancelToken = extern struct {
     _flag: u8 = 0,
     hook: ?*const fn (ctx: ?*anyopaque) callconv(.c) void = null,
@@ -79,7 +81,7 @@ pub const CVersion = extern struct {
     parts: CArray(u32),
     pre: CSlice,
 
-    pub fn toVersion(self: CVersion) @import("upac-types").Version {
+    pub fn toVersion(self: CVersion) Version {
         return .{
             .epoch = self.epoch,
             .release = self.release,

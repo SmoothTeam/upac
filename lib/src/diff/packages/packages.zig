@@ -80,8 +80,7 @@ pub const DiffMachine = struct {
         errdefer if (entries.len > 0) {
             for (entries) |entry| {
                 allocator.free(entry.name);
-                allocator.free(entry.version.parts);
-                if (entry.version.pre) |pre| allocator.free(pre);
+                entry.version.deinit(allocator);
             }
             allocator.free(entries);
         };

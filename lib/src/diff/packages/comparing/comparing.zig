@@ -26,8 +26,7 @@ const ComparingMachine = struct {
     fn stateFailed(self: *ComparingMachine, err: DiffError) DiffError {
         for (self.entries.items) |entry| {
             self.diff.allocator.free(entry.name);
-            self.diff.allocator.free(entry.version.parts);
-            if (entry.version.pre) |pre| self.diff.allocator.free(pre);
+            entry.version.deinit(self.diff.allocator);
         }
         self.entries.deinit(self.diff.allocator);
         return err;

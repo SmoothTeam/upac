@@ -19,6 +19,11 @@ pub const Version = struct {
     parts: []const u32,
     pre: ?[]const u8 = null,
     release: u32 = 1,
+
+    pub fn deinit(self: *const Version, allocator: std.mem.Allocator) void {
+        allocator.free(self.parts);
+        if (self.pre) |pre| allocator.free(pre);
+    }
 };
 
 // ── Package ───────────────────────────────────────────────────────────────────
@@ -53,8 +58,7 @@ pub const PackageMeta = struct {
 
     pub fn deinit(self: *PackageMeta, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
-        allocator.free(self.version.parts);
-        if (self.version.pre) |pre| allocator.free(pre);
+        self.version.deinit(allocator);
         allocator.free(self.arch);
         if (self.arch_sub) |sub| allocator.free(sub);
         allocator.free(self.maintainer);
