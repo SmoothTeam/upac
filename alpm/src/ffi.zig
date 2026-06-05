@@ -7,7 +7,7 @@ const BackendError = types.BackendError;
 const HookFn = types.HookFn;
 const CancelToken = types.CancelToken;
 
-pub const ABI_VERSION: u32 = 3;
+pub const ABI_VERSION: u32 = 2;
 
 // ── FFI types ──────────────────────────────────────────────────────────────────
 pub const CSlice = extern struct {

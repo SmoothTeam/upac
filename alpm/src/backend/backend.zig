@@ -4,12 +4,12 @@ pub const std = @import("std");
 pub const c_libs = @import("c-libs");
 
 const types = @import("upac-backend-types");
-pub const BackendError = types.BackendError;
-pub const StateId = types.StateId;
-pub const PackageMeta = types.PackageMeta;
-pub const PrepareData = types.PrepareData;
-pub const PrepareResult = types.PrepareResult;
-pub const CancelToken = types.CancelToken;
+const BackendError = types.BackendError;
+const StateId = types.StateId;
+const PackageMeta = types.PackageMeta;
+const PrepareData = types.PrepareData;
+const PrepareResult = types.PrepareResult;
+const CancelToken = types.CancelToken;
 
 const verifying = @import("verifying/verifying.zig");
 const unpacking = @import("unpacking/unpacking.zig");

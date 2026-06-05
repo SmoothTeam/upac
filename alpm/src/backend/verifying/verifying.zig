@@ -1,9 +1,10 @@
 // ── Imports ───────────────────────────────────────────────────────────────────
 const std = backend.std;
 
+const BackendError = @import("upac-backend-types").BackendError;
+
 const backend = @import("../backend.zig");
 const Machine = backend.BackendMachine;
-const BackendError = backend.BackendError;
 
 // ── VerifyingState ────────────────────────────────────────────────────────────
 const VerifyingState = enum {

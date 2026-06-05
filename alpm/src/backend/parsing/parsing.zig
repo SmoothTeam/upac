@@ -3,10 +3,12 @@ const std = @import("std");
 
 const package_meta_field_map = @import("upac-backend-types").buildFieldMap();
 
+const types = @import("upac-backend-types");
+const BackendError = types.BackendError;
+const PackageMeta = types.PackageMeta;
+
 const backend = @import("../backend.zig");
 const Machine = backend.BackendMachine;
-const BackendError = backend.BackendError;
-const PackageMeta = backend.PackageMeta;
 
 const parseVersion = @import("utils.zig").parseVersion;
 // ── ParsingState ──────────────────────────────────────────────────────────────

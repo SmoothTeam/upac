@@ -3,9 +3,10 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
+const BackendError = @import("upac-backend-types").BackendError;
+
 const backend = @import("../backend.zig");
 const Machine = backend.BackendMachine;
-const BackendError = backend.BackendError;
 
 // ── UnpackingState ────────────────────────────────────────────────────────────
 const UnpackingState = enum {
