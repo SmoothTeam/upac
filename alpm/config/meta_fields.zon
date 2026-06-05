@@ -1,0 +1,10 @@
+.{
+    .Package = "pkgname",
+    .Version = "pkgver",
+    .@"Installed-Size" = "size",
+    .Architecture = "arch",
+    .Description = "pkgdesc",
+    .License = "license",
+    .Homepage = "url",
+    .Maintainer = "packager",
+}

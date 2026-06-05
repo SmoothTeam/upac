@@ -8,9 +8,26 @@ pub fn build(b: *std.Build) void {
     const strip = b.option(bool, "strip", "Strip debug symbols") orelse false;
     const stack_check = b.option(bool, "stack-check", "Check for stack overflows") orelse false;
 
+    // ── Config ZON modules ────────────────────────────────────────────────────
+    const upac_meta_fields = b.createModule(.{ .root_source_file = b.path("config/meta_fields.zon") });
+
+    // ── Types ─────────────────────────────────────────────────────────────────
+    const upac_backend_types = b.createModule(.{
+        .root_source_file = b.path("src/types/types.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // ── FFI ─────────────────────────────────────────────────────────────────
+    const upac_backend_ffi = b.createModule(.{
+        .root_source_file = b.path("src/ffi.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     // ── Root ──────────────────────────────────────────────────────────────────
     const upac_backend_root = b.createModule(.{
-        .root_source_file = b.path("src/backend.zig"),
+        .root_source_file = b.path("src/backend/backend.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -27,6 +44,11 @@ pub fn build(b: *std.Build) void {
 
     shared_lib.root_module.link_libc = true;
     shared_lib.root_module.linkSystemLibrary("archive", .{});
+
+    shared_lib.root_module.addImport("upac-meta-fields", upac_meta_fields);
+
+    shared_lib.root_module.addImport("upac-backend-types", upac_backend_types);
+    shared_lib.root_module.addImport("upac-backend-ffi", upac_backend_ffi);
 
     shared_lib.root_module.strip = strip;
     shared_lib.root_module.stack_check = stack_check;
