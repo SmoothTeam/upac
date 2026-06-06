@@ -1,5 +1,5 @@
 // ── Imports ───────────────────────────────────────────────────────────────────
-const std = backend.std;
+const std = @import("std");
 
 const types = @import("upac-backend-types");
 const rpm_lead_magic = types.rpm_lead_magic;

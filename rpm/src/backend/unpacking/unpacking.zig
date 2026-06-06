@@ -88,9 +88,9 @@ fn stateCreateTempDir(machine: *UnpackingMachine) BackendError!UnpackingState {
 
     const temp_path = std.mem.span(machine.backend.data.temp_path_c);
 
-    const timestamp_ms: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.backend.io).nanoseconds, std.time.ns_per_ms));
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.backend.io).nanoseconds, std.time.ns_per_ms));
 
-    const temp_package_dir_name = std.fmt.bufPrintZ(&temp_dir_name_buf, "upac-installed-{d}", .{timestamp_ms}) catch return machine.stateFailed(BackendError.AllocZFailed);
+    const temp_package_dir_name = std.fmt.bufPrintZ(&temp_dir_name_buf, "upac-installed-{d}", .{timestamp}) catch return machine.stateFailed(BackendError.AllocZFailed);
 
     const temp_package_path = std.Io.Dir.path.joinZ(machine.backend.allocator, &.{ temp_path, temp_package_dir_name }) catch return machine.stateFailed(BackendError.AllocZFailed);
 

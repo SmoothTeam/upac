@@ -18,9 +18,6 @@ const dupeRequiredToCSlice = ffi.dupeRequiredToCSlice;
 const BackendMachine = @import("backend/backend.zig").BackendMachine;
 
 // ── FFI exports ───────────────────────────────────────────────────────────────
-pub export fn version_abi() callconv(.c) u32 {
-    return ffi.ABI_VERSION;
-}
 
 pub export fn prepare(request_c: *const CPrepareRequest, out_meta: **CPackageMeta, out_temp_path: *CSlice) callconv(.c) i32 {
     request_c.validate() catch |err| return @intFromEnum(fromError(err));
@@ -72,4 +69,8 @@ pub export fn cleanup(path_c: CSlice) callconv(.c) void {
 
 pub export fn free_meta(package_meta_c: *CPackageMeta) callconv(.c) void {
     package_meta_c.free(std.heap.c_allocator);
+}
+
+pub export fn version_abi() callconv(.c) u32 {
+    return ffi.ABI_VERSION;
 }
