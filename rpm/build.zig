@@ -19,16 +19,12 @@ pub fn build(b: *std.Build) void {
 
     const c_libs_module = translated_libs.createModule();
 
-    // ── Config ZON modules ────────────────────────────────────────────────────
-    const upac_meta_fields = b.createModule(.{ .root_source_file = b.path("config/meta_fields.zon") });
-
     // ── Types ─────────────────────────────────────────────────────────────────
     const upac_backend_types = b.createModule(.{
         .root_source_file = b.path("src/types/types.zig"),
         .target = target,
         .optimize = optimize,
     });
-    upac_backend_types.addImport("upac-meta-fields", upac_meta_fields);
 
     // ── FFI ─────────────────────────────────────────────────────────────────
     const upac_backend_ffi = b.createModule(.{
