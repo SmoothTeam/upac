@@ -37,6 +37,7 @@ pub const BackendMachine = struct {
     }
 
     pub fn run(data: PrepareData, allocator: std.mem.Allocator) BackendError!PrepareResult {
+        var state = StateId.verifying;
         var machine = BackendMachine{
             .data = data,
 
@@ -45,7 +46,6 @@ pub const BackendMachine = struct {
         };
         defer machine.deinit();
 
-        var state = StateId.verifying;
         while (state != .done) {
             machine.hook(state) catch |err| return err;
             switch (state) {

@@ -83,18 +83,16 @@ pub fn run(machine: *Machine) BackendError!void {
 fn stateCreateTempDir(machine: *UnpackingMachine) BackendError!UnpackingState {
     var temp_dir_name_buf: [256]u8 = undefined;
 
-    const timestamp_ms: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.backend.io).nanoseconds, std.time.ns_per_ms));
+    const timestamp: i64 = @intCast(@divTrunc(std.Io.Clock.real.now(machine.backend.io).nanoseconds, std.time.ns_per_ms));
 
-    const temp_package_dir_name = std.fmt.bufPrintZ(&temp_dir_name_buf, "upac-installed-{d}", .{timestamp_ms}) catch
-        return machine.stateFailed(BackendError.AllocZFailed);
+    const temp_package_dir_name = std.fmt.bufPrintZ(&temp_dir_name_buf, "upac-installed-{d}", .{timestamp}) catch return machine.stateFailed(BackendError.AllocZFailed);
 
     const temp_package_path = std.Io.Dir.path.joinZ(machine.backend.allocator, &.{
         std.mem.span(machine.backend.data.temp_path_c),
         temp_package_dir_name,
     }) catch return machine.stateFailed(BackendError.AllocZFailed);
 
-    std.Io.Dir.createDirAbsolute(machine.backend.io, temp_package_path, .default_dir) catch
-        return machine.stateFailed(BackendError.TempDirFailed);
+    std.Io.Dir.createDirAbsolute(machine.backend.io, temp_package_path, .default_dir) catch return machine.stateFailed(BackendError.TempDirFailed);
 
     machine.backend.temp_package_path = temp_package_path;
 

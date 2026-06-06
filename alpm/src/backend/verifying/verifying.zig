@@ -1,5 +1,5 @@
 // ── Imports ───────────────────────────────────────────────────────────────────
-const std = backend.std;
+const std = @import("std");
 
 const BackendError = @import("upac-backend-types").BackendError;
 
