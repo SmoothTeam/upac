@@ -1,0 +1,9 @@
+.{
+    .Package = "name",
+    .Version = "version",
+    .@"Installed-Size" = "size",
+    .Architecture = "arch",
+    .Description = "description",
+    .Homepage = "url",
+    .Maintainer = "packager",
+}
