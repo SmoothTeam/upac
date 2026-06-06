@@ -142,7 +142,9 @@ fn stateFindTars(machine: *ParsingMachine) BackendError!ParsingState {
     if (result == c_libs.ARCHIVE_EOF) {
         _ = c_libs.archive_read_free(archive_reader);
         machine.archive_reader = null;
+
         if (machine.control_tar_buf == null) return machine.stateFailed(BackendError.InvalidPackage);
+
         return .open_control_archive;
     }
     if (result != c_libs.ARCHIVE_OK) return machine.stateFailed(BackendError.ArchiveReadFailed);
@@ -237,43 +239,47 @@ fn stateScanControlFiles(machine: *ParsingMachine) BackendError!ParsingState {
 }
 
 fn stateVerifyMd5sums(machine: *ParsingMachine) BackendError!ParsingState {
+    var io_buf: [4096]u8 = undefined;
+
     const md5sums_content = machine.md5sums_content orelse return .open_data_archive;
-    machine.md5sums_content = null;
     defer machine.backend.allocator.free(md5sums_content);
+    machine.md5sums_content = null;
 
     const temp_package_path = machine.backend.temp_package_path orelse return machine.stateFailed(BackendError.TempDirFailed);
 
     var temp_dir = std.Io.Dir.openDirAbsolute(machine.backend.io, temp_package_path, .{}) catch return machine.stateFailed(BackendError.ReadFailed);
     defer temp_dir.close(machine.backend.io);
 
-    var io_buf: [4096]u8 = undefined;
     var lines = std.mem.splitScalar(u8, md5sums_content, '\n');
-
     while (lines.next()) |line| {
-        const trimmed = std.mem.trim(u8, line, " \t\r");
-        if (trimmed.len == 0) continue;
+        var hasher = std.crypto.hash.Md5.init(.{});
 
-        var tokens = std.mem.tokenizeAny(u8, trimmed, " \t");
+        const trimmed_line = std.mem.trim(u8, line, " \t\r");
+        if (trimmed_line.len == 0) continue;
+
+        var tokens = std.mem.tokenizeAny(u8, trimmed_line, " \t");
         const expected_hex = tokens.next() orelse continue;
+
         const file_path = std.mem.trim(u8, tokens.rest(), " \t");
 
         const file = temp_dir.openFile(machine.backend.io, file_path, .{}) catch continue;
         defer file.close(machine.backend.io);
 
-        var hasher = std.crypto.hash.Md5.init(.{});
         while (true) {
             const iov = [1][]u8{io_buf[0..]};
             const bytes_read = file.readStreaming(machine.backend.io, &iov) catch |err| {
                 if (err == error.EndOfStream) break;
+
                 return machine.stateFailed(BackendError.ReadFailed);
             };
+
             if (bytes_read == 0) break;
             hasher.update(io_buf[0..bytes_read]);
         }
 
-        var digest: [std.crypto.hash.Md5.digest_length]u8 = undefined;
-        hasher.final(&digest);
-        const actual_hex = std.fmt.bytesToHex(digest, .lower);
+        var digest_hash: [std.crypto.hash.Md5.digest_length]u8 = undefined;
+        hasher.final(&digest_hash);
+        const actual_hex = std.fmt.bytesToHex(digest_hash, .lower);
 
         if (!std.mem.eql(u8, &actual_hex, expected_hex)) return machine.stateFailed(BackendError.ChecksumMismatch);
     }
@@ -388,37 +394,27 @@ fn stateBuildMeta(machine: *ParsingMachine) BackendError!ParsingState {
     machine.raw_meta.version = null;
     errdefer machine.backend.allocator.free(package_version);
 
-    const package_arch = if (machine.raw_meta.arch) |arch| blk: {
-        machine.raw_meta.arch = null;
-        break :blk arch;
-    } else machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    const package_arch = machine.raw_meta.arch orelse machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    machine.raw_meta.arch = null;
     errdefer machine.backend.allocator.free(package_arch);
 
-    const package_description = if (machine.raw_meta.description) |description| blk: {
-        machine.raw_meta.description = null;
-        break :blk description;
-    } else machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    const package_description = machine.raw_meta.description orelse machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    machine.raw_meta.description = null;
     errdefer machine.backend.allocator.free(package_description);
 
-    const package_url = if (machine.raw_meta.url) |url| blk: {
-        machine.raw_meta.url = null;
-        break :blk url;
-    } else machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    const package_url = machine.raw_meta.url orelse machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    machine.raw_meta.url = null;
     errdefer machine.backend.allocator.free(package_url);
 
-    const package_packager = if (machine.raw_meta.packager) |packager| blk: {
-        machine.raw_meta.packager = null;
-        break :blk packager;
-    } else machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    const package_packager = machine.raw_meta.packager orelse machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    machine.raw_meta.packager = null;
     errdefer machine.backend.allocator.free(package_packager);
 
     const package_author = machine.backend.allocator.dupe(u8, package_packager) catch return machine.stateFailed(BackendError.OutOfMemory);
     errdefer machine.backend.allocator.free(package_author);
 
-    const package_license = if (machine.raw_meta.license) |license| blk: {
-        machine.raw_meta.license = null;
-        break :blk license;
-    } else machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    const package_license = machine.raw_meta.license orelse machine.backend.allocator.dupe(u8, "") catch return machine.stateFailed(BackendError.OutOfMemory);
+    machine.raw_meta.license = null;
     errdefer machine.backend.allocator.free(package_license);
 
     const package_checksum = machine.backend.allocator.dupe(u8, machine.backend.data.checksum) catch return machine.stateFailed(BackendError.OutOfMemory);
