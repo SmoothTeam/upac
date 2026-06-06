@@ -5,6 +5,8 @@ const c_libs = @import("c-libs");
 
 const Version = @import("upac-types").Version;
 
+pub const ABI_VERSION: u32 = 2;
+
 pub const CancelToken = extern struct {
     _flag: u8 = 0,
     hook: ?*const fn (ctx: ?*anyopaque) callconv(.c) void = null,
@@ -333,10 +335,6 @@ pub const CRepoMode = enum(u8) {
     bare = 1,
     bare_user = 2,
 };
-
-// Bump this integer whenever a symbol is added/removed or a signature changes.
-// struct_size guards layout; this guards the symbol set and calling conventions.
-pub const ABI_VERSION: u32 = 3;
 
 pub fn intToEnum(comptime E: type, value: anytype) error{InvalidValue}!E {
     const tag_type = @typeInfo(E).@"enum".tag_type;
