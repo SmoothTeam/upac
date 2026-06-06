@@ -18,6 +18,20 @@ pub const StateId = enum(u8) {
     done = 4,
 };
 
+// ── RpmTag ────────────────────────────────────────────────────────────────────
+pub const RpmTag = enum(u32) {
+    name = 1000,
+    version = 1001,
+    release = 1002,
+    summary = 1004,
+    license = 1014,
+    packager = 1015,
+    url = 1020,
+    arch = 1022,
+    size = 1023,
+    _,
+};
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 pub const HookResponse = enum(u8) {
     proceed = 0,
@@ -45,6 +59,30 @@ pub const PrepareData = struct {
     on_hook: ?*const HookFn = null,
     hook_ctx: ?*anyopaque = null,
     cancel_token: *const CancelToken,
+};
+
+// ── RawMeta ───────────────────────────────────────────────────────────────────
+pub const RawMeta = struct {
+    name: ?[]const u8 = null,
+    version: ?[]const u8 = null,
+    release: ?[]const u8 = null,
+    arch: ?[]const u8 = null,
+    summary: ?[]const u8 = null,
+    license: ?[]const u8 = null,
+    url: ?[]const u8 = null,
+    packager: ?[]const u8 = null,
+    size: u32 = 0,
+
+    pub fn deinit(self: *RawMeta, allocator: std.mem.Allocator) void {
+        if (self.name) |value| allocator.free(value);
+        if (self.version) |value| allocator.free(value);
+        if (self.release) |value| allocator.free(value);
+        if (self.arch) |value| allocator.free(value);
+        if (self.summary) |value| allocator.free(value);
+        if (self.license) |value| allocator.free(value);
+        if (self.url) |value| allocator.free(value);
+        if (self.packager) |value| allocator.free(value);
+    }
 };
 
 // ── PackageMeta ───────────────────────────────────────────────────────────────

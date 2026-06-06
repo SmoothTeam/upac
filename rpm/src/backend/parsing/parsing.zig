@@ -5,7 +5,11 @@ const types = @import("upac-backend-types");
 const rpm_lead_size = types.rpm_lead_size;
 
 const BackendError = types.BackendError;
+
 const PackageMeta = types.PackageMeta;
+const RawMeta = types.RawMeta;
+
+const RpmTag = types.RpmTag;
 
 const backend = @import("../backend.zig");
 const Machine = backend.BackendMachine;
@@ -26,44 +30,6 @@ const ParsingState = enum {
     extract_tags,
     build_meta,
     done,
-};
-
-// ── RpmTag ────────────────────────────────────────────────────────────────────
-const RpmTag = enum(u32) {
-    name = 1000,
-    version = 1001,
-    release = 1002,
-    summary = 1004,
-    license = 1014,
-    packager = 1015,
-    url = 1020,
-    arch = 1022,
-    size = 1023,
-    _,
-};
-
-// ── RawMeta ───────────────────────────────────────────────────────────────────
-const RawMeta = struct {
-    name: ?[]const u8 = null,
-    version: ?[]const u8 = null,
-    release: ?[]const u8 = null,
-    arch: ?[]const u8 = null,
-    summary: ?[]const u8 = null,
-    license: ?[]const u8 = null,
-    url: ?[]const u8 = null,
-    packager: ?[]const u8 = null,
-    size: u32 = 0,
-
-    fn deinit(self: *RawMeta, allocator: std.mem.Allocator) void {
-        if (self.name) |value| allocator.free(value);
-        if (self.version) |value| allocator.free(value);
-        if (self.release) |value| allocator.free(value);
-        if (self.arch) |value| allocator.free(value);
-        if (self.summary) |value| allocator.free(value);
-        if (self.license) |value| allocator.free(value);
-        if (self.url) |value| allocator.free(value);
-        if (self.packager) |value| allocator.free(value);
-    }
 };
 
 // ── ParsingMachine ────────────────────────────────────────────────────────────

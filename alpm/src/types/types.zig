@@ -91,6 +91,27 @@ pub const CancelToken = extern struct {
     }
 };
 
+pub const RawMeta = struct {
+    name: ?[]const u8 = null,
+    version_str: ?[]const u8 = null,
+    arch: ?[]const u8 = null,
+    description: ?[]const u8 = null,
+    url: ?[]const u8 = null,
+    maintainer: ?[]const u8 = null,
+    license: ?[]const u8 = null,
+    installed_size: u64 = 0,
+
+    pub fn deinit(self: *RawMeta, allocator: std.mem.Allocator) void {
+        if (self.name) |value| allocator.free(value);
+        if (self.version_str) |value| allocator.free(value);
+        if (self.arch) |value| allocator.free(value);
+        if (self.description) |value| allocator.free(value);
+        if (self.url) |value| allocator.free(value);
+        if (self.maintainer) |value| allocator.free(value);
+        if (self.license) |value| allocator.free(value);
+    }
+};
+
 // Main structure containing package metadata
 pub const PackageMeta = struct {
     name: []const u8,
@@ -119,13 +140,13 @@ pub const PackageMeta = struct {
 
 pub fn buildFieldMap() std.StaticStringMap(PackageMetaField) {
     return std.StaticStringMap(PackageMetaField).initComptime(.{
-        .{ meta_fields.Package,           .Package },
-        .{ meta_fields.Version,           .Version },
+        .{ meta_fields.Package, .Package },
+        .{ meta_fields.Version, .Version },
         .{ meta_fields.@"Installed-Size", .@"Installed-Size" },
-        .{ meta_fields.Architecture,      .Architecture },
-        .{ meta_fields.Description,       .Description },
-        .{ meta_fields.License,           .License },
-        .{ meta_fields.Homepage,          .Homepage },
-        .{ meta_fields.Maintainer,        .Maintainer },
+        .{ meta_fields.Architecture, .Architecture },
+        .{ meta_fields.Description, .Description },
+        .{ meta_fields.License, .License },
+        .{ meta_fields.Homepage, .Homepage },
+        .{ meta_fields.Maintainer, .Maintainer },
     });
 }
