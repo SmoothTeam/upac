@@ -18,7 +18,6 @@ const dupeRequiredToCSlice = ffi.dupeRequiredToCSlice;
 const BackendMachine = @import("backend/backend.zig").BackendMachine;
 
 // ── FFI exports ───────────────────────────────────────────────────────────────
-
 pub export fn prepare(request_c: *const CPrepareRequest, out_meta: **CPackageMeta, out_temp_path: *CSlice) callconv(.c) i32 {
     request_c.validate() catch |err| return @intFromEnum(fromError(err));
 
