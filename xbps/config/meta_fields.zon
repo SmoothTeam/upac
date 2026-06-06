@@ -1,0 +1,10 @@
+.{
+    .pkgname = "name",
+    .version = "version",
+    .architecture = "arch",
+    .short_desc = "description",
+    .maintainer = "packager",
+    .license = "license",
+    .homepage = "url",
+    .installed_size = "size",
+}
