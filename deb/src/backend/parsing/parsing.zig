@@ -10,7 +10,7 @@ const BackendError = types.BackendError;
 const PackageMeta = types.PackageMeta;
 const RawMeta = types.RawMeta;
 
-const meta_fields = @import("upac-meta-fields");
+const control_field_map = types.control_field_map;
 
 const backend = @import("../backend.zig");
 const Machine = backend.BackendMachine;
@@ -25,23 +25,11 @@ const ParsingState = enum {
     open_control_archive,
     scan_control_files,
     verify_md5sums,
-    extract_copyright,
+    open_data_archive,
+    scan_copyright_files,
     parse_control,
     build_meta,
     done,
-};
-
-// ── control_field_map ─────────────────────────────────────────────────────────
-const RawMetaField = std.meta.FieldEnum(RawMeta);
-
-const control_field_map = blk: {
-    const zon_fields = std.meta.fields(@TypeOf(meta_fields));
-    var entries: [zon_fields.len]struct { []const u8, RawMetaField } = undefined;
-    for (zon_fields, 0..) |field, index| {
-        const raw_meta_field_name = @field(meta_fields, field.name);
-        entries[index] = .{ field.name, @field(RawMetaField, raw_meta_field_name) };
-    }
-    break :blk std.StaticStringMap(RawMetaField).initComptime(entries);
 };
 
 // ── ParsingMachine ────────────────────────────────────────────────────────────
@@ -55,6 +43,7 @@ const ParsingMachine = struct {
     control_inner_reader: ?*c_libs.archive = null,
 
     data_tar_buf: ?[]u8 = null,
+    data_inner_reader: ?*c_libs.archive = null,
 
     md5sums_content: ?[]u8 = null,
 
@@ -76,6 +65,11 @@ const ParsingMachine = struct {
         if (self.control_tar_buf) |buf| {
             self.backend.allocator.free(buf);
             self.control_tar_buf = null;
+        }
+
+        if (self.data_inner_reader) |reader| {
+            _ = c_libs.archive_read_free(reader);
+            self.data_inner_reader = null;
         }
 
         if (self.data_tar_buf) |buf| {
@@ -117,7 +111,8 @@ pub fn run(machine: *Machine) BackendError!void {
             .open_control_archive => try stateOpenControlArchive(&parsing),
             .scan_control_files => try stateScanControlFiles(&parsing),
             .verify_md5sums => try stateVerifyMd5sums(&parsing),
-            .extract_copyright => try stateExtractCopyright(&parsing),
+            .open_data_archive => try stateOpenDataArchive(&parsing),
+            .scan_copyright_files => try stateScanCopyrightFiles(&parsing),
             .parse_control => try stateParseControl(&parsing),
             .build_meta => try stateBuildMeta(&parsing),
             .done => unreachable,
@@ -242,7 +237,7 @@ fn stateScanControlFiles(machine: *ParsingMachine) BackendError!ParsingState {
 }
 
 fn stateVerifyMd5sums(machine: *ParsingMachine) BackendError!ParsingState {
-    const md5sums_content = machine.md5sums_content orelse return .extract_copyright;
+    const md5sums_content = machine.md5sums_content orelse return .open_data_archive;
     machine.md5sums_content = null;
     defer machine.backend.allocator.free(md5sums_content);
 
@@ -283,36 +278,66 @@ fn stateVerifyMd5sums(machine: *ParsingMachine) BackendError!ParsingState {
         if (!std.mem.eql(u8, &actual_hex, expected_hex)) return machine.stateFailed(BackendError.ChecksumMismatch);
     }
 
-    return .extract_copyright;
+    return .open_data_archive;
 }
 
-fn stateExtractCopyright(machine: *ParsingMachine) BackendError!ParsingState {
+fn stateOpenDataArchive(machine: *ParsingMachine) BackendError!ParsingState {
     const data_tar_buf = machine.data_tar_buf orelse return .parse_control;
-    machine.data_tar_buf = null;
-    defer machine.backend.allocator.free(data_tar_buf);
 
     const inner_reader = c_libs.archive_read_new() orelse return machine.stateFailed(BackendError.ArchiveOpenFailed);
-    defer _ = c_libs.archive_read_free(inner_reader);
+    machine.data_inner_reader = inner_reader;
 
     _ = c_libs.archive_read_support_format_tar(inner_reader);
     _ = c_libs.archive_read_support_filter_all(inner_reader);
 
     if (c_libs.archive_read_open_memory(inner_reader, data_tar_buf.ptr, data_tar_buf.len) != c_libs.ARCHIVE_OK) return machine.stateFailed(BackendError.ArchiveOpenFailed);
 
+    return .scan_copyright_files;
+}
+
+fn stateScanCopyrightFiles(machine: *ParsingMachine) BackendError!ParsingState {
+    const inner_reader = machine.data_inner_reader orelse return machine.stateFailed(BackendError.ArchiveOpenFailed);
+
     var inner_entry: ?*c_libs.archive_entry = null;
-    while (c_libs.archive_read_next_header(inner_reader, &inner_entry) == c_libs.ARCHIVE_OK) {
-        const entry_name = std.mem.span(c_libs.archive_entry_pathname(inner_entry));
-        const name = if (std.mem.startsWith(u8, entry_name, "./")) entry_name[2..] else entry_name;
-        if (!std.mem.startsWith(u8, name, "usr/share/doc/") or !std.mem.endsWith(u8, name, "/copyright")) continue;
+    const result = c_libs.archive_read_next_header(inner_reader, &inner_entry);
 
-        const raw_size = c_libs.archive_entry_size(inner_entry);
-        if (raw_size <= 0) break;
-        const entry_size: usize = @intCast(raw_size);
+    if (result == c_libs.ARCHIVE_EOF) {
+        _ = c_libs.archive_read_free(inner_reader);
+        machine.data_inner_reader = null;
+        if (machine.data_tar_buf) |buf| {
+            machine.backend.allocator.free(buf);
+            machine.data_tar_buf = null;
+        }
+        return .parse_control;
+    }
+    if (result != c_libs.ARCHIVE_OK) return machine.stateFailed(BackendError.ArchiveReadFailed);
 
-        const content = machine.backend.allocator.alloc(u8, entry_size) catch return machine.stateFailed(BackendError.OutOfMemory);
-        machine.copyright_content = content;
-        if (c_libs.archive_read_data(inner_reader, content.ptr, entry_size) < 0) return machine.stateFailed(BackendError.ArchiveReadFailed);
-        break;
+    const entry_name = std.mem.span(c_libs.archive_entry_pathname(inner_entry));
+    const name = if (std.mem.startsWith(u8, entry_name, "./")) entry_name[2..] else entry_name;
+
+    if (!std.mem.startsWith(u8, name, "usr/share/doc/") or !std.mem.endsWith(u8, name, "/copyright")) return .scan_copyright_files;
+
+    const raw_size = c_libs.archive_entry_size(inner_entry);
+    if (raw_size <= 0) {
+        _ = c_libs.archive_read_free(inner_reader);
+        machine.data_inner_reader = null;
+        if (machine.data_tar_buf) |buf| {
+            machine.backend.allocator.free(buf);
+            machine.data_tar_buf = null;
+        }
+        return .parse_control;
+    }
+
+    const entry_size: usize = @intCast(raw_size);
+    const content = machine.backend.allocator.alloc(u8, entry_size) catch return machine.stateFailed(BackendError.OutOfMemory);
+    machine.copyright_content = content;
+    if (c_libs.archive_read_data(inner_reader, content.ptr, entry_size) < 0) return machine.stateFailed(BackendError.ArchiveReadFailed);
+
+    _ = c_libs.archive_read_free(inner_reader);
+    machine.data_inner_reader = null;
+    if (machine.data_tar_buf) |buf| {
+        machine.backend.allocator.free(buf);
+        machine.data_tar_buf = null;
     }
 
     return .parse_control;

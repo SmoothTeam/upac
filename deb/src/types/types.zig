@@ -1,5 +1,7 @@
 pub const std = @import("std");
 
+const meta_fields = @import("upac-meta-fields");
+
 const errors = @import("errors.zig");
 pub const BackendErrorCode = errors.BackendErrorCode;
 pub const BackendError = errors.BackendError;
@@ -32,6 +34,19 @@ pub const CancelToken = extern struct {
     pub fn isCancelled(self: *const CancelToken) bool {
         return @atomicLoad(u8, &self._flag, .acquire) != 0;
     }
+};
+
+// ── control_field_map ─────────────────────────────────────────────────────────
+const RawMetaField = std.meta.FieldEnum(RawMeta);
+
+pub const control_field_map = blk: {
+    const zon_fields = std.meta.fields(@TypeOf(meta_fields));
+    var entries: [zon_fields.len]struct { []const u8, RawMetaField } = undefined;
+    for (zon_fields, 0..) |field, index| {
+        const raw_meta_field_name = @field(meta_fields, field.name);
+        entries[index] = .{ field.name, @field(RawMetaField, raw_meta_field_name) };
+    }
+    break :blk std.StaticStringMap(RawMetaField).initComptime(entries);
 };
 
 // ── PrepareData ───────────────────────────────────────────────────────────────
