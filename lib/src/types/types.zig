@@ -142,14 +142,14 @@ pub const FilesStateId = enum(u8) {
     done = 4,
 };
 
-pub const ListStateId = enum(u8) {
+pub const ListPackagesStateId = enum(u8) {
     verifying = 0,
     fetching = 1,
 
     done = 3,
 };
 
-pub const CommitStateId = enum(u8) {
+pub const ListCommitStateId = enum(u8) {
     verifying = 0,
     fetching = 1,
 
@@ -191,6 +191,13 @@ pub const SearchMetaStateId = enum(u8) {
 pub const SearchFilesStateId = enum(u8) {
     verifying = 0,
     searching = 1,
+
+    done = 2,
+};
+
+pub const CommitStateId = enum(u8) {
+    verifying = 0,
+    transaction = 1,
 
     done = 2,
 };

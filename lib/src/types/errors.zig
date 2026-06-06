@@ -1,4 +1,4 @@
-pub const Operation = enum { install, uninstall, update, rollback, init, diff, list, files, search };
+pub const Operation = enum { install, uninstall, update, rollback, init, diff, list, files, search, commit };
 
 // A listing of all possible return codes used to signal success or specific runtime errors
 pub const ErrorCode = enum(i32) {
@@ -175,6 +175,14 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
         .search => switch (err) {
             error.PathNotFound => .invalid_path,
             error.ReadDatabaseFailed => .db_missing_section,
+            error.Cancelled => .cancelled,
+            else => null,
+        },
+        .commit => switch (err) {
+            error.PathNotFound => .invalid_path,
+            error.RepoOpenFailed => .ostree_repo_open_failed,
+            error.RepoTransactionFailed => .ostree_repo_transaction_failed,
+            error.CommitFailed => .ostree_commit,
             error.Cancelled => .cancelled,
             else => null,
         },

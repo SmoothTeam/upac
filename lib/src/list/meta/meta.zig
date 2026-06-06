@@ -4,7 +4,7 @@ const ffi = @import("upac-ffi");
 const CPackageMeta = ffi.CPackageMeta;
 
 const types = @import("upac-types");
-const ListStateId = types.ListStateId;
+const ListPackagesStateId = types.ListPackagesStateId;
 
 const ListError = types.ListError;
 
@@ -25,7 +25,7 @@ pub const ListMachine = struct {
 
     pub fn run(list_data: ListData, allocator: std.mem.Allocator) ListError![]CPackageMeta {
         var packages: []CPackageMeta = &.{};
-        var state = ListStateId.verifying;
+        var state = ListPackagesStateId.verifying;
 
         var machine = ListMachine{
             .data = list_data,

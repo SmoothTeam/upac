@@ -225,6 +225,17 @@ pub fn build(b: *std.Build) void {
 
     upac_init.addImport("upac-database", upac_database);
 
+    // ── Commit ───────────────────────────────────────────────────────────────
+    const upac_commit = b.createModule(.{
+        .root_source_file = b.path("src/commit/commit.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    upac_commit.addImport("c-libs", translated_libs_module);
+
+    upac_commit.addImport("upac-types", upac_types);
+    upac_commit.addImport("upac-ffi", upac_ffi);
+
     // ── Root ──────────────────────────────────────────────────────────────────
     const upac_lib_root = b.createModule(.{
         .root_source_file = b.path("src/lib.zig"),
@@ -255,6 +266,7 @@ pub fn build(b: *std.Build) void {
     shared_lib.root_module.addImport("upac-installer", upac_installer);
     shared_lib.root_module.addImport("upac-update", upac_update);
     shared_lib.root_module.addImport("upac-uninstaller", upac_uninstaller);
+    shared_lib.root_module.addImport("upac-commit", upac_commit);
     shared_lib.root_module.addImport("upac-rollback", upac_rollback);
     shared_lib.root_module.addImport("upac-files", upac_files);
     shared_lib.root_module.addImport("upac-init", upac_init);

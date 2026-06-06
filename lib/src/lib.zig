@@ -22,6 +22,9 @@ export const files = file_symbols.files;
 const init_symbols = @import("symbols/mutated/init.zig");
 export const init = init_symbols.init;
 
+const commit_symbols = @import("symbols/mutated/commit.zig");
+export const commit = commit_symbols.commit;
+
 const diff_packages_symbols = @import("symbols/unmutated/diff/packages.zig");
 export const diff_packages = diff_packages_symbols.diff_packages;
 

@@ -179,6 +179,9 @@ pub const CMutatedRequest = extern struct {
     // Rollback
     commit_hash: CSlice,
 
+    // Commit
+    message: CSlice,
+
     // Files
     files: ?[*]const CSlice = null,
     files_len: usize = 0,
