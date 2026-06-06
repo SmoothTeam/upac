@@ -64,7 +64,9 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: **CPackageMet
 pub export fn cleanup(path_c: CSlice) callconv(.c) void {
     const path = path_c.toSlice();
     const io = std.Io.Threaded.global_single_threaded.io();
+
     std.Io.Dir.cwd().deleteTree(io, path) catch {};
+
     std.heap.c_allocator.free(path);
 }
 
