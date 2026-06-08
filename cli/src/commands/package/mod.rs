@@ -3,10 +3,7 @@ use anyhow::Result;
 
 use clap::{Args, Subcommand};
 
-use std::sync::Arc;
-
-use crate::config::Config;
-use crate::corelib::Lib;
+use crate::types::CommandContext;
 
 pub mod diff;
 pub mod install;
@@ -35,13 +32,13 @@ pub enum PkgCommand {
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
-pub fn run(args: PkgArgs, config: Config, upac_lib: Arc<Lib>) -> Result<()> {
+pub fn run(args: PkgArgs, context: CommandContext) -> Result<()> {
     match args.command {
-        PkgCommand::Install(args) => install::run(args, config, upac_lib),
-        PkgCommand::Remove(args) => remove::run(args, config, upac_lib),
-        PkgCommand::Update(args) => update::run(args, config, upac_lib),
-        PkgCommand::List(args) => list::run(args, config, upac_lib),
-        PkgCommand::Diff(args) => diff::run(args, config, upac_lib),
-        PkgCommand::Search(args) => search::run(args, config, upac_lib),
+        PkgCommand::Install(args) => install::run(args, context),
+        PkgCommand::Remove(args) => remove::run(args, context),
+        PkgCommand::Update(args) => update::run(args, context),
+        PkgCommand::List(args) => list::run(args, context),
+        PkgCommand::Diff(args) => diff::run(args, context),
+        PkgCommand::Search(args) => search::run(args, context),
     }
 }

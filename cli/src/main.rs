@@ -12,15 +12,18 @@ use std::ptr::addr_of_mut;
 
 use std::sync::Arc;
 
+use config::Config;
+
 use crate::corelib::Lib;
+
 use crate::ffi::CancelToken;
+
+use crate::types::CommandContext;
 
 use commands::commit::CommitArgs;
 use commands::file::FileArgs;
 use commands::init::InitArgs;
 use commands::package::PkgArgs;
-
-use config::Config;
 
 mod config;
 pub mod corelib;
@@ -80,11 +83,13 @@ fn run() -> Result<()> {
         unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
     })?;
 
+    let conmmand_context = CommandContext::new(config, lib);
+
     match Command::parse() {
-        Command::Commit(args) => commands::commit::run(args, config, lib)?,
-        Command::Pkg(args) => commands::package::run(args, config, lib)?,
-        Command::File(args) => commands::file::run(args, config, lib)?,
-        Command::Init(args) => commands::init::run(args, config, lib)?,
+        Command::Commit(args) => commands::commit::run(args, conmmand_context)?,
+        Command::Pkg(args) => commands::package::run(args, conmmand_context)?,
+        Command::File(args) => commands::file::run(args, conmmand_context)?,
+        Command::Init(args) => commands::init::run(args, conmmand_context)?,
     }
 
     Ok(())

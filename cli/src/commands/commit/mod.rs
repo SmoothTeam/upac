@@ -3,10 +3,7 @@ use anyhow::Result;
 
 use clap::{Args, Subcommand};
 
-use std::sync::Arc;
-
-use crate::config::Config;
-use crate::corelib::Lib;
+use crate::types::CommandContext;
 
 pub mod list;
 pub mod new;
@@ -28,10 +25,10 @@ pub enum CommitCommand {
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
-pub fn run(args: CommitArgs, config: Config, upac_lib: Arc<Lib>) -> Result<()> {
+pub fn run(args: CommitArgs, context: CommandContext) -> Result<()> {
     match args.command {
-        CommitCommand::List(args) => list::run(args, config, upac_lib),
-        CommitCommand::New(args) => new::run(args, config, upac_lib),
-        CommitCommand::Rollback(args) => rollback::run(args, config, upac_lib),
+        CommitCommand::List(args) => list::run(args, context),
+        CommitCommand::New(args) => new::run(args, context),
+        CommitCommand::Rollback(args) => rollback::run(args, context),
     }
 }

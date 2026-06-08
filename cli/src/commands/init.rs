@@ -1,9 +1,6 @@
 use anyhow::Result;
 
-use std::sync::Arc;
-
-use crate::config::Config;
-use crate::corelib::Lib;
+use crate::types::CommandContext;
 
 #[derive(clap::Args)]
 pub struct InitArgs {
@@ -11,6 +8,6 @@ pub struct InitArgs {
     pub config_path: String,
 }
 
-pub fn run(_args: InitArgs, _config: Config, _lib: Arc<Lib>) -> Result<()> {
+pub fn run(_args: InitArgs, _context: CommandContext) -> Result<()> {
     todo!()
 }

@@ -3,10 +3,7 @@ use anyhow::Result;
 
 use clap::{Args, Subcommand};
 
-use std::sync::Arc;
-
-use crate::config::Config;
-use crate::corelib::Lib;
+use crate::types::CommandContext;
 
 pub mod add;
 pub mod diff;
@@ -30,11 +27,11 @@ pub enum FileCommand {
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
-pub fn run(args: FileArgs, config: Config, upac_lib: Arc<Lib>) -> Result<()> {
+pub fn run(args: FileArgs, context: CommandContext) -> Result<()> {
     match args.command {
-        FileCommand::Add(args) => add::run(args, config, upac_lib),
-        FileCommand::Remove(args) => remove::run(args, config, upac_lib),
-        FileCommand::Diff(args) => diff::run(args, config, upac_lib),
-        FileCommand::Search(args) => search::run(args, config, upac_lib),
+        FileCommand::Add(args) => add::run(args, context),
+        FileCommand::Remove(args) => remove::run(args, context),
+        FileCommand::Diff(args) => diff::run(args, context),
+        FileCommand::Search(args) => search::run(args, context),
     }
 }
