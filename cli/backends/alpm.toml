@@ -1,0 +1,4 @@
+name       = "alpm"
+flags      = ["arch", "alpm"]
+extensions = [".pkg.tar.zst", ".pkg.tar.xz", ".pkg.tar.gz"]
+so         = "libupac-alpm.so"
