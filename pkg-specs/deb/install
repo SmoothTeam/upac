@@ -4,4 +4,8 @@ usr/lib/libupac-alpm.so
 usr/lib/libupac-rpm.so
 usr/lib/libupac-deb.so
 usr/lib/libupac-xbps.so
+etc/upac/backends/alpm.toml
+etc/upac/backends/rpm.toml
+etc/upac/backends/deb.toml
+etc/upac/backends/xbps.toml
 etc/upac/config.toml

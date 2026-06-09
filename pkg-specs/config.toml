@@ -8,7 +8,7 @@ repo_path = "/var/repo"
 # Root of the filesystem where hardlinks are created
 root_path = "/"
 # Directory containing backend .toml descriptor files
-backends_dir = "/usr/lib"
+backends_dir = "/etc/upac/backends"
 
 [ostree]
 # Branch name used for OStree commits

@@ -13,18 +13,22 @@ Upac is a package manager for Linux-compatible systems. It manages the updating,
 %install
 mkdir -p %{buildroot}/usr/bin
 mkdir -p %{buildroot}/usr/lib
-mkdir -p %{buildroot}/etc/upac
+mkdir -p %{buildroot}/etc/upac/backends
 
-cp %{_topdir}/root/usr/bin/upac         %{buildroot}/usr/bin/
+cp %{_topdir}/root/usr/bin/upac                  %{buildroot}/usr/bin/
 
-cp %{_topdir}/root/usr/lib/libupac.so   %{buildroot}/usr/lib/
+cp %{_topdir}/root/usr/lib/libupac.so            %{buildroot}/usr/lib/
+cp %{_topdir}/root/usr/lib/libupac-alpm.so       %{buildroot}/usr/lib/
+cp %{_topdir}/root/usr/lib/libupac-rpm.so        %{buildroot}/usr/lib/
+cp %{_topdir}/root/usr/lib/libupac-deb.so        %{buildroot}/usr/lib/
+cp %{_topdir}/root/usr/lib/libupac-xbps.so       %{buildroot}/usr/lib/
 
-cp %{_topdir}/root/usr/lib/libupac-alpm.so %{buildroot}/usr/lib/
-cp %{_topdir}/root/usr/lib/libupac-rpm.so %{buildroot}/usr/lib/
-cp %{_topdir}/root/usr/lib/libupac-deb.so %{buildroot}/usr/lib/
-cp %{_topdir}/root/usr/lib/libupac-xbps.so %{buildroot}/usr/lib/
+cp %{_topdir}/root/etc/upac/backends/alpm.toml   %{buildroot}/etc/upac/backends/
+cp %{_topdir}/root/etc/upac/backends/rpm.toml    %{buildroot}/etc/upac/backends/
+cp %{_topdir}/root/etc/upac/backends/deb.toml    %{buildroot}/etc/upac/backends/
+cp %{_topdir}/root/etc/upac/backends/xbps.toml   %{buildroot}/etc/upac/backends/
 
-cp %{_topdir}/root/etc/upac/config.toml %{buildroot}/etc/upac/
+cp %{_topdir}/root/etc/upac/config.toml          %{buildroot}/etc/upac/
 
 %files
 /usr/bin/upac
@@ -34,6 +38,11 @@ cp %{_topdir}/root/etc/upac/config.toml %{buildroot}/etc/upac/
 /usr/lib/libupac-rpm.so
 /usr/lib/libupac-deb.so
 /usr/lib/libupac-xbps.so
+
+%config(noreplace) /etc/upac/backends/alpm.toml
+%config(noreplace) /etc/upac/backends/rpm.toml
+%config(noreplace) /etc/upac/backends/deb.toml
+%config(noreplace) /etc/upac/backends/xbps.toml
 
 %config(noreplace) /etc/upac/config.toml
 

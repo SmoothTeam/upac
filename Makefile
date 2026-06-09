@@ -100,7 +100,7 @@ pkg-arch:
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/arch/root/usr/bin
 	@mkdir -p $(PKG_DIR)/arch/root/usr/lib
-	@mkdir -p $(PKG_DIR)/arch/root/etc/upac
+	@mkdir -p $(PKG_DIR)/arch/root/etc/upac/backends
 	@mkdir -p $(PKG_DIR)/arch/root/usr/share/locale
 
 	@echo "--- Copying PKGBUILD v$(VERSION) ---"
@@ -124,6 +124,9 @@ pkg-arch:
 	@cp $(OUT_BUILD_DIR)/lib/libupac-deb.so $(PKG_DIR)/arch/root/usr/lib/
 	@cp $(OUT_BUILD_DIR)/lib/libupac-xbps.so $(PKG_DIR)/arch/root/usr/lib/
 
+	@echo "--- Copying backend descriptors v$(VERSION) ---"
+	@cp $(ROOT_DIR)/pkg-specs/backends/*.toml $(PKG_DIR)/arch/root/etc/upac/backends/
+
 	@echo "--- Copying locales v$(VERSION) ---"
 	@cp -r $(LOCALE_DIR)/. $(PKG_DIR)/arch/root/usr/share/locale/
 
@@ -140,7 +143,7 @@ pkg-rpm:
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/rpm/BUILD $(PKG_DIR)/rpm/RPMS $(PKG_DIR)/rpm/SOURCES $(PKG_DIR)/rpm/SPECS
 	@mkdir -p $(PKG_DIR)/rpm/root/usr/bin $(PKG_DIR)/rpm/root/usr/lib
-	@mkdir -p $(PKG_DIR)/rpm/root/etc/upac
+	@mkdir -p $(PKG_DIR)/rpm/root/etc/upac/backends
 
 	@echo "--- Copying .spec v$(VERSION) ---"
 	@cp $(ROOT_DIR)/pkg-specs/rpm/upac.spec $(PKG_DIR)/rpm/SPECS/
@@ -153,6 +156,9 @@ pkg-rpm:
 
 	@echo "--- Copying libs to temp directories v$(VERSION) ---"
 	@cp $(OUT_BUILD_DIR)/lib/libupac*.so $(PKG_DIR)/rpm/root/usr/lib/
+
+	@echo "--- Copying backend descriptors v$(VERSION) ---"
+	@cp $(ROOT_DIR)/pkg-specs/backends/*.toml $(PKG_DIR)/rpm/root/etc/upac/backends/
 
 	@echo "--- Building RPM package v$(VERSION) ---"
 	@rpmbuild $(RPM_PKG_FLAGS) $(PKG_DIR)/rpm/SPECS/upac.spec
@@ -168,7 +174,7 @@ pkg-deb:
 	@echo "--- Making temp directories ---"
 	@mkdir -p $(PKG_DIR)/deb/DEBIAN
 	@mkdir -p $(PKG_DIR)/deb/usr/bin $(PKG_DIR)/deb/usr/lib
-	@mkdir -p $(PKG_DIR)/deb/etc/upac
+	@mkdir -p $(PKG_DIR)/deb/etc/upac/backends
 
 	@echo "--- Copying DEB files v$(VERSION) ---"
 	@cp $(ROOT_DIR)/pkg-specs/deb/control $(PKG_DIR)/deb/DEBIAN/control
@@ -188,6 +194,9 @@ pkg-deb:
 
 	@echo "--- Copying libs v$(VERSION) ---"
 	@cp $(OUT_BUILD_DIR)/lib/libupac*.so $(PKG_DIR)/deb/usr/lib/
+
+	@echo "--- Copying backend descriptors v$(VERSION) ---"
+	@cp $(ROOT_DIR)/pkg-specs/backends/*.toml $(PKG_DIR)/deb/etc/upac/backends/
 
 	@echo "--- Making DEB rules v$(VERSION) ---"
 	@echo '#!/usr/bin/make -f' > $(PKG_DIR)/deb/DEBIAN/rules
