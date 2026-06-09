@@ -122,15 +122,12 @@ fn stateInitDatabase(machine: *SetupMachine) InitError!SetupState {
     const database_dir_path = std.fs.path.joinZ(machine.init.allocator, &.{ root_path, PREFIX, DB_PATH }) catch return InitError.AllocFailed;
     defer machine.init.allocator.free(database_dir_path);
 
-    std.Io.Dir.createDirAbsolute(machine.init.io, database_dir_path, .default_dir) catch |err| switch (err) {
-        error.PathAlreadyExists => {},
-        else => return InitError.CreateDirFailed,
-    };
+    std.Io.Dir.createDirPath(.cwd(), machine.init.io, database_dir_path) catch return InitError.CreateDirFailed;
 
     const database_path = std.fs.path.joinZ(machine.init.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return InitError.AllocFailed;
     defer machine.init.allocator.free(database_path);
 
-    const base = Database.open(machine.init.allocator, database_path) catch return InitError.DatabaseInitFailed;
+    const base = Database.create(machine.init.allocator, database_path) catch return InitError.DatabaseInitFailed;
     defer base.close();
 
     base.createPackagesDbi() catch return InitError.DatabaseInitFailed;

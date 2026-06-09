@@ -165,7 +165,6 @@ pub const CMutatedRequest = extern struct {
     repo_path: CSlice,
     root_path: CSlice,
     tmp_path: CSlice,
-    arch_config_path: CSlice,
     branch: CSlice,
 
     // Install
@@ -191,7 +190,6 @@ pub const CMutatedRequest = extern struct {
     on_hook: ?*const HookFn = null,
     hook_ctx: ?*anyopaque = null,
 
-    max_retries: u8 = 0,
     cancel_token: ?*CancelToken = null,
 
     pub fn validate(self: CMutatedRequest) !void {
@@ -199,7 +197,6 @@ pub const CMutatedRequest = extern struct {
         try self.repo_path.validate();
         try self.root_path.validate();
         try self.tmp_path.validate();
-        try self.arch_config_path.validate();
         try self.branch.validate();
     }
 };
@@ -211,7 +208,6 @@ pub const CUnmutatedRequest = extern struct {
     repo_path: CSlice,
     root_path: CSlice,
     tmp_path: CSlice,
-    arch_config_path: CSlice,
     branch: CSlice,
 
     from_commit_hash: CSlice,
@@ -230,7 +226,6 @@ pub const CUnmutatedRequest = extern struct {
         try self.repo_path.validate();
         try self.root_path.validate();
         try self.tmp_path.validate();
-        try self.arch_config_path.validate();
         try self.branch.validate();
     }
 };

@@ -28,6 +28,17 @@ pub const Database = struct {
 
     allocator: std.mem.Allocator,
 
+    // Called only from init — opens the environment without requiring DBIs to exist.
+    pub fn create(allocator: std.mem.Allocator, path: [*:0]const u8) DatabaseError!Database {
+        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch return DatabaseError.WriteError;
+        return .{
+            .environment = environment,
+            .packages_dbi = null,
+            .files_dbi = null,
+            .allocator = allocator,
+        };
+    }
+
     // Opens an existing database. Fails if DBIs don't exist (init was not run).
     pub fn open(allocator: std.mem.Allocator, path: [*:0]const u8) DatabaseError!Database {
         const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch return DatabaseError.ReadError;
