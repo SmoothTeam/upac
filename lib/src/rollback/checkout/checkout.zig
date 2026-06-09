@@ -83,7 +83,10 @@ fn stateCheckout(machine: *CheckoutMachine) RollbackError!CheckoutState {
     machine.temp_prefix_path = temp_prefix_path;
     machine.rollback.temp_prefix_path = temp_prefix_path.ptr;
 
-    std.Io.Dir.cwd().createDirPath(machine.rollback.io, temp_prefix_path) catch return machine.stateFailed(RollbackError.StagingFailed);
+    std.Io.Dir.cwd().createDirPath(machine.rollback.io, temp_prefix_path) catch |err| {
+        if (err == error.AccessDenied) return machine.stateFailed(RollbackError.AccessDenied);
+        return machine.stateFailed(RollbackError.StagingFailed);
+    };
 
     var options = std.mem.zeroes(c_libs.OstreeRepoCheckoutAtOptions);
     options.mode = c_libs.OSTREE_REPO_CHECKOUT_MODE_NONE;

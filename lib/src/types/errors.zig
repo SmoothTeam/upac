@@ -140,6 +140,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
         },
         .rollback => switch (err) {
             error.PathNotFound => .invalid_path,
+            error.AccessDenied => .permission_denied,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
             error.RollbackFailed => .ostree_rollback,
@@ -180,6 +181,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
         },
         .commit => switch (err) {
             error.PathNotFound => .invalid_path,
+            error.AccessDenied => .permission_denied,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
             error.CommitFailed => .ostree_commit,

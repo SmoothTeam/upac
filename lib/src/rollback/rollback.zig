@@ -21,6 +21,7 @@ const swap = @import("swap/swap.zig");
 pub const RollbackError = error{
     RepoOpenFailed,
     PathNotFound,
+    AccessDenied,
     RepoTransactionFailed,
     CommitNotFound,
     RollbackFailed,
@@ -94,14 +95,15 @@ pub const RollbackMachine = struct {
             switch (state) {
                 .verifying => {
                     verifying.run(&machine) catch |err| return err;
-                    state = .merge;
-                },
-                .merge => {
-                    merge.run(&machine) catch |err| return err;
                     state = .checkout;
                 },
                 .checkout => {
                     checkout.run(&machine) catch |err| return err;
+                    state = .merge;
+                },
+
+                .merge => {
+                    merge.run(&machine) catch |err| return err;
                     state = .swap;
                 },
                 .swap => {

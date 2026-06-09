@@ -20,6 +20,7 @@ pub const CommitError = error{
     RepoTransactionFailed,
     CommitFailed,
     PathNotFound,
+    AccessDenied,
     AllocZFailed,
     OutOfMemory,
     Cancelled,

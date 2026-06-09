@@ -3,6 +3,7 @@ const std = @import("std");
 const c_libs = @import("c-libs");
 
 const PREFIX = @import("upac-types").paths.prefix;
+const CONFIG_DIR = @import("upac-types").paths.config_dir;
 
 const rollback = @import("../rollback.zig");
 
@@ -16,6 +17,7 @@ const VerifyingState = enum {
     check_root,
     check_repo,
     check_prefix_dir,
+    check_config_dir,
     open_repo,
     load_commit,
     close_repo,
@@ -50,6 +52,7 @@ pub fn run(machine: *RollbackMachine) RollbackError!void {
             .check_root => try stateCheckRoot(&verifying_machine),
             .check_repo => try stateCheckRepo(&verifying_machine),
             .check_prefix_dir => try stateCheckPrefixDir(&verifying_machine),
+            .check_config_dir => try stateCheckConfigDir(&verifying_machine),
             .open_repo => try stateOpenRepo(&verifying_machine),
             .load_commit => try stateLoadCommit(&verifying_machine),
             .close_repo => stateCloseRepo(&verifying_machine),
@@ -85,6 +88,17 @@ fn stateCheckPrefixDir(machine: *VerifyingMachine) RollbackError!VerifyingState 
     std.Io.Dir.accessAbsolute(machine.rollback.io, prefix_directory, .{}) catch return RollbackError.PathNotFound;
 
     machine.prefix_size = dirSize(machine.rollback, prefix_directory) catch return RollbackError.CheckSpaceFailed;
+
+    return .check_config_dir;
+}
+
+fn stateCheckConfigDir(machine: *VerifyingMachine) RollbackError!VerifyingState {
+    const root_path = std.mem.span(machine.rollback.data.root_path);
+
+    const config_directory = std.fs.path.join(machine.rollback.allocator, &.{ root_path, CONFIG_DIR }) catch return RollbackError.AllocZFailed;
+    defer machine.rollback.allocator.free(config_directory);
+
+    std.Io.Dir.accessAbsolute(machine.rollback.io, config_directory, .{}) catch return RollbackError.PathNotFound;
 
     return .open_repo;
 }

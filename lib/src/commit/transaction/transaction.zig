@@ -110,7 +110,14 @@ fn stateGetPrevCommit(machine: *TransactionMachine) CommitError!TransactionState
 fn stateOpenTransaction(machine: *TransactionMachine) CommitError!TransactionState {
     const repo = machine.repo orelse return machine.stateFailed(CommitError.RepoOpenFailed);
 
-    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.commit.cancellable, &machine.commit.gerror) == 0) return machine.stateFailed(CommitError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.commit.cancellable, &machine.commit.gerror) == 0) {
+        if (machine.commit.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(CommitError.AccessDenied);
+        }
+        return machine.stateFailed(CommitError.RepoTransactionFailed);
+    }
 
     return .scan_root;
 }
@@ -163,7 +170,14 @@ fn stateCloseTransaction(machine: *TransactionMachine) CommitError!TransactionSt
         machine.mtree = null;
     }
 
-    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.commit.cancellable, &machine.commit.gerror) == 0) return machine.stateFailed(CommitError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.commit.cancellable, &machine.commit.gerror) == 0) {
+        if (machine.commit.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(CommitError.AccessDenied);
+        }
+        return machine.stateFailed(CommitError.RepoTransactionFailed);
+    }
 
     return .close_repo;
 }
