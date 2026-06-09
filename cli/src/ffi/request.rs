@@ -65,7 +65,7 @@ impl CMutatedRequest {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::from_cstring(repo_path),
             root_path: CSlice::from_cstring(root_path),
-            tmp_path: CSlice::empty(),
+            tmp_path: CSlice::empty_str(),
             branch: CSlice::from_cstring(branch),
             packages: null(),
             packages_count: 0,
