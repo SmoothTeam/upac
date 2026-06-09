@@ -1,6 +1,8 @@
 ROOT_DIR    := $(shell pwd)
 PKG_DIR     := $(ROOT_DIR)/pkg
 OUT_BUILD_DIR := $(ROOT_DIR)/build
+LOCALE_DIR  := $(OUT_BUILD_DIR)/share/locale
+PO_DIR      := $(ROOT_DIR)/cli/po
 
 VERSION     := $(shell grep '^version' $(ROOT_DIR)/cli/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
 PKG_NAME    := upac-$(VERSION)-$(ARCH)
@@ -17,7 +19,7 @@ RPM_PKG_FLAGS   ?= -bb --define "_topdir $(PKG_DIR)/rpm" \
 DEB_PKG_FLAGS   ?= --root-owner-group
 
 .PHONY: all build \
-        prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli build-removing \
+        prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli build-locales build-removing \
         pkg-arch pkg-rpm pkg-deb \
         sync sync-build sync-pkg \
         clean clean-build clean-pkg
@@ -44,7 +46,7 @@ prepare-dirs:
 
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-build: prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli build-removing
+build: prepare-dirs build-lib build-alpm-backend build-rpm-backend build-deb-backend build-xbps-backend build-cli build-locales build-removing
 
 build-lib:
 	@echo "--- Building lib in $(MODE) mode ---"
@@ -77,6 +79,14 @@ build-cli:
 		cp $(OUT_BUILD_DIR)/$(CARGO_TARGET)/$(MODE)/upac $(OUT_BUILD_DIR)/bin/; \
 	fi
 
+build-locales:
+	@echo "--- Compiling locales ---"
+	@for po in $(wildcard $(PO_DIR)/*.po); do \
+		lang=$$(basename $$po .po); \
+		mkdir -p $(LOCALE_DIR)/$$lang/LC_MESSAGES; \
+		msgfmt $$po -o $(LOCALE_DIR)/$$lang/LC_MESSAGES/upac.mo; \
+	done
+
 build-removing:
 	@echo "--- Cleaning cargo temp dirs ---"
 	@rm -rf $(OUT_BUILD_DIR)/$(CARGO_TARGET)
@@ -91,6 +101,7 @@ pkg-arch:
 	@mkdir -p $(PKG_DIR)/arch/root/usr/bin
 	@mkdir -p $(PKG_DIR)/arch/root/usr/lib
 	@mkdir -p $(PKG_DIR)/arch/root/etc/upac
+	@mkdir -p $(PKG_DIR)/arch/root/usr/share/locale
 
 	@echo "--- Copying PKGBUILD v$(VERSION) ---"
 	@cp $(ROOT_DIR)/pkg-specs/arch/PKGBUILD $(PKG_DIR)/arch/
@@ -112,6 +123,9 @@ pkg-arch:
 	@cp $(OUT_BUILD_DIR)/lib/libupac-rpm.so $(PKG_DIR)/arch/root/usr/lib/
 	@cp $(OUT_BUILD_DIR)/lib/libupac-deb.so $(PKG_DIR)/arch/root/usr/lib/
 	@cp $(OUT_BUILD_DIR)/lib/libupac-xbps.so $(PKG_DIR)/arch/root/usr/lib/
+
+	@echo "--- Copying locales v$(VERSION) ---"
+	@cp -r $(LOCALE_DIR)/. $(PKG_DIR)/arch/root/usr/share/locale/
 
 	@echo "--- Building ARCH package v$(VERSION) ---"
 	@cd $(PKG_DIR)/arch && makepkg $(ARCH_PKG_FLAGS)
