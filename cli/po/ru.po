@@ -67,6 +67,9 @@ msgstr "Доступ запрещён"
 msgid "err_invalid_path"
 msgstr "Неверный путь"
 
+msgid "err_tmp_path_encoding"
+msgstr "Путь к временной директории содержит недопустимые символы"
+
 msgid "err_no_space"
 msgstr "Нет свободного места"
 
@@ -246,6 +249,9 @@ msgstr "config: ostree.branch не заполнено"
 
 msgid "err_config_mode_empty"
 msgstr "config: ostree.mode не заполнено"
+
+msgid "err_config_mode_invalid"
+msgstr "config: неизвестное значение ostree.mode"
 
 msgid "err_config_symlinks_empty_entry"
 msgstr "config: ostree.symlinks содержит пустую запись"

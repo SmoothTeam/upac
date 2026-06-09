@@ -67,6 +67,9 @@ msgstr "Permission denied"
 msgid "err_invalid_path"
 msgstr "Invalid path"
 
+msgid "err_tmp_path_encoding"
+msgstr "Temporary directory path contains invalid characters"
+
 msgid "err_no_space"
 msgstr "No space left"
 
@@ -246,6 +249,9 @@ msgstr "config: ostree.branch is empty"
 
 msgid "err_config_mode_empty"
 msgstr "config: ostree.mode is empty"
+
+msgid "err_config_mode_invalid"
+msgstr "config: unknown ostree.mode value"
 
 msgid "err_config_symlinks_empty_entry"
 msgstr "config: ostree.symlinks contains an empty entry"

@@ -24,6 +24,14 @@ impl CSlice {
         }
     }
 
+    pub fn empty_str() -> Self {
+        static NULL_BYTE: u8 = 0;
+        Self {
+            ptr: &raw const NULL_BYTE,
+            len: 0,
+        }
+    }
+
     pub fn from_cstring(source: &CString) -> Self {
         let bytes = source.as_bytes();
         Self {

@@ -10,7 +10,6 @@ use crate::types::errors::AbiMismatch;
 use crate::types::EXPECTED_ABI_VERSION;
 
 pub mod backend;
-pub mod core;
 pub mod registry;
 
 // ── Wrapper around libupac.so ────────────────────────────────────────────────

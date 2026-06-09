@@ -36,7 +36,6 @@ pub struct CMutatedRequest {
     repo_path: CSlice,
     root_path: CSlice,
     tmp_path: CSlice,
-    arch_config_path: CSlice,
     branch: CSlice,
     packages: *const CPackage,
     packages_count: usize,
@@ -50,19 +49,14 @@ pub struct CMutatedRequest {
     file_package: *const CPackageInfo,
     on_hook: Option<HookFn>,
     hook_ctx: *mut c_void,
-    max_retries: u8,
     cancel_token: *mut CancelToken,
 }
 
 impl CMutatedRequest {
-    #[allow(clippy::too_many_arguments)]
     fn base(
         repo_path: &CString,
         root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
         branch: &CString,
-        max_retries: u8,
         on_hook: Option<HookFn>,
         hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
@@ -71,8 +65,7 @@ impl CMutatedRequest {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::from_cstring(repo_path),
             root_path: CSlice::from_cstring(root_path),
-            tmp_path: CSlice::from_cstring(tmp_path),
-            arch_config_path: CSlice::from_cstring(arch_config_path),
+            tmp_path: CSlice::empty(),
             branch: CSlice::from_cstring(branch),
             packages: null(),
             packages_count: 0,
@@ -86,7 +79,6 @@ impl CMutatedRequest {
             file_package: null(),
             on_hook,
             hook_ctx,
-            max_retries,
             cancel_token,
         }
     }
@@ -97,29 +89,14 @@ impl CMutatedRequest {
         repo_path: &CString,
         root_path: &CString,
         tmp_path: &CString,
-        arch_config_path: &CString,
         branch: &CString,
-        max_retries: u8,
         on_hook: Option<HookFn>,
         hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            max_retries,
-            on_hook,
-            hook_ctx,
-            cancel_token,
-        );
-        req.packages = if packages.is_empty() {
-            null()
-        } else {
-            packages.as_ptr()
-        };
+        let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
+        req.tmp_path = CSlice::from_cstring(tmp_path);
+        req.packages = if packages.is_empty() { null() } else { packages.as_ptr() };
         req.packages_count = packages.len();
         req
     }
@@ -129,30 +106,13 @@ impl CMutatedRequest {
         package_infos: &[CPackageInfo],
         repo_path: &CString,
         root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
         branch: &CString,
-        max_retries: u8,
         on_hook: Option<HookFn>,
         hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            max_retries,
-            on_hook,
-            hook_ctx,
-            cancel_token,
-        );
-        req.uninstall_packages = if package_infos.is_empty() {
-            null()
-        } else {
-            package_infos.as_ptr()
-        };
+        let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
+        req.uninstall_packages = if package_infos.is_empty() { null() } else { package_infos.as_ptr() };
         req.uninstall_packages_len = package_infos.len();
         req
     }
@@ -162,24 +122,12 @@ impl CMutatedRequest {
         message: &CString,
         repo_path: &CString,
         root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
         branch: &CString,
         on_hook: Option<HookFn>,
         hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            0,
-            on_hook,
-            hook_ctx,
-            cancel_token,
-        );
+        let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
         req.message = CSlice::from_cstring(message);
         req
     }
@@ -189,25 +137,12 @@ impl CMutatedRequest {
         commit_hash: &CString,
         repo_path: &CString,
         root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
         branch: &CString,
-        max_retries: u8,
         on_hook: Option<HookFn>,
         hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            max_retries,
-            on_hook,
-            hook_ctx,
-            cancel_token,
-        );
+        let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
         req.commit_hash = CSlice::from_cstring(commit_hash);
         req
     }
@@ -220,28 +155,14 @@ impl CMutatedRequest {
         repo_path: &CString,
         root_path: &CString,
         tmp_path: &CString,
-        arch_config_path: &CString,
         branch: &CString,
         on_hook: Option<HookFn>,
         hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            0,
-            on_hook,
-            hook_ctx,
-            cancel_token,
-        );
-        req.files = if files.is_empty() {
-            null()
-        } else {
-            files.as_ptr()
-        };
+        let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
+        req.tmp_path = CSlice::from_cstring(tmp_path);
+        req.files = if files.is_empty() { null() } else { files.as_ptr() };
         req.files_len = files.len();
         req.file_kind = file_kind;
         req.file_package = file_package as *const CPackageInfo;
@@ -258,7 +179,6 @@ pub struct CUnmutatedRequest {
     repo_path: CSlice,
     root_path: CSlice,
     tmp_path: CSlice,
-    arch_config_path: CSlice,
     branch: CSlice,
     from_commit_hash: CSlice,
     to_commit_hash: CSlice,
@@ -270,11 +190,9 @@ pub struct CUnmutatedRequest {
 }
 
 impl CUnmutatedRequest {
-    fn base(
+    pub fn for_list_commits(
         repo_path: &CString,
         root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
         branch: &CString,
         cancel_token: *mut CancelToken,
     ) -> Self {
@@ -282,114 +200,104 @@ impl CUnmutatedRequest {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::from_cstring(repo_path),
             root_path: CSlice::from_cstring(root_path),
-            tmp_path: CSlice::from_cstring(tmp_path),
-            arch_config_path: CSlice::from_cstring(arch_config_path),
+            tmp_path: CSlice::empty(),
             branch: CSlice::from_cstring(branch),
             from_commit_hash: CSlice::empty(),
             to_commit_hash: CSlice::empty(),
             search: CSlice::empty(),
             symlinks: null(),
             symlinks_len: 0,
-            repo_mode: &DUMMY_REPO_MODE as *const u32 as *mut c_void,
+            repo_mode: &raw const DUMMY_REPO_MODE as *mut c_void,
             cancel_token,
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn for_init(
-        repo_path: &CString,
+    pub fn for_list_metas(
         root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
-        branch: &CString,
-        symlinks: &[CSlice],
-        repo_mode_val: &u32,
         cancel_token: *mut CancelToken,
     ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            cancel_token,
-        );
-        req.symlinks = if symlinks.is_empty() {
-            null()
-        } else {
-            symlinks.as_ptr()
-        };
-        req.symlinks_len = symlinks.len();
-        req.repo_mode = repo_mode_val as *const u32 as *mut c_void;
-        req
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn for_diff(
-        repo_path: &CString,
-        root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
-        branch: &CString,
-        from_commit: &CString,
-        to_commit: &CString,
-        cancel_token: *mut CancelToken,
-    ) -> Self {
-        let mut req = Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            cancel_token,
-        );
-        req.from_commit_hash = CSlice::from_cstring(from_commit);
-        req.to_commit_hash = CSlice::from_cstring(to_commit);
-        req
-    }
-
-    pub fn for_list(
-        repo_path: &CString,
-        root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
-        branch: &CString,
-        cancel_token: *mut CancelToken,
-    ) -> Self {
-        Self::base(
-            repo_path,
-            root_path,
-            tmp_path,
-            arch_config_path,
-            branch,
-            cancel_token,
-        )
-    }
-
-    pub fn for_search(
-        root_path: &CString,
-        tmp_path: &CString,
-        arch_config_path: &CString,
-        query: &CString,
-        cancel_token: *mut CancelToken,
-    ) -> Self {
-        let mut req = Self {
+        Self {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::empty(),
             root_path: CSlice::from_cstring(root_path),
-            tmp_path: CSlice::from_cstring(tmp_path),
-            arch_config_path: CSlice::from_cstring(arch_config_path),
+            tmp_path: CSlice::empty(),
             branch: CSlice::empty(),
             from_commit_hash: CSlice::empty(),
             to_commit_hash: CSlice::empty(),
             search: CSlice::empty(),
             symlinks: null(),
             symlinks_len: 0,
-            repo_mode: &DUMMY_REPO_MODE as *const u32 as *mut c_void,
+            repo_mode: &raw const DUMMY_REPO_MODE as *mut c_void,
             cancel_token,
-        };
-        req.search = CSlice::from_cstring(query);
-        req
+        }
+    }
+
+    pub fn for_diff(
+        repo_path: &CString,
+        tmp_path: &CString,
+        from_commit: &CString,
+        to_commit: &CString,
+        cancel_token: *mut CancelToken,
+    ) -> Self {
+        Self {
+            struct_size: size_of::<Self>(),
+            repo_path: CSlice::from_cstring(repo_path),
+            root_path: CSlice::empty(),
+            tmp_path: CSlice::from_cstring(tmp_path),
+            branch: CSlice::empty(),
+            from_commit_hash: CSlice::from_cstring(from_commit),
+            to_commit_hash: CSlice::from_cstring(to_commit),
+            search: CSlice::empty(),
+            symlinks: null(),
+            symlinks_len: 0,
+            repo_mode: &raw const DUMMY_REPO_MODE as *mut c_void,
+            cancel_token,
+        }
+    }
+
+    pub fn for_search(
+        root_path: &CString,
+        query: &CString,
+        cancel_token: *mut CancelToken,
+    ) -> Self {
+        Self {
+            struct_size: size_of::<Self>(),
+            repo_path: CSlice::empty(),
+            root_path: CSlice::from_cstring(root_path),
+            tmp_path: CSlice::empty(),
+            branch: CSlice::empty(),
+            from_commit_hash: CSlice::empty(),
+            to_commit_hash: CSlice::empty(),
+            search: CSlice::from_cstring(query),
+            symlinks: null(),
+            symlinks_len: 0,
+            repo_mode: &raw const DUMMY_REPO_MODE as *mut c_void,
+            cancel_token,
+        }
+    }
+
+    pub fn for_init(
+        repo_path: &CString,
+        root_path: &CString,
+        branch: &CString,
+        symlinks: &[CSlice],
+        repo_mode_val: &u32,
+        cancel_token: *mut CancelToken,
+    ) -> Self {
+        Self {
+            struct_size: size_of::<Self>(),
+            repo_path: CSlice::from_cstring(repo_path),
+            root_path: CSlice::from_cstring(root_path),
+            tmp_path: CSlice::empty_str(),
+            branch: CSlice::from_cstring(branch),
+            from_commit_hash: CSlice::empty(),
+            to_commit_hash: CSlice::empty(),
+            search: CSlice::empty(),
+            symlinks: if symlinks.is_empty() { null() } else { symlinks.as_ptr() },
+            symlinks_len: symlinks.len(),
+            repo_mode: repo_mode_val as *const u32 as *mut c_void,
+            cancel_token,
+        }
     }
 }
 

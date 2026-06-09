@@ -16,7 +16,6 @@ pub const DEFAULT_CONFIG_PATH: &str = "/etc/upac/config.toml";
 pub struct Config {
     #[serde(default)]
     pub verbose: bool,
-    pub step_retries: u8,
     pub paths: Paths,
     pub ostree: OstreeConfig,
 }

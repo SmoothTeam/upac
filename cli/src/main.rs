@@ -35,7 +35,6 @@ mod commands {
     pub mod file;
     pub mod init;
     pub mod package;
-    pub mod utils;
 }
 
 static mut CANCEL_TOKEN: CancelToken = CancelToken::new();
