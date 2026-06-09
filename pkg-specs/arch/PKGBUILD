@@ -30,4 +30,8 @@ package() {
 
     # Config
     install -Dm644 "${srcdir}/../root/etc/upac/config.toml"  "${pkgdir}/etc/upac/config.toml"
+
+    # Locales
+    install -Dm644 "${srcdir}/../root/usr/share/locale/en/LC_MESSAGES/upac.mo" "${pkgdir}/usr/share/locale/en/LC_MESSAGES/upac.mo"
+    install -Dm644 "${srcdir}/../root/usr/share/locale/ru/LC_MESSAGES/upac.mo" "${pkgdir}/usr/share/locale/ru/LC_MESSAGES/upac.mo"
 }
