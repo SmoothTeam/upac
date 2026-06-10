@@ -1,3 +1,7 @@
+use anyhow::Result;
+
+use std::env::var;
+use std::ffi::CString;
 use std::sync::Arc;
 
 use crate::config::Config;
@@ -26,10 +30,17 @@ pub struct FileDiffEntry {
 pub struct CommandContext {
     pub config: Config,
     pub lib: Arc<Lib>,
+    pub tmp_path: CString,
 }
 
 impl CommandContext {
-    pub fn new(config: Config, lib: Arc<Lib>) -> CommandContext {
-        return CommandContext { config, lib };
+    pub fn new(config: Config, lib: Arc<Lib>) -> Result<CommandContext> {
+        let tmp_path = CString::new(var("TMPDIR")?)?;
+
+        Ok(CommandContext {
+            config,
+            lib,
+            tmp_path,
+        })
     }
 }

@@ -258,3 +258,21 @@ msgstr "config: ostree.symlinks содержит пустую запись"
 
 msgid "err_config_symlink_slash"
 msgstr "config: запись в ostree.symlinks должна быть одним компонентом пути (без '/')"
+
+msgid "err_no_backend"
+msgstr "бэкенд не найден для"
+
+msgid "multiple_found"
+msgstr "Найдено несколько пакетов для"
+
+msgid "choose"
+msgstr "Выберите"
+
+msgid "err_invalid_choice"
+msgstr "неверный выбор"
+
+msgid "description"
+msgstr "Описание"
+
+msgid "checksum"
+msgstr "Контрольная сумма"

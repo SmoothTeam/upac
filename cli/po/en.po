@@ -258,3 +258,21 @@ msgstr "config: ostree.symlinks contains an empty entry"
 
 msgid "err_config_symlink_slash"
 msgstr "config: ostree.symlinks entry must be a single path component (no '/')"
+
+msgid "err_no_backend"
+msgstr "no backend found for"
+
+msgid "multiple_found"
+msgstr "Multiple packages found matching"
+
+msgid "choose"
+msgstr "Choose"
+
+msgid "err_invalid_choice"
+msgstr "invalid choice"
+
+msgid "description"
+msgstr "Description"
+
+msgid "checksum"
+msgstr "Checksum"
