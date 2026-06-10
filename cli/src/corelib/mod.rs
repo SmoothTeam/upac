@@ -16,6 +16,7 @@ pub mod registry;
 pub struct LibPkg {
     pub install: unsafe extern "C" fn(CMutatedRequest) -> i32,
     pub uninstall: unsafe extern "C" fn(CMutatedRequest) -> i32,
+    pub update: unsafe extern "C" fn(CMutatedRequest) -> i32,
     pub list: unsafe extern "C" fn(CUnmutatedRequest, *mut CUnmutatedResponse) -> i32,
     pub diff: unsafe extern "C" fn(CUnmutatedRequest, *mut CUnmutatedResponse) -> i32,
     pub search: unsafe extern "C" fn(CUnmutatedRequest, *mut CUnmutatedResponse) -> i32,
@@ -26,6 +27,7 @@ impl LibPkg {
         Ok(Self {
             install: unsafe { load_symbol(lib, "install")? },
             uninstall: unsafe { load_symbol(lib, "uninstall")? },
+            update: unsafe { load_symbol(lib, "update")? },
             list: unsafe { load_symbol(lib, "list_metas")? },
             diff: unsafe { load_symbol(lib, "diff_packages")? },
             search: unsafe { load_symbol(lib, "search_meta")? },

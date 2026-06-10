@@ -82,7 +82,7 @@ fn run() -> Result<()> {
         unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
     })?;
 
-    let conmmand_context = CommandContext::new(config, lib);
+    let conmmand_context = CommandContext::new(config, lib)?;
 
     match Command::parse() {
         Command::Commit(args) => commands::commit::run(args, conmmand_context)?,
