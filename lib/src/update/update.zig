@@ -29,6 +29,7 @@ pub const UpdateError = error{
     ReadDatabaseFailed,
     CollectFileChecksumsFailed,
     WriteFilesFailed,
+    AccessDenied,
     // Global errors
     PathNotFound,
     FileNotFound,

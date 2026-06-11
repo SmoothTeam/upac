@@ -110,19 +110,29 @@ fn stateCreateDbTemp(machine: *PreparationMachine) UpdateError!PreparationState 
 
     machine.updater.temp_db_path = temp_database_path;
 
-    std.Io.Dir.cwd().createDirPath(machine.updater.io, temp_database_path) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed);
-
     return .copy_current_db;
 }
 
 fn stateCopyCurrentDb(machine: *PreparationMachine) UpdateError!PreparationState {
     const root_path = std.mem.span(machine.updater.data.root_path);
     const temp_database_path = machine.updater.temp_db_path orelse return machine.stateFailed(UpdateError.WriteDatabaseFailed);
+    const temp_database_slice = std.mem.span(temp_database_path);
 
     const source_database_path = std.fs.path.joinZ(machine.updater.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(UpdateError.AllocZFailed);
     defer machine.updater.allocator.free(source_database_path);
 
-    std.Io.Dir.copyFileAbsolute(source_database_path, std.mem.span(temp_database_path), machine.updater.io, .{}) catch return UpdateError.WriteDatabaseFailed;
+    const dest_database_dir = std.fs.path.joinZ(machine.updater.allocator, &.{ temp_database_slice, DB_PATH, DB_NAME }) catch return machine.stateFailed(UpdateError.AllocZFailed);
+    defer machine.updater.allocator.free(dest_database_dir);
+
+    std.Io.Dir.cwd().createDirPath(machine.updater.io, dest_database_dir) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed);
+
+    const source_database = std.fs.path.join(machine.updater.allocator, &.{ source_database_path, "mdbx.dat" }) catch return machine.stateFailed(UpdateError.AllocZFailed);
+    defer machine.updater.allocator.free(source_database);
+
+    const destination_database = std.fs.path.join(machine.updater.allocator, &.{ temp_database_slice, DB_PATH, DB_NAME, "mdbx.dat" }) catch return machine.stateFailed(UpdateError.AllocZFailed);
+    defer machine.updater.allocator.free(destination_database);
+
+    std.Io.Dir.copyFileAbsolute(source_database, destination_database, machine.updater.io, .{}) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed);
 
     return .move_symlinks_to_prefix;
 }
@@ -166,6 +176,8 @@ fn stateMoveConfigsToPrefix(machine: *PreparationMachine) UpdateError!Preparatio
     const config_source_path = std.fs.path.joinZ(machine.updater.allocator, &.{ package_path, CONFIG_DIR }) catch return machine.stateFailed(UpdateError.AllocZFailed);
     defer machine.updater.allocator.free(config_source_path);
 
+    std.Io.Dir.accessAbsolute(machine.updater.io, config_source_path, .{}) catch return .create_var_dirs;
+
     const config_destination_path = std.fs.path.joinZ(machine.updater.allocator, &.{ package_path, PREFIX, CONFIG_DIR }) catch return machine.stateFailed(UpdateError.AllocZFailed);
     defer machine.updater.allocator.free(config_destination_path);
 
@@ -188,7 +200,7 @@ fn stateCreateVarDirs(machine: *PreparationMachine) UpdateError!PreparationState
     const var_source_path = std.fs.path.joinZ(machine.updater.allocator, &.{ package_path, VAR_DIR }) catch return machine.stateFailed(UpdateError.AllocZFailed);
     defer machine.updater.allocator.free(var_source_path);
 
-    var var_dir = std.Io.Dir.openDirAbsolute(machine.updater.io, var_source_path, .{ .iterate = true }) catch return machine.stateFailed(UpdateError.WriteFilesFailed);
+    var var_dir = std.Io.Dir.openDirAbsolute(machine.updater.io, var_source_path, .{ .iterate = true }) catch return .copy_var_files;
     defer var_dir.close(machine.updater.io);
 
     var var_walker = var_dir.walk(machine.updater.allocator) catch return machine.stateFailed(UpdateError.WriteFilesFailed);
@@ -213,7 +225,7 @@ fn stateCopyVarFiles(machine: *PreparationMachine) UpdateError!PreparationState 
     const var_source_path = std.fs.path.join(machine.updater.allocator, &.{ package_path, VAR_DIR }) catch return machine.stateFailed(UpdateError.AllocZFailed);
     defer machine.updater.allocator.free(var_source_path);
 
-    var var_dir = std.Io.Dir.openDirAbsolute(machine.updater.io, var_source_path, .{ .iterate = true }) catch return machine.stateFailed(UpdateError.WriteFilesFailed);
+    var var_dir = std.Io.Dir.openDirAbsolute(machine.updater.io, var_source_path, .{ .iterate = true }) catch return .open_database;
     defer var_dir.close(machine.updater.io);
 
     var walker = var_dir.walk(machine.updater.allocator) catch return machine.stateFailed(UpdateError.WriteFilesFailed);
@@ -246,9 +258,12 @@ fn stateCopyVarFiles(machine: *PreparationMachine) UpdateError!PreparationState 
 
 fn stateOpenDatabase(machine: *PreparationMachine) UpdateError!PreparationState {
     const package = machine.updater.data.packages[machine.current_packages_index];
-    const temp_database_path = machine.updater.temp_db_path orelse return machine.stateFailed(UpdateError.WriteDatabaseFailed);
+    const temp_database_dir = machine.updater.temp_db_path orelse return machine.stateFailed(UpdateError.WriteDatabaseFailed);
 
-    machine.base = Database.open(machine.updater.allocator, temp_database_path) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed);
+    const temp_database_path = std.fs.path.joinZ(machine.updater.allocator, &.{ std.mem.span(temp_database_dir), DB_PATH, DB_NAME }) catch return machine.stateFailed(UpdateError.AllocZFailed);
+    defer machine.updater.allocator.free(temp_database_path);
+
+    machine.base = Database.open(machine.updater.allocator, temp_database_path, true) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed);
 
     const base = machine.base orelse return machine.stateFailed(UpdateError.WriteDatabaseFailed);
     machine.old_uuid = (packages_exists(base, package.meta.name, package.meta.arch, package.meta.arch_sub) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed)) orelse return machine.stateFailed(UpdateError.WriteDatabaseFailed);

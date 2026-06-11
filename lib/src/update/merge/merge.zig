@@ -111,7 +111,7 @@ fn stateLoadPackageDatabase(machine: *MergeMachine) UpdateError!MergeState {
 
     const temp_database_path = machine.updater.temp_db_path orelse return machine.stateFailed(UpdateError.WriteDatabaseFailed);
 
-    var base = Database.open(machine.updater.allocator, temp_database_path) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed);
+    var base = Database.open(machine.updater.allocator, temp_database_path, false) catch return machine.stateFailed(UpdateError.WriteDatabaseFailed);
     defer base.close();
 
     const package_uuid = (exists(base, package.meta.name, package.meta.arch, package.meta.arch_sub) catch return machine.stateFailed(UpdateError.PackageNotFound)) orelse return machine.stateFailed(UpdateError.PackageNotFound);

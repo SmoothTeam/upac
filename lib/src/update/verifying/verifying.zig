@@ -25,6 +25,7 @@ const VerifyingState = enum {
     check_prefix,
     check_repo,
     check_config_dirs,
+    check_symlink_targets,
     check_package_temp_dirs,
     calc_size,
     open_database,
@@ -32,6 +33,7 @@ const VerifyingState = enum {
     close_database,
     check_space,
     open_repo,
+    check_commit,
     close_repo,
     done,
 };
@@ -71,6 +73,7 @@ pub fn run(machine: *UpdateMachine) UpdateError!void {
             .check_prefix => try stateCheckPrefix(&verifying_machine),
             .check_repo => try stateCheckRepo(&verifying_machine),
             .check_config_dirs => try stateCheckConfigDirs(&verifying_machine),
+            .check_symlink_targets => try stateCheckSymlinkTargets(&verifying_machine),
             .check_package_temp_dirs => try stateCheckPackageTempDirs(&verifying_machine),
             .calc_size => try stateCalcSize(&verifying_machine),
             .open_database => try stateOpenDatabase(&verifying_machine),
@@ -78,6 +81,7 @@ pub fn run(machine: *UpdateMachine) UpdateError!void {
             .close_database => stateCloseDatabase(&verifying_machine),
             .check_space => try stateCheckSpace(&verifying_machine),
             .open_repo => try stateOpenRepo(&verifying_machine),
+            .check_commit => try stateCheckCommit(&verifying_machine),
             .close_repo => stateCloseRepo(&verifying_machine),
             .done => unreachable,
         };
@@ -116,6 +120,25 @@ fn stateCheckConfigDirs(machine: *VerifyingMachine) UpdateError!VerifyingState {
     std.Io.Dir.accessAbsolute(machine.updater.io, prefix_config_path, .{}) catch return UpdateError.PathNotFound;
     std.Io.Dir.accessAbsolute(machine.updater.io, root_config_path, .{}) catch return UpdateError.PathNotFound;
 
+    return .check_symlink_targets;
+}
+
+fn stateCheckSymlinkTargets(machine: *VerifyingMachine) UpdateError!VerifyingState {
+    const root_path = std.mem.span(machine.updater.data.root_path);
+
+    var root_dir = std.Io.Dir.openDirAbsolute(machine.updater.io, root_path, .{ .iterate = true }) catch return UpdateError.PathNotFound;
+    defer root_dir.close(machine.updater.io);
+
+    var iter = root_dir.iterate();
+    while (iter.next(machine.updater.io) catch return UpdateError.PathNotFound) |entry| {
+        if (entry.kind != .sym_link) continue;
+
+        const prefix_symlink_target = std.fs.path.join(machine.updater.allocator, &.{ root_path, PREFIX, entry.name }) catch return UpdateError.AllocZFailed;
+        defer machine.updater.allocator.free(prefix_symlink_target);
+
+        std.Io.Dir.accessAbsolute(machine.updater.io, prefix_symlink_target, .{}) catch return UpdateError.PathNotFound;
+    }
+
     return .check_package_temp_dirs;
 }
 
@@ -147,7 +170,10 @@ fn stateOpenDatabase(machine: *VerifyingMachine) UpdateError!VerifyingState {
     const db_file_path = std.fs.path.joinZ(machine.updater.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return UpdateError.AllocZFailed;
     defer machine.updater.allocator.free(db_file_path);
 
-    machine.base = Database.open(machine.updater.allocator, db_file_path) catch return machine.stateFailed(UpdateError.ReadDatabaseFailed);
+    machine.base = Database.open(machine.updater.allocator, db_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => UpdateError.AccessDenied,
+        else => UpdateError.ReadDatabaseFailed,
+    });
 
     return .check_installed;
 }
@@ -194,6 +220,18 @@ fn stateOpenRepo(machine: *VerifyingMachine) UpdateError!VerifyingState {
         return machine.stateFailed(UpdateError.RepoOpenFailed);
     }
     machine.repo = repo;
+
+    return .check_commit;
+}
+
+fn stateCheckCommit(machine: *VerifyingMachine) UpdateError!VerifyingState {
+    const repo = machine.repo orelse return machine.stateFailed(UpdateError.RepoOpenFailed);
+
+    var commit_checksum: [*c]u8 = null;
+    _ = c_libs.ostree_repo_resolve_rev(repo, machine.updater.data.branch, 1, &commit_checksum, null);
+    defer if (commit_checksum != null) c_libs.g_free(commit_checksum);
+
+    if (commit_checksum == null) return machine.stateFailed(UpdateError.CommitNotFound);
 
     return .close_repo;
 }

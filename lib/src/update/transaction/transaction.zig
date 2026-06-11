@@ -2,6 +2,9 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
+const types = @import("upac-types");
+const PREFIX = types.paths.prefix;
+
 const update = @import("../update.zig");
 const UpdateMachine = update.UpdateMachine;
 const UpdateError = update.UpdateError;
@@ -152,7 +155,14 @@ fn stateGetMtree(machine: *TransactionMachine) UpdateError!TransactionState {
 fn stateOpenTransaction(machine: *TransactionMachine) UpdateError!TransactionState {
     const repo = machine.repo orelse return machine.stateFailed(UpdateError.RepoOpenFailed);
 
-    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.updater.cancellable, &machine.updater.gerror) == 0) return machine.stateFailed(UpdateError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.updater.cancellable, &machine.updater.gerror) == 0) {
+        if (machine.updater.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(UpdateError.AccessDenied);
+        }
+        return machine.stateFailed(UpdateError.RepoTransactionFailed);
+    }
 
     return .write_package;
 }
@@ -163,7 +173,10 @@ fn stateWritePackage(machine: *TransactionMachine) UpdateError!TransactionState 
 
     const package = machine.updater.data.packages[machine.current_package_index];
 
-    if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, package.temp_package_path, mtree, null, machine.updater.cancellable, &machine.updater.gerror) == 0) return machine.stateFailed(UpdateError.WriteFilesFailed);
+    const package_prefix_path = std.fs.path.joinZ(machine.updater.allocator, &.{ std.mem.span(package.temp_package_path), PREFIX }) catch return machine.stateFailed(UpdateError.AllocZFailed);
+    defer machine.updater.allocator.free(package_prefix_path);
+
+    if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, package_prefix_path, mtree, null, machine.updater.cancellable, &machine.updater.gerror) == 0) return machine.stateFailed(UpdateError.WriteFilesFailed);
 
     machine.current_package_index += 1;
     if (machine.current_package_index < machine.updater.data.packages.len) return .write_package;
@@ -188,7 +201,7 @@ fn stateRemoveEmptyDirs(machine: *TransactionMachine) UpdateError!TransactionSta
 
     removeEmptyDirs(mtree, machine.updater.allocator) catch return machine.stateFailed(UpdateError.AllocZFailed);
 
-    return .write_mtree;
+    return .write_db_mtree;
 }
 
 fn stateWriteMtree(machine: *TransactionMachine) UpdateError!TransactionState {
@@ -197,7 +210,7 @@ fn stateWriteMtree(machine: *TransactionMachine) UpdateError!TransactionState {
 
     if (c_libs.ostree_repo_write_mtree(repo, mtree, &machine.mtree_root, machine.updater.cancellable, &machine.updater.gerror) == 0) return machine.stateFailed(UpdateError.WriteFilesFailed);
 
-    return .write_db_mtree;
+    return .build_subject;
 }
 
 fn stateWriteDbMtree(machine: *TransactionMachine) UpdateError!TransactionState {
@@ -211,7 +224,7 @@ fn stateWriteDbMtree(machine: *TransactionMachine) UpdateError!TransactionState 
 
     if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, temp_database_path_c, mtree, null, machine.updater.cancellable, &machine.updater.gerror) == 0) return machine.stateFailed(UpdateError.WriteFilesFailed);
 
-    return .build_subject;
+    return .write_mtree;
 }
 
 fn stateBuildSubject(machine: *TransactionMachine) UpdateError!TransactionState {
@@ -273,7 +286,14 @@ fn stateCloseTransaction(machine: *TransactionMachine) UpdateError!TransactionSt
         machine.mtree = null;
     }
 
-    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.updater.cancellable, &machine.updater.gerror) == 0) return machine.stateFailed(UpdateError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.updater.cancellable, &machine.updater.gerror) == 0) {
+        if (machine.updater.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(UpdateError.AccessDenied);
+        }
+        return machine.stateFailed(UpdateError.RepoTransactionFailed);
+    }
 
     return .close_repo;
 }
