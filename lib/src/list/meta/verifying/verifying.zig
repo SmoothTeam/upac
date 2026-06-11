@@ -92,7 +92,10 @@ fn stateOpenDatabase(machine: *VerifyingMachine) ListError!VerifyingState {
     const db_file_path = std.fs.path.joinZ(machine.list.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(ListError.AllocFailed);
     defer machine.list.allocator.free(db_file_path);
 
-    machine.base = Database.open(machine.list.allocator, db_file_path) catch return machine.stateFailed(ListError.DatabaseNotFound);
+    machine.base = Database.open(machine.list.allocator, db_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => ListError.AccessDenied,
+        else => ListError.DatabaseNotFound,
+    });
 
     return .close_database;
 }

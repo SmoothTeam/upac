@@ -120,7 +120,10 @@ fn stateOpenDatabase(machine: *MergeMachine) RollbackError!MergeState {
     const database_file_path = std.fs.path.joinZ(machine.rollback.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(RollbackError.AllocZFailed);
     defer machine.rollback.allocator.free(database_file_path);
 
-    machine.base = Database.open(machine.rollback.allocator, database_file_path) catch return machine.stateFailed(RollbackError.StagingFailed);
+    machine.base = Database.open(machine.rollback.allocator, database_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => RollbackError.AccessDenied,
+        else => RollbackError.StagingFailed,
+    });
 
     return .build_file_map;
 }
