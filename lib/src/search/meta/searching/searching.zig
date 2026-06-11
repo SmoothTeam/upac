@@ -69,7 +69,10 @@ fn stateOpenDatabase(machine: *SearchingMachine) SearchMetaError!SearchingState 
     const database_file_path = std.fs.path.joinZ(machine.searcher.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return SearchMetaError.AllocZFailed;
     defer machine.searcher.allocator.free(database_file_path);
 
-    machine.base = Database.open(machine.searcher.allocator, database_file_path) catch return machine.stateFailed(SearchMetaError.ReadDatabaseFailed);
+    machine.base = Database.open(machine.searcher.allocator, database_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => SearchMetaError.AccessDenied,
+        else => SearchMetaError.ReadDatabaseFailed,
+    });
 
     return .fetch;
 }

@@ -17,6 +17,7 @@ pub const SearchMetaError = error{
     AllocZFailed,
     OutOfMemory,
     Cancelled,
+    AccessDenied,
 };
 
 // ── SearchMetaData ────────────────────────────────────────────────────────────

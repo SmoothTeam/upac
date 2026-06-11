@@ -17,6 +17,7 @@ pub const SearchFilesError = error{
     AllocZFailed,
     OutOfMemory,
     Cancelled,
+    AccessDenied,
 };
 
 // ── SearchFilesData ───────────────────────────────────────────────────────────
