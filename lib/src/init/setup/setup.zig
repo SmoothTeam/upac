@@ -3,6 +3,7 @@ const c_libs = @import("c-libs");
 
 const types = @import("upac-types");
 const PREFIX = types.paths.prefix;
+const CONFIG_DIR = types.paths.config_dir;
 const DB_PATH = types.paths.db_path;
 const DB_NAME = types.paths.db_name;
 
@@ -53,8 +54,12 @@ fn stateSetupPrefix(machine: *SetupMachine) InitError!SetupState {
 
     const prefix_path = std.fs.path.joinZ(machine.init.allocator, &.{ root_path, PREFIX }) catch return InitError.AllocFailed;
     defer machine.init.allocator.free(prefix_path);
-
     std.Io.Dir.createDirAbsolute(machine.init.io, prefix_path, .default_dir) catch return InitError.CreateDirFailed;
+
+    const prefix_config_path = std.fs.path.joinZ(machine.init.allocator, &.{ root_path, PREFIX, CONFIG_DIR }) catch return InitError.AllocFailed;
+    defer machine.init.allocator.free(prefix_config_path);
+
+    std.Io.Dir.createDirAbsolute(machine.init.io, prefix_config_path, .default_dir) catch return InitError.CreateDirFailed;
 
     return .setup_symlinks;
 }
@@ -104,14 +109,6 @@ fn stateInitOstree(machine: *SetupMachine) InitError!SetupState {
     };
 
     if (c_libs.ostree_repo_create(repo, ostree_mode, machine.init.cancellable, &machine.init.gerror) == 0) return InitError.OstreeInitFailed;
-    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.init.cancellable, &machine.init.gerror) == 0) return InitError.OstreeInitFailed;
-
-    c_libs.ostree_repo_transaction_set_ref(repo, null, machine.init.data.branch, null);
-
-    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.init.cancellable, &machine.init.gerror) == 0) {
-        _ = c_libs.ostree_repo_abort_transaction(repo, machine.init.cancellable, null);
-        return InitError.OstreeInitFailed;
-    }
 
     return .init_database;
 }
@@ -132,6 +129,14 @@ fn stateInitDatabase(machine: *SetupMachine) InitError!SetupState {
 
     base.createPackagesDbi() catch return InitError.DatabaseInitFailed;
     base.createFilesDbi() catch return InitError.DatabaseInitFailed;
+
+    const Permissions = std.Io.File.Permissions;
+    std.Io.Dir.setFilePermissions(.cwd(), machine.init.io, database_path, Permissions.fromMode(0o644), .{}) catch return InitError.DatabaseInitFailed;
+
+    const database_lock_path = std.fmt.allocPrint(machine.init.allocator, "{s}.lck", .{database_path}) catch return InitError.AllocFailed;
+    defer machine.init.allocator.free(database_lock_path);
+
+    std.Io.Dir.setFilePermissions(.cwd(), machine.init.io, database_lock_path, Permissions.fromMode(0o666), .{}) catch return InitError.DatabaseInitFailed;
 
     return .done;
 }

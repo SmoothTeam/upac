@@ -12,6 +12,7 @@ const InitStateId = types.InitStateId;
 
 const verifying = @import("verifying/verifying.zig");
 const setup = @import("setup/setup.zig");
+const commit = @import("commit/commit.zig");
 // ── Errors ────────────────────────────────────────────────────────────────────
 pub const InitError = error{
     AlreadyInitialized,
@@ -19,6 +20,7 @@ pub const InitError = error{
     NotADirectory,
     CreateDirFailed,
     OstreeInitFailed,
+    OstreeCommitFailed,
     DirectoryNotEmpty,
     SymlinkFailed,
     DatabaseInitFailed,
@@ -78,6 +80,10 @@ pub const InitMachine = struct {
                 },
                 .setup => {
                     setup.run(&machine) catch |err| return err;
+                    state = .commit;
+                },
+                .commit => {
+                    commit.run(&machine) catch |err| return err;
                     state = .done;
                 },
                 .done => {},
