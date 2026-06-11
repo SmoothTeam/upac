@@ -112,6 +112,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.WriteConfigFailed => .install_write_config_failed,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
+            error.AccessDenied => .permission_denied,
             else => null,
         },
         .update => switch (err) {
@@ -124,6 +125,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.WriteConfigFailed => .update_write_config_failed,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.RepoTransactionFailed => .ostree_repo_transaction_failed,
+            error.AccessDenied => .permission_denied,
             else => null,
         },
         .uninstall => switch (err) {
@@ -136,6 +138,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             error.CheckoutFailed => .install_checkout_failed,
             error.Cancelled => .cancelled,
             error.MaxRetriesExceeded => .max_retries_exceeded,
+            error.AccessDenied => .permission_denied,
             else => null,
         },
         .rollback => switch (err) {
@@ -165,9 +168,12 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
             else => null,
         },
         .list => switch (err) {
+            error.PathNotFound => .invalid_path,
+            error.DatabaseNotFound => .db_missing_section,
+            error.FetchFailed => .list_failed,
             error.RepoOpenFailed => .ostree_repo_open_failed,
             error.CommitNotFound => .ostree_commit_not_found,
-            error.AllocFailed => .out_of_memory,
+            error.AllocFailed, error.OutOfMemory => .out_of_memory,
             error.ListError => .list_failed,
             error.Cancelled => .cancelled,
             error.MaxRetriesExceeded => .max_retries_exceeded,

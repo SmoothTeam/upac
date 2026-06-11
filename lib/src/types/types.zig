@@ -167,7 +167,8 @@ pub const DiffStateId = enum(u8) {
 pub const InitStateId = enum(u8) {
     verifying = 0,
     setup = 1,
-    done = 2,
+    commit = 2,
+    done = 3,
 };
 
 pub const UpdateStateId = enum(u8) {

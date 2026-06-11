@@ -11,5 +11,6 @@ pub const DiffError = error{
     NotEnoughSpace,
     CheckoutFailed,
     ReadDatabaseFailed,
+    AccessDenied,
     Cancelled,
 };

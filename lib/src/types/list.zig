@@ -8,4 +8,5 @@ pub const ListError = error{
     OutOfMemory,
     CommitFailed,
     Cancelled,
+    AccessDenied,
 };
