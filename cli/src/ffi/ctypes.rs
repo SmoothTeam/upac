@@ -96,6 +96,8 @@ impl<T> CArray<T> {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CVersion {
+    struct_size: usize,
+
     pub epoch: u32,
     pub release: u32,
     pub parts: CArray<u32>,
@@ -105,7 +107,11 @@ pub struct CVersion {
 impl CVersion {
     pub unsafe fn display(&self) -> String {
         let parts = self.parts.as_slice();
-        let version_str = parts.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(".");
+        let version_str = parts
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<_>>()
+            .join(".");
 
         let mut result = if self.epoch > 0 {
             format!("{}:{}", self.epoch, version_str)

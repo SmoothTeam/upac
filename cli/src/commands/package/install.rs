@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use std::ffi::{c_void, CString};
+use std::fs::canonicalize;
 use std::fs::File;
 use std::io::Read;
 use std::ptr::null_mut;
@@ -63,12 +64,17 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
             let backend = registry.load(backend_config)?;
 
+            let absolute_file_path = canonicalize(file_path).map_err(|_| {
+                anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_not_found"))
+            })?;
+            let absolute_file_path_str = absolute_file_path.to_string_lossy();
+
             let checksum_string = match args.checksums.get(index) {
                 Some(have) => have.clone(),
-                None => sha256_of_file(file_path)?,
+                None => sha256_of_file(&absolute_file_path_str)?,
             };
             let checksum = CString::new(checksum_string)?;
-            let package_path = CString::new(file_path.as_str())?;
+            let package_path = CString::new(absolute_file_path_str.as_ref())?;
 
             let progress_bar = ProgressBar::new_spinner();
 
