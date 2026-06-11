@@ -97,11 +97,6 @@ pub const CVersion = extern struct {
     pub fn validate(self: CVersion) !void {
         if (self.struct_size != @sizeOf(CVersion)) return error.AbiMismatch;
         if (self.parts.len == 0) return error.InvalidEntry;
-
-        for (self.parts.toSlice()) |part| {
-            if (part == 0) return error.InvalidEntry;
-        }
-
         if (self.pre.ptr != null) try self.pre.validate();
     }
 };
