@@ -117,7 +117,10 @@ fn stateOpenDatabase(machine: *VerifyingMachine) UninstallerError!VerifyingState
     const db_file_path = std.fs.path.joinZ(machine.uninstaller.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return UninstallerError.AllocZFailed;
     defer machine.uninstaller.allocator.free(db_file_path);
 
-    machine.base = Database.open(machine.uninstaller.allocator, db_file_path) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+    machine.base = Database.open(machine.uninstaller.allocator, db_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => UninstallerError.AccessDenied,
+        else => UninstallerError.ReadDatabaseFailed,
+    });
 
     return .check_installed;
 }

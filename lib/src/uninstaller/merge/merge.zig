@@ -182,7 +182,10 @@ fn stateOpenDatabase(machine: *MergeMachine) UninstallerError!MergeState {
     const database_file_path = std.fs.path.joinZ(machine.uninstaller.allocator, &.{ temp_database_path, DB_NAME }) catch return machine.stateFailed(UninstallerError.AllocZFailed);
     defer machine.uninstaller.allocator.free(database_file_path);
 
-    machine.base = Database.open(machine.uninstaller.allocator, database_file_path) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+    machine.base = Database.open(machine.uninstaller.allocator, database_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => UninstallerError.AccessDenied,
+        else => UninstallerError.ReadDatabaseFailed,
+    });
 
     return .mirror_config;
 }

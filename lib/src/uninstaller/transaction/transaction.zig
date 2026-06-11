@@ -183,7 +183,10 @@ fn stateOpenDatabase(machine: *TransactionMachine) UninstallerError!TransactionS
     const database_file_path = std.fs.path.joinZ(machine.uninstaller.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(UninstallerError.AllocZFailed);
     defer machine.uninstaller.allocator.free(database_file_path);
 
-    machine.base = Database.open(machine.uninstaller.allocator, database_file_path) catch return machine.stateFailed(UninstallerError.ReadDatabaseFailed);
+    machine.base = Database.open(machine.uninstaller.allocator, database_file_path, true) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => UninstallerError.AccessDenied,
+        else => UninstallerError.ReadDatabaseFailed,
+    });
 
     return .load_package_files;
 }
@@ -270,7 +273,14 @@ fn stateBuildCommitSubject(machine: *TransactionMachine) UninstallerError!Transa
 fn stateOpenTransaction(machine: *TransactionMachine) UninstallerError!TransactionState {
     const repo = machine.repo orelse return machine.stateFailed(UninstallerError.RepoOpenFailed);
 
-    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.uninstaller.cancellable, &machine.uninstaller.gerror) == 0) return machine.stateFailed(UninstallerError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.uninstaller.cancellable, &machine.uninstaller.gerror) == 0) {
+        if (machine.uninstaller.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(UninstallerError.AccessDenied);
+        }
+        return machine.stateFailed(UninstallerError.RepoTransactionFailed);
+    }
 
     return .write_commit;
 }
@@ -319,7 +329,14 @@ fn stateCloseTransaction(machine: *TransactionMachine) UninstallerError!Transact
         machine.commit_subject = "";
     }
 
-    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.uninstaller.cancellable, &machine.uninstaller.gerror) == 0) return machine.stateFailed(UninstallerError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.uninstaller.cancellable, &machine.uninstaller.gerror) == 0) {
+        if (machine.uninstaller.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(UninstallerError.AccessDenied);
+        }
+        return machine.stateFailed(UninstallerError.RepoTransactionFailed);
+    }
 
     return .close_repo;
 }

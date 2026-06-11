@@ -28,6 +28,7 @@ pub const UninstallerError = error{
     CommitNotFound,
     StagingNotCleaned,
     ReadDatabaseFailed,
+    AccessDenied,
     // Global errors
     PathNotFound,
     RepoOpenFailed,
