@@ -78,6 +78,8 @@ pub fn CArray(comptime T: type) type {
 }
 
 pub const CVersion = extern struct {
+    struct_size: usize = @sizeOf(CVersion),
+
     epoch: u32,
     release: u32,
     parts: CArray(u32),
@@ -90,6 +92,17 @@ pub const CVersion = extern struct {
             .parts = self.parts.toSlice(),
             .pre = if (self.pre.ptr != null) self.pre.toSlice() else null,
         };
+    }
+
+    pub fn validate(self: CVersion) !void {
+        if (self.struct_size != @sizeOf(CVersion)) return error.AbiMismatch;
+        if (self.parts.len == 0) return error.InvalidEntry;
+
+        for (self.parts.toSlice()) |part| {
+            if (part == 0) return error.InvalidEntry;
+        }
+
+        if (self.pre.ptr != null) try self.pre.validate();
     }
 };
 
@@ -109,14 +122,15 @@ pub const CPackageMeta = extern struct {
 
     pub fn validate(self: CPackageMeta) !void {
         if (self.struct_size != @sizeOf(CPackageMeta)) return error.AbiMismatch;
+
         try self.name.validate();
         try self.arch.validate();
-        try self.arch_sub.validate();
+        if (self.arch_sub.ptr != null) try self.arch_sub.validate();
         try self.maintainer.validate();
         try self.description.validate();
         try self.license.validate();
         try self.url.validate();
-        if (self.version.parts.len == 0) return error.InvalidEntry;
+        try self.version.validate();
     }
 
     pub fn free(self: *CPackageMeta, allocator: std.mem.Allocator) void {

@@ -11,6 +11,7 @@ const Operation = types.Operation;
 const fromError = types.fromError;
 
 const ffi = @import("upac-ffi");
+const CPackage = ffi.CPackage;
 const CPackageMeta = ffi.CPackageMeta;
 const CUpdateRequest = ffi.CMutatedRequest;
 const HookFn = ffi.HookFn;
@@ -21,6 +22,13 @@ const UpdateMachine = update_module.UpdateMachine;
 
 pub fn update(update_request_c: CUpdateRequest) callconv(.c) i32 {
     update_request_c.validate() catch |err| return @intFromEnum(fromError(err, Operation.update));
+
+    if (update_request_c.packages) |packages_ptr| {
+        const packages_slice = packages_ptr[0..update_request_c.packages_count];
+        for (packages_slice) |package| {
+            package.validate() catch |err| return @intFromEnum(fromError(err, Operation.update));
+        }
+    }
 
     const update_packages = collectUpdateEntries(update_request_c, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.update));
     defer ffi.getAllocator().free(update_packages);

@@ -11,6 +11,7 @@ const Operation = types.Operation;
 const fromError = types.fromError;
 
 const ffi = @import("upac-ffi");
+const CPackage = ffi.CPackage;
 const CPackageMeta = ffi.CPackageMeta;
 const CInstallRequest = ffi.CMutatedRequest;
 const HookFn = ffi.HookFn;
@@ -22,6 +23,13 @@ const InstallerMachine = installer_module.InstallerMachine;
 // The main entry point for package installation. It gathers installation data from the request, initializes the installation engine, and returns an error code as an i32
 pub fn install(install_request_c: CInstallRequest) callconv(.c) i32 {
     install_request_c.validate() catch |err| return @intFromEnum(fromError(err, Operation.install));
+
+    if (install_request_c.packages) |packages_ptr| {
+        const packages_slice = packages_ptr[0..install_request_c.packages_count];
+        for (packages_slice) |package| {
+            package.validate() catch |err| return @intFromEnum(fromError(err, Operation.install));
+        }
+    }
 
     const install_packages = collectInstallEntries(install_request_c, ffi.getAllocator()) catch |err| return @intFromEnum(fromError(err, Operation.install));
     defer ffi.getAllocator().free(install_packages);
