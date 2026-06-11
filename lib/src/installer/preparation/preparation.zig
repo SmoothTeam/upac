@@ -89,20 +89,29 @@ fn stateCreateDbTemp(machine: *PreparationMachine) InstallerError!PreparationSta
 
     machine.installer.temp_db_path = temp_database_path;
 
-    std.Io.Dir.cwd().createDirPath(machine.installer.io, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
-
     return .copy_current_db;
 }
 
 fn stateCopyCurrentDb(machine: *PreparationMachine) InstallerError!PreparationState {
     const root_path = std.mem.span(machine.installer.data.root_path);
     const temp_database_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const temp_database_slice = std.mem.span(temp_database_path);
 
     const source_database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(source_database_path);
 
-    std.Io.Dir.copyFileAbsolute(source_database_path, std.mem.span(temp_database_path), machine.installer.io, .{}) catch return InstallerError.WriteDatabaseFailed;
+    const dest_database_dir = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_database_slice, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(dest_database_dir);
 
+    std.Io.Dir.cwd().createDirPath(machine.installer.io, dest_database_dir) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+
+    const source_database = std.fs.path.joinZ(machine.installer.allocator, &.{ source_database_path, "mdbx.dat" }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(source_database);
+
+    const dest_database = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_database_slice, DB_PATH, DB_NAME, "mdbx.dat" }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(dest_database);
+
+    std.Io.Dir.copyFileAbsolute(source_database, dest_database, machine.installer.io, .{}) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
     return .move_symlinks_to_prefix;
 }
 
@@ -115,7 +124,7 @@ fn stateMoveSymlinksToPrefix(machine: *PreparationMachine) InstallerError!Prepar
 
     var package_iter = package_dir.iterate();
     while (package_iter.next(machine.installer.io) catch return machine.stateFailed(InstallerError.WriteFilesFailed)) |dir_entry| {
-        if (dir_entry.kind != .directory) continue;
+        if (dir_entry.kind != .directory and dir_entry.kind != .sym_link) continue;
         if (std.mem.eql(u8, dir_entry.name, PREFIX)) continue;
         if (std.mem.eql(u8, dir_entry.name, CONFIG_DIR)) continue;
 
@@ -145,6 +154,8 @@ fn stateMoveConfigsToPrefix(machine: *PreparationMachine) InstallerError!Prepara
     const config_source_path = std.fs.path.joinZ(machine.installer.allocator, &.{ package_path, CONFIG_DIR }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(config_source_path);
 
+    std.Io.Dir.accessAbsolute(machine.installer.io, config_source_path, .{}) catch return .create_var_dirs;
+
     const config_destination_path = std.fs.path.joinZ(machine.installer.allocator, &.{ package_path, PREFIX, CONFIG_DIR }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(config_destination_path);
 
@@ -167,7 +178,7 @@ fn stateCreateVarDirs(machine: *PreparationMachine) InstallerError!PreparationSt
     const var_source_path = std.fs.path.joinZ(machine.installer.allocator, &.{ package_path, VAR_DIR }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(var_source_path);
 
-    var var_dir = std.Io.Dir.openDirAbsolute(machine.installer.io, var_source_path, .{ .iterate = true }) catch return machine.stateFailed(InstallerError.WriteFilesFailed);
+    var var_dir = std.Io.Dir.openDirAbsolute(machine.installer.io, var_source_path, .{ .iterate = true }) catch return .copy_var_files;
     defer var_dir.close(machine.installer.io);
 
     var var_walker = var_dir.walk(machine.installer.allocator) catch return machine.stateFailed(InstallerError.WriteFilesFailed);
@@ -192,7 +203,7 @@ fn stateCopyVarFiles(machine: *PreparationMachine) InstallerError!PreparationSta
     const var_source_path = std.fs.path.join(machine.installer.allocator, &.{ package_path, VAR_DIR }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(var_source_path);
 
-    var var_dir = std.Io.Dir.openDirAbsolute(machine.installer.io, var_source_path, .{ .iterate = true }) catch return machine.stateFailed(InstallerError.WriteFilesFailed);
+    var var_dir = std.Io.Dir.openDirAbsolute(machine.installer.io, var_source_path, .{ .iterate = true }) catch return .write_database;
     defer var_dir.close(machine.installer.io);
 
     var walker = var_dir.walk(machine.installer.allocator) catch return machine.stateFailed(InstallerError.WriteFilesFailed);
@@ -235,9 +246,13 @@ fn stateWriteDatabases(machine: *PreparationMachine) InstallerError!PreparationS
 
     try collectChecksums(machine.installer, package_path, &file_entries);
 
-    const temp_database_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const temp_database_dir = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
-    var base = Database.open(machine.installer.allocator, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const temp_database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ std.mem.span(temp_database_dir), DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(temp_database_path);
+
+    var base = Database.open(machine.installer.allocator, temp_database_path, true) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+
     defer base.close();
 
     const package_uuid = insert(base, package.meta) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);

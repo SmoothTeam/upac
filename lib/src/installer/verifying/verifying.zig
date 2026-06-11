@@ -26,12 +26,14 @@ const VerifyingState = enum {
     check_prefix,
     check_repo,
     check_config_dirs,
-    check_db,
+    check_symlink_targets,
+    check_database,
     check_package_temp_dirs,
     calc_size,
     check_installed,
     check_space,
     open_repo,
+    check_commit,
     close_repo,
     done,
 };
@@ -70,12 +72,14 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
             .check_prefix => try stateCheckPrefix(&verifying_machine),
             .check_repo => try stateCheckRepo(&verifying_machine),
             .check_config_dirs => try stateCheckConfigDirs(&verifying_machine),
-            .check_db => try stateCheckDb(&verifying_machine),
+            .check_symlink_targets => try stateCheckSymlinkTargets(&verifying_machine),
+            .check_database => try stateCheckDatabase(&verifying_machine),
             .check_package_temp_dirs => try stateCheckPackageTempDirs(&verifying_machine),
             .calc_size => try stateCalcSize(&verifying_machine),
             .check_installed => try stateCheckInstalled(&verifying_machine),
             .check_space => try stateCheckSpace(&verifying_machine),
             .open_repo => try stateOpenRepo(&verifying_machine),
+            .check_commit => try stateCheckCommit(&verifying_machine),
             .close_repo => stateCloseRepo(&verifying_machine),
             .done => unreachable,
         };
@@ -115,10 +119,29 @@ fn stateCheckConfigDirs(machine: *VerifyingMachine) InstallerError!VerifyingStat
 
     std.Io.Dir.accessAbsolute(machine.installer.io, root_config_path, .{}) catch return InstallerError.PathNotFound;
 
-    return .check_db;
+    return .check_symlink_targets;
 }
 
-fn stateCheckDb(machine: *VerifyingMachine) InstallerError!VerifyingState {
+fn stateCheckSymlinkTargets(machine: *VerifyingMachine) InstallerError!VerifyingState {
+    const root_path = std.mem.span(machine.installer.data.root_path);
+
+    var root_dir = std.Io.Dir.openDirAbsolute(machine.installer.io, root_path, .{ .iterate = true }) catch return InstallerError.PathNotFound;
+    defer root_dir.close(machine.installer.io);
+
+    var iter = root_dir.iterate();
+    while (iter.next(machine.installer.io) catch return InstallerError.PathNotFound) |entry| {
+        if (entry.kind != .sym_link) continue;
+
+        const prefix_symlink_target = std.fs.path.join(machine.installer.allocator, &.{ root_path, PREFIX, entry.name }) catch return InstallerError.AllocZFailed;
+        defer machine.installer.allocator.free(prefix_symlink_target);
+
+        std.Io.Dir.accessAbsolute(machine.installer.io, prefix_symlink_target, .{}) catch return InstallerError.PathNotFound;
+    }
+
+    return .check_database;
+}
+
+fn stateCheckDatabase(machine: *VerifyingMachine) InstallerError!VerifyingState {
     const root_path = std.mem.span(machine.installer.data.root_path);
 
     const db_file_path = std.fs.path.join(machine.installer.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return InstallerError.AllocZFailed;
@@ -158,7 +181,10 @@ fn stateCheckInstalled(machine: *VerifyingMachine) InstallerError!VerifyingState
     const database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(database_path);
 
-    var base = database.Database.open(machine.installer.allocator, database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    var base = database.Database.open(machine.installer.allocator, database_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => InstallerError.AccessDenied,
+        else => InstallerError.WriteDatabaseFailed,
+    });
     defer base.close();
 
     const is_installed = database.packages.exists(base, package.meta.name, package.meta.arch, package.meta.arch_sub) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
@@ -198,6 +224,18 @@ fn stateOpenRepo(machine: *VerifyingMachine) InstallerError!VerifyingState {
         return machine.stateFailed(InstallerError.RepoOpenFailed);
     }
     machine.repo = repo;
+
+    return .check_commit;
+}
+
+fn stateCheckCommit(machine: *VerifyingMachine) InstallerError!VerifyingState {
+    const repo = machine.repo orelse return machine.stateFailed(InstallerError.RepoOpenFailed);
+
+    var commit_checksum: [*c]u8 = null;
+    _ = c_libs.ostree_repo_resolve_rev(repo, machine.installer.data.branch, 1, &commit_checksum, null);
+    defer if (commit_checksum != null) c_libs.g_free(commit_checksum);
+
+    if (commit_checksum == null) return machine.stateFailed(InstallerError.CommitNotFound);
 
     return .close_repo;
 }

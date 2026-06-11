@@ -2,6 +2,9 @@ const std = @import("std");
 
 const c_libs = @import("c-libs");
 
+const types = @import("upac-types");
+const PREFIX = types.paths.prefix;
+
 const installer = @import("../installer.zig");
 const InstallerMachine = installer.InstallerMachine;
 const InstallerError = installer.InstallerError;
@@ -121,7 +124,7 @@ fn stateGetPreviosCommit(machine: *TransactionMachine) InstallerError!Transactio
 
     _ = c_libs.ostree_repo_resolve_rev(repo, machine.installer.data.branch, 1, &machine.previous_commit_checksum, null);
 
-    if (machine.previous_commit_checksum == null) return .open_transaction;
+    if (machine.previous_commit_checksum == null) return machine.stateFailed(InstallerError.CommitNotFound);
     return .get_mtree;
 }
 
@@ -142,7 +145,14 @@ fn stateGetPreviousMtree(machine: *TransactionMachine) InstallerError!Transactio
 fn stateOpenTransaction(machine: *TransactionMachine) InstallerError!TransactionState {
     const repo = machine.repo orelse return machine.stateFailed(InstallerError.RepoOpenFailed);
 
-    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_prepare_transaction(repo, null, machine.installer.cancellable, &machine.installer.gerror) == 0) {
+        if (machine.installer.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(InstallerError.AccessDenied);
+        }
+        return machine.stateFailed(InstallerError.RepoTransactionFailed);
+    }
 
     return .write_package;
 }
@@ -152,15 +162,17 @@ fn stateWritePackageMtree(machine: *TransactionMachine) InstallerError!Transacti
     const mtree = machine.mtree orelse return machine.stateFailed(InstallerError.RepoOpenFailed);
 
     const package = machine.installer.data.packages[machine.current_package_index];
-    const package_path = package.temp_package_path;
 
-    if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, package_path, mtree, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
+    const package_prefix_path = std.fs.path.joinZ(machine.installer.allocator, &.{ std.mem.span(package.temp_package_path), PREFIX }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(package_prefix_path);
+
+    if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, package_prefix_path, mtree, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
 
     machine.current_package_index += 1;
     if (machine.current_package_index < machine.installer.data.packages.len) return .write_package;
 
     machine.current_package_index = 0;
-    return .write_mtree;
+    return .write_db_mtree;
 }
 
 fn stateWriteGeneralMtree(machine: *TransactionMachine) InstallerError!TransactionState {
@@ -169,7 +181,7 @@ fn stateWriteGeneralMtree(machine: *TransactionMachine) InstallerError!Transacti
 
     if (c_libs.ostree_repo_write_mtree(repo, mtree, &machine.mtree_root, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
 
-    return .write_db_mtree;
+    return .build_subject;
 }
 
 fn stateWriteDbMtree(machine: *TransactionMachine) InstallerError!TransactionState {
@@ -183,7 +195,7 @@ fn stateWriteDbMtree(machine: *TransactionMachine) InstallerError!TransactionSta
 
     if (c_libs.ostree_repo_write_dfd_to_mtree(repo, std.c.AT.FDCWD, temp_database_path_c, mtree, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.WriteFilesFailed);
 
-    return .build_subject;
+    return .write_mtree;
 }
 
 fn stateBuildSubject(machine: *TransactionMachine) InstallerError!TransactionState {
@@ -249,7 +261,14 @@ fn stateCloseTransaction(machine: *TransactionMachine) InstallerError!Transactio
         machine.mtree = null;
     }
 
-    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.installer.cancellable, &machine.installer.gerror) == 0) return machine.stateFailed(InstallerError.RepoTransactionFailed);
+    if (c_libs.ostree_repo_commit_transaction(repo, null, machine.installer.cancellable, &machine.installer.gerror) == 0) {
+        if (machine.installer.gerror) |err| {
+            if (err.domain == c_libs.g_io_error_quark() and
+                (err.code == c_libs.G_IO_ERROR_PERMISSION_DENIED or err.code == c_libs.G_IO_ERROR_READ_ONLY))
+                return machine.stateFailed(InstallerError.AccessDenied);
+        }
+        return machine.stateFailed(InstallerError.RepoTransactionFailed);
+    }
 
     return .close_repo;
 }

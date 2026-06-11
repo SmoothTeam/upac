@@ -5,7 +5,8 @@ const c_libs = @import("c-libs");
 const types = @import("upac-types");
 const PREFIX = types.paths.prefix;
 const CONFIG_DIR = types.paths.config_dir;
-const DB_RELATIVE_PATH = types.paths.db_relative_path;
+const DB_PATH = types.paths.db_path;
+const DB_NAME = types.paths.db_name;
 
 const FileEntry = types.FileEntry;
 
@@ -109,9 +110,12 @@ fn stateCheckPackageConfigDir(machine: *MergeMachine) InstallerError!MergeState 
 fn stateLoadPackageDatabase(machine: *MergeMachine) InstallerError!MergeState {
     const package = machine.installer.data.packages[machine.current_package_index];
 
-    const temp_database_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const temp_database_dir_path = machine.installer.temp_db_path orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
-    var base = Database.open(machine.installer.allocator, temp_database_path) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const temp_database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ std.mem.span(temp_database_dir_path), DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(temp_database_path);
+
+    var base = Database.open(machine.installer.allocator, temp_database_path, false) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
     defer base.close();
 
     const package_uuid = (exists(base, package.meta.name, package.meta.arch, package.meta.arch_sub) catch return machine.stateFailed(InstallerError.PackageNotFound)) orelse return machine.stateFailed(InstallerError.PackageNotFound);

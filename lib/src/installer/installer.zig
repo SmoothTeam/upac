@@ -29,6 +29,7 @@ pub const InstallerError = error{
     WriteDatabaseFailed,
     CollectFileChecksumsFailed,
     WriteFilesFailed,
+    AccessDenied,
     // Global errors
     PathNotFound,
     RepoOpenFailed,
