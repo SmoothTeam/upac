@@ -33,21 +33,42 @@ pub const CSlice = extern struct {
     }
 };
 
+pub const CVersionParts = extern struct {
+    ptr: [*]u32,
+    len: usize,
+
+    pub fn toSlice(self: CVersionParts) []u32 {
+        return self.ptr[0..self.len];
+    }
+};
+
+pub const CVersion = extern struct {
+    struct_size: usize = @sizeOf(CVersion),
+
+    epoch: u32,
+    release: u32,
+    parts: CVersionParts,
+    pre: CSlice,
+
+    pub fn deinit(self: CVersion, allocator: std.mem.Allocator) void {
+        allocator.free(self.parts.toSlice());
+        if (self.pre.ptr != null) allocator.free(self.pre.toSlice());
+    }
+};
+
 pub const CPackageMeta = extern struct {
     struct_size: usize = @sizeOf(CPackageMeta),
 
     name: CSlice,
-    version: CSlice,
+    version: CVersion,
     arch: CSlice,
-    author: CSlice,
+    arch_sub: CSlice,
+    maintainer: CSlice,
     description: CSlice,
     license: CSlice,
     url: CSlice,
-    packager: CSlice,
-    checksum: CSlice,
-    size: u32,
-    _padding: u32 = 0,
-    installed_at: i64,
+    sha256: [32]u8,
+    installed_size: u64 = 0,
 
     pub fn free(self: *CPackageMeta, allocator: std.mem.Allocator) void {
         inline for (std.meta.fields(CPackageMeta)) |field| {
@@ -56,6 +77,7 @@ pub const CPackageMeta = extern struct {
                 if (slice.ptr != null) allocator.free(slice.toSlice());
             }
         }
+        self.version.deinit(allocator);
         allocator.destroy(self);
     }
 };
