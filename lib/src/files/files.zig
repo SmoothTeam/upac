@@ -28,6 +28,7 @@ pub const FilesError = error{
     CheckoutFailed,
     AllocFailed,
     OutOfMemory,
+    AccessDenied,
     Cancelled,
 };
 

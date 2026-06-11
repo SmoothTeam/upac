@@ -162,7 +162,7 @@ fn stateCopyDatabase(machine: *TransactionMachine) FilesError!TransactionState {
 fn stateOpenDatabase(machine: *TransactionMachine) FilesError!TransactionState {
     const temp_database_path = machine.files.temp_database_path orelse return machine.stateFailed(FilesError.DatabaseWriteFailed);
 
-    machine.base = Database.open(machine.files.allocator, temp_database_path) catch return machine.stateFailed(FilesError.DatabaseWriteFailed);
+    machine.base = Database.open(machine.files.allocator, temp_database_path, true) catch return machine.stateFailed(FilesError.DatabaseWriteFailed);
 
     return .lookup_package;
 }
