@@ -121,7 +121,10 @@ fn stateLoadPackageList(machine: *PreparationMachine) DiffError!PreparationState
     const database_file_path = std.fs.path.joinZ(machine.diff.allocator, &.{ database_path, DB_NAME }) catch return machine.stateFailed(DiffError.AllocFailed);
     defer machine.diff.allocator.free(database_file_path);
 
-    var base = Database.open(machine.diff.allocator, database_file_path, false) catch return machine.stateFailed(DiffError.ReadDatabaseFailed);
+    var base = Database.open(machine.diff.allocator, database_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => DiffError.AccessDenied,
+        else => DiffError.ReadDatabaseFailed,
+    });
     defer base.close();
 
     buildPkgList(base, machine.diff.allocator, &machine.diff.packages_lists[machine.current_ref_index]) catch |err| return machine.stateFailed(err);

@@ -121,7 +121,10 @@ fn stateLoadPackageFileMap(machine: *PreparationMachine) DiffError!PreparationSt
     const database_file_path = std.fs.path.joinZ(machine.diff.allocator, &.{ database_path, DB_NAME }) catch return machine.stateFailed(DiffError.AllocFailed);
     defer machine.diff.allocator.free(database_file_path);
 
-    var base = Database.open(machine.diff.allocator, database_file_path, false) catch return machine.stateFailed(DiffError.ReadDatabaseFailed);
+    var base = Database.open(machine.diff.allocator, database_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => DiffError.AccessDenied,
+        else => DiffError.ReadDatabaseFailed,
+    });
     defer base.close();
 
     buildFilePkgMap(base, machine.diff.allocator, &machine.diff.file_pkg_maps[machine.current_ref_index]) catch |err| return machine.stateFailed(err);

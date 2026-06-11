@@ -137,7 +137,10 @@ fn stateOpenDatabase(machine: *VerifyingMachine) FilesError!VerifyingState {
     const database_file_path = std.fs.path.joinZ(machine.files.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(FilesError.AllocFailed);
     defer machine.files.allocator.free(database_file_path);
 
-    machine.base = Database.open(machine.files.allocator, database_file_path, false) catch return machine.stateFailed(FilesError.DatabaseNotFound);
+    machine.base = Database.open(machine.files.allocator, database_file_path, false) catch |err| return machine.stateFailed(switch (err) {
+        error.AccessDenied => FilesError.AccessDenied,
+        else => FilesError.DatabaseNotFound,
+    });
 
     return .check_package;
 }
