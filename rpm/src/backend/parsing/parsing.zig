@@ -17,6 +17,7 @@ const Machine = backend.BackendMachine;
 const utils = @import("utils.zig");
 const readExact = utils.readExact;
 const readString = utils.readString;
+const parseVersion = utils.parseVersion;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const header_magic = [3]u8{ 0x8E, 0xAD, 0xE8 };
@@ -191,26 +192,24 @@ fn stateExtractTags(machine: *ParsingMachine) BackendError!ParsingState {
 }
 
 fn stateBuildMeta(machine: *ParsingMachine) BackendError!ParsingState {
+    var sha256: [32]u8 = undefined;
+
+    _ = std.fmt.hexToBytes(&sha256, machine.backend.data.checksum) catch return machine.stateFailed(BackendError.InvalidPackage);
+
+    const raw_version_str = machine.raw_meta.version orelse return machine.stateFailed(BackendError.MetadataNotFound);
+    defer machine.backend.allocator.free(raw_version_str);
+    machine.raw_meta.version = null;
+
+    const parsed_version = parseVersion(machine.backend.allocator, raw_version_str, machine.raw_meta.release) catch return machine.stateFailed(BackendError.InvalidPackage);
+    errdefer parsed_version.deinit(machine.backend.allocator);
+
     const package_name = machine.raw_meta.name orelse return machine.stateFailed(BackendError.MetadataNotFound);
     machine.raw_meta.name = null;
     errdefer machine.backend.allocator.free(package_name);
 
-    const raw_version = machine.raw_meta.version orelse return machine.stateFailed(BackendError.MetadataNotFound);
-    machine.raw_meta.version = null;
-    defer machine.backend.allocator.free(raw_version);
-
     const package_arch = machine.raw_meta.arch orelse return machine.stateFailed(BackendError.MetadataNotFound);
     machine.raw_meta.arch = null;
     errdefer machine.backend.allocator.free(package_arch);
-
-    const package_version = if (machine.raw_meta.release) |release_str| blk: {
-        defer {
-            machine.backend.allocator.free(release_str);
-            machine.raw_meta.release = null;
-        }
-        break :blk std.fmt.allocPrint(machine.backend.allocator, "{s}-{s}", .{ raw_version, release_str }) catch return machine.stateFailed(BackendError.OutOfMemory);
-    } else machine.backend.allocator.dupe(u8, raw_version) catch return machine.stateFailed(BackendError.OutOfMemory);
-    errdefer machine.backend.allocator.free(package_version);
 
     const package_author = machine.backend.allocator.dupe(u8, machine.raw_meta.packager orelse "") catch return machine.stateFailed(BackendError.OutOfMemory);
     errdefer machine.backend.allocator.free(package_author);
@@ -227,19 +226,16 @@ fn stateBuildMeta(machine: *ParsingMachine) BackendError!ParsingState {
     const package_packager = machine.backend.allocator.dupe(u8, machine.raw_meta.packager orelse "") catch return machine.stateFailed(BackendError.OutOfMemory);
     errdefer machine.backend.allocator.free(package_packager);
 
-    const package_checksum = machine.backend.allocator.dupe(u8, machine.backend.data.checksum) catch return machine.stateFailed(BackendError.OutOfMemory);
-    errdefer machine.backend.allocator.free(package_checksum);
-
     machine.backend.meta = PackageMeta{
         .name = package_name,
-        .version = package_version,
+        .version = parsed_version,
         .arch = package_arch,
         .author = package_author,
         .description = package_description,
         .license = package_license,
         .url = package_url,
         .packager = package_packager,
-        .checksum = package_checksum,
+        .checksum = sha256,
         .size = machine.raw_meta.size,
         .installed_at = @intCast(@divTrunc(std.Io.Clock.real.now(machine.backend.io).nanoseconds, std.time.ns_per_s)),
     };

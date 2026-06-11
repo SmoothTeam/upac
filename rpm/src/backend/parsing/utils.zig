@@ -1,6 +1,10 @@
 // ── Imports ─────────────────────────────────────────────────────────────────────
 const std = @import("std");
 
+const types = @import("upac-backend-types");
+const BackendError = types.BackendError;
+const Version = types.Version;
+
 // ── Contains RPM magic bytes and header magic bytes ─────────────────────────────────────────────────────────────
 const rpm_magic: [4]u8 = .{ 0xED, 0xAB, 0xEE, 0xDB };
 const header_magic: [3]u8 = .{ 0x8E, 0xAD, 0xE8 };
@@ -161,6 +165,62 @@ fn readHeaderSection(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File
     }
 
     return rpm_header;
+}
+
+// Parses an RPM version from separate version and release strings.
+// version_str: e.g. "3.6.2" or "1:3.6.2" (epoch prefix)
+// release_str: e.g. "2" or "2.fc40" (only the leading number matters)
+pub fn parseVersion(allocator: std.mem.Allocator, version_str: []const u8, release_str: ?[]const u8) BackendError!Version {
+    var remaining = version_str;
+
+    var epoch: u32 = 0;
+    if (std.mem.indexOf(u8, remaining, ":")) |colon_idx| {
+        epoch = std.fmt.parseInt(u32, remaining[0..colon_idx], 10) catch 0;
+        remaining = remaining[colon_idx + 1 ..];
+    }
+
+    var pre: ?[]const u8 = null;
+    if (std.mem.indexOf(u8, remaining, "~")) |tilde_idx| {
+        pre = allocator.dupe(u8, remaining[tilde_idx + 1 ..]) catch return BackendError.AllocZFailed;
+        remaining = remaining[0..tilde_idx];
+    }
+    errdefer if (pre) |p| allocator.free(p);
+
+    var parts_list = std.ArrayList(u32).empty;
+    defer parts_list.deinit(allocator);
+
+    var iter = std.mem.splitScalar(u8, remaining, '.');
+    while (iter.next()) |segment| {
+        if (segment.len == 0) continue;
+
+        const digits_end = for (segment, 0..) |ch, i| {
+            if (ch < '0' or ch > '9') break i;
+        } else segment.len;
+
+        if (digits_end == 0) continue;
+
+        const num = std.fmt.parseInt(u32, segment[0..digits_end], 10) catch continue;
+        parts_list.append(allocator, num) catch return BackendError.AllocZFailed;
+
+        if (digits_end < segment.len and pre == null) {
+            pre = allocator.dupe(u8, segment[digits_end..]) catch return BackendError.AllocZFailed;
+        }
+    }
+
+    if (parts_list.items.len == 0) return BackendError.InvalidPackage;
+
+    const parts_owned = parts_list.toOwnedSlice(allocator) catch return BackendError.AllocZFailed;
+    errdefer allocator.free(parts_owned);
+
+    var release: u32 = 1;
+    if (release_str) |rel| {
+        release = std.fmt.parseInt(u32, rel, 10) catch blk: {
+            const dot_idx = std.mem.indexOfScalar(u8, rel, '.') orelse rel.len;
+            break :blk std.fmt.parseInt(u32, rel[0..dot_idx], 10) catch 1;
+        };
+    }
+
+    return Version{ .epoch = epoch, .parts = parts_owned, .pre = pre, .release = release };
 }
 
 // Reads a null-terminated string from a data block at a specified offset.
