@@ -17,6 +17,7 @@ pub const DatabaseError = error{
     PackageFilesExist,
     ArchitectureNotFound,
     AllocZFailed,
+    AccessDenied,
     WriteError,
     ReadError,
 };
@@ -32,7 +33,10 @@ pub const Database = struct {
     allocator: std.mem.Allocator,
 
     pub fn create(allocator: std.mem.Allocator, path: [*:0]const u8) DatabaseError!Database {
-        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch return DatabaseError.WriteError;
+        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch |err| return switch (err) {
+            error.ACCESS, error.PERM, error.ROFS => DatabaseError.AccessDenied,
+            else => DatabaseError.WriteError,
+        };
         return .{
             .environment = environment,
             .packages_dbi = null,
@@ -42,11 +46,16 @@ pub const Database = struct {
         };
     }
 
-    pub fn open(allocator: std.mem.Allocator, path: [*:0]const u8) DatabaseError!Database {
-        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch return DatabaseError.ReadError;
+    pub fn open(allocator: std.mem.Allocator, path: [*:0]const u8, write: bool) DatabaseError!Database {
+        const trasaction_mode: lmdbx.Transaction.Mode = if (write) .ReadWrite else .ReadOnly;
+
+        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2, .read_only = !write }) catch |err| return switch (err) {
+            error.ACCESS, error.PERM, error.ROFS => DatabaseError.AccessDenied,
+            else => DatabaseError.ReadError,
+        };
         errdefer environment.deinit() catch {};
 
-        const register_txn = lmdbx.Transaction.init(environment, .{}) catch return DatabaseError.WriteError;
+        const register_txn = lmdbx.Transaction.init(environment, .{ .mode = trasaction_mode }) catch return DatabaseError.WriteError;
         _ = lmdbx.Database.open(register_txn, database_config.packages_dbi, .{}) catch {
             register_txn.abort() catch {};
             return DatabaseError.ReadError;
@@ -59,7 +68,7 @@ pub const Database = struct {
 
         register_txn.commit() catch return DatabaseError.WriteError;
 
-        const active_transaction = lmdbx.Transaction.init(environment, .{}) catch return DatabaseError.WriteError;
+        const active_transaction = lmdbx.Transaction.init(environment, .{ .mode = trasaction_mode }) catch return DatabaseError.WriteError;
         errdefer active_transaction.abort() catch {};
 
         const packages_database_dbi = lmdbx.Database.open(active_transaction, database_config.packages_dbi, .{}) catch return DatabaseError.ReadError;
