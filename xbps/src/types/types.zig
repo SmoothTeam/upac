@@ -17,6 +17,19 @@ pub const StateId = enum(u8) {
     done = 4,
 };
 
+// ── Version ─────────────────────────────────────────────────────────────────
+pub const Version = struct {
+    epoch: u32 = 0,
+    parts: []const u32,
+    pre: ?[]const u8 = null,
+    release: u32 = 1,
+
+    pub fn deinit(self: *const Version, allocator: std.mem.Allocator) void {
+        allocator.free(self.parts);
+        if (self.pre) |pre| allocator.free(pre);
+    }
+};
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 pub const HookResponse = enum(u8) {
     proceed = 0,
@@ -84,27 +97,26 @@ pub const RawMeta = struct {
 // ── PackageMeta ───────────────────────────────────────────────────────────────
 pub const PackageMeta = struct {
     name: []const u8,
-    version: []const u8,
+    version: Version,
     arch: []const u8,
     author: []const u8,
     description: []const u8,
     license: []const u8,
     url: []const u8,
     packager: []const u8,
-    checksum: []const u8,
+    checksum: [32]u8,
     size: u32,
     installed_at: i64,
 
     pub fn deinit(self: *PackageMeta, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
-        allocator.free(self.version);
         allocator.free(self.arch);
         allocator.free(self.author);
         allocator.free(self.description);
         allocator.free(self.license);
         allocator.free(self.url);
         allocator.free(self.packager);
-        allocator.free(self.checksum);
+        self.version.deinit(allocator);
     }
 };
 

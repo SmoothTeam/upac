@@ -10,6 +10,8 @@ const PrepareData = types.PrepareData;
 const ffi = @import("upac-backend-ffi");
 const CPrepareRequest = ffi.CPrepareRequest;
 const CPackageMeta = ffi.CPackageMeta;
+const CVersion = ffi.CVersion;
+const CVersionParts = ffi.CVersionParts;
 const CSlice = ffi.CSlice;
 
 const dupeToCSlice = ffi.dupeToCSlice;
@@ -35,20 +37,32 @@ pub export fn prepare(request_c: *const CPrepareRequest, out_meta: **CPackageMet
     var result = BackendMachine.run(prepare_data, std.heap.c_allocator) catch |err| return @intFromEnum(fromError(err));
     defer result.meta.deinit(std.heap.c_allocator);
 
-    const out_meta_ptr = std.heap.c_allocator.create(CPackageMeta) catch return @intFromEnum(BackendErrorCode.alloc_failed);
+    const version_parts_copy = std.heap.c_allocator.dupe(u32, result.meta.version.parts) catch return @intFromEnum(BackendErrorCode.alloc_failed);
+
+    const out_meta_ptr = std.heap.c_allocator.create(CPackageMeta) catch {
+        std.heap.c_allocator.free(version_parts_copy);
+        return @intFromEnum(BackendErrorCode.alloc_failed);
+    };
 
     out_meta_ptr.* = CPackageMeta{
         .name = dupeRequiredToCSlice(std.heap.c_allocator, result.meta.name) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
-        .version = dupeRequiredToCSlice(std.heap.c_allocator, result.meta.version) catch return @intFromEnum(fromError(BackendError.InvalidPackage)),
+        .version = CVersion{
+            .epoch = result.meta.version.epoch,
+            .release = result.meta.version.release,
+            .parts = .{ .ptr = version_parts_copy.ptr, .len = version_parts_copy.len },
+            .pre = CSlice.fromSlice(if (result.meta.version.pre) |pre|
+                std.heap.c_allocator.dupeZ(u8, pre) catch return @intFromEnum(BackendErrorCode.alloc_failed)
+            else
+                null),
+        },
         .arch = dupeToCSlice(std.heap.c_allocator, result.meta.arch) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .author = dupeToCSlice(std.heap.c_allocator, result.meta.author) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
+        .arch_sub = CSlice.fromSlice(null),
+        .maintainer = dupeToCSlice(std.heap.c_allocator, result.meta.author) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
         .description = dupeToCSlice(std.heap.c_allocator, result.meta.description) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
         .license = dupeToCSlice(std.heap.c_allocator, result.meta.license) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
         .url = dupeToCSlice(std.heap.c_allocator, result.meta.url) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .packager = dupeToCSlice(std.heap.c_allocator, result.meta.packager) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .checksum = dupeToCSlice(std.heap.c_allocator, result.meta.checksum) catch return @intFromEnum(fromError(BackendError.AllocZFailed)),
-        .size = result.meta.size,
-        .installed_at = result.meta.installed_at,
+        .sha256 = result.meta.checksum,
+        .installed_size = @as(u64, result.meta.size),
     };
 
     out_meta.* = out_meta_ptr;
