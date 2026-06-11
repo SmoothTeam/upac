@@ -45,6 +45,8 @@ pub const CVersionParts = extern struct {
 };
 
 pub const CVersion = extern struct {
+    struct_size: usize = @sizeOf(CVersion),
+
     epoch: u32,
     release: u32,
     parts: CVersionParts,
