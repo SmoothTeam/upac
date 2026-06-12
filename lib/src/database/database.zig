@@ -33,7 +33,7 @@ pub const Database = struct {
     allocator: std.mem.Allocator,
 
     pub fn create(allocator: std.mem.Allocator, path: [*:0]const u8) DatabaseError!Database {
-        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2 }) catch |err| return switch (err) {
+        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2, .no_subdir = true }) catch |err| return switch (err) {
             error.ACCESS, error.PERM, error.ROFS => DatabaseError.AccessDenied,
             else => DatabaseError.WriteError,
         };
@@ -49,7 +49,7 @@ pub const Database = struct {
     pub fn open(allocator: std.mem.Allocator, path: [*:0]const u8, write: bool) DatabaseError!Database {
         const trasaction_mode: lmdbx.Transaction.Mode = if (write) .ReadWrite else .ReadOnly;
 
-        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2, .read_only = !write }) catch |err| return switch (err) {
+        const environment = lmdbx.Environment.init(path, .{ .max_dbs = 2, .no_subdir = true, .read_only = !write }) catch |err| return switch (err) {
             error.ACCESS, error.PERM, error.ROFS => DatabaseError.AccessDenied,
             else => DatabaseError.ReadError,
         };

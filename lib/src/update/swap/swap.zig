@@ -28,9 +28,40 @@ pub fn run(machine: *UpdateMachine) UpdateError!void {
     if (!atomicSwap(temp_prefix_path, root_prefix.ptr)) return UpdateError.RepoTransactionFailed;
 
     if (machine.temp_config_path) |temp_config_path|
-        if (!atomicSwap(temp_config_path, root_config.ptr)) return UpdateError.RepoTransactionFailed;
+        if (!atomicSwap(temp_config_path, root_config.ptr)) {
+            _ = atomicSwap(root_prefix.ptr, temp_prefix_path);
+            cleanup(machine);
+            return UpdateError.RepoTransactionFailed;
+        };
+
+    const ref_updated = updateBranchRef(machine);
+    if (!ref_updated) {
+        if (machine.temp_config_path) |temp_config_path| _ = atomicSwap(root_config.ptr, temp_config_path);
+
+        _ = atomicSwap(root_prefix.ptr, temp_prefix_path);
+    }
 
     cleanup(machine);
+    if (!ref_updated) return UpdateError.RepoTransactionFailed;
+}
+
+fn updateBranchRef(machine: *UpdateMachine) bool {
+    const gfile = c_libs.g_file_new_for_path(machine.data.repo_path);
+    defer c_libs.g_object_unref(gfile);
+
+    const repo = c_libs.ostree_repo_new(gfile);
+    defer c_libs.g_object_unref(repo);
+
+    var gerr: ?*c_libs.GError = null;
+    if (c_libs.ostree_repo_open(repo, machine.cancellable, &gerr) == 0) {
+        if (gerr) |err| c_libs.g_error_free(err);
+
+        return false;
+    }
+
+    if (c_libs.ostree_repo_set_ref_immediate(repo, null, machine.data.branch, &machine.new_commit_checksum, machine.cancellable, null) == 0) return false;
+
+    return true;
 }
 
 fn atomicSwap(first_dir: [*:0]const u8, second_dir: [*:0]const u8) bool {

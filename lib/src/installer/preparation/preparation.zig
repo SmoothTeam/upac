@@ -100,24 +100,26 @@ fn stateCopyCurrentDb(machine: *PreparationMachine) InstallerError!PreparationSt
     const source_database_path = std.fs.path.joinZ(machine.installer.allocator, &.{ root_path, PREFIX, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(source_database_path);
 
-    const dest_database_dir = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_database_slice, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    const dest_database_dir = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_database_slice, DB_PATH }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(dest_database_dir);
 
     std.Io.Dir.cwd().createDirPath(machine.installer.io, dest_database_dir) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
 
-    const source_database = std.fs.path.joinZ(machine.installer.allocator, &.{ source_database_path, "mdbx.dat" }) catch return machine.stateFailed(InstallerError.AllocZFailed);
-    defer machine.installer.allocator.free(source_database);
-
-    const dest_database = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_database_slice, DB_PATH, DB_NAME, "mdbx.dat" }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    const dest_database = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_database_slice, DB_PATH, DB_NAME }) catch return machine.stateFailed(InstallerError.AllocZFailed);
     defer machine.installer.allocator.free(dest_database);
 
-    std.Io.Dir.copyFileAbsolute(source_database, dest_database, machine.installer.io, .{}) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    std.Io.Dir.copyFileAbsolute(source_database_path, dest_database, machine.installer.io, .{}) catch return machine.stateFailed(InstallerError.WriteDatabaseFailed);
     return .move_symlinks_to_prefix;
 }
 
 fn stateMoveSymlinksToPrefix(machine: *PreparationMachine) InstallerError!PreparationState {
     const package = machine.installer.data.packages[machine.current_packages_index];
     const package_path = std.mem.span(package.temp_package_path);
+
+    const prefix_path = std.fs.path.joinZ(machine.installer.allocator, &.{ package_path, PREFIX }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(prefix_path);
+
+    std.Io.Dir.createDirAbsolute(machine.installer.io, prefix_path, .default_dir) catch {};
 
     var package_dir = std.Io.Dir.openDirAbsolute(machine.installer.io, package_path, .{ .iterate = true }) catch return machine.stateFailed(InstallerError.WriteFilesFailed);
     defer package_dir.close(machine.installer.io);
@@ -261,6 +263,12 @@ fn stateWriteDatabases(machine: *PreparationMachine) InstallerError!PreparationS
 
     machine.current_packages_index += 1;
     if (machine.current_packages_index < machine.installer.data.packages.len) return .move_symlinks_to_prefix;
+
+    const lock_path = std.fmt.allocPrint(machine.installer.allocator, "{s}-lck", .{temp_database_path}) catch return .done;
+    defer machine.installer.allocator.free(lock_path);
+
+    const Permissions = std.Io.File.Permissions;
+    std.Io.Dir.setFilePermissions(.cwd(), machine.installer.io, lock_path, Permissions.fromMode(0o666), .{}) catch {};
 
     return .done;
 }

@@ -61,6 +61,11 @@ fn stateSetupPrefix(machine: *SetupMachine) InitError!SetupState {
 
     std.Io.Dir.createDirAbsolute(machine.init.io, prefix_config_path, .default_dir) catch return InitError.CreateDirFailed;
 
+    const root_config_path = std.fs.path.joinZ(machine.init.allocator, &.{ root_path, CONFIG_DIR }) catch return InitError.AllocFailed;
+    defer machine.init.allocator.free(root_config_path);
+
+    std.Io.Dir.createDirAbsolute(machine.init.io, root_config_path, .default_dir) catch return InitError.CreateDirFailed;
+
     return .setup_symlinks;
 }
 
@@ -133,7 +138,7 @@ fn stateInitDatabase(machine: *SetupMachine) InitError!SetupState {
     const Permissions = std.Io.File.Permissions;
     std.Io.Dir.setFilePermissions(.cwd(), machine.init.io, database_path, Permissions.fromMode(0o644), .{}) catch return InitError.DatabaseInitFailed;
 
-    const database_lock_path = std.fmt.allocPrint(machine.init.allocator, "{s}.lck", .{database_path}) catch return InitError.AllocFailed;
+    const database_lock_path = std.fmt.allocPrint(machine.init.allocator, "{s}-lck", .{database_path}) catch return InitError.AllocFailed;
     defer machine.init.allocator.free(database_lock_path);
 
     std.Io.Dir.setFilePermissions(.cwd(), machine.init.io, database_lock_path, Permissions.fromMode(0o666), .{}) catch return InitError.DatabaseInitFailed;

@@ -22,6 +22,7 @@ const InstallerError = installer.InstallerError;
 const utils = @import("utils.zig");
 const copyEntry = utils.copyEntry;
 const resolveConflict = utils.resolveConflict;
+const mirrorDir = utils.mirrorDir;
 
 // ── MergeState ────────────────────────────────────────────────────────────────
 const MergeState = enum {
@@ -88,6 +89,10 @@ fn stateCreateTempConfigDir(machine: *MergeMachine) InstallerError!MergeState {
 
     std.Io.Dir.cwd().createDirPath(machine.installer.io, temp_config_path) catch return machine.stateFailed(InstallerError.NotEnoughSpace);
 
+    const root_config_path = std.fs.path.joinZ(machine.installer.allocator, &.{ std.mem.span(machine.installer.data.root_path), CONFIG_DIR }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+    defer machine.installer.allocator.free(root_config_path);
+    mirrorDir(machine.installer, root_config_path, temp_config_path) catch |err| return machine.stateFailed(err);
+
     return .check_package_config_dir;
 }
 
@@ -127,6 +132,7 @@ fn stateLoadPackageDatabase(machine: *MergeMachine) InstallerError!MergeState {
 
 fn stateOverlayPackageConfigDir(machine: *MergeMachine) InstallerError!MergeState {
     const package_files = machine.current_package_files orelse return machine.stateFailed(InstallerError.WriteDatabaseFailed);
+    const temp_config_path = machine.temp_config_path orelse return machine.stateFailed(InstallerError.WriteConfigFailed);
 
     const package = machine.installer.data.packages[machine.current_package_index];
     const package_path = std.mem.span(package.temp_package_path);
@@ -144,7 +150,7 @@ fn stateOverlayPackageConfigDir(machine: *MergeMachine) InstallerError!MergeStat
         const source_path = std.fs.path.joinZ(machine.installer.allocator, &.{ package_config_path, entry.path }) catch return machine.stateFailed(InstallerError.AllocZFailed);
         defer machine.installer.allocator.free(source_path);
 
-        const destination_path = std.fs.path.joinZ(machine.installer.allocator, &.{ std.mem.span(machine.installer.data.root_path), CONFIG_DIR, entry.path }) catch return machine.stateFailed(InstallerError.AllocZFailed);
+        const destination_path = std.fs.path.joinZ(machine.installer.allocator, &.{ temp_config_path, entry.path }) catch return machine.stateFailed(InstallerError.AllocZFailed);
         defer machine.installer.allocator.free(destination_path);
 
         const conflict = blk: {

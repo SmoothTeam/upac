@@ -27,9 +27,47 @@ pub fn run(machine: *RollbackMachine) RollbackError!void {
     if (!atomicSwap(temp_prefix_path, root_prefix.ptr)) return RollbackError.RepoTransactionFailed;
 
     if (machine.temp_config_path) |temp_config_path|
-        if (!atomicSwap(temp_config_path, root_config.ptr)) return RollbackError.RepoTransactionFailed;
+        if (!atomicSwap(temp_config_path, root_config.ptr)) {
+            _ = atomicSwap(root_prefix.ptr, temp_prefix_path);
+            cleanup(machine);
+
+            return RollbackError.RepoTransactionFailed;
+        };
+
+    const ref_updated = updateBranchRef(machine);
+    if (!ref_updated) {
+        if (machine.temp_config_path) |temp_config_path| _ = atomicSwap(root_config.ptr, temp_config_path);
+
+        _ = atomicSwap(root_prefix.ptr, temp_prefix_path);
+    }
 
     cleanup(machine);
+    if (!ref_updated) return RollbackError.RollbackFailed;
+}
+
+fn updateBranchRef(machine: *RollbackMachine) bool {
+    var pruned_objects: c_libs.gint = 0;
+    var pruned_count: c_libs.gint = 0;
+    var pruned_size: c_libs.guint64 = 0;
+    var gerr: ?*c_libs.GError = null;
+
+    const gfile = c_libs.g_file_new_for_path(machine.data.repo_path);
+    defer c_libs.g_object_unref(gfile);
+
+    const repo = c_libs.ostree_repo_new(gfile);
+    defer c_libs.g_object_unref(repo);
+
+    if (c_libs.ostree_repo_open(repo, machine.cancellable, &gerr) == 0) {
+        if (gerr) |err| c_libs.g_error_free(err);
+
+        return false;
+    }
+
+    if (c_libs.ostree_repo_set_ref_immediate(repo, null, machine.data.branch, machine.data.commit_hash, machine.cancellable, null) == 0) return false;
+
+    _ = c_libs.ostree_repo_prune(repo, c_libs.OSTREE_REPO_PRUNE_FLAGS_REFS_ONLY, -1, &pruned_objects, &pruned_count, &pruned_size, machine.cancellable, null);
+
+    return true;
 }
 
 fn atomicSwap(first_dir: [*:0]const u8, second_dir: [*:0]const u8) bool {
@@ -46,19 +84,20 @@ fn atomicSwap(first_dir: [*:0]const u8, second_dir: [*:0]const u8) bool {
 
 fn cleanup(machine: *RollbackMachine) void {
     if (machine.temp_prefix_path) |path| {
-        const snap_temp_prefix_path = std.mem.span(path);
+        const temp_prefix_path = std.mem.span(path);
 
-        std.Io.Dir.cwd().deleteTree(machine.io, snap_temp_prefix_path) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, temp_prefix_path) catch {};
 
-        machine.allocator.free(snap_temp_prefix_path);
+        machine.allocator.free(temp_prefix_path);
         machine.temp_prefix_path = null;
     }
+
     if (machine.temp_config_path) |path| {
-        const snap_temp_config_path = std.mem.span(path);
+        const temp_config_path = std.mem.span(path);
 
-        std.Io.Dir.cwd().deleteTree(machine.io, snap_temp_config_path) catch {};
+        std.Io.Dir.cwd().deleteTree(machine.io, temp_config_path) catch {};
 
-        machine.allocator.free(snap_temp_config_path);
+        machine.allocator.free(temp_config_path);
         machine.temp_config_path = null;
     }
 }

@@ -236,6 +236,7 @@ pub fn fromError(err: anyerror, operation: Operation) ErrorCode {
         error.FileAlreadyExists => .file_already_exists,
         error.RepoWriteFailed => .ostree_repo_write_failed,
         error.MtreeInsertFailed => .ostree_mtree_insert_failed,
+        error.CommitNotFound => .ostree_commit_not_found,
 
         else => .unexpected,
     };

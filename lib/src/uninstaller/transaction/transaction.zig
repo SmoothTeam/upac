@@ -39,7 +39,6 @@ const TransactionState = enum {
     build_commit_subject,
     open_transaction,
     write_commit,
-    set_ref,
     close_transaction,
     close_repo,
     done,
@@ -69,17 +68,6 @@ pub const TransactionMachine = struct {
 
         if (self.repo) |repo| {
             _ = c_libs.ostree_repo_abort_transaction(repo, self.uninstaller.cancellable, &abort_error);
-
-            if (self.commit_checksum != null) {
-                _ = c_libs.ostree_repo_set_ref_immediate(
-                    repo,
-                    null,
-                    self.uninstaller.data.branch,
-                    &self.previos_commit_checksum,
-                    self.uninstaller.cancellable,
-                    null,
-                );
-            }
 
             c_libs.g_object_unref(repo);
             self.repo = null;
@@ -130,7 +118,6 @@ pub fn run(machine: *UninstallerMachine) UninstallerError!void {
             .build_commit_subject => try stateBuildCommitSubject(&transaction_machine),
             .open_transaction => try stateOpenTransaction(&transaction_machine),
             .write_commit => try stateWriteCommit(&transaction_machine),
-            .set_ref => try stateSetRef(&transaction_machine),
             .close_transaction => try stateCloseTransaction(&transaction_machine),
             .close_repo => stateCloseRepo(&transaction_machine),
             .done => unreachable,
@@ -307,16 +294,9 @@ fn stateWriteCommit(machine: *TransactionMachine) UninstallerError!TransactionSt
         &machine.uninstaller.gerror,
     ) == 0) return machine.stateFailed(UninstallerError.RepoTransactionFailed);
 
-    machine.commit_checksum = new_checksum;
-
-    return .set_ref;
-}
-
-fn stateSetRef(machine: *TransactionMachine) UninstallerError!TransactionState {
-    const repo = machine.repo orelse return machine.stateFailed(UninstallerError.RepoOpenFailed);
-    const checksum = machine.commit_checksum orelse return machine.stateFailed(UninstallerError.RepoTransactionFailed);
-
-    c_libs.ostree_repo_transaction_set_ref(repo, null, machine.uninstaller.data.branch, checksum);
+    const checksum_len = std.mem.len(new_checksum);
+    @memcpy(machine.uninstaller.new_commit_checksum[0..checksum_len], new_checksum[0..checksum_len]);
+    c_libs.g_free(new_checksum);
 
     return .close_transaction;
 }

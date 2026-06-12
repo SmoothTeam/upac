@@ -60,6 +60,29 @@ fn fileChecksum(machine: *InstallerMachine, path: [:0]const u8, allocator: std.m
     return allocator.dupe(u8, &hex) catch InstallerError.CollectFileChecksumsFailed;
 }
 
+pub fn mirrorDir(machine: *InstallerMachine, src: [:0]const u8, dst: [:0]const u8) InstallerError!void {
+    var dir = std.Io.Dir.openDirAbsolute(machine.io, src, .{ .iterate = true }) catch return;
+    defer dir.close(machine.io);
+
+    var walker = dir.walk(machine.allocator) catch return InstallerError.AllocZFailed;
+    defer walker.deinit();
+
+    while (walker.next(machine.io) catch return InstallerError.WriteConfigFailed) |entry| {
+        const dest_child = std.fs.path.joinZ(machine.allocator, &.{ dst, entry.path }) catch continue;
+        defer machine.allocator.free(dest_child);
+
+        const src_child = std.fs.path.joinZ(machine.allocator, &.{ src, entry.path }) catch continue;
+        defer machine.allocator.free(src_child);
+
+        switch (entry.kind) {
+            .directory => std.Io.Dir.cwd().createDirPath(machine.io, dest_child) catch {},
+            .file => copyFileTo(machine, src_child, dest_child) catch {},
+            .sym_link => copySymlinkTo(machine, src_child, dest_child) catch {},
+            else => {},
+        }
+    }
+}
+
 pub fn copyEntry(machine: *MergeMachine, kind: std.Io.File.Kind, source: [:0]const u8, dest: [:0]const u8) InstallerError!void {
     if (kind == .sym_link) {
         copySymlinkTo(machine.installer, source, dest) catch return InstallerError.WriteConfigFailed;

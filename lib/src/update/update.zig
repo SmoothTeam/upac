@@ -66,6 +66,8 @@ pub const UpdateMachine = struct {
     temp_config_path: ?[*:0]u8 = null,
     temp_db_path: ?[*:0]u8 = null,
 
+    new_commit_checksum: [65:0]u8 = std.mem.zeroes([65:0]u8),
+
     deleted_file_paths: ?[][]const u8 = null,
 
     cancellable: ?*c_libs.GCancellable = null,

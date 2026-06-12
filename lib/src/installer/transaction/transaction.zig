@@ -22,7 +22,6 @@ const TransactionState = enum {
     write_db_mtree,
     build_subject,
     write_commit,
-    set_ref,
     close_transaction,
     close_repo,
     done,
@@ -50,8 +49,6 @@ pub const TransactionMachine = struct {
 
         if (self.repo) |repo| {
             _ = c_libs.ostree_repo_abort_transaction(repo, null, &abort_error);
-
-            if (self.commit_checksum != null) _ = c_libs.ostree_repo_set_ref_immediate(repo, null, self.installer.data.branch, self.previous_commit_checksum, null, null);
 
             c_libs.g_object_unref(repo);
             self.repo = null;
@@ -96,7 +93,6 @@ pub fn run(machine: *InstallerMachine) InstallerError!void {
             .write_db_mtree => try stateWriteDbMtree(&transaction_machine),
             .build_subject => try stateBuildSubject(&transaction_machine),
             .write_commit => try stateWriteCommit(&transaction_machine),
-            .set_ref => try stateSetRef(&transaction_machine),
             .close_transaction => try stateCloseTransaction(&transaction_machine),
             .close_repo => stateCloseRepo(&transaction_machine),
             .done => unreachable,
@@ -233,13 +229,10 @@ fn stateWriteCommit(machine: *TransactionMachine) InstallerError!TransactionStat
         &machine.installer.gerror,
     ) == 0) return machine.stateFailed(InstallerError.RepoTransactionFailed);
 
-    return .set_ref;
-}
-
-fn stateSetRef(machine: *TransactionMachine) InstallerError!TransactionState {
-    const repo = machine.repo orelse return machine.stateFailed(InstallerError.RepoOpenFailed);
-
-    c_libs.ostree_repo_transaction_set_ref(repo, null, machine.installer.data.branch, machine.commit_checksum);
+    const checksum_len = std.mem.len(machine.commit_checksum);
+    @memcpy(machine.installer.new_commit_checksum[0..checksum_len], machine.commit_checksum[0..checksum_len]);
+    c_libs.g_free(machine.commit_checksum);
+    machine.commit_checksum = null;
 
     return .close_transaction;
 }

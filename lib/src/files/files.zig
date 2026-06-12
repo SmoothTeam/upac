@@ -58,6 +58,8 @@ pub const FilesMachine = struct {
     temp_database_path: ?[*:0]u8 = null,
     temp_prefix_path: ?[*:0]u8 = null,
 
+    new_commit_checksum: [65:0]u8 = std.mem.zeroes([65:0]u8),
+
     cancellable: ?*c_libs.GCancellable = null,
     gerror: ?*c_libs.GError = null,
 
