@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["cli", "derive", "lib-rust"]
+
+[workspace.package]
+version = "0.1.5"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[workspace.dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
