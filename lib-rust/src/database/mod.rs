@@ -60,8 +60,10 @@ impl Database {
         let env = Self::open_env(path, Mode::ReadWrite(ReadWriteOptions::default()))?;
 
         let txn = env.begin_rw_txn()?;
+
         txn.create_table(Some(PACKAGES_TABLE), TableFlags::empty())?;
         txn.create_table(Some(FILES_TABLE), TableFlags::DUP_SORT)?;
+
         txn.commit()?;
 
         Ok(Self { env })
@@ -69,11 +71,13 @@ impl Database {
 
     pub fn open_rw(path: &Path) -> Result<Self, DatabaseError> {
         let env = Self::open_env(path, Mode::ReadWrite(ReadWriteOptions::default()))?;
+
         Ok(Self { env })
     }
 
     pub fn open_ro(path: &Path) -> Result<Self, DatabaseError> {
         let env = Self::open_env(path, Mode::ReadOnly)?;
+
         Ok(Self { env })
     }
 
