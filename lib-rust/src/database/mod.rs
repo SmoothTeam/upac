@@ -5,6 +5,8 @@ use libmdbx::{
     Database as Env, DatabaseOptions, Error as MdbxError, Mode, NoWriteMap, RO, RW, ReadWriteOptions, TableFlags,
     Transaction, TransactionKind, WriteFlags,
 };
+use rmp_serde::decode::Error as RmpDecodeError;
+use rmp_serde::encode::Error as RmpEncodeError;
 use uuid::Uuid;
 
 use crate::types::errors::DatabaseError;
@@ -51,6 +53,18 @@ impl From<MdbxError> for DatabaseError {
     }
 }
 
+impl From<RmpEncodeError> for DatabaseError {
+    fn from(_: RmpEncodeError) -> Self {
+        DatabaseError::WriteError
+    }
+}
+
+impl From<RmpDecodeError> for DatabaseError {
+    fn from(_: RmpDecodeError) -> Self {
+        DatabaseError::ReadError
+    }
+}
+
 pub struct Database {
     env: Env<NoWriteMap>,
 }
@@ -59,12 +73,12 @@ impl Database {
     pub fn new(path: &Path) -> Result<Self, DatabaseError> {
         let env = Self::open_env(path, Mode::ReadWrite(ReadWriteOptions::default()))?;
 
-        let txn = env.begin_rw_txn()?;
+        let transaction = env.begin_rw_txn()?;
 
-        txn.create_table(Some(PACKAGES_TABLE), TableFlags::empty())?;
-        txn.create_table(Some(FILES_TABLE), TableFlags::DUP_SORT)?;
+        transaction.create_table(Some(PACKAGES_TABLE), TableFlags::empty())?;
+        transaction.create_table(Some(FILES_TABLE), TableFlags::DUP_SORT)?;
 
-        txn.commit()?;
+        transaction.commit()?;
 
         Ok(Self { env })
     }

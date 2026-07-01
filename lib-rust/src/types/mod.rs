@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 pub mod errors;
 pub mod states;
 
@@ -10,7 +12,7 @@ pub enum HookResponse {
 }
 
 // ── Version ─────────────────────────────────────────────────────────────────
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Version {
     pub epoch: u32,
     pub parts: Vec<u32>,
@@ -31,12 +33,12 @@ impl Default for Version {
 
 // ── Package ─────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
-pub struct Package {
+pub struct PackageTemp {
     pub meta: PackageMeta,
     pub temp_package_path: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageMeta {
     pub name: String,
     pub version: Version,
@@ -59,7 +61,7 @@ pub struct PackageEntry {
 }
 
 // ── FileEntry ───────────────────────────────────────────────────────────────
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileEntry {
     pub path: String,
     pub sha256: [u8; 32],
