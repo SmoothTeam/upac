@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod errors;
+pub mod machine;
 pub mod states;
 
 // ── HookResponse ────────────────────────────────────────────────────────────
