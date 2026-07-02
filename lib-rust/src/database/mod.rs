@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use libc::{ENOENT, EPERM, EROFS};
 use libmdbx::{
     Database as Env, DatabaseOptions, Error as MdbxError, Mode, NoWriteMap, RO, RW, ReadWriteOptions, TableFlags,
     Transaction, TransactionKind, WriteFlags,
 };
+use nix::errno::Errno::{self, ENOENT, EPERM, EROFS};
 use rmp_serde::decode::Error as RmpDecodeError;
 use rmp_serde::encode::Error as RmpEncodeError;
 use uuid::Uuid;
@@ -35,9 +35,9 @@ impl Store {
 impl From<MdbxError> for DatabaseError {
     fn from(error: MdbxError) -> Self {
         match error {
-            MdbxError::Access | MdbxError::Other(EPERM) | MdbxError::Other(EROFS) => DatabaseError::AccessDenied,
+            MdbxError::Access => DatabaseError::AccessDenied,
 
-            MdbxError::NotFound | MdbxError::Other(ENOENT) => DatabaseError::DatabaseNotInitialized,
+            MdbxError::NotFound => DatabaseError::DatabaseNotInitialized,
 
             MdbxError::KeyExist => DatabaseError::PackageAlreadyExists,
 
@@ -47,6 +47,12 @@ impl From<MdbxError> for DatabaseError {
             | MdbxError::CursorFull
             | MdbxError::PageFull
             | MdbxError::UnableExtendMapsize => DatabaseError::WriteError,
+
+            MdbxError::Other(code) => match Errno::from_raw(code) {
+                EPERM | EROFS => DatabaseError::AccessDenied,
+                ENOENT => DatabaseError::DatabaseNotInitialized,
+                _ => DatabaseError::ReadError,
+            },
 
             _ => DatabaseError::ReadError,
         }

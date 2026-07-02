@@ -8,10 +8,11 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 upac-derive = { path = "../derive" }
 
+nix = { version = "0.31.3", features = ["mount", "sched", "fs"] }
 ostree = { version = "0.20", features = ["v2022_6"] }
 serde = { version = "1", features = ["derive"] }
 uuid = { version = "1", features = ["v4"] }
-libc = "0.2.186"
+
 libmdbx = "0.6"
 rmp-serde = "1"
 glib = "0.20"

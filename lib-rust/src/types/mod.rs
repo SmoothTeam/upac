@@ -1,8 +1,15 @@
+use nix::fcntl::{Flock, FlockArg};
 use serde::{Deserialize, Serialize};
+use std::fs::{File, OpenOptions, create_dir_all};
+
+use crate::types::errors::LockError;
 
 pub mod errors;
 pub mod machine;
 pub mod states;
+
+const LOCK_DIR: &str = "/run/upac";
+const LOCK_PATH: &str = "/run/upac/lock";
 
 // ── HookResponse ────────────────────────────────────────────────────────────
 #[repr(u8)]
@@ -102,3 +109,26 @@ pub enum DiffKind {
     Removed,
     Modified,
 }
+
+pub struct Lock {
+    flock: Flock<File>,
+}
+
+impl Lock {
+    pub fn acquire() -> Result<Lock, LockError> {
+        create_dir_all(LOCK_DIR)?;
+
+        let file = OpenOptions::new().create(true).write(true).open(LOCK_PATH)?;
+
+        match Flock::lock(file, FlockArg::LockExclusiveNonblock) {
+            Ok(flock) => Ok(Lock { flock }),
+            Err((_, errno)) => Err(errno.into()),
+        }
+    }
+}
+
+pub struct Targets(pub Vec<PackageEntry>);
+
+pub struct RepoHandle(pub ostree::Repo);
+
+pub struct BaseCommit(pub String);

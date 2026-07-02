@@ -1,3 +1,6 @@
+use nix::errno::Errno;
+use std::io::Error as IoError;
+
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
@@ -139,6 +142,35 @@ impl From<CommonError> for ErrorCode {
 impl From<DatabaseError> for CommonError {
     fn from(error: DatabaseError) -> Self {
         CommonError::Database(error)
+    }
+}
+
+pub enum LockError {
+    Busy,
+    ReadOnly,
+    Denied,
+    PathMissing,
+    Unexpected(Errno),
+}
+
+impl From<IoError> for LockError {
+    fn from(error: IoError) -> Self {
+        match error.raw_os_error() {
+            Some(code) => Errno::from_raw(code).into(),
+            None => LockError::Unexpected(Errno::UnknownErrno),
+        }
+    }
+}
+
+impl From<Errno> for LockError {
+    fn from(errno: Errno) -> Self {
+        match errno {
+            Errno::EAGAIN => LockError::Busy,
+            Errno::EROFS => LockError::ReadOnly,
+            Errno::EPERM | Errno::EACCES => LockError::Denied,
+            Errno::ENOENT => LockError::PathMissing,
+            other => LockError::Unexpected(other),
+        }
     }
 }
 
