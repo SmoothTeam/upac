@@ -1,9 +1,12 @@
 use nix::fcntl::{Flock, FlockArg};
+use ostree::Repo;
+use ostree::gio::{Cancellable, File};
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions, create_dir_all};
 
 use crate::types::errors::LockError;
 
+pub mod constants;
 pub mod errors;
 pub mod machine;
 pub mod states;
@@ -127,8 +130,36 @@ impl Lock {
     }
 }
 
+pub struct RepoHandle {
+    repo: Repo,
+}
+
+impl RepoHandle {
+    pub fn open(path: &str, cancellable: &Cancellable) -> Result<Self, CommonError> {
+        let repo = Repo::new(&File::for_path(path));
+        match repo.open(cancellable) {
+            Ok(()) => Ok(Self { repo }),
+            Err(_) => Err(CommonError::RepoOpenFailed),
+        }
+    }
+
+    pub fn repo(&self) -> &Repo {
+        &self.repo
+    }
+}
+
+pub struct BaseCommit {
+    checksum: String,
+}
+
+impl BaseCommit {
+    pub fn new(checksum: String) -> Self {
+        Self { checksum }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.checksum
+    }
+}
+
 pub struct Targets(pub Vec<PackageEntry>);
-
-pub struct RepoHandle(pub ostree::Repo);
-
-pub struct BaseCommit(pub String);

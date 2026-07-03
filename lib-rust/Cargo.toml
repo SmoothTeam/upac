@@ -17,3 +17,6 @@ libmdbx = "0.6"
 rmp-serde = "1"
 glib = "0.20"
 gio = "0.20"
+
+[build-dependencies]
+toml = "0.8"
