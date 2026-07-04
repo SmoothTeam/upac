@@ -5,6 +5,7 @@ zig-out/
 
 # Rust
 target/
+release/
 Cargo.lock
 .rustc_info.json
 
