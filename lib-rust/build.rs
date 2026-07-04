@@ -1,6 +1,7 @@
 use std::env::var;
 use std::fs::{read_to_string, write};
 use std::path::Path;
+
 use toml::{Value, from_str};
 
 fn main() {
@@ -14,12 +15,16 @@ fn main() {
 
     let mut generated = String::new();
 
-    for (key, value) in config["layout"].as_table().unwrap() {
-        generated.push_str(&format!(
-            "pub const {}: &str = {:?};\n",
-            key.to_uppercase(),
-            value.as_str().unwrap(),
-        ));
+    for (section, entries) in config.as_table().unwrap() {
+        generated.push_str(&format!("pub mod {section} {{\n"));
+        for (key, value) in entries.as_table().unwrap() {
+            generated.push_str(&format!(
+                "    pub const {}: &str = {:?};\n",
+                key.to_uppercase(),
+                value.as_str().unwrap(),
+            ));
+        }
+        generated.push_str("}\n");
     }
 
     let out = Path::new(&var("OUT_DIR").unwrap()).join("layout.rs");

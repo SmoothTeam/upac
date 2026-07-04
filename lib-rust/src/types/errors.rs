@@ -1,5 +1,6 @@
-use nix::errno::Errno;
 use std::io::Error as IoError;
+
+use nix::errno::Errno;
 
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -170,6 +171,17 @@ impl From<Errno> for LockError {
             Errno::EPERM | Errno::EACCES => LockError::Denied,
             Errno::ENOENT => LockError::PathMissing,
             other => LockError::Unexpected(other),
+        }
+    }
+}
+
+impl From<LockError> for ErrorCode {
+    fn from(error: LockError) -> Self {
+        match error {
+            LockError::Busy => ErrorCode::LockWouldBlock,
+            LockError::ReadOnly | LockError::Denied => ErrorCode::PermissionDenied,
+            LockError::PathMissing => ErrorCode::InvalidPath,
+            LockError::Unexpected(_) => ErrorCode::Unexpected,
         }
     }
 }

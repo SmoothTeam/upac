@@ -1,12 +1,14 @@
 use std::os::raw::c_void;
+use std::ptr::null_mut;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use upac_derive::CFree;
 
-mod primitives;
+use self::primitives::{free_carray, free_carray_owning, free_cslice};
 
-pub use primitives::{AbiError, CArray, CSlice, check_size};
-use primitives::{free_carray, free_carray_owning, free_cslice};
+pub use self::primitives::{AbiError, CArray, CSlice, check_size};
+
+mod primitives;
 
 pub const ABI_VERSION: u32 = 2;
 
@@ -36,7 +38,7 @@ impl CancelToken {
         self.flag.store(0, Ordering::Release);
 
         self.hook = None;
-        self.hook_ctx = std::ptr::null_mut();
+        self.hook_ctx = null_mut();
     }
 }
 
@@ -157,8 +159,7 @@ pub enum HookResponse {
     Cancel = 1,
 }
 
-pub type HookFn =
-    unsafe extern "C" fn(event: u32, data: *const c_void, ctx: *mut c_void) -> HookResponse;
+pub type HookFn = unsafe extern "C" fn(event: u32, data: *const c_void, ctx: *mut c_void) -> HookResponse;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -338,9 +339,7 @@ impl CUnmutatedResponse {
             free_carray_owning(&self.metas, |package_meta_c| package_meta_c.free());
             free_carray_owning(&self.files, |diff_file_entry_c| diff_file_entry_c.free());
             free_carray_owning(&self.commits, |commit_entry_c| commit_entry_c.free());
-            free_carray_owning(&self.diff_packages, |diff_package_entry_c| {
-                diff_package_entry_c.free()
-            });
+            free_carray_owning(&self.diff_packages, |diff_package_entry_c| diff_package_entry_c.free());
         }
     }
 }

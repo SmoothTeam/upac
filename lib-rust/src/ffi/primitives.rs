@@ -1,6 +1,8 @@
+use std::mem::size_of;
 use std::os::raw::c_void;
-use std::ptr::null_mut;
+use std::ptr::{null, null_mut};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+use std::str::from_utf8;
 
 unsafe extern "C" {
     fn malloc(size: usize) -> *mut c_void;
@@ -17,7 +19,7 @@ pub enum AbiError {
 // ── struct_size guard ───────────────────────────────────────────────────────
 #[inline]
 pub fn check_size<T>(struct_size: usize) -> Result<(), AbiError> {
-    if struct_size != std::mem::size_of::<T>() {
+    if struct_size != size_of::<T>() {
         return Err(AbiError::AbiMismatch);
     }
     Ok(())
@@ -39,12 +41,13 @@ impl CSlice {
         unsafe { from_raw_parts(self.ptr, self.len) }
     }
 
+    pub unsafe fn as_str(&self) -> Result<&str, AbiError> {
+        from_utf8(unsafe { self.as_slice() }).map_err(|_| AbiError::InvalidEntry)
+    }
+
     pub fn from_slice(slice: Option<&[u8]>) -> CSlice {
         match slice {
-            None => CSlice {
-                ptr: std::ptr::null(),
-                len: 0,
-            },
+            None => CSlice { ptr: null(), len: 0 },
             Some(string) => CSlice {
                 ptr: string.as_ptr(),
                 len: string.len(),

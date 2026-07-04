@@ -1,4 +1,5 @@
 use libmdbx::{RW, TransactionKind};
+use rmp_serde::{from_slice, to_vec};
 use uuid::Uuid;
 
 use super::{DatabaseTransaction, Store};
@@ -14,7 +15,7 @@ enum PathScan {
 
 fn take_path(transaction: &DatabaseTransaction<'_, RW>, uuid: Uuid, path: &str) -> Result<PathScan, DatabaseError> {
     for value in transaction.values_of(Store::Files, uuid)? {
-        let file_entry: FileEntry = rmp_serde::from_slice(&value)?;
+        let file_entry: FileEntry = from_slice(&value)?;
 
         if file_entry.path == path {
             if file_entry.is_user {
@@ -37,7 +38,7 @@ pub fn insert(
         return Ok(());
     }
 
-    let serialized_file_entry = rmp_serde::to_vec(file_entry)?;
+    let serialized_file_entry = to_vec(file_entry)?;
 
     transaction.put(Store::Files, uuid, &serialized_file_entry)?;
 
@@ -57,7 +58,7 @@ pub fn update(
         return Ok(());
     }
 
-    let serialized_file_entry = rmp_serde::to_vec(file_entry)?;
+    let serialized_file_entry = to_vec(file_entry)?;
 
     transaction.put(Store::Files, uuid, &serialized_file_entry)?;
 
@@ -68,7 +69,7 @@ pub fn exists<K: TransactionKind>(
     transaction: &DatabaseTransaction<'_, K>, uuid: Uuid, file_path: &str,
 ) -> Result<bool, DatabaseError> {
     for value in transaction.values_of(Store::Files, uuid)? {
-        let file_entry: FileEntry = rmp_serde::from_slice(&value)?;
+        let file_entry: FileEntry = from_slice(&value)?;
 
         if file_entry.path == file_path {
             return Ok(true);
@@ -84,7 +85,7 @@ pub fn list<K: TransactionKind>(
     let mut out_files_list = Vec::new();
 
     for value in transaction.values_of(Store::Files, uuid)? {
-        out_files_list.push(rmp_serde::from_slice(&value)?);
+        out_files_list.push(from_slice(&value)?);
     }
 
     Ok(out_files_list)

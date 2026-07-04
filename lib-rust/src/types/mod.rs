@@ -1,18 +1,28 @@
+use std::fs::{File, OpenOptions, create_dir_all};
+use std::path::Path;
+
 use nix::fcntl::{Flock, FlockArg};
 use ostree::Repo;
-use ostree::gio::{Cancellable, File};
+use ostree::gio::{Cancellable, File as GioFile};
 use serde::{Deserialize, Serialize};
-use std::fs::{File, OpenOptions, create_dir_all};
 
-use crate::types::errors::LockError;
+use crate::types::errors::{CommonError, LockError};
 
-pub mod constants;
+include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+
 pub mod errors;
 pub mod machine;
 pub mod states;
 
-const LOCK_DIR: &str = "/run/upac";
-const LOCK_PATH: &str = "/run/upac/lock";
+macro_rules! as_str_method {
+    ($name:ty) => {
+        impl AsRef<str> for $name {
+            fn as_ref(&self) -> &str {
+                &self.0
+            }
+        }
+    };
+}
 
 // ── HookResponse ────────────────────────────────────────────────────────────
 #[repr(u8)]
@@ -114,17 +124,18 @@ pub enum DiffKind {
 }
 
 pub struct Lock {
-    flock: Flock<File>,
+    _flock: Flock<File>,
 }
 
 impl Lock {
     pub fn acquire() -> Result<Lock, LockError> {
-        create_dir_all(LOCK_DIR)?;
+        create_dir_all(runtime::DIR)?;
 
-        let file = OpenOptions::new().create(true).write(true).open(LOCK_PATH)?;
+        let path = Path::new(runtime::DIR).join(runtime::LOCK_FILE);
+        let file = OpenOptions::new().create(true).write(true).open(path)?;
 
         match Flock::lock(file, FlockArg::LockExclusiveNonblock) {
-            Ok(flock) => Ok(Lock { flock }),
+            Ok(flock) => Ok(Lock { _flock: flock }),
             Err((_, errno)) => Err(errno.into()),
         }
     }
@@ -135,8 +146,8 @@ pub struct RepoHandle {
 }
 
 impl RepoHandle {
-    pub fn open(path: &str, cancellable: &Cancellable) -> Result<Self, CommonError> {
-        let repo = Repo::new(&File::for_path(path));
+    pub fn open(path: &str, cancellable: Option<&Cancellable>) -> Result<Self, CommonError> {
+        let repo = Repo::new(&GioFile::for_path(path));
         match repo.open(cancellable) {
             Ok(()) => Ok(Self { repo }),
             Err(_) => Err(CommonError::RepoOpenFailed),
@@ -163,3 +174,25 @@ impl BaseCommit {
 }
 
 pub struct Targets(pub Vec<PackageEntry>);
+
+impl Targets {
+    pub fn entries(&self) -> &[PackageEntry] {
+        &self.0
+    }
+}
+
+pub struct RepoPath(pub String);
+
+as_str_method!(RepoPath);
+
+pub struct RootPath(pub String);
+
+as_str_method!(RootPath);
+
+pub struct TmpPath(pub String);
+
+as_str_method!(TmpPath);
+
+pub struct Branch(pub String);
+
+as_str_method!(Branch);

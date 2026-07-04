@@ -1,8 +1,9 @@
-use std::os::raw::c_void;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::slice::from_raw_parts;
 
-use crate::ffi::{AbiError, CMutatedRequest, CancelToken, HookFn};
+use crate::ffi::{AbiError, CMutatedRequest};
 use crate::types::errors::ErrorCode;
+use crate::uninstaller::{UninstallData, UninstallPackage};
 
 macro_rules! try_convert_abi {
     ($expr:expr) => {
@@ -20,30 +21,8 @@ fn error_to_code(error: AbiError) -> ErrorCode {
     }
 }
 
-pub struct UninstallPackage<'a> {
-    pub name: &'a str,
-    pub arch: &'a str,
-    pub arch_sub: Option<&'a str>,
-}
-
-pub struct UninstallData<'a> {
-    pub packages: &'a [UninstallPackage<'a>],
-    pub branch: &'a str,
-    pub repo_path: &'a str,
-    pub root_path: &'a str,
-    pub tmp_path: &'a str,
-    pub on_hook: Option<HookFn>,
-    pub hook_ctx: *mut c_void,
-    pub cancel_token: &'a CancelToken,
-}
-
-unsafe fn cslice_str<'a>(s: &crate::ffi::CSlice) -> Result<&'a str, AbiError> {
-    let bytes = unsafe { from_raw_parts(s.ptr, s.len) };
-    std::str::from_utf8(bytes).map_err(|_| AbiError::InvalidEntry)
-}
-
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn upac_uninstall(request_c: CMutatedRequest) -> i32 {
+pub unsafe extern "C" fn uninstall(request_c: CMutatedRequest) -> i32 {
     if let Err(error) = unsafe { request_c.validate() } {
         return match error {
             AbiError::AbiMismatch => ErrorCode::AbiMismatch,
@@ -55,12 +34,7 @@ pub unsafe extern "C" fn upac_uninstall(request_c: CMutatedRequest) -> i32 {
         return ErrorCode::DbInvalidEntry as i32;
     }
 
-    let packages_c = unsafe {
-        from_raw_parts(
-            request_c.uninstall_packages,
-            request_c.uninstall_packages_len,
-        )
-    };
+    let packages_c = unsafe { from_raw_parts(request_c.uninstall_packages, request_c.uninstall_packages_len) };
 
     for package_info_c in packages_c {
         if let Err(error) = unsafe { package_info_c.validate() } {
@@ -73,21 +47,15 @@ pub unsafe extern "C" fn upac_uninstall(request_c: CMutatedRequest) -> i32 {
 
     let mut packages = Vec::with_capacity(packages_c.len());
     for package_info_c in packages_c {
-        let name = try_convert_abi!(unsafe { cslice_str(&package_info_c.name) });
-        let arch = try_convert_abi!(unsafe { cslice_str(&package_info_c.arch) });
+        let name = try_convert_abi!(unsafe { package_info_c.name.as_str() });
+        let arch = try_convert_abi!(unsafe { package_info_c.arch.as_str() });
         let arch_sub = if package_info_c.arch_sub.ptr.is_null() {
             None
         } else {
-            Some(try_convert_abi!(unsafe {
-                cslice_str(&package_info_c.arch_sub)
-            }))
+            Some(try_convert_abi!(unsafe { package_info_c.arch_sub.as_str() }))
         };
 
-        packages.push(UninstallPackage {
-            name,
-            arch,
-            arch_sub,
-        });
+        packages.push(UninstallPackage { name, arch, arch_sub });
     }
 
     let cancel_token = match unsafe { request_c.cancel_token.as_ref() } {
@@ -95,10 +63,10 @@ pub unsafe extern "C" fn upac_uninstall(request_c: CMutatedRequest) -> i32 {
         None => return ErrorCode::DbInvalidEntry as i32,
     };
 
-    let branch = try_convert_abi!(unsafe { cslice_str(&request_c.branch) });
-    let repo_path = try_convert_abi!(unsafe { cslice_str(&request_c.repo_path) });
-    let root_path = try_convert_abi!(unsafe { cslice_str(&request_c.root_path) });
-    let tmp_path = try_convert_abi!(unsafe { cslice_str(&request_c.tmp_path) });
+    let branch = try_convert_abi!(unsafe { request_c.branch.as_str() });
+    let repo_path = try_convert_abi!(unsafe { request_c.repo_path.as_str() });
+    let root_path = try_convert_abi!(unsafe { request_c.root_path.as_str() });
+    let tmp_path = try_convert_abi!(unsafe { request_c.tmp_path.as_str() });
 
     let uninstall_data = UninstallData {
         packages: &packages,
@@ -111,5 +79,10 @@ pub unsafe extern "C" fn upac_uninstall(request_c: CMutatedRequest) -> i32 {
         cancel_token,
     };
 
-    todo!()
+    let result = catch_unwind(AssertUnwindSafe(|| crate::uninstaller::run(uninstall_data)));
+
+    match result {
+        Ok(code) => code,
+        Err(_) => ErrorCode::Unexpected as i32,
+    }
 }

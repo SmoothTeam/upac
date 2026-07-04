@@ -6,6 +6,7 @@ zig-out/
 # Rust
 target/
 Cargo.lock
+.rustc_info.json
 
 # Package building
 build

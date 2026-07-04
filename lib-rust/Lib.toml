@@ -1,2 +1,3 @@
-[layout]
-runtime_dir = "/run/upac"
+[runtime]
+dir = "/run/upac"
+lock_file = "lock"
