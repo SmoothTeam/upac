@@ -1,4 +1,4 @@
-use crate::ffi::{ABI_VERSION, CUnmutatedResponse, CancelToken};
+use crate::ffi::{ABI_VERSION, CUnmutatedResponse, HookCancelToken};
 
 mod mutated;
 
@@ -8,7 +8,7 @@ pub unsafe extern "C" fn version_abi() -> u32 {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cancel(token: *mut CancelToken) {
+pub unsafe extern "C" fn cancel(token: *mut HookCancelToken) {
     if token.is_null() {
         return;
     }
@@ -16,7 +16,7 @@ pub unsafe extern "C" fn cancel(token: *mut CancelToken) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn free_response(response: *mut CUnmutatedResponse) {
+pub unsafe extern "C" fn free_unmutated_response(response: *mut CUnmutatedResponse) {
     if response.is_null() {
         return;
     }

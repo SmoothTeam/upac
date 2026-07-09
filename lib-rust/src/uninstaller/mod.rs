@@ -1,11 +1,17 @@
 use std::os::raw::c_void;
 
-use crate::ffi::{CancelToken, HookFn};
+use gio::Cancellable;
+use glib::prelude::ObjectType;
+
+use crate::ffi::{HookCancelToken, HookFn};
 use crate::types::errors::{ErrorCode, UninstallError, to_code};
 use crate::types::machine::{Context, Orchestrator};
-use crate::types::{Branch, Lock, PackageEntry, RepoPath, RootPath, Targets, TmpPath};
+use crate::types::{
+    Branch, HookCancelHandle, HookMessageHandle, Lock, PackageEntry, RepoPath, RootPath, Targets, TmpPath,
+};
 
 use self::checkout::CheckoutStage;
+use self::merge::MergeStage;
 use self::preparation::PreparationStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
@@ -28,18 +34,25 @@ pub struct UninstallData<'a> {
     pub repo_path: &'a str,
     pub root_path: &'a str,
     pub tmp_path: &'a str,
-    pub on_hook: Option<HookFn>,
-    pub hook_ctx: *mut c_void,
-    pub cancel_token: &'a CancelToken,
+
+    pub hook_message: Option<HookFn>,
+    pub hook_message_context: *mut c_void,
+
+    pub hook_cancel_token: &'a HookCancelToken,
 }
 
 fn assemble() -> Orchestrator<UninstallError> {
     Orchestrator::new(vec![
         Box::new(PreparationStage),
         Box::new(TransactionStage),
+        Box::new(MergeStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),
     ])
+}
+
+unsafe extern "C" fn cancel_via_gcancellable(ctx: *mut c_void) {
+    unsafe { gio::ffi::g_cancellable_cancel(ctx as *mut gio::ffi::GCancellable) };
 }
 
 pub fn run(data: UninstallData) -> i32 {
@@ -59,18 +72,29 @@ pub fn run(data: UninstallData) -> i32 {
             .collect(),
     );
 
+    let cancellable = Cancellable::new();
+    data.hook_cancel_token
+        .bind(cancel_via_gcancellable, cancellable.as_ptr() as *mut c_void);
+
     let mut context = Context::new();
     context.put(targets);
     context.put(RepoPath(data.repo_path.to_owned()));
     context.put(RootPath(data.root_path.to_owned()));
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Branch(data.branch.to_owned()));
+    context.put(HookMessageHandle::new(data.hook_message, data.hook_message_context));
+    context.put(HookCancelHandle::new(data.hook_cancel_token as *const HookCancelToken));
+    context.put(cancellable);
 
     let orchestrator = assemble();
 
-    if orchestrator.validate(&context).is_err() {
-        return ErrorCode::Unexpected as i32;
-    }
+    let code = if orchestrator.validate(&context).is_err() {
+        ErrorCode::Unexpected as i32
+    } else {
+        to_code(orchestrator.run(&mut context))
+    };
 
-    to_code(orchestrator.run(&mut context))
+    data.hook_cancel_token.reset();
+
+    code
 }

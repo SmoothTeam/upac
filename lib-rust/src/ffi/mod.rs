@@ -1,3 +1,5 @@
+use std::cell::UnsafeCell;
+use std::hint::spin_loop;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -12,33 +14,74 @@ mod primitives;
 
 pub const ABI_VERSION: u32 = 2;
 
-// ── CancelToken ─────────────────────────────────────────────────────────────
+// ── HookCancelToken ─────────────────────────────────────────────────────────
 #[repr(C)]
-pub struct CancelToken {
-    flag: AtomicU8,
+pub struct HookCancelToken {
+    cancelled: AtomicU8,
+    binding_lock: AtomicU8,
 
-    hook: Option<unsafe extern "C" fn(ctx: *mut c_void)>,
-    hook_ctx: *mut c_void,
+    hook_cancel: UnsafeCell<Option<unsafe extern "C" fn(ctx: *mut c_void)>>,
+    hook_cancel_context: UnsafeCell<*mut c_void>,
 }
 
-impl CancelToken {
-    pub fn cancel(&self) {
-        self.flag.store(1, Ordering::Release);
+unsafe impl Sync for HookCancelToken {}
 
-        if let Some(hook) = self.hook {
-            unsafe { hook(self.hook_ctx) };
+impl HookCancelToken {
+    pub fn bind(&self, hook_cancel: unsafe extern "C" fn(ctx: *mut c_void), hook_cancel_context: *mut c_void) {
+        self.lock_binding();
+
+        unsafe {
+            *self.hook_cancel.get() = Some(hook_cancel);
+            *self.hook_cancel_context.get() = hook_cancel_context;
+        }
+
+        self.unlock_binding();
+    }
+
+    pub fn cancel(&self) {
+        self.cancelled.store(1, Ordering::Release);
+
+        self.lock_binding();
+
+        let hook_cancel = unsafe { *self.hook_cancel.get() };
+        let hook_cancel_context = unsafe { *self.hook_cancel_context.get() };
+
+        self.unlock_binding();
+
+        if let Some(hook_cancel) = hook_cancel {
+            unsafe { hook_cancel(hook_cancel_context) };
         }
     }
 
     pub fn is_cancelled(&self) -> bool {
-        self.flag.load(Ordering::Acquire) != 0
+        self.cancelled.load(Ordering::Acquire) != 0
     }
 
-    pub fn reset(&mut self) {
-        self.flag.store(0, Ordering::Release);
+    pub fn reset(&self) {
+        self.lock_binding();
 
-        self.hook = None;
-        self.hook_ctx = null_mut();
+        unsafe {
+            *self.hook_cancel.get() = None;
+            *self.hook_cancel_context.get() = null_mut();
+        }
+
+        self.unlock_binding();
+
+        self.cancelled.store(0, Ordering::Release);
+    }
+
+    fn lock_binding(&self) {
+        while self
+            .binding_lock
+            .compare_exchange_weak(0, 1, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            spin_loop();
+        }
+    }
+
+    fn unlock_binding(&self) {
+        self.binding_lock.store(0, Ordering::Release);
     }
 }
 
@@ -213,7 +256,7 @@ pub struct CMutatedRequest {
     pub on_hook: Option<HookFn>,
     pub hook_ctx: *mut c_void,
 
-    pub cancel_token: *mut CancelToken,
+    pub hook_cancel_token: *mut HookCancelToken,
 }
 
 impl CMutatedRequest {
@@ -249,7 +292,8 @@ pub struct CUnmutatedRequest {
     pub symlinks_len: usize,
 
     pub repo_mode: *mut c_void,
-    pub cancel_token: *mut CancelToken,
+
+    pub hook_cancel_token: *mut HookCancelToken,
 }
 
 impl CUnmutatedRequest {

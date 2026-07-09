@@ -1,5 +1,9 @@
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
+use std::ptr::null;
+
+use crate::types::HookMessageHandle;
+use crate::types::errors::CommonError;
 
 pub struct Context {
     slots: HashMap<TypeId, Box<dyn Any>>,
@@ -57,6 +61,10 @@ impl RollbackStack {
 }
 
 pub trait Stage<E> {
+    fn event_id(&self) -> u32 {
+        0
+    }
+
     fn requires(&self) -> Vec<TypeId> {
         Vec::new()
     }
@@ -100,11 +108,19 @@ impl<E> Orchestrator<E> {
 
         Ok(())
     }
+}
 
+impl<E: From<CommonError>> Orchestrator<E> {
     pub fn run(&self, operation_context: &mut Context) -> Result<(), E> {
         let mut operation_stack = RollbackStack::new();
 
         for stage in &self.stages {
+            if let Some(hook) = operation_context.get::<HookMessageHandle>() {
+                if hook.call(stage.event_id(), null()) {
+                    return Err(CommonError::Cancelled.into());
+                }
+            }
+
             if let Err(error) = stage.run(operation_context, &mut operation_stack) {
                 operation_stack.unwind();
                 return Err(error);

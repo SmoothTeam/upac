@@ -58,7 +58,7 @@ pub unsafe extern "C" fn uninstall(request_c: CMutatedRequest) -> i32 {
         packages.push(UninstallPackage { name, arch, arch_sub });
     }
 
-    let cancel_token = match unsafe { request_c.cancel_token.as_ref() } {
+    let cancel_token = match unsafe { request_c.hook_cancel_token.as_ref() } {
         Some(token) => token,
         None => return ErrorCode::DbInvalidEntry as i32,
     };
@@ -71,12 +71,14 @@ pub unsafe extern "C" fn uninstall(request_c: CMutatedRequest) -> i32 {
     let uninstall_data = UninstallData {
         packages: &packages,
         branch,
+
         repo_path,
         root_path,
         tmp_path,
-        on_hook: request_c.on_hook,
-        hook_ctx: request_c.hook_ctx,
-        cancel_token,
+
+        hook_message: request_c.on_hook,
+        hook_message_context: request_c.hook_ctx,
+        hook_cancel_token: cancel_token,
     };
 
     let result = catch_unwind(AssertUnwindSafe(|| crate::uninstaller::run(uninstall_data)));

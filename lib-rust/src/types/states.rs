@@ -18,12 +18,15 @@ pub enum InstallStateId {
     Done = 6,
 }
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UninstallStateId {
-    Preparation,
-    Transaction,
-    Checkout,
-    Swap,
-    Done,
+    Preparation = 0,
+    Transaction = 1,
+    Merge = 2,
+    Checkout = 3,
+    Swap = 4,
+    Done = 5,
 }
 
 #[repr(u8)]

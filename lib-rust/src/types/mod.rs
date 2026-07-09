@@ -1,4 +1,5 @@
 use std::fs::{File, OpenOptions, create_dir_all};
+use std::os::raw::c_void;
 use std::path::Path;
 
 use nix::fcntl::{Flock, FlockArg};
@@ -6,6 +7,7 @@ use ostree::Repo;
 use ostree::gio::{Cancellable, File as GioFile};
 use serde::{Deserialize, Serialize};
 
+use crate::ffi::{HookCancelToken, HookFn, HookResponse};
 use crate::types::errors::{CommonError, LockError};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
@@ -22,14 +24,6 @@ macro_rules! as_str_method {
             }
         }
     };
-}
-
-// ── HookResponse ────────────────────────────────────────────────────────────
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HookResponse {
-    Proceed = 0,
-    Cancel = 1,
 }
 
 // ── Version ─────────────────────────────────────────────────────────────────
@@ -196,3 +190,40 @@ as_str_method!(TmpPath);
 pub struct Branch(pub String);
 
 as_str_method!(Branch);
+
+pub struct HookMessageHandle {
+    hook_message: Option<HookFn>,
+    hook_message_context: *mut c_void,
+}
+
+impl HookMessageHandle {
+    pub fn new(hook_message: Option<HookFn>, hook_message_context: *mut c_void) -> Self {
+        Self {
+            hook_message,
+            hook_message_context,
+        }
+    }
+
+    pub fn call(&self, event: u32, data: *const c_void) -> bool {
+        match self.hook_message {
+            Some(hook_message) => {
+                (unsafe { hook_message(event, data, self.hook_message_context) }) == HookResponse::Cancel
+            }
+            None => false,
+        }
+    }
+}
+
+pub struct HookCancelHandle {
+    token: *const HookCancelToken,
+}
+
+impl HookCancelHandle {
+    pub fn new(token: *const HookCancelToken) -> Self {
+        Self { token }
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        unsafe { (*self.token).is_cancelled() }
+    }
+}
