@@ -194,15 +194,15 @@ impl CPackageInfo {
     }
 }
 
-// ── HookFn / HookResponse ───────────────────────────────────────────────────
+// ── HookMessageFn / HookAck ─────────────────────────────────────────────────
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HookResponse {
-    Proceed = 0,
-    Cancel = 1,
+pub enum HookAck {
+    Delivered = 0,
+    Retry = 1,
 }
 
-pub type HookFn = unsafe extern "C" fn(event: u32, data: *const c_void, ctx: *mut c_void) -> HookResponse;
+pub type HookMessageFn = unsafe extern "C" fn(event: u32, data: *const c_void, ctx: *mut c_void) -> HookAck;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -253,7 +253,7 @@ pub struct CMutatedRequest {
     pub file_kind: DiffKind,
     pub file_package: *const CPackageInfo,
 
-    pub on_hook: Option<HookFn>,
+    pub on_hook: Option<HookMessageFn>,
     pub hook_ctx: *mut c_void,
 
     pub hook_cancel_token: *mut HookCancelToken,

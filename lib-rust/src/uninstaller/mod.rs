@@ -1,9 +1,10 @@
 use std::os::raw::c_void;
 
 use gio::Cancellable;
+use gio::ffi::{GCancellable, g_cancellable_cancel};
 use glib::prelude::ObjectType;
 
-use crate::ffi::{HookCancelToken, HookFn};
+use crate::ffi::{HookCancelToken, HookMessageFn};
 use crate::types::errors::{ErrorCode, UninstallError, to_code};
 use crate::types::machine::{Context, Orchestrator};
 use crate::types::{
@@ -31,11 +32,12 @@ pub struct UninstallPackage<'a> {
 pub struct UninstallData<'a> {
     pub packages: &'a [UninstallPackage<'a>],
     pub branch: &'a str,
+
     pub repo_path: &'a str,
     pub root_path: &'a str,
     pub tmp_path: &'a str,
 
-    pub hook_message: Option<HookFn>,
+    pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
     pub hook_cancel_token: &'a HookCancelToken,
@@ -51,8 +53,8 @@ fn assemble() -> Orchestrator<UninstallError> {
     ])
 }
 
-unsafe extern "C" fn cancel_via_gcancellable(ctx: *mut c_void) {
-    unsafe { gio::ffi::g_cancellable_cancel(ctx as *mut gio::ffi::GCancellable) };
+unsafe extern "C" fn cancel_gcancellable(ctx: *mut c_void) {
+    unsafe { g_cancellable_cancel(ctx as *mut GCancellable) };
 }
 
 pub fn run(data: UninstallData) -> i32 {
@@ -74,7 +76,7 @@ pub fn run(data: UninstallData) -> i32 {
 
     let cancellable = Cancellable::new();
     data.hook_cancel_token
-        .bind(cancel_via_gcancellable, cancellable.as_ptr() as *mut c_void);
+        .bind(cancel_gcancellable, cancellable.as_ptr() as *mut c_void);
 
     let mut context = Context::new();
     context.put(targets);

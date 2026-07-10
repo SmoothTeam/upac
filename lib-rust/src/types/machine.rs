@@ -2,7 +2,7 @@ use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::ptr::null;
 
-use crate::types::HookMessageHandle;
+use crate::types::{HookCancelHandle, HookMessageHandle};
 use crate::types::errors::CommonError;
 
 pub struct Context {
@@ -116,7 +116,11 @@ impl<E: From<CommonError>> Orchestrator<E> {
 
         for stage in &self.stages {
             if let Some(hook) = operation_context.get::<HookMessageHandle>() {
-                if hook.call(stage.event_id(), null()) {
+                hook.call(stage.event_id(), null());
+            }
+
+            if let Some(cancel) = operation_context.get::<HookCancelHandle>() {
+                if cancel.is_cancelled() {
                     return Err(CommonError::Cancelled.into());
                 }
             }
