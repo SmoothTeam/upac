@@ -64,16 +64,12 @@ pub unsafe extern "C" fn uninstall(request_c: CMutatedRequest) -> i32 {
     };
 
     let branch = try_convert_abi!(unsafe { request_c.branch.as_str() });
-    let repo_path = try_convert_abi!(unsafe { request_c.repo_path.as_str() });
-    let root_path = try_convert_abi!(unsafe { request_c.root_path.as_str() });
     let tmp_path = try_convert_abi!(unsafe { request_c.tmp_path.as_str() });
 
     let uninstall_data = UninstallData {
         packages: &packages,
         branch,
 
-        repo_path,
-        root_path,
         tmp_path,
 
         hook_message: request_c.on_hook,

@@ -228,8 +228,6 @@ impl DiffKind {
 pub struct CMutatedRequest {
     pub struct_size: usize,
 
-    pub repo_path: CSlice,
-    pub root_path: CSlice,
     pub tmp_path: CSlice,
     pub branch: CSlice,
 
@@ -264,8 +262,6 @@ impl CMutatedRequest {
         check_size::<CMutatedRequest>(self.struct_size)?;
 
         unsafe {
-            self.repo_path.validate()?;
-            self.root_path.validate()?;
             self.tmp_path.validate()?;
             self.branch.validate()?;
         }
@@ -278,8 +274,6 @@ impl CMutatedRequest {
 pub struct CUnmutatedRequest {
     pub struct_size: usize,
 
-    pub repo_path: CSlice,
-    pub root_path: CSlice,
     pub tmp_path: CSlice,
     pub branch: CSlice,
 
@@ -301,8 +295,6 @@ impl CUnmutatedRequest {
         check_size::<CUnmutatedRequest>(self.struct_size)?;
 
         unsafe {
-            self.repo_path.validate()?;
-            self.root_path.validate()?;
             self.tmp_path.validate()?;
             self.branch.validate()?;
         };

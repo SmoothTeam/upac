@@ -63,6 +63,21 @@ impl From<Errno> for SysrootError {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeployMode {
+    ReadOnly,
+    ReadWrite,
+}
+
+impl From<DeployMode> for MsFlags {
+    fn from(mode: DeployMode) -> Self {
+        match mode {
+            DeployMode::ReadOnly => MsFlags::MS_RDONLY,
+            DeployMode::ReadWrite => MsFlags::empty(),
+        }
+    }
+}
+
 pub struct Deploy {
     uuid: Uuid,
 
@@ -72,7 +87,7 @@ pub struct Deploy {
 }
 
 impl Deploy {
-    pub fn new() -> Result<Self, SysrootError> {
+    pub fn new(mode: DeployMode) -> Result<Self, SysrootError> {
         let device_path = Self::device_path()?;
 
         let mut cache = Cache::builder().discard_changes_on_drop().build()?;
@@ -82,13 +97,7 @@ impl Deploy {
         let sysroot = Self::sysroot_path()?;
 
         unshare(CloneFlags::CLONE_NEWNS)?;
-        mount(
-            Some(&device_path),
-            &sysroot,
-            None::<&str>,
-            MsFlags::empty(),
-            None::<&str>,
-        )?;
+        mount(Some(&device_path), &sysroot, None::<&str>, mode.into(), None::<&str>)?;
 
         let deploy = sysroot.join(DEPLOYS_DIR);
         if !deploy.try_exists()? {

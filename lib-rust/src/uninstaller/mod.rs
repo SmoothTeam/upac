@@ -5,11 +5,10 @@ use gio::ffi::{GCancellable, g_cancellable_cancel};
 use glib::prelude::ObjectType;
 
 use crate::ffi::{HookCancelToken, HookMessageFn};
+use crate::types::deploy::{Deploy, DeployMode};
 use crate::types::errors::{ErrorCode, UninstallError, to_code};
 use crate::types::machine::{Context, Orchestrator};
-use crate::types::{
-    Branch, HookCancelHandle, HookMessageHandle, Lock, PackageEntry, RepoPath, RootPath, Targets, TmpPath,
-};
+use crate::types::{Branch, HookCancelHandle, HookMessageHandle, Lock, PackageEntry, Targets, TmpPath};
 
 use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
@@ -33,8 +32,6 @@ pub struct UninstallData<'a> {
     pub packages: &'a [UninstallPackage<'a>],
     pub branch: &'a str,
 
-    pub repo_path: &'a str,
-    pub root_path: &'a str,
     pub tmp_path: &'a str,
 
     pub hook_message: Option<HookMessageFn>,
@@ -63,6 +60,11 @@ pub fn run(data: UninstallData) -> i32 {
         Err(error) => return ErrorCode::from(error) as i32,
     };
 
+    let deploy = match Deploy::new(DeployMode::ReadWrite) {
+        Ok(deploy) => deploy,
+        Err(error) => return ErrorCode::from(error) as i32,
+    };
+
     let targets = Targets(
         data.packages
             .iter()
@@ -80,8 +82,7 @@ pub fn run(data: UninstallData) -> i32 {
 
     let mut context = Context::new();
     context.put(targets);
-    context.put(RepoPath(data.repo_path.to_owned()));
-    context.put(RootPath(data.root_path.to_owned()));
+    context.put(deploy);
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Branch(data.branch.to_owned()));
     context.put(HookMessageHandle::new(data.hook_message, data.hook_message_context));

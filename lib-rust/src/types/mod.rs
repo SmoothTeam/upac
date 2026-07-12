@@ -1,8 +1,7 @@
-use std::fs::{File, OpenOptions, create_dir_all};
+use std::os::fd::{AsRawFd, OwnedFd};
 use std::os::raw::c_void;
-use std::path::Path;
 
-use nix::fcntl::{Flock, FlockArg};
+use nix::sys::socket::{AddressFamily, SockFlag, SockType, UnixAddr, bind, socket};
 use ostree::Repo;
 use ostree::gio::{Cancellable, File as GioFile};
 use serde::{Deserialize, Serialize};
@@ -119,20 +118,17 @@ pub enum DiffKind {
 }
 
 pub struct Lock {
-    _flock: Flock<File>,
+    _socket: OwnedFd,
 }
 
 impl Lock {
     pub fn acquire() -> Result<Lock, LockError> {
-        create_dir_all(runtime::DIR)?;
+        let socket = socket(AddressFamily::Unix, SockType::Stream, SockFlag::SOCK_CLOEXEC, None)?;
+        let address = UnixAddr::new_abstract(runtime::LOCK_ADDRESS.as_bytes())?;
 
-        let path = Path::new(runtime::DIR).join(runtime::LOCK_FILE);
-        let file = OpenOptions::new().create(true).write(true).open(path)?;
+        bind(socket.as_raw_fd(), &address)?;
 
-        match Flock::lock(file, FlockArg::LockExclusiveNonblock) {
-            Ok(flock) => Ok(Lock { _flock: flock }),
-            Err((_, errno)) => Err(errno.into()),
-        }
+        Ok(Lock { _socket: socket })
     }
 }
 

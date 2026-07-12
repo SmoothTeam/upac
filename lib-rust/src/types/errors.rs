@@ -1,5 +1,3 @@
-use std::io::Error as IoError;
-
 use nix::errno::Errno;
 
 use crate::types::deploy::SysrootError;
@@ -190,19 +188,10 @@ pub enum LockError {
     Unexpected(Errno),
 }
 
-impl From<IoError> for LockError {
-    fn from(error: IoError) -> Self {
-        match error.raw_os_error() {
-            Some(code) => Errno::from_raw(code).into(),
-            None => LockError::Unexpected(Errno::UnknownErrno),
-        }
-    }
-}
-
 impl From<Errno> for LockError {
     fn from(errno: Errno) -> Self {
         match errno {
-            Errno::EAGAIN => LockError::Busy,
+            Errno::EADDRINUSE => LockError::Busy,
             Errno::EROFS => LockError::ReadOnly,
             Errno::EPERM | Errno::EACCES => LockError::Denied,
             Errno::ENOENT => LockError::PathMissing,
