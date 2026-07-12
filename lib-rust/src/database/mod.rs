@@ -9,13 +9,11 @@ use rmp_serde::decode::Error as RmpDecodeError;
 use rmp_serde::encode::Error as RmpEncodeError;
 use uuid::Uuid;
 
+use crate::types::database::{FILES_TABLE_NAME, PACKAGES_TABLE_NAME};
 use crate::types::errors::DatabaseError;
 
 pub mod files;
 pub mod packages;
-
-const PACKAGES_TABLE: &str = "packages";
-const FILES_TABLE: &str = "files";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Store {
@@ -26,8 +24,8 @@ pub(crate) enum Store {
 impl Store {
     fn name(self) -> &'static str {
         match self {
-            Store::Packages => PACKAGES_TABLE,
-            Store::Files => FILES_TABLE,
+            Store::Packages => PACKAGES_TABLE_NAME,
+            Store::Files => FILES_TABLE_NAME,
         }
     }
 }
@@ -81,8 +79,8 @@ impl Database {
 
         let transaction = env.begin_rw_txn()?;
 
-        transaction.create_table(Some(PACKAGES_TABLE), TableFlags::empty())?;
-        transaction.create_table(Some(FILES_TABLE), TableFlags::DUP_SORT)?;
+        transaction.create_table(Some(PACKAGES_TABLE_NAME), TableFlags::empty())?;
+        transaction.create_table(Some(FILES_TABLE_NAME), TableFlags::DUP_SORT)?;
 
         transaction.commit()?;
 

@@ -12,6 +12,7 @@ use crate::types::errors::{CommonError, LockError};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
+pub mod deploy;
 pub mod errors;
 pub mod machine;
 pub mod states;

@@ -2,6 +2,8 @@ use std::io::Error as IoError;
 
 use nix::errno::Errno;
 
+use crate::types::deploy::SysrootError;
+
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
@@ -84,6 +86,16 @@ pub enum ErrorCode {
 
     FileChecksumFailed = 120,
     FileAlreadyExists = 121,
+
+    SysrootMountInfoUnavailable = 130,
+    SysrootRootDeviceNotFound = 131,
+    SysrootCacheUnavailable = 132,
+    SysrootUuidNotFound = 133,
+    SysrootCanonicalDeviceNotFound = 134,
+    SysrootMountFailed = 135,
+    SysrootDirUnavailable = 136,
+    SysrootDeploysDirNotFound = 137,
+    SysrootRepoDirNotFound = 138,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,6 +127,22 @@ impl From<DatabaseError> for ErrorCode {
     }
 }
 
+impl From<SysrootError> for ErrorCode {
+    fn from(error: SysrootError) -> Self {
+        match error {
+            SysrootError::MountInfoUnavailable => ErrorCode::SysrootMountInfoUnavailable,
+            SysrootError::RootDeviceNotFound => ErrorCode::SysrootRootDeviceNotFound,
+            SysrootError::CacheUnavailable => ErrorCode::SysrootCacheUnavailable,
+            SysrootError::UuidNotFound => ErrorCode::SysrootUuidNotFound,
+            SysrootError::CanonicalDeviceNotFound => ErrorCode::SysrootCanonicalDeviceNotFound,
+            SysrootError::SysrootDirUnavailable => ErrorCode::SysrootDirUnavailable,
+            SysrootError::DeploysDirNotFound => ErrorCode::SysrootDeploysDirNotFound,
+            SysrootError::RepoDirNotFound => ErrorCode::SysrootRepoDirNotFound,
+            SysrootError::System(_) => ErrorCode::SysrootMountFailed,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommonError {
     OutOfMemory,
@@ -124,6 +152,7 @@ pub enum CommonError {
     RepoOpenFailed,
     RepoTransactionFailed,
     Database(DatabaseError),
+    Sysroot(SysrootError),
 }
 
 impl From<CommonError> for ErrorCode {
@@ -136,6 +165,7 @@ impl From<CommonError> for ErrorCode {
             CommonError::RepoOpenFailed => ErrorCode::OstreeRepoOpenFailed,
             CommonError::RepoTransactionFailed => ErrorCode::OstreeRepoTransactionFailed,
             CommonError::Database(database_error) => database_error.into(),
+            CommonError::Sysroot(sysroot_error) => sysroot_error.into(),
         }
     }
 }
@@ -143,6 +173,12 @@ impl From<CommonError> for ErrorCode {
 impl From<DatabaseError> for CommonError {
     fn from(error: DatabaseError) -> Self {
         CommonError::Database(error)
+    }
+}
+
+impl From<SysrootError> for CommonError {
+    fn from(error: SysrootError) -> Self {
+        CommonError::Sysroot(error)
     }
 }
 
@@ -207,6 +243,12 @@ impl From<CommonError> for UninstallError {
 impl From<DatabaseError> for UninstallError {
     fn from(error: DatabaseError) -> Self {
         UninstallError::Common(CommonError::Database(error))
+    }
+}
+
+impl From<SysrootError> for UninstallError {
+    fn from(error: SysrootError) -> Self {
+        UninstallError::Common(CommonError::Sysroot(error))
     }
 }
 
