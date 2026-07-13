@@ -74,6 +74,8 @@ pub enum ErrorCode {
     OstreeCleanupFailed = 98,
     OstreeRepoWriteFailed = 99,
     OstreeMtreeInsertFailed = 100,
+    OstreeMtreeWriteFailed = 101,
+    OstreeCommitWriteFailed = 102,
 
     AlreadyInitialized = 110,
     CreateDirFailed = 111,
@@ -149,6 +151,9 @@ pub enum CommonError {
     MaxRetriesExceeded,
     RepoOpenFailed,
     RepoTransactionFailed,
+    MtreeWriteFailed,
+    MtreeInsertFailed,
+    CommitWriteFailed,
     Database(DatabaseError),
     Sysroot(SysrootError),
 }
@@ -162,6 +167,9 @@ impl From<CommonError> for ErrorCode {
             CommonError::MaxRetriesExceeded => ErrorCode::MaxRetriesExceeded,
             CommonError::RepoOpenFailed => ErrorCode::OstreeRepoOpenFailed,
             CommonError::RepoTransactionFailed => ErrorCode::OstreeRepoTransactionFailed,
+            CommonError::MtreeWriteFailed => ErrorCode::OstreeMtreeWriteFailed,
+            CommonError::MtreeInsertFailed => ErrorCode::OstreeMtreeInsertFailed,
+            CommonError::CommitWriteFailed => ErrorCode::OstreeCommitWriteFailed,
             CommonError::Database(database_error) => database_error.into(),
             CommonError::Sysroot(sysroot_error) => sysroot_error.into(),
         }

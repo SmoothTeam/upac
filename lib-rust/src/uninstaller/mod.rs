@@ -7,8 +7,9 @@ use glib::prelude::ObjectType;
 use crate::ffi::{HookCancelToken, HookMessageFn};
 use crate::types::deploy::{Deploy, DeployMode};
 use crate::types::errors::{ErrorCode, UninstallError, to_code};
+use crate::types::hooks::{HookCancelHandle, HookMessageHandle};
 use crate::types::machine::{Context, Orchestrator};
-use crate::types::{Branch, HookCancelHandle, HookMessageHandle, Lock, PackageEntry, Targets, TmpPath};
+use crate::types::{Branch, Lock, PackageEntry, Targets, TmpPath};
 
 use self::checkout::CheckoutStage;
 use self::merge::MergeStage;

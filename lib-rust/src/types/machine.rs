@@ -2,8 +2,8 @@ use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::ptr::null;
 
-use crate::types::{HookCancelHandle, HookMessageHandle};
 use crate::types::errors::CommonError;
+use crate::types::hooks::{HookCancelHandle, HookMessageHandle};
 
 pub struct Context {
     slots: HashMap<TypeId, Box<dyn Any>>,
