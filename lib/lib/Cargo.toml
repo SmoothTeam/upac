@@ -1,0 +1,27 @@
+[package]
+name = "upac-lib"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "upac"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+upac-macro = { path = "../lib-macro" }
+
+twox-hash = "2.1.3"
+rsblkid = "0.4"
+rsmount = "0.2"
+
+nix = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
+
+composefs = { version = "0.7.0", features = ["tempfile"] }
+composefs-boot = { version = "0.7.0" }
+composefs-oci = { version = "0.7.0", features = ["composefs-boot", "boot", "tar"] }
+
+redb = { version = "4.1.0", features = ["uuid"] }
+uuid = { version = "1", features = ["v4"] }
+
+[build-dependencies]
+toml = "0.8"

@@ -1,7 +1,0 @@
-.{
-    .prefix = "usr",
-    .config_dir = "etc",
-    .var_dir = "var",
-    .db_path = "share/upac",
-    .db_name = "database.dat",
-}

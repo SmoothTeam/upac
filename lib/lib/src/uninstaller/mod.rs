@@ -1,0 +1,107 @@
+use std::os::raw::c_void;
+
+use gio::Cancellable;
+use gio::ffi::{GCancellable, g_cancellable_cancel};
+use glib::prelude::ObjectType;
+
+use crate::ffi::{HookCancelToken, HookMessageFn};
+use crate::types::deploy::{Deploy, DeployMode};
+use crate::types::errors::{ErrorCode, UninstallError, to_code};
+use crate::types::hooks::{HookCancelHandle, HookMessageHandle};
+use crate::types::machine::{Context, Orchestrator};
+use crate::types::{Branch, Lock, PackageEntry, Targets, TmpPath};
+
+use self::boot_option::BootOptionStage;
+use self::build::BuildStage;
+use self::commit::CommitStage;
+use self::config_merge::ConfigMergeStage;
+use self::prepare_boot::PrepareBootStage;
+use self::preparation::PreparationStage;
+
+mod boot_option;
+mod build;
+mod commit;
+mod config_merge;
+mod prepare_boot;
+mod preparation;
+
+pub struct UninstallPackage<'a> {
+    pub name: &'a str,
+    pub arch: &'a str,
+    pub arch_sub: Option<&'a str>,
+}
+
+pub struct UninstallData<'a> {
+    pub packages: &'a [UninstallPackage<'a>],
+    pub branch: &'a str,
+
+    pub tmp_path: &'a str,
+
+    pub hook_message: Option<HookMessageFn>,
+    pub hook_message_context: *mut c_void,
+
+    pub hook_cancel_token: &'a HookCancelToken,
+}
+
+fn assemble() -> Orchestrator<UninstallError> {
+    Orchestrator::new(vec![
+        Box::new(PreparationStage),
+        Box::new(BuildStage),
+        Box::new(CommitStage),
+        Box::new(ConfigMergeStage),
+        Box::new(PrepareBootStage),
+        Box::new(BootOptionStage),
+    ])
+}
+
+unsafe extern "C" fn cancel_gcancellable(ctx: *mut c_void) {
+    unsafe { g_cancellable_cancel(ctx as *mut GCancellable) };
+}
+
+pub fn run(data: UninstallData) -> i32 {
+    let _lock = match Lock::acquire() {
+        Ok(lock) => lock,
+        Err(error) => return ErrorCode::from(error) as i32,
+    };
+
+    let deploy = match Deploy::new(DeployMode::ReadWrite) {
+        Ok(deploy) => deploy,
+        Err(error) => return ErrorCode::from(error) as i32,
+    };
+
+    let targets = Targets(
+        data.packages
+            .iter()
+            .map(|package| PackageEntry {
+                name: package.name.to_owned(),
+                arch: package.arch.to_owned(),
+                arch_sub: package.arch_sub.map(str::to_owned),
+            })
+            .collect(),
+    );
+
+    let cancellable = Cancellable::new();
+    data.hook_cancel_token
+        .bind(cancel_gcancellable, cancellable.as_ptr() as *mut c_void);
+
+    let mut context = Context::new();
+    context.put(targets);
+    context.put(deploy);
+    context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(Branch(data.branch.to_owned()));
+    context.put(HookMessageHandle::new(data.hook_message, data.hook_message_context));
+    context.put(HookCancelHandle::new(data.hook_cancel_token as *const HookCancelToken));
+    context.put(cancellable);
+
+    let orchestrator = assemble();
+
+    let code = if orchestrator.validate(&context).is_err() {
+        ErrorCode::Unexpected as i32
+    } else {
+        to_code(orchestrator.run(&mut context))
+    };
+
+    data.hook_cancel_token.reset();
+
+    code
+}

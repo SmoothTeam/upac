@@ -1,4 +1,0 @@
-.{
-    .packages_dbi = "packages",
-    .files_dbi = "files",
-}

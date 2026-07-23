@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cli", "derive", "lib-rust"]
+members = ["user/cli", "lib/lib-macro", "lib/lib"]
 
 [workspace.package]
 version = "0.1.5"
