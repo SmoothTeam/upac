@@ -1,4 +1,0 @@
-name       = "deb"
-flags      = ["deb"]
-extensions = [".deb"]
-so         = "libupac-deb.so"

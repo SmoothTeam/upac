@@ -1,4 +1,0 @@
-name       = "xbps"
-flags      = ["xbps"]
-extensions = [".xbps"]
-so         = "libupac-xbps.so"

@@ -1,4 +1,0 @@
-name       = "rpm"
-flags      = ["rpm"]
-extensions = [".rpm"]
-so         = "libupac-rpm.so"
