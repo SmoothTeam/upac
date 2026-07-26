@@ -1,0 +1,29 @@
+use self::types::AbiError;
+
+pub mod error;
+pub mod hook;
+pub mod memory;
+pub mod package;
+pub mod request;
+pub mod types;
+
+pub const ABI_VERSION: u32 = 2;
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiffKind {
+    Added = 0,
+    Removed = 1,
+    Modified = 2,
+}
+
+impl DiffKind {
+    pub fn from_u8(version: u8) -> Result<DiffKind, AbiError> {
+        match version {
+            0 => Ok(DiffKind::Added),
+            1 => Ok(DiffKind::Removed),
+            2 => Ok(DiffKind::Modified),
+            _ => Err(AbiError::InvalidEntry),
+        }
+    }
+}

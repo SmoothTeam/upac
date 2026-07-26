@@ -1,0 +1,7 @@
+[package]
+name = "upac-abi"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+upac-macro = { workspace = true }

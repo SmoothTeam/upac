@@ -1,0 +1,53 @@
+use upac_macro::{CFree, CValidate};
+
+use crate::memory::{free_cslice, free_cvec};
+use crate::types::{AbiError, CSlice, CVec, check_size};
+
+#[repr(C)]
+#[derive(CFree, CValidate)]
+pub struct CVersion {
+    pub struct_size: usize,
+
+    pub epoch: u32,
+    pub release: u32,
+    #[non_empty]
+    pub parts: CVec<u32>,
+    #[optional]
+    pub pre: CSlice,
+}
+
+#[repr(C)]
+#[derive(CFree, CValidate)]
+pub struct CPackageMeta {
+    pub struct_size: usize,
+    pub name: CSlice,
+    pub version: CVersion,
+    pub arch: CSlice,
+
+    #[optional]
+    pub arch_sub: CSlice,
+    pub maintainer: CSlice,
+    pub description: CSlice,
+    pub license: CSlice,
+    pub url: CSlice,
+    pub sha256: [u8; 32],
+    pub installed_size: u64,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CUnpackedPackage {
+    pub struct_size: usize,
+    pub meta: CPackageMeta,
+    pub temp_path: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CPackageInfo {
+    pub struct_size: usize,
+    pub name: CSlice,
+    pub arch: CSlice,
+    #[optional]
+    pub arch_sub: CSlice,
+}
