@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["user/cli", "lib/lib-macro", "lib/lib"]
+members = ["user/cli", "macro", "abi", "lib"]
 
 [workspace.package]
 version = "0.1.5"
@@ -8,6 +8,9 @@ edition = "2024"
 license = "GPL-3.0-or-later"
 
 [workspace.dependencies]
+upac-macro = { path = "macro" }
+upac-abi = { path = "abi" }
+
 syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
