@@ -103,9 +103,13 @@ fn field_validate(field: &Field) -> TokenStream2 {
                     unsafe { self.#ident.validate()?; }
                 },
                 "CVec" if non_empty => quote! {
+                    unsafe { self.#ident.validate()? };
                     if self.#ident.len == 0 {
-                        return Err(AbiError::InvalidEntry);
+                        return Err(ErrorKind::InvalidEntry);
                     }
+                },
+                "CVec" => quote! {
+                    unsafe { self.#ident.validate()?; }
                 },
                 name if VALIDATABLE_COMPOSITES.contains(&name) => quote! {
                     unsafe { self.#ident.validate()?; }
@@ -125,7 +129,7 @@ fn field_validate(field: &Field) -> TokenStream2 {
                 quote! {
                     unsafe {
                         if self.#ident.is_null() {
-                            return Err(AbiError::InvalidEntry);
+                            return Err(ErrorKind::InvalidEntry);
                         }
                         (*self.#ident).validate()?;
                     }
@@ -163,7 +167,7 @@ pub fn derive_cvalidate(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #name {
-            pub unsafe fn validate(&self) -> Result<(), AbiError> {
+            pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
                 check_size::<#name>(self.struct_size)?;
                 #(#validations)*
                 Ok(())

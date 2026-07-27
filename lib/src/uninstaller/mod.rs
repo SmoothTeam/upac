@@ -1,6 +1,10 @@
 use std::os::raw::c_void;
 
+use upac_abi::error::ErrorKind;
 use upac_abi::hook::{Cancel, CancelHook, HookCancelToken, HookMessageFn, Message, MessageHook};
+use upac_abi::package::CPackageInfo;
+use upac_abi::request::CUninstallRequest;
+
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator};
 use crate::types::lock::Lock;
@@ -30,8 +34,26 @@ pub struct UninstallPackage<'a> {
     pub arch_sub: Option<&'a str>,
 }
 
+impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
+    type Error = ErrorKind;
+
+    fn try_from(info: &'a CPackageInfo) -> Result<Self, ErrorKind> {
+        unsafe { info.validate()? };
+
+        Ok(UninstallPackage {
+            name: (&info.name).try_into()?,
+            arch: (&info.arch).try_into()?,
+            arch_sub: if info.arch_sub.ptr.is_null() {
+                None
+            } else {
+                Some((&info.arch_sub).try_into()?)
+            },
+        })
+    }
+}
+
 pub struct UninstallData<'a> {
-    pub packages: &'a [UninstallPackage<'a>],
+    pub packages: Vec<UninstallPackage<'a>>,
     pub branch: &'a str,
 
     pub tmp_path: &'a str,
@@ -40,6 +62,28 @@ pub struct UninstallData<'a> {
     pub hook_message_context: *mut c_void,
 
     pub hook_cancel_token: &'a HookCancelToken,
+}
+
+impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
+    type Error = ErrorKind;
+
+    fn try_from(request: &'a CUninstallRequest) -> Result<Self, ErrorKind> {
+        unsafe { request.validate()? };
+
+        let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+
+        Ok(UninstallData {
+            packages: Vec::try_from(&request.packages)?,
+            branch: (&request.base.branch).try_into()?,
+
+            tmp_path: (&request.base.tmp_path).try_into()?,
+
+            hook_message: request.base.on_hook,
+            hook_message_context: request.base.hook_ctx,
+
+            hook_cancel_token: cancel_token,
+        })
+    }
 }
 
 fn assemble() -> Orchestrator<UninstallError> {

@@ -1,16 +1,18 @@
 use std::os::raw::c_void;
 
+use upac_abi::error::ErrorKind;
 use upac_abi::hook::{HookCancelToken, HookMessageFn};
-use upac_abi::package::CUnpackedPackage;
+use upac_abi::request::CInstallRequest;
 
 pub use self::error::InstallError;
 
+use crate::types::PackageTemp;
 use crate::types::states::InstallStateId;
 
 mod error;
 
 pub struct InstallData<'a> {
-    pub packages: &'a [CUnpackedPackage],
+    pub packages: Vec<PackageTemp>,
     pub branch: &'a str,
 
     pub tmp_path: &'a str,
@@ -19,6 +21,28 @@ pub struct InstallData<'a> {
     pub hook_message_context: *mut c_void,
 
     pub hook_cancel_token: &'a HookCancelToken,
+}
+
+impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
+    type Error = ErrorKind;
+
+    fn try_from(request: &'a CInstallRequest) -> Result<Self, ErrorKind> {
+        unsafe { request.validate()? };
+
+        let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+
+        Ok(InstallData {
+            packages: Vec::try_from(&request.packages)?,
+            branch: (&request.base.branch).try_into()?,
+
+            tmp_path: (&request.base.tmp_path).try_into()?,
+
+            hook_message: request.base.on_hook,
+            hook_message_context: request.base.hook_ctx,
+
+            hook_cancel_token: cancel_token,
+        })
+    }
 }
 
 pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {

@@ -1,3 +1,6 @@
+use upac_abi::error::ErrorKind;
+use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
+use upac_abi::types::CBorrowed;
 use upac_macro::RedbCodec;
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
@@ -36,11 +39,48 @@ impl Default for Version {
     }
 }
 
+impl TryFrom<&CVersion> for Version {
+    type Error = ErrorKind;
+
+    fn try_from(version: &CVersion) -> Result<Self, ErrorKind> {
+        unsafe { version.validate()? };
+
+        let pre = if version.pre.ptr.is_null() {
+            None
+        } else {
+            let pre: &str = (&version.pre).try_into()?;
+            Some(pre.to_owned())
+        };
+
+        Ok(Version {
+            epoch: version.epoch,
+            parts: unsafe { version.parts.as_borrowed() }.to_vec(),
+            pre,
+            release: version.release,
+        })
+    }
+}
+
 // ── Package ─────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
 pub struct PackageTemp {
     pub meta: PackageMeta,
     pub temp_package_path: String,
+}
+
+impl TryFrom<&CUnpackedPackage> for PackageTemp {
+    type Error = ErrorKind;
+
+    fn try_from(package: &CUnpackedPackage) -> Result<Self, ErrorKind> {
+        unsafe { package.validate()? };
+
+        let temp_package_path: &str = (&package.temp_path).try_into()?;
+
+        Ok(PackageTemp {
+            meta: PackageMeta::try_from(&package.meta)?,
+            temp_package_path: temp_package_path.to_owned(),
+        })
+    }
 }
 
 #[derive(Debug, Clone, RedbCodec)]
@@ -55,6 +95,53 @@ pub struct PackageMeta {
     pub url: Option<String>,
     pub sha256: [u8; 32],
     pub installed_size: u64,
+}
+
+impl TryFrom<&CPackageMeta> for PackageMeta {
+    type Error = ErrorKind;
+
+    fn try_from(meta: &CPackageMeta) -> Result<Self, ErrorKind> {
+        unsafe { meta.validate()? };
+
+        let name: &str = (&meta.name).try_into()?;
+        let arch: &str = (&meta.arch).try_into()?;
+        let maintainer: &str = (&meta.maintainer).try_into()?;
+        let description: &str = (&meta.description).try_into()?;
+
+        let arch_sub = if meta.arch_sub.ptr.is_null() {
+            None
+        } else {
+            let arch_sub: &str = (&meta.arch_sub).try_into()?;
+            Some(arch_sub.to_owned())
+        };
+
+        let license = if meta.license.ptr.is_null() {
+            None
+        } else {
+            let license: &str = (&meta.license).try_into()?;
+            Some(license.to_owned())
+        };
+
+        let url = if meta.url.ptr.is_null() {
+            None
+        } else {
+            let url: &str = (&meta.url).try_into()?;
+            Some(url.to_owned())
+        };
+
+        Ok(PackageMeta {
+            name: name.to_owned(),
+            version: Version::try_from(&meta.version)?,
+            arch: arch.to_owned(),
+            arch_sub,
+            maintainer: maintainer.to_owned(),
+            description: description.to_owned(),
+            license,
+            url,
+            sha256: meta.sha256,
+            installed_size: meta.installed_size,
+        })
+    }
 }
 
 // ── PackageEntry ────────────────────────────────────────────────────────────
