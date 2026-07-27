@@ -3,19 +3,14 @@ use std::mem::{forget, size_of};
 use std::ptr::{copy_nonoverlapping, null, null_mut};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
+use crate::error::ErrorKind;
 use crate::memory::{alloc_bytes, free_cslice, free_cvec};
 
-pub fn check_size<T>(struct_size: usize) -> Result<(), AbiError> {
+pub fn check_size<T>(struct_size: usize) -> Result<(), ErrorKind> {
     if struct_size != size_of::<T>() {
-        return Err(AbiError::AbiMismatch);
+        return Err(ErrorKind::AbiMismatch);
     }
     Ok(())
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AbiError {
-    AbiMismatch,
-    InvalidEntry,
 }
 
 pub trait CBorrowed {
@@ -40,12 +35,12 @@ pub struct CSlice {
 }
 
 impl CSlice {
-    pub unsafe fn as_cstr(&self) -> Result<&CStr, AbiError> {
+    pub unsafe fn as_cstr(&self) -> Result<&CStr, ErrorKind> {
         if self.ptr.is_null() {
-            return Err(AbiError::InvalidEntry);
+            return Err(ErrorKind::InvalidEntry);
         }
         let bytes = unsafe { from_raw_parts(self.ptr, self.len + 1) };
-        CStr::from_bytes_with_nul(bytes).map_err(|_| AbiError::InvalidEntry)
+        CStr::from_bytes_with_nul(bytes).map_err(|_| ErrorKind::InvalidEntry)
     }
 
     pub unsafe fn as_slice(&self) -> &[u8] {
@@ -55,8 +50,8 @@ impl CSlice {
         unsafe { from_raw_parts(self.ptr, self.len) }
     }
 
-    pub unsafe fn as_str(&self) -> Result<&str, AbiError> {
-        unsafe { self.as_cstr()?.to_str().map_err(|_| AbiError::InvalidEntry) }
+    pub unsafe fn as_str(&self) -> Result<&str, ErrorKind> {
+        unsafe { self.as_cstr()?.to_str().map_err(|_| ErrorKind::InvalidEntry) }
     }
 
     pub fn from_slice(slice: Option<&[u8]>) -> CSlice {
@@ -69,7 +64,7 @@ impl CSlice {
         }
     }
 
-    pub unsafe fn validate(&self) -> Result<(), AbiError> {
+    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         unsafe { self.as_cstr().map(|_| ()) }
     }
 }
@@ -83,6 +78,14 @@ impl CBorrowed for CSlice {
 
     unsafe fn as_borrowed(&self) -> &[u8] {
         unsafe { self.as_slice() }
+    }
+}
+
+impl<'a> TryFrom<&'a CSlice> for &'a str {
+    type Error = ErrorKind;
+
+    fn try_from(slice: &'a CSlice) -> Result<Self, ErrorKind> {
+        unsafe { slice.as_str() }
     }
 }
 
@@ -116,6 +119,13 @@ pub struct CVec<T> {
 }
 
 impl<T> CVec<T> {
+    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
+        if self.ptr.is_null() && self.len > 0 {
+            return Err(ErrorKind::InvalidEntry);
+        }
+        Ok(())
+    }
+
     pub unsafe fn as_slice(&self) -> &[T] {
         if self.ptr.is_null() || self.len == 0 {
             return &[];
@@ -143,6 +153,18 @@ impl<T> CBorrowed for CVec<T> {
 
     unsafe fn as_borrowed(&self) -> &[T] {
         unsafe { self.as_slice() }
+    }
+}
+
+impl<'a, T, U> TryFrom<&'a CVec<T>> for Vec<U>
+where
+    U: TryFrom<&'a T, Error = ErrorKind>,
+{
+    type Error = ErrorKind;
+
+    fn try_from(vec: &'a CVec<T>) -> Result<Self, ErrorKind> {
+        unsafe { vec.validate()? };
+        unsafe { vec.as_slice() }.iter().map(U::try_from).collect()
     }
 }
 

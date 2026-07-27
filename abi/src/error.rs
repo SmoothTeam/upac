@@ -19,7 +19,6 @@ pub enum ErrorKind {
     InvalidPath,
     NoSpaceLeft,
     Cancelled,
-    MaxRetriesExceeded,
     ReadFailed,
     WriteFailed,
     NotInitialized,

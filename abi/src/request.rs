@@ -1,13 +1,13 @@
 use std::os::raw::c_void;
-use std::slice::from_raw_parts;
 
 use upac_macro::{CFree, CValidate};
 
 use crate::DiffKind;
+use crate::error::ErrorKind;
 use crate::hook::{HookCancelToken, HookMessageFn};
 use crate::memory::{free_cslice, free_cvec_owning};
 use crate::package::{CPackageInfo, CPackageMeta, CUnpackedPackage, CVersion};
-use crate::types::{AbiError, CBorrowed, CSlice, CVec, check_size};
+use crate::types::{CBorrowed, CSlice, CVec, check_size};
 
 #[repr(C)]
 #[derive(CValidate)]
@@ -28,20 +28,16 @@ pub struct CInstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
-    pub packages: *const CUnpackedPackage,
-    pub packages_count: usize,
+    pub packages: CVec<CUnpackedPackage>,
 }
 
 impl CInstallRequest {
-    pub unsafe fn validate(&self) -> Result<(), AbiError> {
+    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CInstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
+        unsafe { self.packages.validate()? };
 
-        if self.packages.is_null() {
-            return Err(AbiError::InvalidEntry);
-        }
-
-        for package in unsafe { from_raw_parts(self.packages, self.packages_count) } {
+        for package in unsafe { self.packages.as_slice() } {
             unsafe { package.validate()? };
         }
 
@@ -54,20 +50,16 @@ pub struct CUninstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
-    pub packages: *const CPackageInfo,
-    pub packages_count: usize,
+    pub packages: CVec<CPackageInfo>,
 }
 
 impl CUninstallRequest {
-    pub unsafe fn validate(&self) -> Result<(), AbiError> {
+    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CUninstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
+        unsafe { self.packages.validate()? };
 
-        if self.packages.is_null() {
-            return Err(AbiError::InvalidEntry);
-        }
-
-        for package in unsafe { from_raw_parts(self.packages, self.packages_count) } {
+        for package in unsafe { self.packages.as_slice() } {
             unsafe { package.validate()? };
         }
 
@@ -104,7 +96,7 @@ pub struct CFilesRequest {
 }
 
 impl CFilesRequest {
-    pub unsafe fn validate(&self) -> Result<(), AbiError> {
+    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CFilesRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
 
@@ -113,7 +105,7 @@ impl CFilesRequest {
         }
 
         if self.file_package.is_null() {
-            return Err(AbiError::InvalidEntry);
+            return Err(ErrorKind::InvalidEntry);
         }
         unsafe { (*self.file_package).validate()? };
 
@@ -194,7 +186,7 @@ pub struct CUnmutatedRequest {
 
 #[allow(deprecated)]
 impl CUnmutatedRequest {
-    pub unsafe fn validate(&self) -> Result<(), AbiError> {
+    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CUnmutatedRequest>(self.struct_size)?;
 
         unsafe {

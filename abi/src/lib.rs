@@ -1,4 +1,4 @@
-use self::types::AbiError;
+use self::error::ErrorKind;
 
 pub mod error;
 pub mod hook;
@@ -18,12 +18,12 @@ pub enum DiffKind {
 }
 
 impl DiffKind {
-    pub fn from_u8(version: u8) -> Result<DiffKind, AbiError> {
+    pub fn from_u8(version: u8) -> Result<DiffKind, ErrorKind> {
         match version {
             0 => Ok(DiffKind::Added),
             1 => Ok(DiffKind::Removed),
             2 => Ok(DiffKind::Modified),
-            _ => Err(AbiError::InvalidEntry),
+            _ => Err(ErrorKind::InvalidEntry),
         }
     }
 }

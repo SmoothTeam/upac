@@ -1,7 +1,8 @@
 use upac_macro::{CFree, CValidate};
 
+use crate::error::ErrorKind;
 use crate::memory::{free_cslice, free_cvec};
-use crate::types::{AbiError, CSlice, CVec, check_size};
+use crate::types::{CSlice, CVec, check_size};
 
 #[repr(C)]
 #[derive(CFree, CValidate)]
@@ -28,7 +29,9 @@ pub struct CPackageMeta {
     pub arch_sub: CSlice,
     pub maintainer: CSlice,
     pub description: CSlice,
+    #[optional]
     pub license: CSlice,
+    #[optional]
     pub url: CSlice,
     pub sha256: [u8; 32],
     pub installed_size: u64,
