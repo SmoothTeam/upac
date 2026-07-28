@@ -111,6 +111,15 @@ impl COwned for CSlice {
     }
 }
 
+impl From<Option<String>> for CSlice {
+    fn from(value: Option<String>) -> Self {
+        match value {
+            Some(value) => CSlice::from_owned(value.into_bytes()),
+            None => CSlice { ptr: null(), len: 0 },
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CVec<T> {

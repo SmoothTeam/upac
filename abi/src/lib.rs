@@ -5,6 +5,7 @@ pub mod hook;
 pub mod memory;
 pub mod package;
 pub mod request;
+pub mod response;
 pub mod types;
 
 pub const ABI_VERSION: u32 = 2;

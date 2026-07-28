@@ -3,7 +3,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CInstallRequest;
 
-use crate::export::mutated::{try_convert_abi, write_error};
+use crate::export::{try_convert_abi, write_error};
 use crate::mutated::installer::InstallData;
 use crate::types::states::InstallStateId;
 

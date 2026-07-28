@@ -4,6 +4,13 @@ use upac_abi::error::ErrorKind;
 use upac_abi::hook::{HookCancelToken, HookMessageFn};
 use upac_abi::request::CSearchFilesRequest;
 
+pub use self::error::SearchFilesError;
+
+use crate::types::SearchFileEntry;
+use crate::types::states::SearchFilesStateId;
+
+mod error;
+
 pub struct SearchFilesData<'a> {
     pub search: &'a str,
 
@@ -34,4 +41,8 @@ impl<'a> TryFrom<&'a CSearchFilesRequest> for SearchFilesData<'a> {
             hook_cancel_token: cancel_token,
         })
     }
+}
+
+pub fn run(data: SearchFilesData) -> Result<Vec<SearchFileEntry>, (SearchFilesStateId, SearchFilesError)> {
+    todo!()
 }

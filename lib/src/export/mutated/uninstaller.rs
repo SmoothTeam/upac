@@ -3,7 +3,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CUninstallRequest;
 
-use crate::export::mutated::{try_convert_abi, write_error};
+use crate::export::{try_convert_abi, write_error};
 use crate::mutated::uninstaller::UninstallData;
 use crate::types::states::UninstallStateId;
 

@@ -4,6 +4,13 @@ use upac_abi::error::ErrorKind;
 use upac_abi::hook::{HookCancelToken, HookMessageFn};
 use upac_abi::request::CListPackagesRequest;
 
+pub use self::error::ListPackagesError;
+
+use crate::types::PackageMeta;
+use crate::types::states::ListPackagesStateId;
+
+mod error;
+
 pub struct ListPackagesData<'a> {
     pub branch: &'a str,
 
@@ -30,4 +37,8 @@ impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
             hook_cancel_token: cancel_token,
         })
     }
+}
+
+pub fn run(data: ListPackagesData) -> Result<Vec<PackageMeta>, (ListPackagesStateId, ListPackagesError)> {
+    todo!()
 }

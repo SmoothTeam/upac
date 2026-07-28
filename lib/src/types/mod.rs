@@ -1,6 +1,9 @@
+use std::mem::size_of;
+
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
-use upac_abi::types::CBorrowed;
+use upac_abi::response::CSearchFileEntry;
+use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
 use upac_macro::RedbCodec;
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
@@ -58,6 +61,18 @@ impl TryFrom<&CVersion> for Version {
             pre,
             release: version.release,
         })
+    }
+}
+
+impl From<Version> for CVersion {
+    fn from(version: Version) -> Self {
+        CVersion {
+            struct_size: size_of::<CVersion>(),
+            epoch: version.epoch,
+            release: version.release,
+            parts: CVec::from_owned(version.parts),
+            pre: version.pre.into(),
+        }
     }
 }
 
@@ -144,6 +159,24 @@ impl TryFrom<&CPackageMeta> for PackageMeta {
     }
 }
 
+impl From<PackageMeta> for CPackageMeta {
+    fn from(meta: PackageMeta) -> Self {
+        CPackageMeta {
+            struct_size: size_of::<CPackageMeta>(),
+            name: CSlice::from_owned(meta.name.into_bytes()),
+            version: CVersion::from(meta.version),
+            arch: CSlice::from_owned(meta.arch.into_bytes()),
+            arch_sub: meta.arch_sub.into(),
+            maintainer: CSlice::from_owned(meta.maintainer.into_bytes()),
+            description: CSlice::from_owned(meta.description.into_bytes()),
+            license: meta.license.into(),
+            url: meta.url.into(),
+            sha256: meta.sha256,
+            installed_size: meta.installed_size,
+        }
+    }
+}
+
 // ── PackageEntry ────────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
 pub struct PackageEntry {
@@ -157,6 +190,25 @@ pub struct PackageEntry {
 pub struct FileEntry {
     pub path: String,
     pub is_user: bool,
+}
+
+// ── SearchFileEntry ─────────────────────────────────────────────────────────
+#[derive(Debug, Clone)]
+pub struct SearchFileEntry {
+    pub path: String,
+    pub package_name: String,
+    pub is_user: bool,
+}
+
+impl From<SearchFileEntry> for CSearchFileEntry {
+    fn from(entry: SearchFileEntry) -> Self {
+        CSearchFileEntry {
+            struct_size: size_of::<CSearchFileEntry>(),
+            path: CSlice::from_owned(entry.path.into_bytes()),
+            package_name: CSlice::from_owned(entry.package_name.into_bytes()),
+            is_user: entry.is_user,
+        }
+    }
 }
 
 pub struct Targets(pub Vec<PackageEntry>);

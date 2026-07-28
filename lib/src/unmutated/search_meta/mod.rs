@@ -4,6 +4,13 @@ use upac_abi::error::ErrorKind;
 use upac_abi::hook::{HookCancelToken, HookMessageFn};
 use upac_abi::request::CSearchMetaRequest;
 
+pub use self::error::SearchMetaError;
+
+use crate::types::PackageMeta;
+use crate::types::states::SearchMetaStateId;
+
+mod error;
+
 pub struct SearchMetaData<'a> {
     pub search: &'a str,
 
@@ -34,4 +41,8 @@ impl<'a> TryFrom<&'a CSearchMetaRequest> for SearchMetaData<'a> {
             hook_cancel_token: cancel_token,
         })
     }
+}
+
+pub fn run(data: SearchMetaData) -> Result<Vec<PackageMeta>, (SearchMetaStateId, SearchMetaError)> {
+    todo!()
 }
