@@ -6,6 +6,14 @@ pub enum ErrorDomain {
     Rollback,
     Commit,
     Files,
+    Update,
+    ListPackages,
+    ListCommit,
+    DiffFiles,
+    DiffPackages,
+    Diff,
+    SearchMeta,
+    SearchFiles,
 }
 
 #[repr(u32)]
@@ -32,4 +40,11 @@ pub struct CError {
     pub domain: ErrorDomain,
     pub state: u32,
     pub error: ErrorKind,
+}
+
+pub trait CommandState: Copy {
+    const DOMAIN: ErrorDomain;
+    const VALIDATION: Self;
+
+    fn as_u32(self) -> u32;
 }

@@ -14,7 +14,6 @@ use crate::types::{CBorrowed, CSlice, CVec, check_size};
 pub struct CRequestBase {
     pub struct_size: usize,
 
-    pub tmp_path: CSlice,
     pub branch: CSlice,
 
     pub on_hook: Option<HookMessageFn>,
@@ -28,6 +27,7 @@ pub struct CInstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub tmp_path: CSlice,
     pub packages: CVec<CUnpackedPackage>,
 }
 
@@ -35,6 +35,31 @@ impl CInstallRequest {
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CInstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
+        unsafe { self.tmp_path.validate()? };
+        unsafe { self.packages.validate()? };
+
+        for package in unsafe { self.packages.as_slice() } {
+            unsafe { package.validate()? };
+        }
+
+        Ok(())
+    }
+}
+
+#[repr(C)]
+pub struct CUpdateRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub tmp_path: CSlice,
+    pub packages: CVec<CUnpackedPackage>,
+}
+
+impl CUpdateRequest {
+    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
+        check_size::<CUpdateRequest>(self.struct_size)?;
+        unsafe { self.base.validate()? };
+        unsafe { self.tmp_path.validate()? };
         unsafe { self.packages.validate()? };
 
         for package in unsafe { self.packages.as_slice() } {
@@ -50,6 +75,7 @@ pub struct CUninstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub tmp_path: CSlice,
     pub packages: CVec<CPackageInfo>,
 }
 
@@ -57,6 +83,7 @@ impl CUninstallRequest {
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CUninstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
+        unsafe { self.tmp_path.validate()? };
         unsafe { self.packages.validate()? };
 
         for package in unsafe { self.packages.as_slice() } {
@@ -73,6 +100,7 @@ pub struct CRollbackRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub tmp_path: CSlice,
     pub commit_hash: CSlice,
 }
 
@@ -82,6 +110,7 @@ pub struct CCommitRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub tmp_path: CSlice,
     pub message: CSlice,
 }
 
@@ -90,6 +119,7 @@ pub struct CFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub tmp_path: CSlice,
     pub files: CVec<CSlice>,
     pub file_kind: DiffKind,
     pub file_package: *const CPackageInfo,
@@ -99,6 +129,7 @@ impl CFilesRequest {
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CFilesRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
+        unsafe { self.tmp_path.validate()? };
 
         for file in unsafe { self.files.as_borrowed() } {
             unsafe { file.validate()? };
@@ -111,6 +142,74 @@ impl CFilesRequest {
 
         Ok(())
     }
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CListPackagesRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CListCommitRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CDiffFilesRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    #[optional]
+    pub from_commit_hash: CSlice,
+    #[optional]
+    pub to_commit_hash: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CDiffPackagesRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    #[optional]
+    pub from_commit_hash: CSlice,
+    #[optional]
+    pub to_commit_hash: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CDiffRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    #[optional]
+    pub from_commit_hash: CSlice,
+    #[optional]
+    pub to_commit_hash: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CSearchMetaRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub search: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CSearchFilesRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub search: CSlice,
 }
 
 #[repr(C)]
