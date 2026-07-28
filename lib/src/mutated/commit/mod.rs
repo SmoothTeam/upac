@@ -34,7 +34,7 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
             message: (&request.message).try_into()?,
             branch: (&request.base.branch).try_into()?,
 
-            tmp_path: (&request.base.tmp_path).try_into()?,
+            tmp_path: (&request.tmp_path).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,

@@ -1,4 +1,4 @@
-use crate::uninstaller::UninstallError;
+use crate::mutated::uninstaller::UninstallError;
 use crate::orchestrator::{Context, RollbackStack, Stage};
 use crate::types::states::UninstallStateId;
 

@@ -41,7 +41,7 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
             file_package,
 
             branch: (&request.base.branch).try_into()?,
-            tmp_path: (&request.base.tmp_path).try_into()?,
+            tmp_path: (&request.tmp_path).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
