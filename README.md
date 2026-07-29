@@ -16,6 +16,15 @@ A modular package management library for Linux systems with OSTree integration.
 
 The library is intentionally split into independent components: backends handle format-specific unpacking, the core library handles installation and database operations, and OSTree integration is optional.
 
+## 📖 Design
+
+Full architecture and design decisions live in the project design note:
+
+- [`doc/UPAC_project_note.en.md`](<doc/UPAC project note.en.md>) — English (canonical)
+- [`doc/UPAC_project_note.md`](<doc/UPAC project note.md>) — Russian
+
+It covers the disk layout, the deploy/rollback model, the `/etc` merge, GC, the FFI boundary, and the planned module structure.
+
 ## 🚀 Usage
 
 ```sh
