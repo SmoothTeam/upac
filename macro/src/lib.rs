@@ -3,16 +3,67 @@
 //! reflection-over-fields that Zig got from `inline for (std.meta.fields)`.
 //!
 //! Dispatch is by field TYPE, decided at compile time:
-//!   CSlice      -> free_cslice(&self.field)
-//!   CVec<T>     -> free_cvec(&self.field)
-//!   CVersion    -> self.field.free()   (composite frees itself)
-//!   other (u32, [u8;32], bool, enums) -> owns nothing, skipped
+//!   CSlice           -> free_cslice(&self.field)
+//!   CVec<primitive>  -> free_cvec(&self.field)
+//!   CVec<composite>  -> free_cvec_owning(&self.field, |entry| entry.free())
+//!   primitive (u32, [u8;32], bool, ...) -> owns nothing, skipped
+//!   other named type (composite)        -> self.field.free()
 //! Add a new owned field and it's handled automatically — no list to maintain.
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Field, Fields, Type, parse_macro_input};
+
+const PRIMITIVES: &[&str] = &[
+    "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize", "bool", "f32", "f64",
+];
+
+const SHARED_TYPES: &[&str] = &["DiffKind"];
+
+fn generic_arg(segment: &syn::PathSegment) -> Option<&Type> {
+    let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+        return None;
+    };
+
+    args.args.iter().find_map(|arg| match arg {
+        syn::GenericArgument::Type(ty) => Some(ty),
+        _ => None,
+    })
+}
+
+fn segment_name(ty: &Type) -> Option<String> {
+    let Type::Path(type_path) = ty else {
+        return None;
+    };
+
+    type_path.path.segments.last().map(|segment| segment.ident.to_string())
+}
+
+fn field_free(ident: &syn::Ident, ty: &Type) -> TokenStream2 {
+    let Type::Path(type_path) = ty else {
+        return quote! {};
+    };
+
+    let Some(segment) = type_path.path.segments.last() else {
+        return quote! {};
+    };
+
+    match segment.ident.to_string().as_str() {
+        "CSlice" => quote! { free_cslice(&self.#ident); },
+        "CVec" => {
+            let inner_name = generic_arg(segment).and_then(segment_name);
+            match inner_name.as_deref() {
+                Some(name) if VALIDATABLE_COMPOSITES.contains(&name) => quote! {
+                    free_cvec_owning(&self.#ident, |entry| entry.free());
+                },
+                _ => quote! { free_cvec(&self.#ident); },
+            }
+        }
+        name if VALIDATABLE_COMPOSITES.contains(&name) => quote! { self.#ident.free(); },
+        _ => quote! {},
+    }
+}
 
 #[proc_macro_derive(CFree)]
 pub fn derive_cfree(input: TokenStream) -> TokenStream {
@@ -38,29 +89,104 @@ pub fn derive_cfree(input: TokenStream) -> TokenStream {
     let mut frees = Vec::new();
 
     for field in fields {
-        let ident = field.ident.as_ref().unwrap();
-        if let Type::Path(tp) = &field.ty {
-            if let Some(seg) = tp.path.segments.last() {
-                match seg.ident.to_string().as_str() {
-                    "CSlice" => frees.push(quote! {
-                        free_cslice(&self.#ident);
-                    }),
-                    "CVec" => frees.push(quote! {
-                        free_cvec(&self.#ident);
-                    }),
-                    "CVersion" => frees.push(quote! {
-                        self.#ident.free();
-                    }),
-                    _ => {}
-                }
-            }
-        }
+        let Some(ident) = field.ident.as_ref() else {
+            return syn::Error::new_spanned(field, "CFree only supports named fields")
+                .to_compile_error()
+                .into();
+        };
+
+        frees.push(field_free(ident, &field.ty));
     }
 
     let expanded = quote! {
         impl #name {
             pub unsafe fn free(&self) {
                 #(#frees)*
+            }
+        }
+    };
+
+    expanded.into()
+}
+
+fn field_to_c(ident: &syn::Ident, ty: &Type) -> TokenStream2 {
+    if let Type::Array(_) = ty {
+        return quote! { value.#ident };
+    }
+
+    let Type::Path(type_path) = ty else {
+        return quote! { compile_error!("RustToC: unsupported field type") };
+    };
+
+    let Some(segment) = type_path.path.segments.last() else {
+        return quote! { compile_error!("RustToC: unsupported field type") };
+    };
+
+    match segment.ident.to_string().as_str() {
+        "String" => quote! { CSlice::from_owned(value.#ident.into_bytes()) },
+        "Option" => quote! { value.#ident.into() },
+        "Vec" => {
+            let Some(inner_name) = generic_arg(segment).and_then(segment_name) else {
+                return quote! { compile_error!("RustToC: unsupported Vec element type") };
+            };
+
+            if PRIMITIVES.contains(&inner_name.as_str()) {
+                quote! { CVec::from_owned(value.#ident) }
+            } else {
+                let c_inner = format_ident!("C{inner_name}");
+                quote! { CVec::from_owned(value.#ident.into_iter().map(#c_inner::from).collect()) }
+            }
+        }
+        name if PRIMITIVES.contains(&name) || SHARED_TYPES.contains(&name) => quote! { value.#ident },
+        name => {
+            let c_ty = format_ident!("C{name}");
+            quote! { #c_ty::from(value.#ident) }
+        }
+    }
+}
+
+#[proc_macro_derive(RustToC)]
+pub fn derive_rust_to_c(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    let c_name = format_ident!("C{name}");
+
+    let fields = match &input.data {
+        Data::Struct(s) => match &s.fields {
+            Fields::Named(named) => &named.named,
+            _ => {
+                return syn::Error::new_spanned(name, "RustToC only supports structs with named fields")
+                    .to_compile_error()
+                    .into();
+            }
+        },
+        _ => {
+            return syn::Error::new_spanned(name, "RustToC only supports structs")
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    let mut field_values = Vec::new();
+
+    for field in fields {
+        let Some(ident) = field.ident.as_ref() else {
+            return syn::Error::new_spanned(field, "RustToC only supports named fields")
+                .to_compile_error()
+                .into();
+        };
+
+        let value = field_to_c(ident, &field.ty);
+        field_values.push(quote! { #ident: #value, });
+    }
+
+    let expanded = quote! {
+        impl From<#name> for #c_name {
+            fn from(value: #name) -> Self {
+                #c_name {
+                    struct_size: size_of::<#c_name>(),
+                    #(#field_values)*
+                }
             }
         }
     };
@@ -83,7 +209,9 @@ const VALIDATABLE_COMPOSITES: &[&str] = &[
 ];
 
 fn field_validate(field: &Field) -> TokenStream2 {
-    let ident = field.ident.as_ref().unwrap();
+    let Some(ident) = field.ident.as_ref() else {
+        return quote! { compile_error!("CValidate only supports named fields") };
+    };
     let optional = has_attr(field, "optional");
     let non_empty = has_attr(field, "non_empty");
 
@@ -241,7 +369,10 @@ fn field_codec(ident: &syn::Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
         return (error.clone(), error);
     };
 
-    let segment = type_path.path.segments.last().unwrap();
+    let Some(segment) = type_path.path.segments.last() else {
+        let error = quote! { compile_error!("RedbCodec: unsupported field type"); };
+        return (error.clone(), error);
+    };
 
     match segment.ident.to_string().as_str() {
         "String" => (
@@ -301,7 +432,11 @@ pub fn derive_redb_codec(input: TokenStream) -> TokenStream {
     let mut names = Vec::new();
 
     for filed in fields {
-        let ident = filed.ident.as_ref().unwrap();
+        let Some(ident) = filed.ident.as_ref() else {
+            return syn::Error::new_spanned(filed, "RedbCodec only supports named fields")
+                .to_compile_error()
+                .into();
+        };
         let (encode, decode) = field_codec(ident, &filed.ty);
 
         names.push(ident.clone());
