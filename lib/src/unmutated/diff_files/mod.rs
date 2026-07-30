@@ -4,6 +4,13 @@ use upac_abi::error::ErrorKind;
 use upac_abi::hook::{HookCancelToken, HookMessageFn};
 use upac_abi::request::CDiffFilesRequest;
 
+pub use self::error::DiffFilesError;
+
+use crate::types::DiffFileEntry;
+use crate::types::states::DiffFilesStateId;
+
+mod error;
+
 pub struct DiffFilesData<'a> {
     pub from_commit_hash: Option<&'a str>,
     pub to_commit_hash: Option<&'a str>,
@@ -24,20 +31,9 @@ impl<'a> TryFrom<&'a CDiffFilesRequest> for DiffFilesData<'a> {
 
         let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
-        let from_commit_hash = if request.from_commit_hash.ptr.is_null() {
-            None
-        } else {
-            Some((&request.from_commit_hash).try_into()?)
-        };
-        let to_commit_hash = if request.to_commit_hash.ptr.is_null() {
-            None
-        } else {
-            Some((&request.to_commit_hash).try_into()?)
-        };
-
         Ok(DiffFilesData {
-            from_commit_hash,
-            to_commit_hash,
+            from_commit_hash: (&request.from_commit_hash).try_into()?,
+            to_commit_hash: (&request.to_commit_hash).try_into()?,
 
             branch: (&request.base.branch).try_into()?,
 
@@ -47,4 +43,8 @@ impl<'a> TryFrom<&'a CDiffFilesRequest> for DiffFilesData<'a> {
             hook_cancel_token: cancel_token,
         })
     }
+}
+
+pub fn run(data: DiffFilesData) -> Result<Vec<DiffFileEntry>, (DiffFilesStateId, DiffFilesError)> {
+    todo!()
 }

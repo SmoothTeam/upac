@@ -118,6 +118,40 @@ impl CommandState for ListCommitStateId {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListPrefixStateId {
+    Fetching = 0,
+    Done = 1,
+    Setup = 2,
+}
+
+impl CommandState for ListPrefixStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::ListPrefix;
+    const VALIDATION: Self = ListPrefixStateId::Setup;
+
+    fn as_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListHistoryStateId {
+    Fetching = 0,
+    Done = 1,
+    Setup = 2,
+}
+
+impl CommandState for ListHistoryStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::ListHistory;
+    const VALIDATION: Self = ListHistoryStateId::Setup;
+
+    fn as_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiffFilesStateId {
     Preparing = 0,
     Comparing = 1,

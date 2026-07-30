@@ -1,10 +1,11 @@
 use std::mem::size_of;
 
+use upac_abi::DiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
-use upac_abi::response::CSearchFileEntry;
+use upac_abi::response::{CCommitEntry, CDiffFileEntry, CDiffPackageEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry};
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
-use upac_macro::RedbCodec;
+use upac_macro::{RedbCodec, RustToC};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
@@ -23,7 +24,7 @@ macro_rules! as_str_method {
 }
 
 // ── Version ─────────────────────────────────────────────────────────────────
-#[derive(Debug, Clone, PartialEq, Eq, RedbCodec)]
+#[derive(Debug, Clone, PartialEq, Eq, RedbCodec, RustToC)]
 pub struct Version {
     pub epoch: u32,
     pub parts: Vec<u32>,
@@ -48,12 +49,7 @@ impl TryFrom<&CVersion> for Version {
     fn try_from(version: &CVersion) -> Result<Self, ErrorKind> {
         unsafe { version.validate()? };
 
-        let pre = if version.pre.ptr.is_null() {
-            None
-        } else {
-            let pre: &str = (&version.pre).try_into()?;
-            Some(pre.to_owned())
-        };
+        let pre = Option::<&str>::try_from(&version.pre)?.map(str::to_owned);
 
         Ok(Version {
             epoch: version.epoch,
@@ -61,18 +57,6 @@ impl TryFrom<&CVersion> for Version {
             pre,
             release: version.release,
         })
-    }
-}
-
-impl From<Version> for CVersion {
-    fn from(version: Version) -> Self {
-        CVersion {
-            struct_size: size_of::<CVersion>(),
-            epoch: version.epoch,
-            release: version.release,
-            parts: CVec::from_owned(version.parts),
-            pre: version.pre.into(),
-        }
     }
 }
 
@@ -98,7 +82,7 @@ impl TryFrom<&CUnpackedPackage> for PackageTemp {
     }
 }
 
-#[derive(Debug, Clone, RedbCodec)]
+#[derive(Debug, Clone, RedbCodec, RustToC)]
 pub struct PackageMeta {
     pub name: String,
     pub version: Version,
@@ -123,26 +107,9 @@ impl TryFrom<&CPackageMeta> for PackageMeta {
         let maintainer: &str = (&meta.maintainer).try_into()?;
         let description: &str = (&meta.description).try_into()?;
 
-        let arch_sub = if meta.arch_sub.ptr.is_null() {
-            None
-        } else {
-            let arch_sub: &str = (&meta.arch_sub).try_into()?;
-            Some(arch_sub.to_owned())
-        };
-
-        let license = if meta.license.ptr.is_null() {
-            None
-        } else {
-            let license: &str = (&meta.license).try_into()?;
-            Some(license.to_owned())
-        };
-
-        let url = if meta.url.ptr.is_null() {
-            None
-        } else {
-            let url: &str = (&meta.url).try_into()?;
-            Some(url.to_owned())
-        };
+        let arch_sub = Option::<&str>::try_from(&meta.arch_sub)?.map(str::to_owned);
+        let license = Option::<&str>::try_from(&meta.license)?.map(str::to_owned);
+        let url = Option::<&str>::try_from(&meta.url)?.map(str::to_owned);
 
         Ok(PackageMeta {
             name: name.to_owned(),
@@ -156,24 +123,6 @@ impl TryFrom<&CPackageMeta> for PackageMeta {
             sha256: meta.sha256,
             installed_size: meta.installed_size,
         })
-    }
-}
-
-impl From<PackageMeta> for CPackageMeta {
-    fn from(meta: PackageMeta) -> Self {
-        CPackageMeta {
-            struct_size: size_of::<CPackageMeta>(),
-            name: CSlice::from_owned(meta.name.into_bytes()),
-            version: CVersion::from(meta.version),
-            arch: CSlice::from_owned(meta.arch.into_bytes()),
-            arch_sub: meta.arch_sub.into(),
-            maintainer: CSlice::from_owned(meta.maintainer.into_bytes()),
-            description: CSlice::from_owned(meta.description.into_bytes()),
-            license: meta.license.into(),
-            url: meta.url.into(),
-            sha256: meta.sha256,
-            installed_size: meta.installed_size,
-        }
     }
 }
 
@@ -193,22 +142,64 @@ pub struct FileEntry {
 }
 
 // ── SearchFileEntry ─────────────────────────────────────────────────────────
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, RustToC)]
 pub struct SearchFileEntry {
     pub path: String,
     pub package_name: String,
     pub is_user: bool,
 }
 
-impl From<SearchFileEntry> for CSearchFileEntry {
-    fn from(entry: SearchFileEntry) -> Self {
-        CSearchFileEntry {
-            struct_size: size_of::<CSearchFileEntry>(),
-            path: CSlice::from_owned(entry.path.into_bytes()),
-            package_name: CSlice::from_owned(entry.package_name.into_bytes()),
-            is_user: entry.is_user,
-        }
-    }
+// ── PrefixEntry ─────────────────────────────────────────────────────────────
+#[derive(Debug, Clone, RustToC)]
+pub struct PrefixEntry {
+    pub prefix_digest: String,
+
+    pub subject: String,
+    pub message: Option<String>,
+
+    pub timestamp: u64,
+
+    pub working_config: Option<String>,
+}
+
+// ── CommitEntry ─────────────────────────────────────────────────────────────
+#[derive(Debug, Clone, RustToC)]
+pub struct CommitEntry {
+    pub config_digest: String,
+
+    pub subject: String,
+    pub message: Option<String>,
+}
+
+// ── HistoryEntry ────────────────────────────────────────────────────────────
+#[derive(Debug, Clone, RustToC)]
+pub struct HistoryEntry {
+    pub prefix_digest: String,
+
+    pub subject: String,
+    pub message: Option<String>,
+
+    pub timestamp: u64,
+
+    pub working_config: Option<String>,
+    pub config_history: Vec<CommitEntry>,
+}
+
+// ── DiffFileEntry ───────────────────────────────────────────────────────────
+#[derive(Debug, Clone, RustToC)]
+pub struct DiffFileEntry {
+    pub path: String,
+    pub kind: DiffKind,
+    pub package_name: String,
+    pub is_user: bool,
+}
+
+// ── DiffPackageEntry ────────────────────────────────────────────────────────
+#[derive(Debug, Clone, RustToC)]
+pub struct DiffPackageEntry {
+    pub name: String,
+    pub kind: DiffKind,
+    pub version: Version,
 }
 
 pub struct Targets(pub Vec<PackageEntry>);

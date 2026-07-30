@@ -6,22 +6,22 @@ use crate::types::errors::{CommonError, common_error_from, database_error_from, 
 use crate::types::lock::LockError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SearchMetaError {
+pub enum ListPrefixError {
     Common(CommonError),
 }
 
-common_error_from!(SearchMetaError);
+common_error_from!(ListPrefixError);
 
-database_error_from!(SearchMetaError);
+database_error_from!(ListPrefixError);
 
-sysroot_error_from!(SearchMetaError);
+sysroot_error_from!(ListPrefixError);
 
-lock_error_from!(SearchMetaError);
+lock_error_from!(ListPrefixError);
 
-impl From<SearchMetaError> for ErrorKind {
-    fn from(error: SearchMetaError) -> Self {
+impl From<ListPrefixError> for ErrorKind {
+    fn from(error: ListPrefixError) -> Self {
         match error {
-            SearchMetaError::Common(common_error) => common_error.into(),
+            ListPrefixError::Common(common_error) => common_error.into(),
         }
     }
 }

@@ -2,7 +2,7 @@ use upac_abi::error::ErrorKind;
 
 use crate::database::DatabaseError;
 use crate::deploy::SysrootError;
-use crate::types::errors::CommonError;
+use crate::types::errors::{CommonError, common_error_from, database_error_from, lock_error_from, sysroot_error_from};
 use crate::types::lock::LockError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,29 +10,13 @@ pub enum ListPackagesError {
     Common(CommonError),
 }
 
-impl From<CommonError> for ListPackagesError {
-    fn from(error: CommonError) -> Self {
-        ListPackagesError::Common(error)
-    }
-}
+common_error_from!(ListPackagesError);
 
-impl From<DatabaseError> for ListPackagesError {
-    fn from(error: DatabaseError) -> Self {
-        ListPackagesError::Common(CommonError::Database(error))
-    }
-}
+database_error_from!(ListPackagesError);
 
-impl From<SysrootError> for ListPackagesError {
-    fn from(error: SysrootError) -> Self {
-        ListPackagesError::Common(CommonError::Sysroot(error))
-    }
-}
+sysroot_error_from!(ListPackagesError);
 
-impl From<LockError> for ListPackagesError {
-    fn from(error: LockError) -> Self {
-        ListPackagesError::Common(CommonError::Lock(error))
-    }
-}
+lock_error_from!(ListPackagesError);
 
 impl From<ListPackagesError> for ErrorKind {
     fn from(error: ListPackagesError) -> Self {

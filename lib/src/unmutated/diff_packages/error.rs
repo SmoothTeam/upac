@@ -6,22 +6,22 @@ use crate::types::errors::{CommonError, common_error_from, database_error_from, 
 use crate::types::lock::LockError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SearchMetaError {
+pub enum DiffPackagesError {
     Common(CommonError),
 }
 
-common_error_from!(SearchMetaError);
+common_error_from!(DiffPackagesError);
 
-database_error_from!(SearchMetaError);
+database_error_from!(DiffPackagesError);
 
-sysroot_error_from!(SearchMetaError);
+sysroot_error_from!(DiffPackagesError);
 
-lock_error_from!(SearchMetaError);
+lock_error_from!(DiffPackagesError);
 
-impl From<SearchMetaError> for ErrorKind {
-    fn from(error: SearchMetaError) -> Self {
+impl From<DiffPackagesError> for ErrorKind {
+    fn from(error: DiffPackagesError) -> Self {
         match error {
-            SearchMetaError::Common(common_error) => common_error.into(),
+            DiffPackagesError::Common(common_error) => common_error.into(),
         }
     }
 }
