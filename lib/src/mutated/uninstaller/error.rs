@@ -2,7 +2,7 @@ use upac_abi::error::ErrorKind;
 
 use crate::database::DatabaseError;
 use crate::deploy::SysrootError;
-use crate::types::errors::CommonError;
+use crate::types::errors::{CommonError, common_error_from, database_error_from, lock_error_from, sysroot_error_from};
 use crate::types::lock::LockError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,29 +17,13 @@ pub enum UninstallError {
     Common(CommonError),
 }
 
-impl From<CommonError> for UninstallError {
-    fn from(error: CommonError) -> Self {
-        UninstallError::Common(error)
-    }
-}
+common_error_from!(UninstallError);
 
-impl From<DatabaseError> for UninstallError {
-    fn from(error: DatabaseError) -> Self {
-        UninstallError::Common(CommonError::Database(error))
-    }
-}
+database_error_from!(UninstallError);
 
-impl From<SysrootError> for UninstallError {
-    fn from(error: SysrootError) -> Self {
-        UninstallError::Common(CommonError::Sysroot(error))
-    }
-}
+sysroot_error_from!(UninstallError);
 
-impl From<LockError> for UninstallError {
-    fn from(error: LockError) -> Self {
-        UninstallError::Common(CommonError::Lock(error))
-    }
-}
+lock_error_from!(UninstallError);
 
 impl From<UninstallError> for ErrorKind {
     fn from(error: UninstallError) -> Self {

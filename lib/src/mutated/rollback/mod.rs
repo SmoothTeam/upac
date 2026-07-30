@@ -12,6 +12,7 @@ mod error;
 
 pub struct RollbackData<'a> {
     pub commit_hash: &'a str,
+
     pub branch: &'a str,
 
     pub tmp_path: &'a str,
@@ -32,6 +33,7 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
 
         Ok(RollbackData {
             commit_hash: (&request.commit_hash).try_into()?,
+
             branch: (&request.base.branch).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,

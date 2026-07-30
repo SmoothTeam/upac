@@ -5,6 +5,50 @@ use crate::database::DatabaseError;
 use crate::deploy::SysrootError;
 use crate::types::lock::LockError;
 
+macro_rules! common_error_from {
+    ($name:ident) => {
+        impl From<CommonError> for $name {
+            fn from(error: CommonError) -> Self {
+                $name::Common(error)
+            }
+        }
+    };
+}
+pub(crate) use common_error_from;
+
+macro_rules! database_error_from {
+    ($name:ident) => {
+        impl From<DatabaseError> for $name {
+            fn from(error: DatabaseError) -> Self {
+                $name::Common(CommonError::Database(error))
+            }
+        }
+    };
+}
+pub(crate) use database_error_from;
+
+macro_rules! sysroot_error_from {
+    ($name:ident) => {
+        impl From<SysrootError> for $name {
+            fn from(error: SysrootError) -> Self {
+                $name::Common(CommonError::Sysroot(error))
+            }
+        }
+    };
+}
+pub(crate) use sysroot_error_from;
+
+macro_rules! lock_error_from {
+    ($name:ident) => {
+        impl From<LockError> for $name {
+            fn from(error: LockError) -> Self {
+                $name::Common(CommonError::Lock(error))
+            }
+        }
+    };
+}
+pub(crate) use lock_error_from;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommonError {
     OutOfMemory,

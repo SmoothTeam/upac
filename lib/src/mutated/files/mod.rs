@@ -18,7 +18,11 @@ pub struct FilesData<'a> {
     pub file_package: &'a CPackageInfo,
 
     pub branch: &'a str,
+
     pub tmp_path: &'a str,
+
+    pub subject: &'a str,
+    pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -41,7 +45,11 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
             file_package,
 
             branch: (&request.base.branch).try_into()?,
+
             tmp_path: (&request.tmp_path).try_into()?,
+
+            subject: (&request.subject).try_into()?,
+            message: (&request.message).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,

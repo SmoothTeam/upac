@@ -13,9 +13,13 @@ mod error;
 
 pub struct UpdateData<'a> {
     pub packages: Vec<PackageTemp>,
+
     pub branch: &'a str,
 
     pub tmp_path: &'a str,
+
+    pub subject: &'a str,
+    pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -33,9 +37,13 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
 
         Ok(UpdateData {
             packages: Vec::try_from(&request.packages)?,
+
             branch: (&request.base.branch).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
+
+            subject: (&request.subject).try_into()?,
+            message: (&request.message).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,

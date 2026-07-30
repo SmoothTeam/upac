@@ -11,10 +11,12 @@ use crate::types::states::CommitStateId;
 mod error;
 
 pub struct CommitData<'a> {
-    pub message: &'a str,
     pub branch: &'a str,
 
     pub tmp_path: &'a str,
+
+    pub subject: &'a str,
+    pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -31,10 +33,12 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
         let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(CommitData {
-            message: (&request.message).try_into()?,
             branch: (&request.base.branch).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
+
+            subject: (&request.subject).try_into()?,
+            message: (&request.message).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,

@@ -2,7 +2,7 @@ use upac_abi::error::ErrorKind;
 
 use crate::database::DatabaseError;
 use crate::deploy::SysrootError;
-use crate::types::errors::CommonError;
+use crate::types::errors::{CommonError, common_error_from, database_error_from, lock_error_from, sysroot_error_from};
 use crate::types::lock::LockError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,29 +10,13 @@ pub enum RollbackError {
     Common(CommonError),
 }
 
-impl From<CommonError> for RollbackError {
-    fn from(error: CommonError) -> Self {
-        RollbackError::Common(error)
-    }
-}
+common_error_from!(RollbackError);
 
-impl From<DatabaseError> for RollbackError {
-    fn from(error: DatabaseError) -> Self {
-        RollbackError::Common(CommonError::Database(error))
-    }
-}
+database_error_from!(RollbackError);
 
-impl From<SysrootError> for RollbackError {
-    fn from(error: SysrootError) -> Self {
-        RollbackError::Common(CommonError::Sysroot(error))
-    }
-}
+sysroot_error_from!(RollbackError);
 
-impl From<LockError> for RollbackError {
-    fn from(error: LockError) -> Self {
-        RollbackError::Common(CommonError::Lock(error))
-    }
-}
+lock_error_from!(RollbackError);
 
 impl From<RollbackError> for ErrorKind {
     fn from(error: RollbackError) -> Self {
