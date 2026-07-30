@@ -3,9 +3,11 @@ use std::mem::size_of;
 use upac_abi::DiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
-use upac_abi::response::{CCommitEntry, CDiffFileEntry, CDiffPackageEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry};
+use upac_abi::response::{
+    CCommitEntry, CDiffFileEntry, CDiffPackageEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
+};
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
-use upac_macro::{RedbCodec, RustToC};
+use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
@@ -24,7 +26,7 @@ macro_rules! as_str_method {
 }
 
 // ── Version ─────────────────────────────────────────────────────────────────
-#[derive(Debug, Clone, PartialEq, Eq, RedbCodec, RustToC)]
+#[derive(Debug, Clone, PartialEq, Eq, CTryToRust, RedbCodec, RustToC)]
 pub struct Version {
     pub epoch: u32,
     pub parts: Vec<u32>,
@@ -40,23 +42,6 @@ impl Default for Version {
             pre: None,
             release: 1,
         }
-    }
-}
-
-impl TryFrom<&CVersion> for Version {
-    type Error = ErrorKind;
-
-    fn try_from(version: &CVersion) -> Result<Self, ErrorKind> {
-        unsafe { version.validate()? };
-
-        let pre = Option::<&str>::try_from(&version.pre)?.map(str::to_owned);
-
-        Ok(Version {
-            epoch: version.epoch,
-            parts: unsafe { version.parts.as_borrowed() }.to_vec(),
-            pre,
-            release: version.release,
-        })
     }
 }
 
@@ -82,7 +67,7 @@ impl TryFrom<&CUnpackedPackage> for PackageTemp {
     }
 }
 
-#[derive(Debug, Clone, RedbCodec, RustToC)]
+#[derive(Debug, Clone, CTryToRust, RedbCodec, RustToC)]
 pub struct PackageMeta {
     pub name: String,
     pub version: Version,
@@ -94,36 +79,6 @@ pub struct PackageMeta {
     pub url: Option<String>,
     pub sha256: [u8; 32],
     pub installed_size: u64,
-}
-
-impl TryFrom<&CPackageMeta> for PackageMeta {
-    type Error = ErrorKind;
-
-    fn try_from(meta: &CPackageMeta) -> Result<Self, ErrorKind> {
-        unsafe { meta.validate()? };
-
-        let name: &str = (&meta.name).try_into()?;
-        let arch: &str = (&meta.arch).try_into()?;
-        let maintainer: &str = (&meta.maintainer).try_into()?;
-        let description: &str = (&meta.description).try_into()?;
-
-        let arch_sub = Option::<&str>::try_from(&meta.arch_sub)?.map(str::to_owned);
-        let license = Option::<&str>::try_from(&meta.license)?.map(str::to_owned);
-        let url = Option::<&str>::try_from(&meta.url)?.map(str::to_owned);
-
-        Ok(PackageMeta {
-            name: name.to_owned(),
-            version: Version::try_from(&meta.version)?,
-            arch: arch.to_owned(),
-            arch_sub,
-            maintainer: maintainer.to_owned(),
-            description: description.to_owned(),
-            license,
-            url,
-            sha256: meta.sha256,
-            installed_size: meta.installed_size,
-        })
-    }
 }
 
 // ── PackageEntry ────────────────────────────────────────────────────────────
