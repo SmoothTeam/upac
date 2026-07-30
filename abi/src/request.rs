@@ -27,6 +27,10 @@ pub struct CInstallRequest {
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
+
+    pub subject: CSlice,
+    pub message: CSlice,
+
     pub packages: CVec<CUnpackedPackage>,
 }
 
@@ -35,6 +39,10 @@ impl CInstallRequest {
         check_size::<CInstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
         unsafe { self.tmp_path.validate()? };
+        unsafe { self.subject.validate()? };
+        if !self.message.ptr.is_null() {
+            unsafe { self.message.validate()? };
+        }
         unsafe { self.packages.validate()? };
 
         for package in unsafe { self.packages.as_slice() } {
@@ -51,6 +59,10 @@ pub struct CUpdateRequest {
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
+
+    pub subject: CSlice,
+    pub message: CSlice,
+
     pub packages: CVec<CUnpackedPackage>,
 }
 
@@ -59,6 +71,10 @@ impl CUpdateRequest {
         check_size::<CUpdateRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
         unsafe { self.tmp_path.validate()? };
+        unsafe { self.subject.validate()? };
+        if !self.message.ptr.is_null() {
+            unsafe { self.message.validate()? };
+        }
         unsafe { self.packages.validate()? };
 
         for package in unsafe { self.packages.as_slice() } {
@@ -75,6 +91,8 @@ pub struct CUninstallRequest {
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
+    pub subject: CSlice,
+    pub message: CSlice,
     pub packages: CVec<CPackageInfo>,
 }
 
@@ -83,6 +101,10 @@ impl CUninstallRequest {
         check_size::<CUninstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
         unsafe { self.tmp_path.validate()? };
+        unsafe { self.subject.validate()? };
+        if !self.message.ptr.is_null() {
+            unsafe { self.message.validate()? };
+        }
         unsafe { self.packages.validate()? };
 
         for package in unsafe { self.packages.as_slice() } {
@@ -110,6 +132,8 @@ pub struct CCommitRequest {
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
+    pub subject: CSlice,
+    #[optional]
     pub message: CSlice,
 }
 
@@ -119,6 +143,8 @@ pub struct CFilesRequest {
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
+    pub subject: CSlice,
+    pub message: CSlice,
     pub files: CVec<CSlice>,
     pub file_kind: DiffKind,
     pub file_package: *const CPackageInfo,
@@ -129,6 +155,10 @@ impl CFilesRequest {
         check_size::<CFilesRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
         unsafe { self.tmp_path.validate()? };
+        unsafe { self.subject.validate()? };
+        if !self.message.ptr.is_null() {
+            unsafe { self.message.validate()? };
+        }
 
         for file in unsafe { self.files.as_borrowed() } {
             unsafe { file.validate()? };
@@ -153,6 +183,23 @@ pub struct CListPackagesRequest {
 #[repr(C)]
 #[derive(CValidate)]
 pub struct CListCommitRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    #[optional]
+    pub prefix_digest: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CListPrefixRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CListHistoryRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }

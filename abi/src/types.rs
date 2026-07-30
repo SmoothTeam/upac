@@ -89,6 +89,17 @@ impl<'a> TryFrom<&'a CSlice> for &'a str {
     }
 }
 
+impl<'a> TryFrom<&'a CSlice> for Option<&'a str> {
+    type Error = ErrorKind;
+
+    fn try_from(slice: &'a CSlice) -> Result<Self, ErrorKind> {
+        if slice.ptr.is_null() {
+            return Ok(None);
+        }
+        Ok(Some(slice.try_into()?))
+    }
+}
+
 impl COwned for CSlice {
     type Owned = Vec<u8>;
 
