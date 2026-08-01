@@ -329,8 +329,8 @@ History is stored NOT in the image (it would break content-addressing) nor in ES
 
 **Two axes.**
 
-- **`/usr` — the linear deploy history.** Each distinct `/usr` = one record, keyed by `usr-digest`. `seq` is the birth order of records (monotonic, one per digest; high-water-mark in `state/next-seq`, written tmp+rename). Re-arriving at an existing `usr-digest` **switches** to its record rather than creating a duplicate — so that `/usr`'s `/etc` sub-history stays intact when you return.
-- **`/etc` — a sub-history within `/usr`.** The record's `meta.json` carries `etc_history` — an ordered list of `etc-digest`s taken under this `/usr` (on a `/usr` change and via `upac commit`, §5.1).
+- **`/usr` — the linear deploy history.** Each distinct `/usr` = one record, keyed by `usr-digest`. `seq` is the birth order of records (monotonic, one per digest; high-water-mark in `state/next-seq`, written tmp+rename). Re-arriving at an existing `usr-digest` **switches** to its record rather than creating a duplicate — so that `/usr`'s `/etc` sub-history stays intact when you return. The record carries its own **commit message**: `subject` (short, required) + an optional long `message` — the commit message of the operation that gave birth to this `/usr` (install/uninstall/update).
+- **`/etc` — a sub-history within `/usr`.** The record's `meta.json` carries `etc_history` — an ordered list of `{etc_digest, subject, message}` records taken under this `/usr` (on a `/usr` change and via `upac commit`, §5.1). Each record carries its own `subject` + optional `message`; the first record, created by the automatic merge on a `/usr` change (§5.1), inherits the subject+message of that `/usr` event itself — later explicit `upac commit` calls get their own, independent subject+message.
 
 **The active deploy is a separate pointer** (the booted `composefs.digest` / boot default), not `max(seq)`: after switching to an old record, its `seq` stays as it was.
 
@@ -342,6 +342,47 @@ History is stored NOT in the image (it would break content-addressing) nor in ES
 **`seq`** is authoritative for order and rollbacks; **`timestamp`** in `meta.json` is for display only (`upac history`), the order is always by `seq`, so that clock drift or a time change does not reorder history.
 
 Relation to GC (§5.5): the retention depth on each axis must be **≥ the max rollback N** for that axis, otherwise history is shorter than the promise — the deploy at position N is already swept.
+
+### 5.8 Hooks (pre/post triggers)
+
+A hook is not code but a declarative, **signed** file: it describes a trigger, a priority, and a composition of **primitives**. A primitive is a closed set of low-level actions baked into `lib` (spawning a process, touch/move a file, etc.) — the only thing that requires a code change in `lib`. The hook as a unit is not an `enum` and is not enumerated anywhere in code: it is entirely described by data in the file, and `lib` is just a generic executor of that composition. The signature guards against an arbitrary, unsigned hook file being dropped in (primitives are privileged enough that a file without one can't be trusted).
+
+**Compatibility table.** The hook file separately carries a table: for decoder `D` (§6 — a package-format plugin: deb, rpm, native, …) this hook covers such-and-such of its NATIVE trigger name (e.g. deb's `Triggers-Interest: update-mime-database`). This way, compatibility with a foreign trigger convention is also data in the file, not hardcoded inside the decoder.
+
+**Priority and criticality.** `priority` is a plain signed integer (default 0), needed ONLY to resolve a conflict when several different hook files claim the same native trigger name (the same key `k` in the compatibility table) — the higher `priority` wins; an exact tie is an unresolvable conflict, which `lib` does not silently pick between but reports through the same channel as unmatched hooks. `priority` sets no execution ordering — all hooks matched to a single trigger point run concurrently, with no tiers. Criticality (abort vs. best-effort on hook failure) is a field on the hook file itself (`critical = true/false`), not a property of the primitive: a primitive is neutral, and whether "failure means abort the whole operation, or just warn" is known only to the hook's author, who already signed the file (trust is already established through the CA chain, no extra primitive-level veto is needed).
+
+**Division of labor:**
+
+- **`lib`** — the only side that reads hook files off disk, verifies the signature, and parses the primitive composition and the compatibility table. It executes the composition through its own primitives.
+- **Decoder (plugin)** — does not parse hook files itself. It receives from `lib` the compatibility table already as a ready k:v map **scoped to its own `D`** (a deb decoder never gets entries meant for rpm/native, for instance), where k is the decoder's native trigger name and v is our hook. The decoder itself matches this against the native trigger names it read out of the package (e.g. the deb decoder reads the package's own `Triggers-Interest`), and hands back to `lib` over FFI: the list of hooks to execute (the matched v's) plus, separately, a list of unmatched entries as errors (purely for reporting/informing the user, does not block the rest). Matching stays on the decoder's side, but its input is already-parsed data from `lib`, not a raw hook file.
+
+**Hook file format and signing.** The hook file is TOML, living in `/etc/upac.d/hooks/` (the path is baked in as a constant, `Lib.toml`-style). The signature is a separate sidecar file (`name.hook` + `name.hook.sig`), not a field inside the TOML (otherwise byte canonicalization on re-serialize/re-parse would have to be pinned down). The signature chains through 2 tiers: a root CA (offline key, only ever signs the next tier) → a signing certificate per trust domain (e.g. "upac-core", or one per distro/maintainer), which directly signs the `.hook` file's bytes; there is no separate leaf tier — extra key rotation with no real benefit at this narrow a scope. The `.sig` file carries both the signature and the signing certificate itself in full — verification is self-contained (root + `.sig`, nothing else to look up). **The root is a configurable file**, not baked into the binary — that's the whole point of this system: a distro/OEM plugs in its own root without rebuilding `upac`.
+
+**Execution model.** Hook execution is asynchronous, but entirely inside `lib`: the FFI stays synchronous (the `extern "C" fn` calls a plain function, which spins up a `tokio` runtime and does `.block_on(...)`). The scope is limited to concurrently running the N independent hooks of a single trigger point **inside one `Stage::run()`**; the `Orchestrator` itself does not become async — stages must still run linearly. For CPU-bound work (hashing the tree on add/remove/update, §5.4) — `rayon`/plain threads, not async: local `tokio::fs` on Linux without io_uring is itself blocking under the hood (`spawn_blocking`), so async gives no benefit there. `tokio-uring` (io_uring) is deliberately not adopted: it's a different, cancellation-unsafe buffer-ownership model, Linux-only, younger, and viewed cautiously from a security standpoint — revisit only if profiling actually shows syscall overhead dominating on huge trees.
+
+### 5.9 Operation cancellation
+
+A second hook channel, independent of §5.8 — not declarative pre/post triggers, but a system-level cancellation signal. `HookCancelToken` (`#[repr(C)]`, an atomic flag) is created by the calling side (CLI/GUI) and passed into `lib` as a pointer with every request — this does not change.
+
+**`Lock`** stays PURELY a mutual-exclusion mechanism between rw operations, nothing more (bind on an abstract Unix address: taken — `EADDRINUSE` → `LockError::Busy`; free — proceed). Two construction modes:
+
+- **`Lock::acquire_exclusive()`** — binds to a FIXED address shared by all rw operations (baked in as a constant, `Lib.toml`-style). Required for real exclusivity: every rw call must agree on the same address up front, otherwise a conflict between two `upac install` runs would never be detected.
+- **`Lock::acquire_scoped()`** — binds to a unique, per-call generated address (e.g. `upac-cancel-{uuid}`), never collides with anything, always succeeds. For ro, where any number of parallel operations is normal, and global exclusivity is neither needed nor wanted.
+
+**`Cancel`** — a wrapper around the token that holds `Lock` as its own field (not the other way around): a reference to `HookCancelToken` plus a `Lock`. `Cancel::exclusive(token)` uses `acquire_exclusive`, `Cancel::scoped(token)` uses `acquire_scoped`. `.is_cancelled()` reads the token directly.
+
+**Usage:**
+
+- **rw:** the `Orchestrator` holds `Cancel::exclusive(...)` for the whole operation; deeper down (stages, primitives, the hook runner from §5.8) — access via `Context` (the already-existing mechanism for passing data into every `Stage::run`), with no parameter threading through the whole codebase.
+- **ro:** `run()` holds `Cancel::scoped(...)` locally and calls `.is_cancelled()` directly — ro has no `Orchestrator`/`Context`/deep call tree, so no ambient access is needed.
+
+The old mechanism — the `CancelHook` trait and the raw-pointer `Cancel` in `abi/src/hook.rs`, fetched via `Context.get::<Box<dyn CancelHook>>()` — is to be removed, replaced by this.
+
+### 5.10 Operation progress
+
+The same hook channel as §5.9 (`MessageHook`), but for progress tracking rather than cancellation. The point of `data` isn't an abstract "extra info" tack-on — it's specifically tracking what's happening INSIDE a stage: each event is a transition into a named sub-step (phase) of the current stage's mini-FSM, not a generic completion percentage.
+
+The payload is one common `#[repr(C)]` type for every event, not a separate shape per event (a tagged union would be awkward over a C-ABI, and there's nothing yet to check the shape against — stage bodies aren't written): `stage` (which stage, as before — `StateId as u32`), `phase` (which sub-step within the stage; the meaning is owned by the stage itself, like `StateId`), `subject` (a borrowed string — what this concerns: a package, a file, a hook), `current`/`total` (an item counter, `0` if not applicable/unknown). `MessageHook::send` takes one self-describing parameter instead of the former separate event/data pair — nothing to unpack separately. Created locally, on the stack, by whichever code is reporting (a stage, a primitive, the hook runner from §5.8) — `subject` points at an already-owned string, no allocation.
 
 ---
 
