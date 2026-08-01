@@ -4,7 +4,7 @@ use upac_macro::CValidate;
 
 use crate::DiffKind;
 use crate::error::ErrorKind;
-use crate::hook::{HookCancelToken, HookMessageFn};
+use crate::hook::{CancelToken, HookMessageFn};
 use crate::package::{CPackageInfo, CUnpackedPackage};
 use crate::types::{CBorrowed, CSlice, CVec, check_size};
 
@@ -18,7 +18,7 @@ pub struct CRequestBase {
     pub on_hook: Option<HookMessageFn>,
     pub hook_ctx: *mut c_void,
 
-    pub hook_cancel_token: *mut HookCancelToken,
+    pub cancel_token: *mut CancelToken,
 }
 
 #[repr(C)]

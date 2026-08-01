@@ -2,7 +2,7 @@ use std::os::raw::c_void;
 
 use upac_abi::DiffKind;
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{HookCancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn};
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CFilesRequest;
 
@@ -27,7 +27,7 @@ pub struct FilesData<'a> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub hook_cancel_token: &'a HookCancelToken,
+    pub cancel_token: &'a CancelToken,
 }
 
 impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
@@ -37,7 +37,7 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
         unsafe { request.validate()? };
 
         let file_package = unsafe { request.file_package.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
-        let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+        let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(FilesData {
             files: Vec::try_from(&request.files)?,
@@ -54,7 +54,7 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            hook_cancel_token: cancel_token,
+            cancel_token: cancel_token,
         })
     }
 }

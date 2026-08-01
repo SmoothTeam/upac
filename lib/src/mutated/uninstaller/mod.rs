@@ -1,13 +1,12 @@
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{Cancel, CancelHook, HookCancelToken, HookMessageFn, Message, MessageHook};
+use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
 use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::{Context, Orchestrator};
-use crate::types::lock::Lock;
+use crate::orchestrator::{Context, Orchestrator, OrchestratorMode, RunFailure};
 use crate::types::states::UninstallStateId;
 use crate::types::{Branch, PackageEntry, Targets, TmpPath};
 
@@ -61,7 +60,7 @@ pub struct UninstallData<'a> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub hook_cancel_token: &'a HookCancelToken,
+    pub cancel_token: &'a CancelToken,
 }
 
 impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
@@ -70,7 +69,7 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
     fn try_from(request: &'a CUninstallRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
-        let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+        let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(UninstallData {
             packages: Vec::try_from(&request.packages)?,
@@ -85,24 +84,26 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            hook_cancel_token: cancel_token,
+            cancel_token,
         })
     }
 }
 
 fn assemble() -> Orchestrator<UninstallError> {
-    Orchestrator::new(vec![
-        Box::new(PreparationStage),
-        Box::new(BuildStage),
-        Box::new(CommitStage),
-        Box::new(ConfigMergeStage),
-        Box::new(PrepareBootStage),
-        Box::new(BootOptionStage),
-    ])
+    Orchestrator::new(
+        vec![
+            Box::new(PreparationStage),
+            Box::new(BuildStage),
+            Box::new(CommitStage),
+            Box::new(ConfigMergeStage),
+            Box::new(PrepareBootStage),
+            Box::new(BootOptionStage),
+        ],
+        OrchestratorMode::Exclusive,
+    )
 }
 
 pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)> {
-    let _lock = Lock::acquire().map_err(|error| (UninstallStateId::Setup, UninstallError::from(error)))?;
     let deploy =
         Deploy::new(DeployMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, UninstallError::from(error)))?;
 
@@ -123,21 +124,21 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
-    context.put(Box::new(Cancel::new(data.hook_cancel_token as *const HookCancelToken)) as Box<dyn CancelHook>);
 
-    let orchestrator = assemble();
+    let mut orchestrator = assemble();
 
     let result = if orchestrator.validate(&context).is_err() {
         Err((UninstallStateId::Setup, UninstallError::UninstallFailed))
     } else {
         orchestrator
-            .run(&mut context)
-            .map_err(|(index, error)| (UninstallStateId::from_stage_index(index), error))
+            .run(&mut context, data.cancel_token)
+            .map_err(|failure| match failure {
+                RunFailure::Setup(lock_error) => (UninstallStateId::Setup, UninstallError::from(lock_error)),
+                RunFailure::Stage(index, error) => (UninstallStateId::from_stage_index(index), error),
+            })
     };
 
-    if let Some(cancel) = context.get::<Box<dyn CancelHook>>() {
-        cancel.reset();
-    }
+    data.cancel_token.reset();
 
     result
 }

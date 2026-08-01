@@ -1,10 +1,13 @@
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
-use std::ptr::null;
 
-use upac_abi::hook::{CancelHook, HookAck, MessageHook};
+use upac_abi::hook::{CancelToken, HookAck, MessageHook};
 
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 use crate::types::errors::CommonError;
+use crate::types::lock::{Lock, LockError};
+
+pub mod stage;
 
 pub struct Context {
     slots: HashMap<TypeId, Box<dyn Any>>,
@@ -37,70 +40,40 @@ impl Context {
     }
 }
 
-pub trait Rollback {
-    fn rollback(&mut self);
+pub struct StagePipelineError(pub TypeId);
+
+pub enum OrchestratorMode {
+    Exclusive,
+    Concurrent,
 }
 
-pub struct RollbackStack {
-    stack: Vec<Box<dyn Rollback>>,
-}
-
-impl RollbackStack {
-    fn new() -> Self {
-        Self { stack: Vec::new() }
-    }
-
-    pub fn push(&mut self, guard: impl Rollback + 'static) {
-        self.stack.push(Box::new(guard));
-    }
-
-    fn unwind(&mut self) {
-        while let Some(mut state) = self.stack.pop() {
-            state.rollback();
-        }
-    }
-}
-
-pub trait Stage<E> {
-    fn event_id(&self) -> u32 {
-        0
-    }
-
-    fn requires(&self) -> Vec<TypeId> {
-        Vec::new()
-    }
-
-    fn provides(&self) -> Vec<TypeId> {
-        Vec::new()
-    }
-
-    fn run(&self, operation_context: &mut Context, operation_stack: &mut RollbackStack) -> Result<(), E>;
-}
-
-pub struct StagePipelineError {
-    pub stage_index: usize,
-    pub missing: TypeId,
+pub enum RunFailure<E> {
+    Setup(LockError),
+    Stage(usize, E),
 }
 
 pub struct Orchestrator<E> {
     stages: Vec<Box<dyn Stage<E>>>,
+    mode: OrchestratorMode,
+    rollback: Vec<Box<dyn RollbackGuard>>,
 }
 
-impl<E> Orchestrator<E> {
-    pub fn new(stages: Vec<Box<dyn Stage<E>>>) -> Self {
-        Self { stages }
+impl<E: 'static> Orchestrator<E> {
+    pub fn new(stages: Vec<Box<dyn Stage<E>>>, mode: OrchestratorMode) -> Self {
+        Self {
+            stages,
+            mode,
+            rollback: Vec::new(),
+        }
     }
 
-    pub fn validate(&self, operation_context: &Context) -> Result<(), StagePipelineError> {
-        let mut available = operation_context.type_ids();
+    pub fn validate(&self, context: &Context) -> Result<(), StagePipelineError> {
+        let mut available = context.type_ids();
 
-        for (index, stage) in self.stages.iter().enumerate() {
+        for stage in &self.stages {
             for required_stage in stage.requires() {
                 if !available.contains(&required_stage) {
-                    return Err(StagePipelineError {
-                        stage_index: index,
-                        missing: required_stage,
-                    });
+                    return Err(StagePipelineError(required_stage));
                 }
             }
 
@@ -109,26 +82,61 @@ impl<E> Orchestrator<E> {
 
         Ok(())
     }
+
+    fn unwind(&mut self) {
+        while let Some(mut guard) = self.rollback.pop() {
+            guard.rollback();
+        }
+    }
 }
 
-impl<E: From<CommonError>> Orchestrator<E> {
-    pub fn run(&self, operation_context: &mut Context) -> Result<(), (usize, E)> {
-        let mut operation_stack = RollbackStack::new();
+impl<E: From<CommonError> + 'static> Orchestrator<E> {
+    pub fn run(&mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), RunFailure<E>> {
+        let _lock = match self.mode {
+            OrchestratorMode::Exclusive => Some(Lock::acquire().map_err(RunFailure::Setup)?),
+            OrchestratorMode::Concurrent => None,
+        };
 
-        for (index, stage) in self.stages.iter().enumerate() {
-            if let Some(hook) = operation_context.get::<Box<dyn MessageHook>>() {
-                while hook.send(stage.event_id(), null()) == HookAck::Retry {}
+        let mut index = 0;
+
+        while index < self.stages.len() {
+            if cancel.is_cancelled() {
+                self.unwind();
+                return Err(RunFailure::Stage(index, CommonError::Cancelled.into()));
             }
 
-            if let Some(cancel) = operation_context.get::<Box<dyn CancelHook>>() {
-                if cancel.is_cancelled() {
-                    return Err((index, CommonError::Cancelled.into()));
+            let outcome = match self.stages[index].run(context, cancel) {
+                Ok(outcome) => outcome,
+                Err(error) => {
+                    self.unwind();
+                    return Err(RunFailure::Stage(index, error));
                 }
+            };
+
+            if let Some(hook) = context.get::<Box<dyn MessageHook>>() {
+                let event = outcome.progress.build();
+                while hook.send(&event) == HookAck::Retry {}
             }
 
-            if let Err(error) = stage.run(operation_context, &mut operation_stack) {
-                operation_stack.unwind();
-                return Err((index, error));
+            if let Some(guard) = outcome.rollback {
+                self.rollback.push(guard);
+            }
+
+            match outcome.result {
+                StageResult::Advance => index += 1,
+                StageResult::Repeat => {}
+                StageResult::RepeatBack(target) => {
+                    match self.stages[..index]
+                        .iter()
+                        .rposition(|stage| (**stage).type_id() == target)
+                    {
+                        Some(found) => index = found,
+                        None => {
+                            self.unwind();
+                            return Err(RunFailure::Stage(index, CommonError::StageNotFound.into()));
+                        }
+                    }
+                }
             }
         }
 

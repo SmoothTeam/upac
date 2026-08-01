@@ -1,15 +1,13 @@
+use upac_abi::hook::CancelToken;
+
 use crate::mutated::uninstaller::UninstallError;
-use crate::orchestrator::{Context, RollbackStack, Stage};
-use crate::types::states::UninstallStateId;
+use crate::orchestrator::Context;
+use crate::orchestrator::stage::{Stage, StageOutcome};
 
 pub struct BuildStage;
 
 impl Stage<UninstallError> for BuildStage {
-    fn event_id(&self) -> u32 {
-        UninstallStateId::Build as u32
-    }
-
-    fn run(&self, context: &mut Context, stack: &mut RollbackStack) -> Result<(), UninstallError> {
+    fn run(&self, context: &mut Context, cancel: &CancelToken) -> Result<StageOutcome, UninstallError> {
         todo!()
     }
 }

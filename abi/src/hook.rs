@@ -1,5 +1,8 @@
+use std::mem::size_of;
 use std::os::raw::c_void;
 use std::sync::atomic::{AtomicU8, Ordering};
+
+use crate::types::CSlice;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,16 +11,68 @@ pub enum HookAck {
     Retry = 1,
 }
 
+#[repr(C)]
+pub struct CProgressEvent {
+    pub struct_size: usize,
+    pub stage: u32,
+    pub phase: u32,
+    pub subject: CSlice,
+    pub current: u64,
+    pub total: u64,
+}
+
+pub struct ProgressEventBuilder {
+    stage: u32,
+    phase: u32,
+    subject: Option<String>,
+    current: u64,
+    total: u64,
+}
+
+impl ProgressEventBuilder {
+    pub fn new(stage: u32) -> Self {
+        Self {
+            stage,
+            phase: 0,
+            subject: None,
+            current: 0,
+            total: 0,
+        }
+    }
+
+    pub fn phase(mut self, phase: u32) -> Self {
+        self.phase = phase;
+        self
+    }
+
+    pub fn subject(mut self, subject: impl Into<String>) -> Self {
+        self.subject = Some(subject.into());
+        self
+    }
+
+    pub fn progress(mut self, current: u64, total: u64) -> Self {
+        self.current = current;
+        self.total = total;
+        self
+    }
+
+    pub fn build(&self) -> CProgressEvent {
+        CProgressEvent {
+            struct_size: size_of::<CProgressEvent>(),
+            stage: self.stage,
+            phase: self.phase,
+            subject: CSlice::from_slice(self.subject.as_deref().map(str::as_bytes)),
+            current: self.current,
+            total: self.total,
+        }
+    }
+}
+
 pub trait MessageHook {
-    fn send(&self, event: u32, data: *const c_void) -> HookAck;
+    fn send(&self, event: &CProgressEvent) -> HookAck;
 }
 
-pub trait CancelHook {
-    fn is_cancelled(&self) -> bool;
-    fn reset(&self);
-}
-
-pub type HookMessageFn = unsafe extern "C" fn(event: u32, data: *const c_void, ctx: *mut c_void) -> HookAck;
+pub type HookMessageFn = unsafe extern "C" fn(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck;
 
 pub struct Message {
     hook_message: Option<HookMessageFn>,
@@ -34,23 +89,23 @@ impl Message {
 }
 
 impl MessageHook for Message {
-    fn send(&self, event: u32, data: *const c_void) -> HookAck {
+    fn send(&self, event: &CProgressEvent) -> HookAck {
         let Some(hook_message) = self.hook_message else {
             return HookAck::Delivered;
         };
 
-        unsafe { hook_message(event, data, self.hook_message_context) }
+        unsafe { hook_message(event as *const CProgressEvent, self.hook_message_context) }
     }
 }
 
 #[repr(C)]
-pub struct HookCancelToken {
+pub struct CancelToken {
     cancelled: AtomicU8,
 }
 
-unsafe impl Sync for HookCancelToken {}
+unsafe impl Sync for CancelToken {}
 
-impl HookCancelToken {
+impl CancelToken {
     pub fn cancel(&self) {
         self.cancelled.store(1, Ordering::Release);
     }
@@ -61,26 +116,6 @@ impl HookCancelToken {
 
     pub fn reset(&self) {
         self.cancelled.store(0, Ordering::Release);
-    }
-}
-
-pub struct Cancel {
-    token: *const HookCancelToken,
-}
-
-impl Cancel {
-    pub fn new(token: *const HookCancelToken) -> Self {
-        Self { token }
-    }
-}
-
-impl CancelHook for Cancel {
-    fn is_cancelled(&self) -> bool {
-        unsafe { (*self.token).is_cancelled() }
-    }
-
-    fn reset(&self) {
-        unsafe { (*self.token).reset() };
     }
 }
 

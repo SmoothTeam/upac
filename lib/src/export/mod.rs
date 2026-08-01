@@ -1,6 +1,6 @@
 use upac_abi::ABI_VERSION;
 use upac_abi::error::{CError, CommandState, ErrorKind};
-use upac_abi::hook::HookCancelToken;
+use upac_abi::hook::CancelToken;
 use upac_abi::response::CUnmutatedResponse;
 
 pub mod mutated;
@@ -12,7 +12,7 @@ pub unsafe extern "C" fn version_abi() -> u32 {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cancel(token: *mut HookCancelToken) {
+pub unsafe extern "C" fn cancel(token: *mut CancelToken) {
     if token.is_null() {
         return;
     }

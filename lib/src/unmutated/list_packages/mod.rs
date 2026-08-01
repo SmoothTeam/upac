@@ -1,7 +1,7 @@
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{HookCancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn};
 use upac_abi::request::CListPackagesRequest;
 
 pub use self::error::ListPackagesError;
@@ -17,7 +17,7 @@ pub struct ListPackagesData<'a> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub hook_cancel_token: &'a HookCancelToken,
+    pub cancel_token: &'a CancelToken,
 }
 
 impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
@@ -26,7 +26,7 @@ impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
     fn try_from(request: &'a CListPackagesRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
-        let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+        let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(ListPackagesData {
             branch: (&request.base.branch).try_into()?,
@@ -34,7 +34,7 @@ impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            hook_cancel_token: cancel_token,
+            cancel_token: cancel_token,
         })
     }
 }

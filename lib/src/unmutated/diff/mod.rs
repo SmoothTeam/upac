@@ -1,7 +1,7 @@
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{HookCancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn};
 use upac_abi::request::CDiffRequest;
 
 pub use self::error::DiffError;
@@ -20,7 +20,7 @@ pub struct DiffData<'a> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub hook_cancel_token: &'a HookCancelToken,
+    pub cancel_token: &'a CancelToken,
 }
 
 impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
@@ -29,7 +29,7 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
     fn try_from(request: &'a CDiffRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
-        let cancel_token = unsafe { request.base.hook_cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+        let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(DiffData {
             from_commit_hash: (&request.from_commit_hash).try_into()?,
@@ -40,7 +40,7 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            hook_cancel_token: cancel_token,
+            cancel_token: cancel_token,
         })
     }
 }
