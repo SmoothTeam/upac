@@ -18,10 +18,7 @@ pub struct CSlice {
 
 impl CSlice {
     pub const fn empty() -> Self {
-        Self {
-            ptr: null(),
-            len: 0,
-        }
+        Self { ptr: null(), len: 0 }
     }
 
     pub fn empty_str() -> Self {
@@ -48,6 +45,9 @@ impl CSlice {
         }
     }
 
+    /// # Safety
+    /// `self.ptr` must point to at least `self.len` valid, initialized UTF-8 bytes for the lifetime of
+    /// the returned `&str`.
     pub unsafe fn as_str(&self) -> &str {
         str::from_utf8_unchecked(slice::from_raw_parts(self.ptr, self.len))
     }
@@ -83,6 +83,9 @@ impl<T> CArray<T> {
         }
     }
 
+    /// # Safety
+    /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `T` values for the lifetime
+    /// of the returned slice.
     pub unsafe fn as_slice(&self) -> &[T] {
         if self.ptr.is_null() || self.len == 0 {
             &[]
@@ -105,13 +108,12 @@ pub struct CVersion {
 }
 
 impl CVersion {
+    /// # Safety
+    /// `self.parts` and `self.pre` must each satisfy `CArray`/`CSlice`'s own safety contract — this
+    /// reads through both without checking.
     pub unsafe fn display(&self) -> String {
         let parts = self.parts.as_slice();
-        let version_str = parts
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(".");
+        let version_str = parts.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(".");
 
         let mut result = if self.epoch > 0 {
             format!("{}:{}", self.epoch, version_str)

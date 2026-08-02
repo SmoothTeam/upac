@@ -37,10 +37,6 @@ impl CommandContext {
     pub fn new(config: Config, lib: Arc<Lib>) -> Result<CommandContext> {
         let tmp_path = CString::new(temp_dir().to_string_lossy().as_ref())?;
 
-        Ok(CommandContext {
-            config,
-            lib,
-            tmp_path,
-        })
+        Ok(CommandContext { config, lib, tmp_path })
     }
 }

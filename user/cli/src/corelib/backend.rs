@@ -19,8 +19,7 @@ use crate::types::EXPECTED_ABI_VERSION;
 
 // ── Wrapper for the backend .so ───────────────────────────────────────────────
 pub struct Backend {
-    pub prepare:
-        unsafe extern "C" fn(*const CPrepareRequest, *mut *mut CPackageMeta, *mut CSlice) -> i32,
+    pub prepare: unsafe extern "C" fn(*const CPrepareRequest, *mut *mut CPackageMeta, *mut CSlice) -> i32,
 
     pub free_meta: unsafe extern "C" fn(*mut CPackageMeta),
     pub cleanup: unsafe extern "C" fn(CSlice),
@@ -69,6 +68,9 @@ impl Backend {
         }
     }
 
+    /// # Safety
+    /// `ctx` must point to a live `ProgressBar` for the duration of the call (as passed to the backend
+    /// when this callback was registered), and `data`, if non-null, must point to a valid `CSlice`.
     pub unsafe extern "C" fn on_hook(event_code: u32, data: *const c_void, ctx: *mut c_void) -> u8 {
         let Some(progress_bar) = (ctx as *const ProgressBar).as_ref() else {
             return 0;

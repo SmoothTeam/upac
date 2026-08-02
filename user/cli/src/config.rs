@@ -38,12 +38,11 @@ pub struct OstreeConfig {
 // ── Validation ─────────────────────────────────────────────────────────────────
 impl Config {
     pub fn load(path: &Path) -> Result<Self> {
-        let config_file_content = fs::read_to_string(path)
-            .with_context(|| format!("{}: {path:?}", gettext("err_read_config")))?;
+        let config_file_content =
+            fs::read_to_string(path).with_context(|| format!("{}: {path:?}", gettext("err_read_config")))?;
 
-        let config: Config = toml::from_str(&config_file_content).map_err(|err| {
-            anyhow::anyhow!("{} {}: {err}", gettext("err_parse_config"), path.display())
-        })?;
+        let config: Config = toml::from_str(&config_file_content)
+            .map_err(|err| anyhow::anyhow!("{} {}: {err}", gettext("err_parse_config"), path.display()))?;
 
         config.validate()?;
 

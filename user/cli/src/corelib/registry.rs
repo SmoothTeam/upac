@@ -20,34 +20,18 @@ impl BackendRegistry {
             return Ok(Self { backends });
         }
 
-        for entry in fs::read_dir(backends_dir).with_context(|| {
-            format!(
-                "{}: {}",
-                gettextrs::gettext("err_read"),
-                backends_dir.display()
-            )
-        })? {
+        for entry in fs::read_dir(backends_dir)
+            .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), backends_dir.display()))?
+        {
             let path = entry
-                .with_context(|| {
-                    format!(
-                        "{}: {}",
-                        gettextrs::gettext("err_read"),
-                        backends_dir.display()
-                    )
-                })?
+                .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), backends_dir.display()))?
                 .path();
-            if path
-                .extension()
-                .map_or(false, |extension| extension == "toml")
-            {
-                let content = fs::read_to_string(&path).with_context(|| {
-                    format!("{}: {}", gettextrs::gettext("err_read"), path.display())
-                })?;
+            if path.extension().is_some_and(|extension| extension == "toml") {
+                let content = fs::read_to_string(&path)
+                    .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), path.display()))?;
 
-                let backend_config: BackendConfig =
-                    toml::from_str(&content).with_context(|| {
-                        format!("{}: {}", gettextrs::gettext("err_parse"), path.display())
-                    })?;
+                let backend_config: BackendConfig = toml::from_str(&content)
+                    .with_context(|| format!("{}: {}", gettextrs::gettext("err_parse"), path.display()))?;
                 backends.push(backend_config);
             }
         }
@@ -65,12 +49,9 @@ impl BackendRegistry {
     }
 
     pub fn by_flag(&self, flag: &str) -> Option<&BackendConfig> {
-        self.backends.iter().find(|backend_config| {
-            backend_config
-                .flags
-                .iter()
-                .any(|backend_flag| backend_flag == flag)
-        })
+        self.backends
+            .iter()
+            .find(|backend_config| backend_config.flags.iter().any(|backend_flag| backend_flag == flag))
     }
 
     pub fn load(&self, backend_config: &BackendConfig) -> Result<Backend> {

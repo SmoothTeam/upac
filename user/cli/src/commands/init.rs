@@ -23,7 +23,10 @@ pub fn run(args: InitArgs, ctx: CommandContext) -> Result<()> {
         None => ctx.config,
     };
 
-    let mode_str = config.ostree.mode.to_str()
+    let mode_str = config
+        .ostree
+        .mode
+        .to_str()
         .map_err(|_| anyhow::anyhow!("{}", gettext("err_config_mode_invalid")))?;
 
     let repo_mode: u32 = match mode_str {
@@ -33,10 +36,7 @@ pub fn run(args: InitArgs, ctx: CommandContext) -> Result<()> {
         _ => anyhow::bail!("{}", gettext("err_config_mode_invalid")),
     };
 
-    let symlink_slices: Vec<CSlice> = config.ostree.symlinks
-        .iter()
-        .map(CSlice::from_cstring)
-        .collect();
+    let symlink_slices: Vec<CSlice> = config.ostree.symlinks.iter().map(CSlice::from_cstring).collect();
 
     let request = CUnmutatedRequest::for_init(
         &config.paths.repo_path,

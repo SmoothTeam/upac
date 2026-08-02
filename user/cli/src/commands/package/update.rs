@@ -82,7 +82,11 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         let (meta_ptr, temp_path) = backend.prepare(&prepare_request)?;
         progress_bar.finish_and_clear();
 
-        prepared.push(PreparedPackage { backend, meta_ptr, temp_path });
+        prepared.push(PreparedPackage {
+            backend,
+            meta_ptr,
+            temp_path,
+        });
     }
 
     let packages_c: Vec<CPackage> = prepared.iter().map(PreparedPackage::as_c_package).collect();

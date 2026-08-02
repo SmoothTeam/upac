@@ -26,7 +26,7 @@ fn main() {
 
     for entry in std::fs::read_dir(&po_dir).unwrap().flatten() {
         let path = entry.path();
-        if path.extension().map_or(false, |e| e == "po") {
+        if path.extension().is_some_and(|e| e == "po") {
             let lang = path.file_stem().unwrap().to_string_lossy().into_owned();
             let mo_dir = locale_dir.join(&lang).join("LC_MESSAGES");
             std::fs::create_dir_all(&mo_dir).unwrap();

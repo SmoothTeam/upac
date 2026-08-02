@@ -31,11 +31,7 @@ impl Display for PrepareError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Failed { code } => {
-                write!(
-                    formatter,
-                    "{}: {code}",
-                    gettextrs::gettext("prepare_failed")
-                )
+                write!(formatter, "{}: {code}", gettextrs::gettext("prepare_failed"))
             }
             Self::NullMeta => formatter.write_str(&gettextrs::gettext("prepare_null_meta")),
         }

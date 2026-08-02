@@ -54,11 +54,7 @@ pub struct CMutatedRequest {
 
 impl CMutatedRequest {
     fn base(
-        repo_path: &CString,
-        root_path: &CString,
-        branch: &CString,
-        on_hook: Option<HookFn>,
-        hook_ctx: *mut c_void,
+        repo_path: &CString, root_path: &CString, branch: &CString, on_hook: Option<HookFn>, hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
@@ -85,14 +81,8 @@ impl CMutatedRequest {
 
     #[allow(clippy::too_many_arguments)]
     pub fn for_install(
-        packages: &[CPackage],
-        repo_path: &CString,
-        root_path: &CString,
-        tmp_path: &CString,
-        branch: &CString,
-        on_hook: Option<HookFn>,
-        hook_ctx: *mut c_void,
-        cancel_token: *mut CancelToken,
+        packages: &[CPackage], repo_path: &CString, root_path: &CString, tmp_path: &CString, branch: &CString,
+        on_hook: Option<HookFn>, hook_ctx: *mut c_void, cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
         req.tmp_path = CSlice::from_cstring(tmp_path);
@@ -103,29 +93,23 @@ impl CMutatedRequest {
 
     #[allow(clippy::too_many_arguments)]
     pub fn for_uninstall(
-        package_infos: &[CPackageInfo],
-        repo_path: &CString,
-        root_path: &CString,
-        branch: &CString,
-        on_hook: Option<HookFn>,
-        hook_ctx: *mut c_void,
-        cancel_token: *mut CancelToken,
+        package_infos: &[CPackageInfo], repo_path: &CString, root_path: &CString, branch: &CString,
+        on_hook: Option<HookFn>, hook_ctx: *mut c_void, cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
-        req.uninstall_packages = if package_infos.is_empty() { null() } else { package_infos.as_ptr() };
+        req.uninstall_packages = if package_infos.is_empty() {
+            null()
+        } else {
+            package_infos.as_ptr()
+        };
         req.uninstall_packages_len = package_infos.len();
         req
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn for_commit(
-        message: &CString,
-        repo_path: &CString,
-        root_path: &CString,
-        branch: &CString,
-        on_hook: Option<HookFn>,
-        hook_ctx: *mut c_void,
-        cancel_token: *mut CancelToken,
+        message: &CString, repo_path: &CString, root_path: &CString, branch: &CString, on_hook: Option<HookFn>,
+        hook_ctx: *mut c_void, cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
         req.message = CSlice::from_cstring(message);
@@ -134,13 +118,8 @@ impl CMutatedRequest {
 
     #[allow(clippy::too_many_arguments)]
     pub fn for_rollback(
-        commit_hash: &CString,
-        repo_path: &CString,
-        root_path: &CString,
-        branch: &CString,
-        on_hook: Option<HookFn>,
-        hook_ctx: *mut c_void,
-        cancel_token: *mut CancelToken,
+        commit_hash: &CString, repo_path: &CString, root_path: &CString, branch: &CString, on_hook: Option<HookFn>,
+        hook_ctx: *mut c_void, cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
         req.commit_hash = CSlice::from_cstring(commit_hash);
@@ -149,15 +128,8 @@ impl CMutatedRequest {
 
     #[allow(clippy::too_many_arguments)]
     pub fn for_files(
-        files: &[CSlice],
-        file_kind: CDiffKind,
-        file_package: &CPackageInfo,
-        repo_path: &CString,
-        root_path: &CString,
-        tmp_path: &CString,
-        branch: &CString,
-        on_hook: Option<HookFn>,
-        hook_ctx: *mut c_void,
+        files: &[CSlice], file_kind: CDiffKind, file_package: &CPackageInfo, repo_path: &CString, root_path: &CString,
+        tmp_path: &CString, branch: &CString, on_hook: Option<HookFn>, hook_ctx: *mut c_void,
         cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
@@ -191,10 +163,7 @@ pub struct CUnmutatedRequest {
 
 impl CUnmutatedRequest {
     pub fn for_list_commits(
-        repo_path: &CString,
-        root_path: &CString,
-        branch: &CString,
-        cancel_token: *mut CancelToken,
+        repo_path: &CString, root_path: &CString, branch: &CString, cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
             struct_size: size_of::<Self>(),
@@ -212,10 +181,7 @@ impl CUnmutatedRequest {
         }
     }
 
-    pub fn for_list_metas(
-        root_path: &CString,
-        cancel_token: *mut CancelToken,
-    ) -> Self {
+    pub fn for_list_metas(root_path: &CString, cancel_token: *mut CancelToken) -> Self {
         Self {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::empty(),
@@ -233,10 +199,7 @@ impl CUnmutatedRequest {
     }
 
     pub fn for_diff(
-        repo_path: &CString,
-        tmp_path: &CString,
-        from_commit: &CString,
-        to_commit: &CString,
+        repo_path: &CString, tmp_path: &CString, from_commit: &CString, to_commit: &CString,
         cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
@@ -255,11 +218,7 @@ impl CUnmutatedRequest {
         }
     }
 
-    pub fn for_search(
-        root_path: &CString,
-        query: &CString,
-        cancel_token: *mut CancelToken,
-    ) -> Self {
+    pub fn for_search(root_path: &CString, query: &CString, cancel_token: *mut CancelToken) -> Self {
         Self {
             struct_size: size_of::<Self>(),
             repo_path: CSlice::empty(),
@@ -277,11 +236,7 @@ impl CUnmutatedRequest {
     }
 
     pub fn for_init(
-        repo_path: &CString,
-        root_path: &CString,
-        branch: &CString,
-        symlinks: &[CSlice],
-        repo_mode_val: &u32,
+        repo_path: &CString, root_path: &CString, branch: &CString, symlinks: &[CSlice], repo_mode_val: &u32,
         cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
@@ -315,12 +270,8 @@ pub struct CPrepareRequest {
 
 impl CPrepareRequest {
     pub fn new(
-        package_path: &CString,
-        temp_dir_path: &CString,
-        checksum: &CString,
-        on_hook: Option<HookFn>,
-        hook_ctx: *mut c_void,
-        cancel_token: *mut CancelToken,
+        package_path: &CString, temp_dir_path: &CString, checksum: &CString, on_hook: Option<HookFn>,
+        hook_ctx: *mut c_void, cancel_token: *mut CancelToken,
     ) -> Self {
         Self {
             struct_size: size_of::<Self>(),

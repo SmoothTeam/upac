@@ -52,9 +52,7 @@ impl CPackageInfo {
             struct_size: size_of::<Self>(),
             name: CSlice::from_cstring(name),
             arch: CSlice::from_cstring(arch),
-            arch_sub: arch_sub
-                .map(CSlice::from_cstring)
-                .unwrap_or(CSlice::empty()),
+            arch_sub: arch_sub.map(CSlice::from_cstring).unwrap_or(CSlice::empty()),
         }
     }
 }

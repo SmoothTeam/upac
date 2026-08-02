@@ -58,15 +58,12 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
             } else {
                 registry.by_extension(file_path)
             }
-            .ok_or_else(|| {
-                anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_no_backend"))
-            })?;
+            .ok_or_else(|| anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_no_backend")))?;
 
             let backend = registry.load(backend_config)?;
 
-            let absolute_file_path = canonicalize(file_path).map_err(|_| {
-                anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_not_found"))
-            })?;
+            let absolute_file_path = canonicalize(file_path)
+                .map_err(|_| anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_not_found")))?;
             let absolute_file_path_str = absolute_file_path.to_string_lossy();
 
             let checksum_string = match args.checksums.get(index) {
@@ -97,8 +94,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
             });
         }
 
-        let packages_c: Vec<CPackage> =
-            prepared.iter().map(PreparedPackage::as_c_package).collect();
+        let packages_c: Vec<CPackage> = prepared.iter().map(PreparedPackage::as_c_package).collect();
 
         let request = CMutatedRequest::for_install(
             &packages_c,

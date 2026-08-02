@@ -63,6 +63,9 @@ pub enum DiffKind {
 }
 
 // ── Symbol loader ─────────────────────────────────────────────────────────────
+/// # Safety
+/// `T` must exactly match the signature of the C symbol `name` resolves to, and the returned value
+/// must not outlive `lib`.
 pub unsafe fn load_symbol<T: Copy>(lib: &Library, name: &str) -> Result<T> {
     lib.get(name.as_bytes())
         .map(|symbol| *symbol)

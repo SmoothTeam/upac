@@ -72,8 +72,7 @@ impl RemoveMachine {
     fn state_listing(&mut self) -> Result<State> {
         let mut response = CUnmutatedResponse::empty();
 
-        let request =
-            CUnmutatedRequest::for_list_metas(&self.ctx.config.paths.root_path, cancel_token_ptr());
+        let request = CUnmutatedRequest::for_list_metas(&self.ctx.config.paths.root_path, cancel_token_ptr());
 
         let return_code = unsafe { (self.ctx.lib.pkg.list)(request, &mut response) };
         LibError::check(return_code)?;
@@ -105,11 +104,7 @@ impl RemoveMachine {
                 Ok((
                     CString::new(name.as_str())?,
                     CString::new(arch)?,
-                    self.args
-                        .arch_sub
-                        .as_deref()
-                        .map(CString::new)
-                        .transpose()?,
+                    self.args.arch_sub.as_deref().map(CString::new).transpose()?,
                 ))
             })
             .collect::<Result<_>>()?;
@@ -158,11 +153,7 @@ impl RemoveMachine {
 }
 
 fn prompt_choice(name: &str, matches: &[&InstalledEntry]) -> Result<usize> {
-    println!(
-        "{} \"{}\":",
-        gettextrs::gettext("multiple_found"),
-        name.bold()
-    );
+    println!("{} \"{}\":", gettextrs::gettext("multiple_found"), name.bold());
 
     for (index, (_, arch, arch_sub)) in matches.iter().enumerate() {
         match arch_sub.as_deref() {

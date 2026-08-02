@@ -64,10 +64,7 @@ fn main() {
     match result {
         Ok(()) => {}
         Err(err) => {
-            eprintln!(
-                "{} {err}",
-                format!("{}:", gettextrs::gettext("error")).red().bold()
-            );
+            eprintln!("{} {err}", format!("{}:", gettextrs::gettext("error")).red().bold());
         }
     }
 }

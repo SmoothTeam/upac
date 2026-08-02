@@ -53,12 +53,7 @@ impl<'a> PackageFormatter<'a> {
         let rows: Vec<Vec<String>> = self
             .metas
             .iter()
-            .map(|meta| {
-                all_fields
-                    .iter()
-                    .map(|f| unsafe { field_value(meta, *f) })
-                    .collect()
-            })
+            .map(|meta| all_fields.iter().map(|f| unsafe { field_value(meta, *f) }).collect())
             .collect();
 
         let widths: Vec<usize> = (0..all_fields.len())
