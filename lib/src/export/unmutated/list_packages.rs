@@ -12,10 +12,14 @@ use crate::types::states::ListPackagesStateId;
 use crate::unmutated::list_packages::ListPackagesData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn list_packages(request_c: CListPackagesRequest, response_out: *mut CListPackagesResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn list_packages(
+    request_c: CListPackagesRequest, response_out: *mut CListPackagesResponse, err_out: *mut CError,
+) -> i32 {
     let list_packages_data = try_convert_abi!(ListPackagesData::try_from(&request_c), err_out, ListPackagesStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::list_packages::run(list_packages_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        crate::unmutated::list_packages::run(list_packages_data)
+    }));
 
     match result {
         Ok(Ok(metas)) => {

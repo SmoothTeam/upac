@@ -12,10 +12,14 @@ use crate::types::states::SearchMetaStateId;
 use crate::unmutated::search_meta::SearchMetaData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn search_meta(request_c: CSearchMetaRequest, response_out: *mut CSearchMetaResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn search_meta(
+    request_c: CSearchMetaRequest, response_out: *mut CSearchMetaResponse, err_out: *mut CError,
+) -> i32 {
     let search_meta_data = try_convert_abi!(SearchMetaData::try_from(&request_c), err_out, SearchMetaStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::search_meta::run(search_meta_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        crate::unmutated::search_meta::run(search_meta_data)
+    }));
 
     match result {
         Ok(Ok(metas)) => {

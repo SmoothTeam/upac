@@ -11,11 +11,6 @@ pub mod stage;
 
 pub type StagePipelineError = TypeId;
 
-pub enum OrchestratorMode {
-    Exclusive,
-    Concurrent,
-}
-
 pub enum OrchestratorError<E> {
     Setup(LockError),
     Stage(usize, E),
@@ -54,15 +49,13 @@ impl Context {
 
 pub struct Orchestrator<E> {
     stages: Vec<Box<dyn Stage<E>>>,
-    mode: OrchestratorMode,
     rollback: Vec<Box<dyn RollbackGuard>>,
 }
 
 impl<E: 'static> Orchestrator<E> {
-    pub fn new(stages: Vec<Box<dyn Stage<E>>>, mode: OrchestratorMode) -> Self {
+    pub fn new(stages: Vec<Box<dyn Stage<E>>>) -> Self {
         Self {
             stages,
-            mode,
             rollback: Vec::new(),
         }
     }
@@ -91,18 +84,24 @@ impl<E: 'static> Orchestrator<E> {
 }
 
 impl<E: From<CommonError> + 'static> Orchestrator<E> {
-    pub fn run(&mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>> {
-        let _lock = match self.mode {
-            OrchestratorMode::Exclusive => Some(Lock::acquire().map_err(OrchestratorError::Setup)?),
-            OrchestratorMode::Concurrent => None,
-        };
+    pub fn run_exclusive(&mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>> {
+        let _lock = Lock::acquire().map_err(OrchestratorError::Setup)?;
 
+        self.run_loop(context, cancel)
+            .map_err(|(index, error)| OrchestratorError::Stage(index, error))
+    }
+
+    pub fn run_concurrent(&mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
+        self.run_loop(context, cancel)
+    }
+
+    fn run_loop(&mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
         let mut index = 0;
 
         while index < self.stages.len() {
             if cancel.is_cancelled() {
                 self.unwind();
-                return Err(OrchestratorError::Stage(index, CommonError::Cancelled.into()));
+                return Err((index, CommonError::Cancelled.into()));
             }
 
             index = self.run_stage(index, context, cancel)?;
@@ -111,14 +110,14 @@ impl<E: From<CommonError> + 'static> Orchestrator<E> {
         Ok(())
     }
 
-    fn run_stage(
-        &mut self, index: usize, context: &mut Context, cancel: &CancelToken,
-    ) -> Result<usize, OrchestratorError<E>> {
-        let (progress, guard) = match self.stages[index].run(context, cancel) {
+    fn run_stage(&mut self, index: usize, context: &mut Context, cancel: &CancelToken) -> Result<usize, (usize, E)> {
+        let progress = ProgressEventBuilder::new(index as u32);
+
+        let (progress, guard) = match self.stages[index].run(context, cancel, progress) {
             Ok(outcome) => outcome,
             Err(error) => {
                 self.unwind();
-                return Err(OrchestratorError::Stage(index, error));
+                return Err((index, error));
             }
         };
 
@@ -137,7 +136,7 @@ impl<E: From<CommonError> + 'static> Orchestrator<E> {
         }
     }
 
-    fn advance(&mut self, index: usize, result: StageResult) -> Result<usize, OrchestratorError<E>> {
+    fn advance(&mut self, index: usize, result: StageResult) -> Result<usize, (usize, E)> {
         match result {
             StageResult::Advance => Ok(index + 1),
             StageResult::Repeat => Ok(index),
@@ -149,7 +148,7 @@ impl<E: From<CommonError> + 'static> Orchestrator<E> {
                     Some(found) => Ok(found),
                     None => {
                         self.unwind();
-                        Err(OrchestratorError::Stage(index, CommonError::StageNotFound.into()))
+                        Err((index, CommonError::StageNotFound.into()))
                     }
                 }
             }

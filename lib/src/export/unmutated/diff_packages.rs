@@ -11,10 +11,14 @@ use crate::types::states::DiffPackagesStateId;
 use crate::unmutated::diff_packages::DiffPackagesData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn diff_packages(request_c: CDiffPackagesRequest, response_out: *mut CDiffPackagesResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn diff_packages(
+    request_c: CDiffPackagesRequest, response_out: *mut CDiffPackagesResponse, err_out: *mut CError,
+) -> i32 {
     let diff_packages_data = try_convert_abi!(DiffPackagesData::try_from(&request_c), err_out, DiffPackagesStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::diff_packages::run(diff_packages_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        crate::unmutated::diff_packages::run(diff_packages_data)
+    }));
 
     match result {
         Ok(Ok(diff_packages)) => {
@@ -22,7 +26,9 @@ pub unsafe extern "C" fn diff_packages(request_c: CDiffPackagesRequest, response
                 unsafe {
                     *response_out = CDiffPackagesResponse {
                         struct_size: size_of::<CDiffPackagesResponse>(),
-                        diff_packages: CVec::from_owned(diff_packages.into_iter().map(CDiffPackageEntry::from).collect()),
+                        diff_packages: CVec::from_owned(
+                            diff_packages.into_iter().map(CDiffPackageEntry::from).collect(),
+                        ),
                     };
                 }
             }

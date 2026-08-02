@@ -11,10 +11,14 @@ use crate::types::states::ListPrefixStateId;
 use crate::unmutated::list_prefix::ListPrefixData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn list_prefix(request_c: CListPrefixRequest, response_out: *mut CListPrefixResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn list_prefix(
+    request_c: CListPrefixRequest, response_out: *mut CListPrefixResponse, err_out: *mut CError,
+) -> i32 {
     let list_prefix_data = try_convert_abi!(ListPrefixData::try_from(&request_c), err_out, ListPrefixStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::list_prefix::run(list_prefix_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        crate::unmutated::list_prefix::run(list_prefix_data)
+    }));
 
     match result {
         Ok(Ok(prefixes)) => {

@@ -83,7 +83,7 @@ impl CommandState for FilesStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum ListPackagesStateId {
     Fetching = 0,
     Done = 1,
@@ -100,7 +100,7 @@ impl CommandState for ListPackagesStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum ListCommitStateId {
     Fetching = 0,
     Done = 1,
@@ -117,7 +117,7 @@ impl CommandState for ListCommitStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum ListPrefixStateId {
     Fetching = 0,
     Done = 1,
@@ -134,7 +134,7 @@ impl CommandState for ListPrefixStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum ListHistoryStateId {
     Fetching = 0,
     Done = 1,
@@ -151,7 +151,7 @@ impl CommandState for ListHistoryStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum DiffFilesStateId {
     Preparing = 0,
     Comparing = 1,
@@ -169,7 +169,7 @@ impl CommandState for DiffFilesStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum DiffPackagesStateId {
     Preparing = 0,
     Comparing = 1,
@@ -187,7 +187,7 @@ impl CommandState for DiffPackagesStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum DiffStateId {
     Preparing = 0,
     Comparing = 1,
@@ -226,7 +226,7 @@ impl CommandState for UpdateStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum SearchMetaStateId {
     Searching = 0,
     Done = 1,
@@ -243,7 +243,7 @@ impl CommandState for SearchMetaStateId {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum SearchFilesStateId {
     Searching = 0,
     Done = 1,

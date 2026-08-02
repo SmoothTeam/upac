@@ -1,14 +1,19 @@
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CCommitRequest;
 
 pub use self::error::CommitError;
 
+use self::transaction::TransactionStage;
+
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
 use crate::types::states::CommitStateId;
+use crate::types::{Branch, TmpPath};
 
 mod error;
+mod transaction;
 
 pub struct CommitData<'a> {
     pub branch: &'a str,
@@ -43,11 +48,31 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            cancel_token: cancel_token,
+            cancel_token,
         })
     }
 }
 
+fn assemble() -> Orchestrator<CommitError> {
+    Orchestrator::new(vec![Box::new(TransactionStage)])
+}
+
 pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {
-    todo!()
+    let mut context = Context::new();
+    context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(Branch(data.branch.to_owned()));
+    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+
+    let mut orchestrator = assemble();
+
+    let result = orchestrator
+        .run_exclusive(&mut context, data.cancel_token)
+        .map_err(|failure| match failure {
+            OrchestratorError::Setup(lock_error) => (CommitStateId::Setup, CommitError::from(lock_error)),
+            OrchestratorError::Stage(index, error) => (CommitStateId::from_stage_index(index), error),
+        });
+
+    data.cancel_token.reset();
+
+    result
 }

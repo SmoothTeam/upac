@@ -1,14 +1,23 @@
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CRollbackRequest;
 
 pub use self::error::RollbackError;
 
-use crate::types::states::RollbackStateId;
+use self::checkout::CheckoutStage;
+use self::merge::MergeStage;
+use self::swap::SwapStage;
 
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::types::states::RollbackStateId;
+use crate::types::{Branch, TmpPath};
+
+mod checkout;
 mod error;
+mod merge;
+mod swap;
 
 pub struct RollbackData<'a> {
     pub commit_hash: &'a str,
@@ -41,11 +50,31 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            cancel_token: cancel_token,
+            cancel_token,
         })
     }
 }
 
+fn assemble() -> Orchestrator<RollbackError> {
+    Orchestrator::new(vec![Box::new(MergeStage), Box::new(CheckoutStage), Box::new(SwapStage)])
+}
+
 pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
-    todo!()
+    let mut context = Context::new();
+    context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(Branch(data.branch.to_owned()));
+    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+
+    let mut orchestrator = assemble();
+
+    let result = orchestrator
+        .run_exclusive(&mut context, data.cancel_token)
+        .map_err(|failure| match failure {
+            OrchestratorError::Setup(lock_error) => (RollbackStateId::Setup, RollbackError::from(lock_error)),
+            OrchestratorError::Stage(index, error) => (RollbackStateId::from_stage_index(index), error),
+        });
+
+    data.cancel_token.reset();
+
+    result
 }

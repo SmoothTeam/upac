@@ -23,7 +23,9 @@ pub unsafe extern "C" fn diff(request_c: CDiffRequest, response_out: *mut CDiffR
                     *response_out = CDiffResponse {
                         struct_size: size_of::<CDiffResponse>(),
                         files: CVec::from_owned(files.into_iter().map(CDiffFileEntry::from).collect()),
-                        diff_packages: CVec::from_owned(diff_packages.into_iter().map(CDiffPackageEntry::from).collect()),
+                        diff_packages: CVec::from_owned(
+                            diff_packages.into_iter().map(CDiffPackageEntry::from).collect(),
+                        ),
                     };
                 }
             }

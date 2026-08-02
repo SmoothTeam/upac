@@ -2,15 +2,24 @@ use std::os::raw::c_void;
 
 use upac_abi::DiffKind;
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CFilesRequest;
 
 pub use self::error::FilesError;
 
-use crate::types::states::FilesStateId;
+use self::checkout::CheckoutStage;
+use self::swap::SwapStage;
+use self::transaction::TransactionStage;
 
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::types::states::FilesStateId;
+use crate::types::{Branch, TmpPath};
+
+mod checkout;
 mod error;
+mod swap;
+mod transaction;
 
 pub struct FilesData<'a> {
     pub files: Vec<&'a str>,
@@ -54,11 +63,35 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            cancel_token: cancel_token,
+            cancel_token,
         })
     }
 }
 
+fn assemble() -> Orchestrator<FilesError> {
+    Orchestrator::new(vec![
+        Box::new(TransactionStage),
+        Box::new(CheckoutStage),
+        Box::new(SwapStage),
+    ])
+}
+
 pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
-    todo!()
+    let mut context = Context::new();
+    context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(Branch(data.branch.to_owned()));
+    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+
+    let mut orchestrator = assemble();
+
+    let result = orchestrator
+        .run_exclusive(&mut context, data.cancel_token)
+        .map_err(|failure| match failure {
+            OrchestratorError::Setup(lock_error) => (FilesStateId::Setup, FilesError::from(lock_error)),
+            OrchestratorError::Stage(index, error) => (FilesStateId::from_stage_index(index), error),
+        });
+
+    data.cancel_token.reset();
+
+    result
 }

@@ -8,9 +8,7 @@ pub struct PrepareBootStage;
 
 impl Stage<UninstallError> for PrepareBootStage {
     fn run(
-        &self,
-        context: &mut Context,
-        cancel: &CancelToken,
+        &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
         todo!()
     }

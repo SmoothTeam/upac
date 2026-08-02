@@ -1,15 +1,20 @@
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CListPrefixRequest;
 
 pub use self::error::ListPrefixError;
 
-use crate::types::PrefixEntry;
+use self::fetching::FetchingStage;
+
+use crate::orchestrator::{Context, Orchestrator};
+use crate::types::errors::CommonError;
 use crate::types::states::ListPrefixStateId;
+use crate::types::{Branch, PrefixEntry};
 
 mod error;
+mod fetching;
 
 pub struct ListPrefixData<'a> {
     pub branch: &'a str,
@@ -34,11 +39,28 @@ impl<'a> TryFrom<&'a CListPrefixRequest> for ListPrefixData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            cancel_token: cancel_token,
+            cancel_token,
         })
     }
 }
 
+fn assemble() -> Orchestrator<ListPrefixError> {
+    Orchestrator::new(vec![Box::new(FetchingStage)])
+}
+
 pub fn run(data: ListPrefixData) -> Result<Vec<PrefixEntry>, (ListPrefixStateId, ListPrefixError)> {
-    todo!()
+    let mut context = Context::new();
+    context.put(Branch(data.branch.to_owned()));
+    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+
+    let mut orchestrator = assemble();
+
+    orchestrator
+        .run_concurrent(&mut context, data.cancel_token)
+        .map_err(|(index, error)| (ListPrefixStateId::from_stage_index(index), error))?;
+
+    context.take::<Vec<PrefixEntry>>().ok_or((
+        ListPrefixStateId::Setup,
+        ListPrefixError::from(CommonError::MissingResult),
+    ))
 }

@@ -6,21 +6,6 @@ use upac_abi::error::ErrorKind;
 
 use crate::types::runtime;
 
-pub struct Lock {
-    _socket: OwnedFd,
-}
-
-impl Lock {
-    pub fn acquire() -> Result<Lock, LockError> {
-        let socket = socket(AddressFamily::Unix, SockType::Stream, SockFlag::SOCK_CLOEXEC, None)?;
-        let address = UnixAddr::new_abstract(runtime::LOCK_ADDRESS.as_bytes())?;
-
-        bind(socket.as_raw_fd(), &address)?;
-
-        Ok(Lock { _socket: socket })
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockError {
     Busy,
@@ -50,5 +35,20 @@ impl From<LockError> for ErrorKind {
             LockError::PathMissing => ErrorKind::InvalidPath,
             LockError::Unexpected(_) => ErrorKind::Unexpected,
         }
+    }
+}
+
+pub struct Lock {
+    _socket: OwnedFd,
+}
+
+impl Lock {
+    pub fn acquire() -> Result<Lock, LockError> {
+        let socket = socket(AddressFamily::Unix, SockType::Stream, SockFlag::SOCK_CLOEXEC, None)?;
+        let address = UnixAddr::new_abstract(runtime::LOCK_ADDRESS.as_bytes())?;
+
+        bind(socket.as_raw_fd(), &address)?;
+
+        Ok(Lock { _socket: socket })
     }
 }

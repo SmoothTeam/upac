@@ -40,6 +40,6 @@ pub trait Stage<E>: Any {
     }
 
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
 }

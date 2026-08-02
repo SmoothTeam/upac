@@ -11,10 +11,14 @@ use crate::types::states::ListCommitStateId;
 use crate::unmutated::list_commit::ListCommitData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn list_commit(request_c: CListCommitRequest, response_out: *mut CListCommitResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn list_commit(
+    request_c: CListCommitRequest, response_out: *mut CListCommitResponse, err_out: *mut CError,
+) -> i32 {
     let list_commit_data = try_convert_abi!(ListCommitData::try_from(&request_c), err_out, ListCommitStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::list_commit::run(list_commit_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        crate::unmutated::list_commit::run(list_commit_data)
+    }));
 
     match result {
         Ok(Ok(commits)) => {

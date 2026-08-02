@@ -11,10 +11,14 @@ use crate::types::states::ListHistoryStateId;
 use crate::unmutated::list_history::ListHistoryData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn list_history(request_c: CListHistoryRequest, response_out: *mut CListHistoryResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn list_history(
+    request_c: CListHistoryRequest, response_out: *mut CListHistoryResponse, err_out: *mut CError,
+) -> i32 {
     let list_history_data = try_convert_abi!(ListHistoryData::try_from(&request_c), err_out, ListHistoryStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::list_history::run(list_history_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        crate::unmutated::list_history::run(list_history_data)
+    }));
 
     match result {
         Ok(Ok(history)) => {

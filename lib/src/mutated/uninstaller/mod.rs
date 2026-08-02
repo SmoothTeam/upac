@@ -6,7 +6,7 @@ use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
 use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError, OrchestratorMode};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
 use crate::types::states::UninstallStateId;
 use crate::types::{Branch, PackageEntry, Targets, TmpPath};
 
@@ -90,17 +90,14 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
 }
 
 fn assemble() -> Orchestrator<UninstallError> {
-    Orchestrator::new(
-        vec![
-            Box::new(PreparationStage),
-            Box::new(BuildStage),
-            Box::new(CommitStage),
-            Box::new(ConfigMergeStage),
-            Box::new(PrepareBootStage),
-            Box::new(BootOptionStage),
-        ],
-        OrchestratorMode::Exclusive,
-    )
+    Orchestrator::new(vec![
+        Box::new(PreparationStage),
+        Box::new(BuildStage),
+        Box::new(CommitStage),
+        Box::new(ConfigMergeStage),
+        Box::new(PrepareBootStage),
+        Box::new(BootOptionStage),
+    ])
 }
 
 pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)> {
@@ -131,7 +128,7 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
         Err((UninstallStateId::Setup, UninstallError::UninstallFailed))
     } else {
         orchestrator
-            .run(&mut context, data.cancel_token)
+            .run_exclusive(&mut context, data.cancel_token)
             .map_err(|failure| match failure {
                 OrchestratorError::Setup(lock_error) => (UninstallStateId::Setup, UninstallError::from(lock_error)),
                 OrchestratorError::Stage(index, error) => (UninstallStateId::from_stage_index(index), error),

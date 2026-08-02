@@ -1,15 +1,22 @@
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, HookMessageFn};
+use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CDiffRequest;
 
 pub use self::error::DiffError;
 
-use crate::types::states::DiffStateId;
-use crate::types::{DiffFileEntry, DiffPackageEntry};
+use self::comparing::ComparingStage;
+use self::preparing::PreparingStage;
 
+use crate::orchestrator::{Context, Orchestrator};
+use crate::types::errors::CommonError;
+use crate::types::states::DiffStateId;
+use crate::types::{Branch, DiffFileEntry, DiffPackageEntry};
+
+mod comparing;
 mod error;
+mod preparing;
 
 pub struct DiffData<'a> {
     pub from_commit_hash: Option<&'a str>,
@@ -40,11 +47,32 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
-            cancel_token: cancel_token,
+            cancel_token,
         })
     }
 }
 
+fn assemble() -> Orchestrator<DiffError> {
+    Orchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
+}
+
 pub fn run(data: DiffData) -> Result<(Vec<DiffFileEntry>, Vec<DiffPackageEntry>), (DiffStateId, DiffError)> {
-    todo!()
+    let mut context = Context::new();
+    context.put(Branch(data.branch.to_owned()));
+    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+
+    let mut orchestrator = assemble();
+
+    orchestrator
+        .run_concurrent(&mut context, data.cancel_token)
+        .map_err(|(index, error)| (DiffStateId::from_stage_index(index), error))?;
+
+    let files = context
+        .take::<Vec<DiffFileEntry>>()
+        .ok_or((DiffStateId::Setup, DiffError::from(CommonError::MissingResult)))?;
+    let diff_packages = context
+        .take::<Vec<DiffPackageEntry>>()
+        .ok_or((DiffStateId::Setup, DiffError::from(CommonError::MissingResult)))?;
+
+    Ok((files, diff_packages))
 }

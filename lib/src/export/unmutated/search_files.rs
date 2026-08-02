@@ -11,10 +11,14 @@ use crate::types::states::SearchFilesStateId;
 use crate::unmutated::search_files::SearchFilesData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn search_files(request_c: CSearchFilesRequest, response_out: *mut CSearchFilesResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn search_files(
+    request_c: CSearchFilesRequest, response_out: *mut CSearchFilesResponse, err_out: *mut CError,
+) -> i32 {
     let search_files_data = try_convert_abi!(SearchFilesData::try_from(&request_c), err_out, SearchFilesStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::search_files::run(search_files_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        crate::unmutated::search_files::run(search_files_data)
+    }));
 
     match result {
         Ok(Ok(files)) => {

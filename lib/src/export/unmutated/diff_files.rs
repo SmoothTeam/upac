@@ -11,7 +11,9 @@ use crate::types::states::DiffFilesStateId;
 use crate::unmutated::diff_files::DiffFilesData;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn diff_files(request_c: CDiffFilesRequest, response_out: *mut CDiffFilesResponse, err_out: *mut CError) -> i32 {
+pub unsafe extern "C" fn diff_files(
+    request_c: CDiffFilesRequest, response_out: *mut CDiffFilesResponse, err_out: *mut CError,
+) -> i32 {
     let diff_files_data = try_convert_abi!(DiffFilesData::try_from(&request_c), err_out, DiffFilesStateId);
 
     let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::diff_files::run(diff_files_data)));
