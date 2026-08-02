@@ -362,27 +362,29 @@ A hook is not code but a declarative, **signed** file: it describes a trigger, a
 
 ### 5.9 Operation cancellation
 
-A second hook channel, independent of §5.8 — not declarative pre/post triggers, but a system-level cancellation signal. `HookCancelToken` (`#[repr(C)]`, an atomic flag) is created by the calling side (CLI/GUI) and passed into `lib` as a pointer with every request — this does not change.
+A second hook channel, independent of §5.8 — not declarative pre/post triggers, but a system-level cancellation signal. `CancelToken` (`#[repr(C)]`, an atomic flag) is created by the calling side (CLI/GUI) and passed into `lib` as a pointer with every request.
 
-**`Lock`** stays PURELY a mutual-exclusion mechanism between rw operations, nothing more (bind on an abstract Unix address: taken — `EADDRINUSE` → `LockError::Busy`; free — proceed). Two construction modes:
+**`Lock`** is a pure mutual-exclusion mechanism between rw operations, with no connection to cancellation at all (bind on a fixed abstract Unix address shared by all rw calls: taken — `EADDRINUSE` → `LockError::Busy`; free — proceed). The `Orchestrator` itself holds it for the whole rw operation; ro doesn't take it at all.
 
-- **`Lock::acquire_exclusive()`** — binds to a FIXED address shared by all rw operations (baked in as a constant, `Lib.toml`-style). Required for real exclusivity: every rw call must agree on the same address up front, otherwise a conflict between two `upac install` runs would never be detected.
-- **`Lock::acquire_scoped()`** — binds to a unique, per-call generated address (e.g. `upac-cancel-{uuid}`), never collides with anything, always succeeds. For ro, where any number of parallel operations is normal, and global exclusivity is neither needed nor wanted.
-
-**`Cancel`** — a wrapper around the token that holds `Lock` as its own field (not the other way around): a reference to `HookCancelToken` plus a `Lock`. `Cancel::exclusive(token)` uses `acquire_exclusive`, `Cancel::scoped(token)` uses `acquire_scoped`. `.is_cancelled()` reads the token directly.
-
-**Usage:**
-
-- **rw:** the `Orchestrator` holds `Cancel::exclusive(...)` for the whole operation; deeper down (stages, primitives, the hook runner from §5.8) — access via `Context` (the already-existing mechanism for passing data into every `Stage::run`), with no parameter threading through the whole codebase.
-- **ro:** `run()` holds `Cancel::scoped(...)` locally and calls `.is_cancelled()` directly — ro has no `Orchestrator`/`Context`/deep call tree, so no ambient access is needed.
-
-The old mechanism — the `CancelHook` trait and the raw-pointer `Cancel` in `abi/src/hook.rs`, fetched via `Context.get::<Box<dyn CancelHook>>()` — is to be removed, replaced by this.
+**Access to cancellation is an explicit parameter, no wrapper.** `&CancelToken` is passed directly into `Stage::run`/`Orchestrator::run`, and each stage reads `.is_cancelled()` itself, including inside its own loops. There is no separate wrapper combining `Lock` and the token — these are two independent mechanisms with no relation to each other, exactly as intended at the start of this section.
 
 ### 5.10 Operation progress
 
 The same hook channel as §5.9 (`MessageHook`), but for progress tracking rather than cancellation. The point of `data` isn't an abstract "extra info" tack-on — it's specifically tracking what's happening INSIDE a stage: each event is a transition into a named sub-step (phase) of the current stage's mini-FSM, not a generic completion percentage.
 
-The payload is one common `#[repr(C)]` type for every event, not a separate shape per event (a tagged union would be awkward over a C-ABI, and there's nothing yet to check the shape against — stage bodies aren't written): `stage` (which stage, as before — `StateId as u32`), `phase` (which sub-step within the stage; the meaning is owned by the stage itself, like `StateId`), `subject` (a borrowed string — what this concerns: a package, a file, a hook), `current`/`total` (an item counter, `0` if not applicable/unknown). `MessageHook::send` takes one self-describing parameter instead of the former separate event/data pair — nothing to unpack separately. Created locally, on the stack, by whichever code is reporting (a stage, a primitive, the hook runner from §5.8) — `subject` points at an already-owned string, no allocation.
+The payload is one common `#[repr(C)]` type for every event, not a separate shape per event (a tagged union would be awkward over a C-ABI, and there's nothing yet to check the shape against — stage bodies aren't written): `stage` (which stage, as before — `StateId as u32`), `phase` (which sub-step within the stage; the meaning is owned by the stage itself, like `StateId`), `subject` (a borrowed string — what this concerns: a package, a file, a hook), `current`/`total` (an item counter, `0` if not applicable/unknown). `MessageHook::send` takes one self-describing parameter instead of the former separate event/data pair — nothing to unpack separately. The `Orchestrator` creates the builder (with `stage` already set, from its own index in the pipeline — see §5.11) and passes it to the stage as a parameter; the stage fills in `phase`/`subject`/`progress()` and hands the builder back — the `Orchestrator` itself finalizes it (`.build()`) and sends it to the hook.
+
+### 5.11 Stage orchestration
+
+The mechanism that actually runs mutating commands (and later read-only ones too): a linear list of stages plus an engine that walks through them — both hook channels from §5.9/§5.10 plug in here.
+
+**A stage is always flat.** One stage does exactly one atomic unit of work per call, never loops internally. Each call itself decides what happens next — advance to the next stage, repeat itself (e.g. process one more file from an already-started list), or jump BACK to an earlier stage by its TYPE (not by a numeric index — so inserting new stages anywhere in the pipeline never breaks it). Through such a backward jump, a group of several stages (e.g. "verify package → unpack → register") can repeat as a whole — on a jump, the engine searches backward from the current position for the nearest stage of that type; if no such stage exists, that's a pipeline-assembly bug, not user input, and it comes back as an ordinary error, not a crash.
+
+**Every stage call brings its own rollback.** A stage doesn't accumulate state between calls — each call constructs its own, independent rollback object, carrying exactly the data needed to undo what THAT call did (even if the same stage was called many times before with different data — each call stays independent). If a stage has nothing to roll back this time, it must still return such an object, just in an "empty" mode: this is guaranteed at the compiler level (the "empty" rollback constructor is a mandatory part of the contract), not a convention that can be forgotten. The real, data-carrying rollback constructor (specific to each stage) is not part of the shared contract — every stage has its own, with its own signature.
+
+**The engine** holds the linear stage list; exclusivity isn't a stored mode but a choice of which METHOD you call to run it: one holds the system lock (unrelated to the cancellation in §5.9, a separate mutual-exclusion mechanism between rw operations) for the whole run, the other never touches it at all — for read-only. On any failure (a stage error, cancellation, an unresolved backward jump) it unwinds every rollback object collected so far, in reverse order, without stopping if one of them fails to roll back itself — everything that can be undone gets attempted, rather than bailing out halfway. Every successful stage call hands the engine two separate things at once — the progress builder (§5.10, which the engine itself created and passed to the stage before the call) and its own rollback object: the former is passed straight through to the hook as-is, the latter is accumulated on the stack for a possible unwind.
+
+**Engine failure** comes in two distinct kinds: either the pipeline couldn't even start (e.g. the lock was busy), or a specific stage at position N failed — the command that invoked the engine tells them apart, because in the first case no stage number exists at all.
 
 ---
 
