@@ -6,7 +6,7 @@ use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
 use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::{Context, Orchestrator, OrchestratorMode, RunFailure};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError, OrchestratorMode};
 use crate::types::states::UninstallStateId;
 use crate::types::{Branch, PackageEntry, Targets, TmpPath};
 
@@ -133,8 +133,8 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
         orchestrator
             .run(&mut context, data.cancel_token)
             .map_err(|failure| match failure {
-                RunFailure::Setup(lock_error) => (UninstallStateId::Setup, UninstallError::from(lock_error)),
-                RunFailure::Stage(index, error) => (UninstallStateId::from_stage_index(index), error),
+                OrchestratorError::Setup(lock_error) => (UninstallStateId::Setup, UninstallError::from(lock_error)),
+                OrchestratorError::Stage(index, error) => (UninstallStateId::from_stage_index(index), error),
             })
     };
 

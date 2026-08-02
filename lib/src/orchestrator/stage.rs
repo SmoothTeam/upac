@@ -1,0 +1,45 @@
+use std::any::{Any, TypeId};
+
+use upac_abi::error::ErrorKind;
+use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use crate::orchestrator::Context;
+
+#[derive(Clone, Copy)]
+pub enum StageResult {
+    Advance,
+    Repeat,
+    RepeatBack(TypeId),
+}
+
+pub trait RollbackGuard: 'static {
+    fn new_none(result: StageResult) -> Self
+    where
+        Self: Sized;
+
+    fn rollback(&mut self) -> Result<(), ErrorKind>;
+
+    fn result(&self) -> StageResult;
+}
+
+pub trait RollbackGuardNew: RollbackGuard {
+    type Data;
+
+    fn new(data: Self::Data, result: StageResult) -> Self
+    where
+        Self: Sized;
+}
+
+pub trait Stage<E>: Any {
+    fn requires(&self) -> Vec<TypeId> {
+        Vec::new()
+    }
+
+    fn provides(&self) -> Vec<TypeId> {
+        Vec::new()
+    }
+
+    fn run(
+        &self, context: &mut Context, cancel: &CancelToken,
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
+}
