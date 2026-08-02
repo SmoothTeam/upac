@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 //! `#[derive(FromStageIndex)]` — generates `from_stage_index(usize) -> Self`
 //! for a fieldless enum, mapping an orchestrator stage index to the variant
 //! at that DECLARATION position (not by explicit discriminant).

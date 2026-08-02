@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 use std::ffi::{c_void, CString};
 use std::ptr::null;
 

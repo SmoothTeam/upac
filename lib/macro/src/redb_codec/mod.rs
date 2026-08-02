@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 //! `#[derive(RedbCodec)]` — generates `encode_into()`/`decode_from()` for
 //! storing a struct as a `redb` value via the crate's own byte layout.
 

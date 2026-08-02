@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 use upac_abi::ABI_VERSION;
 use upac_abi::error::{CError, CommandState, ErrorKind};
 use upac_abi::hook::CancelToken;

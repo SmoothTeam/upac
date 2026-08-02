@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
@@ -9,6 +14,7 @@ pub use self::error::CommitError;
 use self::transaction::TransactionStage;
 
 use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::script_hooks::{HookStage, NativeTrigger};
 use crate::types::states::CommitStateId;
 use crate::types::{Branch, TmpPath};
 
@@ -54,7 +60,11 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
 }
 
 fn assemble() -> Orchestrator<CommitError> {
-    Orchestrator::new(vec![Box::new(TransactionStage)])
+    Orchestrator::new(vec![
+        Box::new(HookStage { trigger: NativeTrigger::PreCommit }),
+        Box::new(TransactionStage),
+        Box::new(HookStage { trigger: NativeTrigger::PostCommit }),
+    ])
 }
 
 pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {

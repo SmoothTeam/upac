@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 //! `#[derive(CTryToRust)]` — generates `impl TryFrom<&CRust> for Rust`,
 //! validating the C-ABI struct first and then converting it into an owned
 //! Rust domain type (fallible inbound direction).

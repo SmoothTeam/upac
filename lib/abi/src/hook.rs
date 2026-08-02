@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 use std::mem::size_of;
 use std::os::raw::c_void;
 use std::sync::atomic::{AtomicU8, Ordering};

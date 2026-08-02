@@ -1,16 +1,23 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 use upac_abi::error::{CommandState, ErrorDomain};
 use upac_macro::FromStageIndex;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum InstallStateId {
-    Preparation = 0,
-    Transaction = 1,
-    Merge = 2,
-    Checkout = 3,
-    Swap = 4,
-    Done = 5,
-    Setup = 6,
+    PreHooks = 0,
+    Preparation = 1,
+    Transaction = 2,
+    Merge = 3,
+    Checkout = 4,
+    Swap = 5,
+    PostHooks = 6,
+    Done = 7,
+    Setup = 8,
 }
 
 impl CommandState for InstallStateId {
@@ -25,14 +32,16 @@ impl CommandState for InstallStateId {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum UninstallStateId {
-    Preparation = 0,
-    Build = 1,
-    Commit = 2,
-    ConfigMerge = 3,
-    PrepareBoot = 4,
-    BootOption = 5,
-    Done = 6,
-    Setup = 7,
+    PreHooks = 0,
+    Preparation = 1,
+    Build = 2,
+    Commit = 3,
+    ConfigMerge = 4,
+    PrepareBoot = 5,
+    BootOption = 6,
+    PostHooks = 7,
+    Done = 8,
+    Setup = 9,
 }
 
 impl CommandState for UninstallStateId {
@@ -47,11 +56,13 @@ impl CommandState for UninstallStateId {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum RollbackStateId {
-    Merge = 0,
-    Checkout = 1,
-    Swap = 2,
-    Done = 3,
-    Setup = 4,
+    PreHooks = 0,
+    Merge = 1,
+    Checkout = 2,
+    Swap = 3,
+    PostHooks = 4,
+    Done = 5,
+    Setup = 6,
 }
 
 impl CommandState for RollbackStateId {
@@ -66,11 +77,13 @@ impl CommandState for RollbackStateId {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum FilesStateId {
-    Transaction = 0,
-    Checkout = 1,
-    Swap = 2,
-    Done = 3,
-    Setup = 4,
+    PreHooks = 0,
+    Transaction = 1,
+    Checkout = 2,
+    Swap = 3,
+    PostHooks = 4,
+    Done = 5,
+    Setup = 6,
 }
 
 impl CommandState for FilesStateId {
@@ -207,13 +220,15 @@ impl CommandState for DiffStateId {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum UpdateStateId {
-    Preparation = 0,
-    Transaction = 1,
-    Merge = 2,
-    Checkout = 3,
-    Swap = 4,
-    Done = 5,
-    Setup = 6,
+    PreHooks = 0,
+    Preparation = 1,
+    Transaction = 2,
+    Merge = 3,
+    Checkout = 4,
+    Swap = 5,
+    PostHooks = 6,
+    Done = 7,
+    Setup = 8,
 }
 
 impl CommandState for UpdateStateId {
@@ -262,9 +277,11 @@ impl CommandState for SearchFilesStateId {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum CommitStateId {
-    Transaction = 0,
-    Done = 1,
-    Setup = 2,
+    PreHooks = 0,
+    Transaction = 1,
+    PostHooks = 2,
+    Done = 3,
+    Setup = 4,
 }
 
 impl CommandState for CommitStateId {

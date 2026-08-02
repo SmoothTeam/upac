@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 //! Proc-macro crate for UPAC. Each derive reflects over a struct's (or
 //! enum's) fields at compile time to generate boilerplate that would
 //! otherwise need `inline for (std.meta.fields)`-style manual maintenance:

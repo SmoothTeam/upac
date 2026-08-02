@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 use std::ffi::CStr;
 use std::mem::{forget, size_of};
 use std::ptr::{copy_nonoverlapping, null, null_mut};

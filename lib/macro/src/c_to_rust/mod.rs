@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 //! `#[derive(CToRust)]` — generates `impl From<&CRust> for Rust`, converting
 //! a C-ABI struct into an owned Rust domain type without validation
 //! (infallible inbound direction, for all-primitive structs).

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 use anyhow::Result;
 use libloading::Library;
 

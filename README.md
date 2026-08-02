@@ -1,8 +1,10 @@
 # 📦 Upac
 
-[![License: LGPL-3.0-or-later](https://img.shields.io/badge/License-LGPL_3.0+-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![GitHub](https://img.shields.io/badge/GitHub-justpav05%2Fupac-181717?logo=github)](https://github.com/justpav05/upac)
 [![Version](https://img.shields.io/badge/version-0.1.4-green)](https://github.com/justpav05/upac/releases)
+[![REUSE status](https://api.reuse.software/badge/github.com/justpav05/upac)](https://api.reuse.software/info/github.com/justpav05/upac)
+[![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-blue.svg)](LICENSES/LGPL-3.0-or-later.txt)
+[![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-blue.svg)](LICENSES/GPL-3.0-only.txt)
 
 A modular package management library for Linux systems with OSTree integration.
 

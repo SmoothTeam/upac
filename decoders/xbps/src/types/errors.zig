@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 pub const BackendErrorCode = enum(i32) {
     ok = 0,
     checksum_mismatch = 1,

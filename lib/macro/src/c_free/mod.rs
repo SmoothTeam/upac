@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 //! `#[derive(CFree)]` — generates an unsafe `free()` that releases every
 //! owned buffer a C-ABI struct holds. This is the reflection-over-fields
 //! that Zig got from `inline for (std.meta.fields)`.

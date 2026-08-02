@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 use redb::{ReadableDatabase, ReadableTable, TypeName, Value as RedbValue};
 use twox_hash::xxhash3_64::Hasher as XxHasher;
 use uuid::Uuid;

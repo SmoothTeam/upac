@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 //! `#[derive(CValidate)]` — generates an unsafe `validate()` that checks
 //! `struct_size` and every field, driven by `#[optional]`/`#[non_empty]`
 //! field attributes.
