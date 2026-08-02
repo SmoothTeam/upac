@@ -44,6 +44,9 @@ pub struct CListCommitResponse {
 }
 
 impl CListCommitResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.commits, |entry| entry.free()) };
     }
@@ -56,6 +59,9 @@ pub struct CListPackagesResponse {
 }
 
 impl CListPackagesResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.metas, |meta| meta.free()) };
     }
@@ -68,6 +74,9 @@ pub struct CSearchMetaResponse {
 }
 
 impl CSearchMetaResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.metas, |meta| meta.free()) };
     }
@@ -90,6 +99,9 @@ pub struct CSearchFilesResponse {
 }
 
 impl CSearchFilesResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
     }
@@ -116,6 +128,9 @@ pub struct CListPrefixResponse {
 }
 
 impl CListPrefixResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.prefixes, |entry| entry.free()) };
     }
@@ -143,6 +158,9 @@ pub struct CListHistoryResponse {
 }
 
 impl CListHistoryResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.history, |entry| entry.free()) };
     }
@@ -155,6 +173,9 @@ pub struct CDiffFilesResponse {
 }
 
 impl CDiffFilesResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
     }
@@ -167,6 +188,9 @@ pub struct CDiffPackagesResponse {
 }
 
 impl CDiffPackagesResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe { free_cvec_owning(&self.diff_packages, |entry| entry.free()) };
     }
@@ -180,6 +204,9 @@ pub struct CDiffResponse {
 }
 
 impl CDiffResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe {
             free_cvec_owning(&self.files, |entry| entry.free());
@@ -199,6 +226,9 @@ pub struct CUnmutatedResponse {
 }
 
 impl CUnmutatedResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe {
             free_cvec_owning(&self.metas, |package_meta_c| package_meta_c.free());

@@ -17,6 +17,10 @@ pub trait CBorrowed {
     type Borrowed: ?Sized;
 
     fn from_borrowed(value: &Self::Borrowed) -> Self;
+
+    /// # Safety
+    /// `self` must currently hold a valid, validated view onto `Self::Borrowed` (e.g. checked via
+    /// `validate()`) for the lifetime of the returned reference.
     unsafe fn as_borrowed(&self) -> &Self::Borrowed;
 }
 
@@ -24,6 +28,10 @@ pub trait COwned {
     type Owned;
 
     fn from_owned(value: Self::Owned) -> Self;
+
+    /// # Safety
+    /// `self` must actually own the memory it represents (produced via `from_owned`, not a borrowed/
+    /// foreign view), since this consumes it and hands ownership to the returned value.
     unsafe fn into_owned(self) -> Self::Owned;
 }
 
@@ -35,6 +43,9 @@ pub struct CSlice {
 }
 
 impl CSlice {
+    /// # Safety
+    /// `self.ptr`, if non-null, must point to at least `self.len + 1` readable bytes, the last of which
+    /// is the NUL terminator, valid for the lifetime of the returned reference.
     pub unsafe fn as_cstr(&self) -> Result<&CStr, ErrorKind> {
         if self.ptr.is_null() {
             return Err(ErrorKind::InvalidEntry);
@@ -43,6 +54,9 @@ impl CSlice {
         CStr::from_bytes_with_nul(bytes).map_err(|_| ErrorKind::InvalidEntry)
     }
 
+    /// # Safety
+    /// `self.ptr`, if non-null, must point to at least `self.len` readable bytes valid for the lifetime
+    /// of the returned reference.
     pub unsafe fn as_slice(&self) -> &[u8] {
         if self.ptr.is_null() {
             return &[];
@@ -50,6 +64,8 @@ impl CSlice {
         unsafe { from_raw_parts(self.ptr, self.len) }
     }
 
+    /// # Safety
+    /// Same contract as `as_cstr`.
     pub unsafe fn as_str(&self) -> Result<&str, ErrorKind> {
         unsafe { self.as_cstr()?.to_str().map_err(|_| ErrorKind::InvalidEntry) }
     }
@@ -64,6 +80,9 @@ impl CSlice {
         }
     }
 
+    /// # Safety
+    /// Same contract as `as_cstr` — this is the entry point that checks an untrusted, C-supplied
+    /// slice is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         unsafe { self.as_cstr().map(|_| ()) }
     }
@@ -139,6 +158,9 @@ pub struct CVec<T> {
 }
 
 impl<T> CVec<T> {
+    /// # Safety
+    /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `T` values — this is the
+    /// entry point that checks an untrusted, C-supplied vector is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         if self.ptr.is_null() && self.len > 0 {
             return Err(ErrorKind::InvalidEntry);
@@ -146,6 +168,9 @@ impl<T> CVec<T> {
         Ok(())
     }
 
+    /// # Safety
+    /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `T` values for the lifetime
+    /// of the returned slice.
     pub unsafe fn as_slice(&self) -> &[T] {
         if self.ptr.is_null() || self.len == 0 {
             return &[];
@@ -153,6 +178,9 @@ impl<T> CVec<T> {
         unsafe { from_raw_parts(self.ptr, self.len) }
     }
 
+    /// # Safety
+    /// Same contract as `as_slice`, plus the caller must guarantee exclusive access — no other live
+    /// reference to this buffer — for the lifetime of the returned slice.
     pub unsafe fn as_mut_slice(&mut self) -> &mut [T] {
         if self.ptr.is_null() || self.len == 0 {
             return &mut [];

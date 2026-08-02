@@ -35,6 +35,10 @@ pub struct CInstallRequest {
 }
 
 impl CInstallRequest {
+    /// # Safety
+    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
+    /// correctly sized memory for the duration of this call — this is the entry point that checks
+    /// an untrusted, C-supplied struct is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CInstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
@@ -67,6 +71,10 @@ pub struct CUpdateRequest {
 }
 
 impl CUpdateRequest {
+    /// # Safety
+    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
+    /// correctly sized memory for the duration of this call — this is the entry point that checks
+    /// an untrusted, C-supplied struct is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CUpdateRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
@@ -97,6 +105,10 @@ pub struct CUninstallRequest {
 }
 
 impl CUninstallRequest {
+    /// # Safety
+    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
+    /// correctly sized memory for the duration of this call — this is the entry point that checks
+    /// an untrusted, C-supplied struct is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CUninstallRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };
@@ -151,6 +163,10 @@ pub struct CFilesRequest {
 }
 
 impl CFilesRequest {
+    /// # Safety
+    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
+    /// correctly sized memory for the duration of this call — this is the entry point that checks
+    /// an untrusted, C-supplied struct is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         check_size::<CFilesRequest>(self.struct_size)?;
         unsafe { self.base.validate()? };

@@ -4,6 +4,8 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 use crate::types::CSlice;
 
+pub type HookMessageFn = unsafe extern "C" fn(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck;
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HookAck {
@@ -71,8 +73,6 @@ impl ProgressEventBuilder {
 pub trait MessageHook {
     fn send(&self, event: &CProgressEvent) -> HookAck;
 }
-
-pub type HookMessageFn = unsafe extern "C" fn(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck;
 
 pub struct Message {
     hook_message: Option<HookMessageFn>,
