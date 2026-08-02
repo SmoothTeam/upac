@@ -1,15 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["user/cli", "macro", "abi", "lib"]
+members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" ]
 
 [workspace.package]
 version = "0.1.5"
 edition = "2024"
 license = "GPL-3.0-or-later"
+repository = "https://github.com/justpav05/upac"
+authors = ["justpav05 <aksenovpaveldmitrievich@gmail.com>"]
 
 [workspace.dependencies]
-upac-macro = { path = "macro" }
-upac-abi = { path = "abi" }
+upac-macro = { path = "lib/macro" }
+upac-abi = { path = "lib/abi" }
 
 syn = { version = "2", features = ["full"] }
 quote = "1"

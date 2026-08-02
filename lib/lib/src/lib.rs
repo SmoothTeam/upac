@@ -4,5 +4,6 @@ mod deploy;
 mod export;
 mod mutated;
 mod orchestrator;
+mod script_hooks;
 mod types;
 mod unmutated;

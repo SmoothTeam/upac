@@ -48,9 +48,9 @@ impl CSlice {
     /// # Safety
     /// `self.ptr` must point to at least `self.len` valid, initialized UTF-8 bytes for the lifetime of
     /// the returned `&str`.
-    pub unsafe fn as_str(&self) -> &str {
+    pub unsafe fn as_str(&self) -> &str { unsafe {
         str::from_utf8_unchecked(slice::from_raw_parts(self.ptr, self.len))
-    }
+    }}
 }
 
 impl Validate for CSlice {
@@ -86,13 +86,13 @@ impl<T> CArray<T> {
     /// # Safety
     /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `T` values for the lifetime
     /// of the returned slice.
-    pub unsafe fn as_slice(&self) -> &[T] {
+    pub unsafe fn as_slice(&self) -> &[T] { unsafe {
         if self.ptr.is_null() || self.len == 0 {
             &[]
         } else {
             slice::from_raw_parts(self.ptr, self.len)
         }
-    }
+    }}
 }
 
 // ── CVersion ──────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ impl CVersion {
     /// # Safety
     /// `self.parts` and `self.pre` must each satisfy `CArray`/`CSlice`'s own safety contract — this
     /// reads through both without checking.
-    pub unsafe fn display(&self) -> String {
+    pub unsafe fn display(&self) -> String { unsafe {
         let parts = self.parts.as_slice();
         let version_str = parts.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(".");
 
@@ -132,7 +132,7 @@ impl CVersion {
         }
 
         result
-    }
+    }}
 }
 
 // ── CDiffKind ─────────────────────────────────────────────────────────────────

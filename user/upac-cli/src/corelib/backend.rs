@@ -71,7 +71,7 @@ impl Backend {
     /// # Safety
     /// `ctx` must point to a live `ProgressBar` for the duration of the call (as passed to the backend
     /// when this callback was registered), and `data`, if non-null, must point to a valid `CSlice`.
-    pub unsafe extern "C" fn on_hook(event_code: u32, data: *const c_void, ctx: *mut c_void) -> u8 {
+    pub unsafe extern "C" fn on_hook(event_code: u32, data: *const c_void, ctx: *mut c_void) -> u8 { unsafe {
         let Some(progress_bar) = (ctx as *const ProgressBar).as_ref() else {
             return 0;
         };
@@ -89,5 +89,5 @@ impl Backend {
 
         progress_bar.set_message(message_string);
         0
-    }
+    }}
 }

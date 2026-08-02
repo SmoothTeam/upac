@@ -1,7 +1,11 @@
 [package]
 name = "upac-lib"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
+license = "LGPL-3.0-or-later"
+description = "Core library implementing upac's package management logic (composefs-based atomic deploys) and exposing it via a C ABI"
 
 [lib]
 name = "upac"

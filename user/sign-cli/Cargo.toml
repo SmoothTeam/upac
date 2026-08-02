@@ -1,0 +1,16 @@
+[package]
+name = "upac-sign-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "CLI tool for signing upac hook files (and other artifacts) with Ed25519 certificates"
+
+[[bin]]
+name = "up-si"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
+anyhow = "1"

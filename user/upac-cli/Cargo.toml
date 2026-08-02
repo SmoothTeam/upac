@@ -1,11 +1,15 @@
 [package]
-name = "upac"
-version = "0.1.4"
-edition = "2021"
-authors = ["justpav05 <aksenovpaveldmitrievich@gmail.com>"]
+name = "upac-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
 description = "Package manager for installing any type of package in Linux, as well as registering binary file rollbacks based on OSTree, written in Rust and Zig"
-repository = "https://github.com/justpav05/upac"
-license = "LGPL-3.0-or-later"
+
+[[bin]]
+name = "up"
+path = "src/main.rs"
 
 [dependencies]
 clap       = { version = "4.6.1", features = ["derive"] }

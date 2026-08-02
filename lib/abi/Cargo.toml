@@ -1,0 +1,11 @@
+[package]
+name = "upac-abi"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
+license = "LGPL-3.0-or-later"
+description = "C-ABI types, error codes, and conversions shared between upac-lib and its consumers"
+
+[dependencies]
+upac-macro = { workspace = true }
