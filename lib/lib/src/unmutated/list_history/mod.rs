@@ -13,7 +13,7 @@ pub use self::error::ListHistoryError;
 
 use self::fetching::FetchingStage;
 
-use crate::orchestrator::{Context, Orchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::errors::CommonError;
 use crate::types::states::ListHistoryStateId;
 use crate::types::{Branch, HistoryEntry};
@@ -49,8 +49,8 @@ impl<'a> TryFrom<&'a CListHistoryRequest> for ListHistoryData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<ListHistoryError> {
-    Orchestrator::new(vec![Box::new(FetchingStage)])
+fn assemble() -> SequentialOrchestrator<ListHistoryError> {
+    SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
 }
 
 pub fn run(data: ListHistoryData) -> Result<Vec<HistoryEntry>, (ListHistoryStateId, ListHistoryError)> {
@@ -58,7 +58,7 @@ pub fn run(data: ListHistoryData) -> Result<Vec<HistoryEntry>, (ListHistoryState
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     orchestrator
         .run_concurrent(&mut context, data.cancel_token)

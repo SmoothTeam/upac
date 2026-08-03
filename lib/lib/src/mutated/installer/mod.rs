@@ -17,7 +17,7 @@ use self::preparation::PreparationStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
 use crate::types::states::InstallStateId;
 use crate::types::{Branch, PackageTemp, TmpPath};
 
@@ -70,8 +70,8 @@ impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<InstallError> {
-    Orchestrator::new(vec![
+fn assemble() -> SequentialOrchestrator<InstallError> {
+    SequentialOrchestrator::new(vec![
         Box::new(PreparationStage),
         Box::new(TransactionStage),
         Box::new(MergeStage),
@@ -87,7 +87,7 @@ pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     let result = orchestrator
         .run_exclusive(&mut context, data.cancel_token)

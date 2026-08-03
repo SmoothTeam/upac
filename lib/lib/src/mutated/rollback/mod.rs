@@ -15,7 +15,7 @@ use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::swap::SwapStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
 use crate::types::states::RollbackStateId;
 use crate::types::{Branch, TmpPath};
 
@@ -60,8 +60,8 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<RollbackError> {
-    Orchestrator::new(vec![Box::new(MergeStage), Box::new(CheckoutStage), Box::new(SwapStage)])
+fn assemble() -> SequentialOrchestrator<RollbackError> {
+    SequentialOrchestrator::new(vec![Box::new(MergeStage), Box::new(CheckoutStage), Box::new(SwapStage)])
 }
 
 pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
@@ -70,7 +70,7 @@ pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     let result = orchestrator
         .run_exclusive(&mut context, data.cancel_token)

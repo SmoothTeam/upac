@@ -11,7 +11,7 @@ use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
 use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
 use crate::types::states::UninstallStateId;
 use crate::types::{Branch, PackageEntry, Targets, TmpPath};
 
@@ -94,8 +94,8 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<UninstallError> {
-    Orchestrator::new(vec![
+fn assemble() -> SequentialOrchestrator<UninstallError> {
+    SequentialOrchestrator::new(vec![
         Box::new(PreparationStage),
         Box::new(BuildStage),
         Box::new(CommitStage),
@@ -127,7 +127,7 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     let result = if orchestrator.validate(&context).is_err() {
         Err((UninstallStateId::Setup, UninstallError::UninstallFailed))

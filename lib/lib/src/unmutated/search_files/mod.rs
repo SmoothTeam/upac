@@ -13,7 +13,7 @@ pub use self::error::SearchFilesError;
 
 use self::searching::SearchingStage;
 
-use crate::orchestrator::{Context, Orchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::errors::CommonError;
 use crate::types::states::SearchFilesStateId;
 use crate::types::{Branch, SearchFileEntry};
@@ -53,8 +53,8 @@ impl<'a> TryFrom<&'a CSearchFilesRequest> for SearchFilesData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<SearchFilesError> {
-    Orchestrator::new(vec![Box::new(SearchingStage)])
+fn assemble() -> SequentialOrchestrator<SearchFilesError> {
+    SequentialOrchestrator::new(vec![Box::new(SearchingStage)])
 }
 
 pub fn run(data: SearchFilesData) -> Result<Vec<SearchFileEntry>, (SearchFilesStateId, SearchFilesError)> {
@@ -62,7 +62,7 @@ pub fn run(data: SearchFilesData) -> Result<Vec<SearchFileEntry>, (SearchFilesSt
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     orchestrator
         .run_concurrent(&mut context, data.cancel_token)

@@ -13,7 +13,7 @@ pub use self::error::CommitError;
 
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
 use crate::script_hooks::{HookStage, NativeTrigger};
 use crate::types::states::CommitStateId;
 use crate::types::{Branch, TmpPath};
@@ -59,8 +59,8 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<CommitError> {
-    Orchestrator::new(vec![
+fn assemble() -> SequentialOrchestrator<CommitError> {
+    SequentialOrchestrator::new(vec![
         Box::new(HookStage { trigger: NativeTrigger::PreCommit }),
         Box::new(TransactionStage),
         Box::new(HookStage { trigger: NativeTrigger::PostCommit }),
@@ -73,7 +73,7 @@ pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     let result = orchestrator
         .run_exclusive(&mut context, data.cancel_token)

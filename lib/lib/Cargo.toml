@@ -33,5 +33,7 @@ composefs-oci = { version = "0.7.0", features = ["composefs-boot", "boot", "tar"
 redb = { version = "4.1.0", features = ["uuid"] }
 uuid = { version = "1", features = ["v4"] }
 
+tokio = { version = "1", features = ["rt"] }
+
 [build-dependencies]
 toml = "0.8"

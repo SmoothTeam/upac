@@ -17,7 +17,7 @@ use self::preparation::PreparationStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
 use crate::types::states::UpdateStateId;
 use crate::types::{Branch, PackageTemp, TmpPath};
 
@@ -70,8 +70,8 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<UpdateError> {
-    Orchestrator::new(vec![
+fn assemble() -> SequentialOrchestrator<UpdateError> {
+    SequentialOrchestrator::new(vec![
         Box::new(PreparationStage),
         Box::new(TransactionStage),
         Box::new(MergeStage),
@@ -87,7 +87,7 @@ pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     let result = orchestrator
         .run_exclusive(&mut context, data.cancel_token)

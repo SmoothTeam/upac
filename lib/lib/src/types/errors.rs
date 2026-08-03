@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::io::ErrorKind as IoErrorKind;
+
 use upac_abi::error::ErrorKind;
 
 use crate::composefs::RepoError;
@@ -60,7 +62,9 @@ pub enum CommonError {
     Cancelled,
     AccessDenied,
     StageNotFound,
+    StagePanicked,
     MissingResult,
+    RuntimeInit(IoErrorKind),
     Repo(RepoError),
     Database(DatabaseError),
     Sysroot(SysrootError),
@@ -74,7 +78,9 @@ impl From<CommonError> for ErrorKind {
             CommonError::Cancelled => ErrorKind::Cancelled,
             CommonError::AccessDenied => ErrorKind::PermissionDenied,
             CommonError::StageNotFound => ErrorKind::Unexpected,
+            CommonError::StagePanicked => ErrorKind::Unexpected,
             CommonError::MissingResult => ErrorKind::Unexpected,
+            CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
             CommonError::Repo(repo_error) => repo_error.into(),
             CommonError::Database(database_error) => database_error.into(),
             CommonError::Sysroot(sysroot_error) => sysroot_error.into(),

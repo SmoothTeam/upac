@@ -13,7 +13,7 @@ pub use self::error::ListPackagesError;
 
 use self::fetching::FetchingStage;
 
-use crate::orchestrator::{Context, Orchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::errors::CommonError;
 use crate::types::states::ListPackagesStateId;
 use crate::types::{Branch, PackageMeta};
@@ -49,8 +49,8 @@ impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<ListPackagesError> {
-    Orchestrator::new(vec![Box::new(FetchingStage)])
+fn assemble() -> SequentialOrchestrator<ListPackagesError> {
+    SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
 }
 
 pub fn run(data: ListPackagesData) -> Result<Vec<PackageMeta>, (ListPackagesStateId, ListPackagesError)> {
@@ -58,7 +58,7 @@ pub fn run(data: ListPackagesData) -> Result<Vec<PackageMeta>, (ListPackagesStat
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     orchestrator
         .run_concurrent(&mut context, data.cancel_token)

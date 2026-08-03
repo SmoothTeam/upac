@@ -13,7 +13,7 @@ pub use self::error::SearchMetaError;
 
 use self::searching::SearchingStage;
 
-use crate::orchestrator::{Context, Orchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::errors::CommonError;
 use crate::types::states::SearchMetaStateId;
 use crate::types::{Branch, PackageMeta};
@@ -53,8 +53,8 @@ impl<'a> TryFrom<&'a CSearchMetaRequest> for SearchMetaData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<SearchMetaError> {
-    Orchestrator::new(vec![Box::new(SearchingStage)])
+fn assemble() -> SequentialOrchestrator<SearchMetaError> {
+    SequentialOrchestrator::new(vec![Box::new(SearchingStage)])
 }
 
 pub fn run(data: SearchMetaData) -> Result<Vec<PackageMeta>, (SearchMetaStateId, SearchMetaError)> {
@@ -62,7 +62,7 @@ pub fn run(data: SearchMetaData) -> Result<Vec<PackageMeta>, (SearchMetaStateId,
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     orchestrator
         .run_concurrent(&mut context, data.cancel_token)

@@ -17,7 +17,7 @@ pub enum StageResult {
     RepeatBack(TypeId),
 }
 
-pub trait RollbackGuard: 'static {
+pub trait RollbackGuard: Send + 'static {
     fn new_none(result: StageResult) -> Self
     where
         Self: Sized;
@@ -47,4 +47,8 @@ pub trait Stage<E>: Any {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
+}
+
+pub trait ConcurrentStage<E>: Send + 'static {
+    fn run(&self, progress: ProgressEventBuilder) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
 }

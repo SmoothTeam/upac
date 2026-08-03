@@ -13,7 +13,7 @@ pub use self::error::ListCommitError;
 
 use self::fetching::FetchingStage;
 
-use crate::orchestrator::{Context, Orchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::errors::CommonError;
 use crate::types::states::ListCommitStateId;
 use crate::types::{Branch, CommitEntry};
@@ -53,8 +53,8 @@ impl<'a> TryFrom<&'a CListCommitRequest> for ListCommitData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<ListCommitError> {
-    Orchestrator::new(vec![Box::new(FetchingStage)])
+fn assemble() -> SequentialOrchestrator<ListCommitError> {
+    SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
 }
 
 pub fn run(data: ListCommitData) -> Result<Vec<CommitEntry>, (ListCommitStateId, ListCommitError)> {
@@ -62,7 +62,7 @@ pub fn run(data: ListCommitData) -> Result<Vec<CommitEntry>, (ListCommitStateId,
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     orchestrator
         .run_concurrent(&mut context, data.cancel_token)

@@ -14,7 +14,7 @@ pub use self::error::DiffFilesError;
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
-use crate::orchestrator::{Context, Orchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::errors::CommonError;
 use crate::types::states::DiffFilesStateId;
 use crate::types::{Branch, DiffFileEntry};
@@ -57,8 +57,8 @@ impl<'a> TryFrom<&'a CDiffFilesRequest> for DiffFilesData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<DiffFilesError> {
-    Orchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
+fn assemble() -> SequentialOrchestrator<DiffFilesError> {
+    SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
 }
 
 pub fn run(data: DiffFilesData) -> Result<Vec<DiffFileEntry>, (DiffFilesStateId, DiffFilesError)> {
@@ -66,7 +66,7 @@ pub fn run(data: DiffFilesData) -> Result<Vec<DiffFileEntry>, (DiffFilesStateId,
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     orchestrator
         .run_concurrent(&mut context, data.cancel_token)

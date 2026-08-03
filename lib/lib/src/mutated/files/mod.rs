@@ -17,7 +17,7 @@ use self::checkout::CheckoutStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError};
+use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
 use crate::types::states::FilesStateId;
 use crate::types::{Branch, TmpPath};
 
@@ -73,8 +73,8 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<FilesError> {
-    Orchestrator::new(vec![
+fn assemble() -> SequentialOrchestrator<FilesError> {
+    SequentialOrchestrator::new(vec![
         Box::new(TransactionStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),
@@ -87,7 +87,7 @@ pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     let result = orchestrator
         .run_exclusive(&mut context, data.cancel_token)

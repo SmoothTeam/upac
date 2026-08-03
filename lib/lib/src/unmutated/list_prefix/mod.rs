@@ -13,7 +13,7 @@ pub use self::error::ListPrefixError;
 
 use self::fetching::FetchingStage;
 
-use crate::orchestrator::{Context, Orchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::errors::CommonError;
 use crate::types::states::ListPrefixStateId;
 use crate::types::{Branch, PrefixEntry};
@@ -49,8 +49,8 @@ impl<'a> TryFrom<&'a CListPrefixRequest> for ListPrefixData<'a> {
     }
 }
 
-fn assemble() -> Orchestrator<ListPrefixError> {
-    Orchestrator::new(vec![Box::new(FetchingStage)])
+fn assemble() -> SequentialOrchestrator<ListPrefixError> {
+    SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
 }
 
 pub fn run(data: ListPrefixData) -> Result<Vec<PrefixEntry>, (ListPrefixStateId, ListPrefixError)> {
@@ -58,7 +58,7 @@ pub fn run(data: ListPrefixData) -> Result<Vec<PrefixEntry>, (ListPrefixStateId,
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let mut orchestrator = assemble();
+    let orchestrator = assemble();
 
     orchestrator
         .run_concurrent(&mut context, data.cancel_token)
