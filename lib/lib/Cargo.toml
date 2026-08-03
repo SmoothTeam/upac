@@ -35,5 +35,8 @@ uuid = { version = "1", features = ["v4"] }
 
 tokio = { version = "1", features = ["rt"] }
 
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
 [build-dependencies]
 toml = "0.8"

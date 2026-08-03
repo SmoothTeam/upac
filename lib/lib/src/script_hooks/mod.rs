@@ -7,21 +7,11 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::script_hooks::native::NativeTrigger;
 
-pub enum NativeTrigger {
-    PreInstall,
-    PostInstall,
-    PreUninstall,
-    PostUninstall,
-    PreUpdate,
-    PostUpdate,
-    PreRollback,
-    PostRollback,
-    PreCommit,
-    PostCommit,
-    PreFiles,
-    PostFiles,
-}
+pub mod error;
+pub mod file;
+pub mod native;
 
 pub struct HookStage {
     pub trigger: NativeTrigger,

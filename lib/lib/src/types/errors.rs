@@ -10,6 +10,7 @@ use upac_abi::error::ErrorKind;
 use crate::composefs::RepoError;
 use crate::database::DatabaseError;
 use crate::deploy::SysrootError;
+use crate::script_hooks::error::HookError;
 use crate::types::lock::LockError;
 
 macro_rules! common_error_from {
@@ -65,6 +66,7 @@ pub enum CommonError {
     StagePanicked,
     MissingResult,
     RuntimeInit(IoErrorKind),
+    Hook(HookError),
     Repo(RepoError),
     Database(DatabaseError),
     Sysroot(SysrootError),
@@ -81,11 +83,18 @@ impl From<CommonError> for ErrorKind {
             CommonError::StagePanicked => ErrorKind::Unexpected,
             CommonError::MissingResult => ErrorKind::Unexpected,
             CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
+            CommonError::Hook(_) => ErrorKind::InvalidEntry,
             CommonError::Repo(repo_error) => repo_error.into(),
             CommonError::Database(database_error) => database_error.into(),
             CommonError::Sysroot(sysroot_error) => sysroot_error.into(),
             CommonError::Lock(lock_error) => lock_error.into(),
         }
+    }
+}
+
+impl From<HookError> for CommonError {
+    fn from(error: HookError) -> Self {
+        CommonError::Hook(error)
     }
 }
 
