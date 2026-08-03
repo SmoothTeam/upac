@@ -9,7 +9,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Package manager for installing any type of package in Linux, as well as registering binary file rollbacks based on OSTree, written in Rust and Zig"
+description = "Package manager for installing any type of package in Linux, as well as registering binary file rollbacks based on composefs, written in Rust"
 
 [[bin]]
 name = "up"
