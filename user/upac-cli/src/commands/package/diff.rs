@@ -11,8 +11,8 @@ use colored::Colorize;
 use crate::cancel_token_ptr;
 use crate::ffi::ctypes::CDiffKind;
 use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
-use crate::types::errors::LibError;
 use crate::types::CommandContext;
+use crate::types::errors::LibError;
 
 #[derive(clap::Args)]
 pub struct Args {

@@ -49,11 +49,7 @@ pub struct LibError {
 
 impl LibError {
     pub fn check(code: i32) -> Result<(), Self> {
-        if code == 0 {
-            Ok(())
-        } else {
-            Err(Self { code })
-        }
+        if code == 0 { Ok(()) } else { Err(Self { code }) }
     }
 }
 

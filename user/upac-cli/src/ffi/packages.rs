@@ -4,8 +4,8 @@
 
 use std::ffi::CString;
 
-use super::ctypes::{CDiffKind, CSlice, CVersion};
 use super::Validate;
+use super::ctypes::{CDiffKind, CSlice, CVersion};
 
 // ── CPackage ──────────────────────────────────────────────────────────────────
 #[repr(C)]

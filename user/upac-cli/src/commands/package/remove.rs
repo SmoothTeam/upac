@@ -13,8 +13,8 @@ use colored::Colorize;
 use crate::cancel_token_ptr;
 use crate::ffi::packages::CPackageInfo;
 use crate::ffi::request::{CMutatedRequest, CUnmutatedRequest, CUnmutatedResponse};
-use crate::types::errors::LibError;
 use crate::types::CommandContext;
+use crate::types::errors::LibError;
 
 type InstalledEntry = (String, String, Option<String>);
 type ResolvedEntry = (CString, CString, Option<CString>);

@@ -4,9 +4,9 @@
 
 use anyhow::Result;
 
-use std::ffi::{c_void, CString};
-use std::fs::canonicalize;
+use std::ffi::{CString, c_void};
 use std::fs::File;
+use std::fs::canonicalize;
 use std::io::Read;
 use std::ptr::null_mut;
 
@@ -20,8 +20,8 @@ use crate::corelib::registry::BackendRegistry;
 use crate::ffi::ctypes::CSlice;
 use crate::ffi::packages::{CPackage, CPackageMeta};
 use crate::ffi::request::{CMutatedRequest, CPrepareRequest};
-use crate::types::errors::LibError;
 use crate::types::CommandContext;
+use crate::types::errors::LibError;
 
 #[derive(clap::Args)]
 pub struct Args {

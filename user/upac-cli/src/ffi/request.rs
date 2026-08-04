@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::ffi::{c_void, CString};
+use std::ffi::{CString, c_void};
 use std::ptr::null;
 
 use super::commit::CCommitEntry;

@@ -12,8 +12,8 @@ use crate::cancel_token_ptr;
 use crate::config::Config;
 use crate::ffi::ctypes::CSlice;
 use crate::ffi::request::CUnmutatedRequest;
-use crate::types::errors::LibError;
 use crate::types::CommandContext;
+use crate::types::errors::LibError;
 
 #[derive(clap::Args)]
 pub struct InitArgs {

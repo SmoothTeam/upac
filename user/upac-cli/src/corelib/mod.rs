@@ -8,10 +8,10 @@ use anyhow::Result;
 use libloading::Library;
 
 use crate::ffi::request::{CMutatedRequest, CUnmutatedRequest, CUnmutatedResponse};
-use crate::ffi::{load_symbol, CancelToken};
+use crate::ffi::{CancelToken, load_symbol};
 
-use crate::types::errors::AbiMismatch;
 use crate::types::EXPECTED_ABI_VERSION;
+use crate::types::errors::AbiMismatch;
 
 pub mod backend;
 pub mod registry;

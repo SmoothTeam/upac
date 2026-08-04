@@ -5,7 +5,7 @@
 // ── Imports ─────────────────────────────────────────────────────────────────
 use anyhow::Result;
 
-use gettextrs::{bindtextdomain, setlocale, textdomain, LocaleCategory};
+use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
 
 use clap::Parser;
 

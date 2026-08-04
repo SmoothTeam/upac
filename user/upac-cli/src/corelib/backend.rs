@@ -17,9 +17,9 @@ use crate::ffi::load_symbol;
 use crate::ffi::packages::CPackageMeta;
 use crate::ffi::request::CPrepareRequest;
 
+use crate::types::EXPECTED_ABI_VERSION;
 use crate::types::backend::BackendEvent;
 use crate::types::errors::{AbiMismatch, PrepareError};
-use crate::types::EXPECTED_ABI_VERSION;
 
 // ── Wrapper for the backend .so ───────────────────────────────────────────────
 pub struct Backend {
@@ -75,23 +75,25 @@ impl Backend {
     /// # Safety
     /// `ctx` must point to a live `ProgressBar` for the duration of the call (as passed to the backend
     /// when this callback was registered), and `data`, if non-null, must point to a valid `CSlice`.
-    pub unsafe extern "C" fn on_hook(event_code: u32, data: *const c_void, ctx: *mut c_void) -> u8 { unsafe {
-        let Some(progress_bar) = (ctx as *const ProgressBar).as_ref() else {
-            return 0;
-        };
+    pub unsafe extern "C" fn on_hook(event_code: u32, data: *const c_void, ctx: *mut c_void) -> u8 {
+        unsafe {
+            let Some(progress_bar) = (ctx as *const ProgressBar).as_ref() else {
+                return 0;
+            };
 
-        let detail_string = if data.is_null() {
-            ""
-        } else {
-            (*(data as *const CSlice)).as_str()
-        };
+            let detail_string = if data.is_null() {
+                ""
+            } else {
+                (*(data as *const CSlice)).as_str()
+            };
 
-        let Some(event) = BackendEvent::from_repr(event_code as u8) else {
-            return 0;
-        };
-        let message_string = event.format_message(detail_string);
+            let Some(event) = BackendEvent::from_repr(event_code as u8) else {
+                return 0;
+            };
+            let message_string = event.format_message(detail_string);
 
-        progress_bar.set_message(message_string);
-        0
-    }}
+            progress_bar.set_message(message_string);
+            0
+        }
+    }
 }

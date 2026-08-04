@@ -9,8 +9,8 @@ use std::ptr::null_mut;
 
 use crate::cancel_token_ptr;
 use crate::ffi::request::CMutatedRequest;
-use crate::types::errors::LibError;
 use crate::types::CommandContext;
+use crate::types::errors::LibError;
 
 #[derive(clap::Args)]
 pub struct Args {

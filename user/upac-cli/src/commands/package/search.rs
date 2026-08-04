@@ -8,9 +8,9 @@ use std::ffi::CString;
 
 use crate::cancel_token_ptr;
 use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
+use crate::types::CommandContext;
 use crate::types::errors::LibError;
 use crate::types::package::{PackageField, PackageFormatter};
-use crate::types::CommandContext;
 
 #[derive(clap::Args)]
 pub struct Args {

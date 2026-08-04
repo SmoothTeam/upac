@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::ctypes::{CDiffKind, CSlice};
 use super::Validate;
+use super::ctypes::{CDiffKind, CSlice};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
