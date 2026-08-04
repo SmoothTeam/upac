@@ -3,9 +3,10 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-# Имена таблиц redb внутри БД пакетов, встроенной в образ. Смена имени —
-# уже собранные образы перестанут находить свои таблицы при чтении их БД
-# (таблица ищется по имени), данные не теряются, но становятся недоступны через API.
+# Names of the redb tables inside the package database embedded in the image.
+# Changing a name means already-built images stop finding their tables when
+# reading their DB (tables are looked up by name) — data isn't lost, but
+# becomes unreachable through the API.
 [database]
 packages_table_name = "packages"
 packages_by_name_table_name = "packages_by_name"
@@ -14,17 +15,27 @@ files_by_path_table_name = "files_by_path"
 packages_meta_type_name = "upac::PackageMeta"
 files_entry_type_name = "upac::FileEntry"
 
-# Имена служебных каталогов на deployment-разделе (деплои + ostree-репозиторий).
-# Смена имени — существующие установки перестают находить свои деплои/репо при апгрейде.
+# Names of the well-known directories on the deployment partition (deploys +
+# ostree repo). Changing a name means existing installs stop finding their
+# deploys/repo on upgrade.
 [deployment]
 root_dir = "/"
 deploys_dir = "deploys"
 repo_dir = "ostree-repo"
 sysroot_dir = "sysroot"
 
-# Имя abstract-адреса Unix-сокета, которым upac держит эксклюзивный лок процесса
-# (bind() на этот адрес — второй параллельный upac получит EADDRINUSE). Смена имени
-# не ломает совместимость с данными на диске, но одновременно запущенные старая
-# и новая версия upac перестанут видеть друг друга как конкурентов.
+# Name of the abstract Unix socket address upac uses to hold its exclusive
+# process lock (bind() on this address — a second concurrent upac gets
+# EADDRINUSE). Changing the name doesn't break on-disk data compatibility,
+# but a concurrently running old and new upac version stop seeing each other
+# as competitors.
 [runtime]
 lock_address = "upac.lock"
+
+# Directory holding hook files (§5.8) and the path to the trusted root
+# certificate used to verify them. root_cert_path is a configurable file: a
+# distro/OEM plugs in its own root without rebuilding upac; hooks signed
+# under the old root stop verifying after the switch.
+[hooks]
+hooks_dir = "/etc/upac.d/hooks"
+root_cert_path = "/etc/upac.d/root.crt"
