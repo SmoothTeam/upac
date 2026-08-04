@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+[package]
+name = "upac-pki"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
+license = "LGPL-3.0-or-later"
+description = "Ed25519/X.509 signing and verification for upac hook files"
+
+[dependencies]
