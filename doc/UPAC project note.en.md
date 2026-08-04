@@ -417,23 +417,21 @@ What travels along the arrows:
 
 A design guide, refined as we go.
 
-**`lib/`** — core and FFI:
+**`lib/`** — core and FFI (actual module layout, kept in sync as it's built):
 
-- `ffi` — the C-ABI: entry points, opaque handles, hook-callback registration.
-- `repo` — access to the composefs repo (`objects` / `images` / `streams`).
-- `image` — building and committing images (tree → EROFS → objects).
-- `ops` — orchestrating the add / remove / update operations (§5.4).
-- `deploy` — deployment staging (§5.3): mounts, writing the boot entry, the one-shot entry.
-- `etc_merge` — the 3-way `/etc` merge (§5.1).
-- `boot` — boot entries, one-shot / confirmation / rollback (§5.2); uses `composefs-boot` (UKI + BLS), grub via its `blscfg` module (reads BLS itself, no per-op regeneration). There are no separate boot plugins: by design UPAC supports only BLS-capable bootloaders.
-- `plugin` — the plugin loader (dlopen) and the plugin contract.
-- `resolve` — orchestrating dependency resolution (the format-specific half is in the decoder).
-- `db` — the package DB (redb) inside the image; built via a custom in-memory `StorageBackend`, read at runtime with `ReadOnlyDatabase` from the file in the image.
-- `gc` — the retention policy and pruning (§5.5).
-- `config` — config and static variables (via `derive-static`).
-- `types` / `error` — shared types and errors.
+- `export` — the C-ABI: entry points for all 15 commands, ABI version, cancel, response freeing.
+- `orchestrator` — the generic engine (§5.9–§5.11): `Stage`/`ConcurrentStage`, `Cursor`, `RollbackGuard`, and two orchestrators behind one `Orchestrator` trait — `SequentialOrchestrator` (linear, holds the system lock) and `ParallelOrchestrator` (concurrent stages, used for §5.8 hooks).
+- `mutated` / `unmutated` — the 15 commands themselves, one submodule per command, each just assembling its own stage pipeline via `orchestrator`.
+- `script_hooks` — §5.8: the hook TOML format (`HookFile`, `Primitive`), native trigger matching (`Operation`/`Timing`); `HookStage::run()` itself is still `todo!()` — signature verification and primitive execution aren't wired in yet.
+- `plugin` — decoder loading; concretely just the `decoder` submodule today (dlopen, ABI-version check, `decode`/`match_triggers`) — the `plugin` parent is reserved for other plugin kinds later, none exist yet.
+- `composefs` — access to the composefs repo (`objects` / `images` / `streams`).
+- `deploy` — deployment staging (§5.3): sysroot, mounts, the one-shot entry.
+- `database` — the package DB (redb) inside the image; built via a custom in-memory `StorageBackend`, read at runtime with `ReadOnlyDatabase` from the file in the image.
+- `types` / `errors` — shared domain types, per-command error enums, `CommonError`.
 
-**`derive-static/`** — a proc-macro: variables from a constants file.
+Not started yet: `etc_merge` (the 3-way `/etc` merge, §5.1), `boot` (boot entries, one-shot/confirmation/rollback, §5.2; uses `composefs-boot`, grub via `blscfg` — no separate boot plugins, only BLS-capable bootloaders by design), `gc` (retention policy and pruning, §5.5), and the actual dependency-graph resolution on `lib`'s side (the decoder only reports a package's raw dependency list today, via `decode` — nothing walks the graph yet, and there's no network layer to fetch resolved packages either).
+
+Build-time config (table names, deploy paths, the lock address) is `Lib.toml` + `build.rs`, generating plain constants — not a separate `derive-static` crate; that idea was superseded.
 
 **`cli/`** — a thin frontend:
 
