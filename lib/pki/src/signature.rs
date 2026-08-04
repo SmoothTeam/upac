@@ -4,10 +4,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use der::{Decode, Encode};
-use ed25519_dalek::Signature;
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use rcgen::SigningKey;
 use x509_cert::Certificate;
 
 use crate::error::PkiError;
+use crate::generate::SigningIdentity;
 
 const SIGNATURE_LEN: usize = 64;
 const LENGTH_PREFIX_LEN: usize = 4;
@@ -34,6 +36,28 @@ pub struct HookSignature {
 }
 
 impl HookSignature {
+    pub fn sign(hook_bytes: &[u8], signing: &SigningIdentity) -> Result<Self, PkiError> {
+        let signature_bytes = signing.key_pair.sign(hook_bytes)?;
+        let signature = Signature::try_from(signature_bytes.as_slice()).map_err(|_| PkiError::Malformed)?;
+
+        Ok(HookSignature {
+            certificate_kind: CertificateKind::Hook,
+            certificate: signing.certificate.clone(),
+            signature,
+        })
+    }
+
+    pub fn verify(&self, hook_bytes: &[u8], root_certificate: &Certificate) -> Result<(), PkiError> {
+        Self::verify_issued_by(&self.certificate, root_certificate)?;
+
+        let verifying_key = Self::extract_verifying_key(&self.certificate)?;
+        verifying_key
+            .verify(hook_bytes, &self.signature)
+            .map_err(|_| PkiError::InvalidSignature)?;
+
+        Ok(())
+    }
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, PkiError> {
         let certificate_der = self.certificate.to_der()?;
 
@@ -75,5 +99,29 @@ impl HookSignature {
             certificate,
             signature,
         })
+    }
+
+    fn verify_issued_by(certificate: &Certificate, issuer_certificate: &Certificate) -> Result<(), PkiError> {
+        let verifying_key = Self::extract_verifying_key(issuer_certificate)?;
+
+        let tbs_der = certificate.tbs_certificate().to_der()?;
+        let signature = Signature::try_from(certificate.signature().raw_bytes()).map_err(|_| PkiError::Malformed)?;
+
+        verifying_key
+            .verify(&tbs_der, &signature)
+            .map_err(|_| PkiError::InvalidSignature)?;
+
+        Ok(())
+    }
+
+    fn extract_verifying_key(certificate: &Certificate) -> Result<VerifyingKey, PkiError> {
+        let key_bytes = certificate
+            .tbs_certificate()
+            .subject_public_key_info()
+            .subject_public_key
+            .raw_bytes();
+        let key_bytes: [u8; 32] = key_bytes.try_into()?;
+
+        VerifyingKey::from_bytes(&key_bytes).map_err(|_| PkiError::Malformed)
     }
 }

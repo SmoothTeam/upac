@@ -6,16 +6,24 @@
 use std::array::TryFromSliceError;
 
 use der::Error as DerError;
+use rcgen::Error as RcgenError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PkiError {
     Malformed,
     InvalidSignature,
+    Generation,
 }
 
 impl From<DerError> for PkiError {
     fn from(_: DerError) -> Self {
         PkiError::Malformed
+    }
+}
+
+impl From<RcgenError> for PkiError {
+    fn from(_: RcgenError) -> Self {
+        PkiError::Generation
     }
 }
 
