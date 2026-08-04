@@ -12,19 +12,16 @@ use tokio::task::JoinSet;
 use upac_abi::hook::{CancelToken, HookAck, MessageHook, ProgressEventBuilder};
 
 use crate::orchestrator::cursor::Cursor;
+use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard, Stage, StageResult};
 use crate::types::errors::CommonError;
-use crate::types::lock::{Lock, LockError};
+use crate::types::lock::Lock;
 
 pub mod cursor;
+pub mod error;
 pub mod stage;
 
 pub type StagePipelineError = TypeId;
-
-pub enum OrchestratorError<E> {
-    Setup(LockError),
-    Stage(usize, E),
-}
 
 pub struct Context {
     slots: HashMap<TypeId, Box<dyn Any>>,
@@ -110,9 +107,11 @@ impl<E: 'static> SequentialOrchestrator<E> {
 
 impl<E: From<CommonError> + 'static> Orchestrator<E> for SequentialOrchestrator<E> {
     fn run_exclusive(mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>> {
-        let _lock = Lock::acquire().map_err(OrchestratorError::Setup)?;
+        let _lock = Lock::acquire()?;
 
-        Self::run(&mut self.cursor, context, cancel).map_err(|(index, error)| OrchestratorError::Stage(index, error))
+        Self::run(&mut self.cursor, context, cancel)?;
+
+        Ok(())
     }
 
     fn run_concurrent(mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
@@ -169,10 +168,11 @@ impl<E: 'static> ParallelOrchestrator<E> {
 
 impl<E: From<CommonError> + Send + 'static> Orchestrator<E> for ParallelOrchestrator<E> {
     fn run_exclusive(self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>> {
-        let _lock = Lock::acquire().map_err(OrchestratorError::Setup)?;
+        let _lock = Lock::acquire()?;
 
-        Self::run_parallel(self.stages, &self.runtime, context, cancel)
-            .map_err(|(index, error)| OrchestratorError::Stage(index, error))
+        Self::run_parallel(self.stages, &self.runtime, context, cancel)?;
+
+        Ok(())
     }
 
     fn run_concurrent(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {

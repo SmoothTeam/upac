@@ -9,6 +9,7 @@ mod deploy;
 mod export;
 mod mutated;
 mod orchestrator;
+mod plugin;
 mod script_hooks;
 mod types;
 mod unmutated;

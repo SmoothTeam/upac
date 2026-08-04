@@ -11,7 +11,8 @@ use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
 use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
+use crate::orchestrator::error::OrchestratorError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::states::UninstallStateId;
 use crate::types::{Branch, PackageEntry, Targets, TmpPath};
 

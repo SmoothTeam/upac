@@ -56,7 +56,7 @@ impl CSlice {
             return Err(ErrorKind::InvalidEntry);
         }
         let bytes = unsafe { from_raw_parts(self.ptr, self.len + 1) };
-        CStr::from_bytes_with_nul(bytes).map_err(|_| ErrorKind::InvalidEntry)
+        Ok(CStr::from_bytes_with_nul(bytes)?)
     }
 
     /// # Safety
@@ -72,7 +72,7 @@ impl CSlice {
     /// # Safety
     /// Same contract as `as_cstr`.
     pub unsafe fn as_str(&self) -> Result<&str, ErrorKind> {
-        unsafe { self.as_cstr()?.to_str().map_err(|_| ErrorKind::InvalidEntry) }
+        Ok(unsafe { self.as_cstr()?.to_str()? })
     }
 
     pub fn from_slice(slice: Option<&[u8]>) -> CSlice {

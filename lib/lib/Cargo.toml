@@ -25,6 +25,7 @@ rsblkid = "0.4"
 rsmount = "0.2"
 
 nix = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
+libloading = "0.9"
 
 composefs = { version = "0.7.0", features = ["tempfile"] }
 composefs-boot = { version = "0.7.0" }

@@ -15,7 +15,8 @@ use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::swap::SwapStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
+use crate::orchestrator::error::OrchestratorError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::states::RollbackStateId;
 use crate::types::{Branch, TmpPath};
 

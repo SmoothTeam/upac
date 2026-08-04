@@ -35,7 +35,7 @@ pub struct HookFile {
 
 impl HookFile {
     pub fn parse(raw: &str) -> Result<Self, HookError> {
-        let file: HookFile = toml::from_str(raw).map_err(|_| HookError::Parse)?;
+        let file: HookFile = toml::from_str(raw)?;
 
         match (file.operation, file.timing) {
             (Some(_), None) | (None, Some(_)) => return Err(HookError::InvalidTrigger),

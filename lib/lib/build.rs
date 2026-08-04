@@ -11,7 +11,7 @@ use toml::{Value, from_str};
 
 fn main() {
     let manifest = var("CARGO_MANIFEST_DIR").unwrap();
-    let source = Path::new(&manifest).join("Lib.toml");
+    let source = Path::new(&manifest).join("lib.toml");
 
     println!("cargo:rerun-if-changed={}", source.display());
 

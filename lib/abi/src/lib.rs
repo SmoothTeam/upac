@@ -5,6 +5,7 @@
 
 use self::error::ErrorKind;
 
+pub mod decoder;
 pub mod error;
 pub mod hook;
 pub mod memory;

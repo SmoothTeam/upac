@@ -10,6 +10,7 @@ use upac_abi::error::ErrorKind;
 use crate::composefs::RepoError;
 use crate::database::DatabaseError;
 use crate::deploy::SysrootError;
+use crate::plugin::decoder::error::DecoderError;
 use crate::script_hooks::error::HookError;
 use crate::types::lock::LockError;
 
@@ -67,6 +68,7 @@ pub enum CommonError {
     MissingResult,
     RuntimeInit(IoErrorKind),
     Hook(HookError),
+    Decoder(DecoderError),
     Repo(RepoError),
     Database(DatabaseError),
     Sysroot(SysrootError),
@@ -84,6 +86,7 @@ impl From<CommonError> for ErrorKind {
             CommonError::MissingResult => ErrorKind::Unexpected,
             CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
             CommonError::Hook(_) => ErrorKind::InvalidEntry,
+            CommonError::Decoder(decoder_error) => decoder_error.into(),
             CommonError::Repo(repo_error) => repo_error.into(),
             CommonError::Database(database_error) => database_error.into(),
             CommonError::Sysroot(sysroot_error) => sysroot_error.into(),
@@ -95,6 +98,12 @@ impl From<CommonError> for ErrorKind {
 impl From<HookError> for CommonError {
     fn from(error: HookError) -> Self {
         CommonError::Hook(error)
+    }
+}
+
+impl From<DecoderError> for CommonError {
+    fn from(error: DecoderError) -> Self {
+        CommonError::Decoder(error)
     }
 }
 

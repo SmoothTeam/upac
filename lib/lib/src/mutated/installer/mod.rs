@@ -17,7 +17,8 @@ use self::preparation::PreparationStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
+use crate::orchestrator::error::OrchestratorError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::states::InstallStateId;
 use crate::types::{Branch, PackageTemp, TmpPath};
 

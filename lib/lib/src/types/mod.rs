@@ -6,6 +6,7 @@
 use std::mem::size_of;
 
 use upac_abi::DiffKind;
+use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
 use upac_abi::response::{
@@ -84,6 +85,13 @@ pub struct PackageMeta {
     pub url: Option<String>,
     pub sha256: [u8; 32],
     pub installed_size: u64,
+}
+
+#[derive(Debug, Clone, CTryToRust)]
+pub struct Dependency {
+    pub name: String,
+    pub constraint: u8,
+    pub version: Version,
 }
 
 // ── PackageEntry ────────────────────────────────────────────────────────────

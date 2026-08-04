@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::ffi::FromBytesWithNulError;
+use std::str::Utf8Error;
+
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorDomain {
@@ -39,6 +42,18 @@ pub enum ErrorKind {
     NotInitialized,
     AbiMismatch,
     InvalidEntry,
+}
+
+impl From<FromBytesWithNulError> for ErrorKind {
+    fn from(_: FromBytesWithNulError) -> Self {
+        ErrorKind::InvalidEntry
+    }
+}
+
+impl From<Utf8Error> for ErrorKind {
+    fn from(_: Utf8Error) -> Self {
+        ErrorKind::InvalidEntry
+    }
 }
 
 #[repr(C)]

@@ -17,7 +17,8 @@ use self::checkout::CheckoutStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
+use crate::orchestrator::error::OrchestratorError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::types::states::FilesStateId;
 use crate::types::{Branch, TmpPath};
 

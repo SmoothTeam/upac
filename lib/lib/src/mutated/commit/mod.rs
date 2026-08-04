@@ -13,7 +13,8 @@ pub use self::error::CommitError;
 
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::{Context, Orchestrator, OrchestratorError, SequentialOrchestrator};
+use crate::orchestrator::error::OrchestratorError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use crate::script_hooks::HookStage;
 use crate::script_hooks::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::CommitStateId;
@@ -62,9 +63,19 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
 
 fn assemble() -> SequentialOrchestrator<CommitError> {
     SequentialOrchestrator::new(vec![
-        Box::new(HookStage { trigger: NativeTrigger { operation: Operation::Commit, timing: Timing::Pre } }),
+        Box::new(HookStage {
+            trigger: NativeTrigger {
+                operation: Operation::Commit,
+                timing: Timing::Pre,
+            },
+        }),
         Box::new(TransactionStage),
-        Box::new(HookStage { trigger: NativeTrigger { operation: Operation::Commit, timing: Timing::Post } }),
+        Box::new(HookStage {
+            trigger: NativeTrigger {
+                operation: Operation::Commit,
+                timing: Timing::Post,
+            },
+        }),
     ])
 }
 
