@@ -5,6 +5,7 @@
 
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
+use std::io::Error as IoError;
 use std::sync::Arc;
 
 use tokio::runtime::Runtime;
@@ -51,6 +52,17 @@ impl Context {
             .remove(&TypeId::of::<T>())
             .and_then(|slot| slot.downcast::<T>().ok())
             .map(|boxed| *boxed)
+    }
+
+    pub fn runtime(&mut self) -> Result<Arc<Runtime>, IoError> {
+        if let Some(runtime) = self.get::<Arc<Runtime>>() {
+            return Ok(Arc::clone(runtime));
+        }
+
+        let runtime = Arc::new(Runtime::new()?);
+        self.put(Arc::clone(&runtime));
+
+        Ok(runtime)
     }
 
     fn type_ids(&self) -> HashSet<TypeId> {
