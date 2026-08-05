@@ -4,20 +4,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use serde::Deserialize;
 
 use crate::scripts::error::HookError;
 use crate::scripts::native::{NativeTrigger, Operation, Timing};
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Primitive {
-    TouchFile { path: PathBuf },
-    MoveFile { from: PathBuf, to: PathBuf },
-    CreateSymlink { target: PathBuf, link: PathBuf },
-}
+use crate::scripts::primitive::Primitive;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct HookFile {
