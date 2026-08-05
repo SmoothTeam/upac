@@ -6,10 +6,13 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use upac_abi::hook::ProgressEventBuilder;
 
+use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard};
 use crate::scripts::error::HookError;
 use crate::scripts::native::{NativeTrigger, Operation, Timing};
-use crate::scripts::primitive::Primitive;
+use crate::scripts::primitive::{Primitive, Step};
+use crate::types::errors::CommonError;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct HookFile {
@@ -43,5 +46,32 @@ impl HookFile {
             (Some(operation), Some(timing)) => Some(NativeTrigger { operation, timing }),
             _ => None,
         }
+    }
+}
+
+impl<E: From<CommonError>> ConcurrentStage<E> for HookFile {
+    fn run(
+        self: Box<Self>, progress: ProgressEventBuilder,
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E> {
+        let HookFile { critical, steps, .. } = *self;
+
+        let mut executed: Vec<Primitive> = Vec::with_capacity(steps.len());
+
+        for mut primitive in steps {
+            match primitive.execute() {
+                Ok(()) => executed.push(primitive),
+                Err(error) => {
+                    if critical {
+                        let _ = executed.rollback();
+
+                        return Err(CommonError::from(error).into());
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        Ok((progress, Box::new(executed)))
     }
 }

@@ -5,12 +5,12 @@
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard, Stage};
+use crate::orchestrator::{Context, Orchestrator, ParallelOrchestrator};
 use crate::scripts::error::HookError;
-use crate::scripts::file::HookFile;
 use crate::scripts::load::load_hooks;
 use crate::scripts::native::NativeTrigger;
+use crate::scripts::primitive::Primitive;
 use crate::types::errors::CommonError;
 use crate::types::hooks::{HOOK_EXTENSION, HOOKS_DIR, ROOT_CERT_PATH, SIGNATURE_EXTENSION};
 
@@ -24,20 +24,25 @@ pub struct HookStage {
     pub trigger: NativeTrigger,
 }
 
-impl<E: From<CommonError>> Stage<E> for HookStage {
+impl<E: From<CommonError> + Send + 'static> Stage<E> for HookStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E> {
-        let _runtime = context.runtime().map_err(HookError::from).map_err(CommonError::from)?;
+        let runtime = context.runtime().map_err(HookError::from).map_err(CommonError::from)?;
 
         let hooks =
             load_hooks(HOOKS_DIR, ROOT_CERT_PATH, HOOK_EXTENSION, SIGNATURE_EXTENSION).map_err(CommonError::from)?;
 
-        let _matched: Vec<HookFile> = hooks
+        let matched: Vec<Box<dyn ConcurrentStage<E>>> = hooks
             .into_iter()
             .filter(|hook_file| hook_file.native_trigger() == Some(self.trigger))
+            .map(|hook_file| Box::new(hook_file) as Box<dyn ConcurrentStage<E>>)
             .collect();
 
-        todo!()
+        ParallelOrchestrator::new(matched, runtime)
+            .run_concurrent(context, cancel)
+            .map_err(|(_, error)| error)?;
+
+        Ok((progress, Box::new(Vec::<Primitive>::new())))
     }
 }

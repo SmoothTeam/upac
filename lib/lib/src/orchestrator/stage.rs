@@ -50,5 +50,7 @@ pub trait Stage<E>: Any {
 }
 
 pub trait ConcurrentStage<E>: Send + 'static {
-    fn run(&self, progress: ProgressEventBuilder) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
+    fn run(
+        self: Box<Self>, progress: ProgressEventBuilder,
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
 }

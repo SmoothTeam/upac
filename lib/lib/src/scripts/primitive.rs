@@ -8,7 +8,9 @@ use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 
 use serde::Deserialize;
+use upac_abi::error::ErrorKind;
 
+use crate::orchestrator::stage::{RollbackGuard, StageResult};
 use crate::scripts::error::HookError;
 
 pub trait Step {
@@ -39,6 +41,24 @@ impl Step for Primitive {
             Primitive::MoveFile(step) => step.rollback(),
             Primitive::CreateSymlink(step) => step.rollback(),
         }
+    }
+}
+
+impl RollbackGuard for Vec<Primitive> {
+    fn new_none(_result: StageResult) -> Self {
+        Vec::new()
+    }
+
+    fn rollback(&mut self) -> Result<(), ErrorKind> {
+        while let Some(primitive) = self.pop() {
+            primitive.rollback()?;
+        }
+
+        Ok(())
+    }
+
+    fn result(&self) -> StageResult {
+        StageResult::Advance
     }
 }
 
