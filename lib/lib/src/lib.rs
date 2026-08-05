@@ -10,6 +10,6 @@ mod export;
 mod mutated;
 mod orchestrator;
 mod plugin;
-mod script_hooks;
+mod scripts;
 mod types;
 mod unmutated;

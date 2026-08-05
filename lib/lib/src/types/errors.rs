@@ -11,7 +11,7 @@ use crate::composefs::RepoError;
 use crate::database::DatabaseError;
 use crate::deploy::SysrootError;
 use crate::plugin::decoder::error::DecoderError;
-use crate::script_hooks::error::HookError;
+use crate::scripts::error::HookError;
 use crate::types::lock::LockError;
 
 macro_rules! common_error_from {
@@ -85,7 +85,7 @@ impl From<CommonError> for ErrorKind {
             CommonError::StagePanicked => ErrorKind::Unexpected,
             CommonError::MissingResult => ErrorKind::Unexpected,
             CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
-            CommonError::Hook(_) => ErrorKind::InvalidEntry,
+            CommonError::Hook(hook_error) => hook_error.into(),
             CommonError::Decoder(decoder_error) => decoder_error.into(),
             CommonError::Repo(repo_error) => repo_error.into(),
             CommonError::Database(database_error) => database_error.into(),

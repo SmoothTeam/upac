@@ -15,8 +15,8 @@ use self::transaction::TransactionStage;
 
 use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
-use crate::script_hooks::HookStage;
-use crate::script_hooks::native::{NativeTrigger, Operation, Timing};
+use crate::scripts::HookStage;
+use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::CommitStateId;
 use crate::types::{Branch, TmpPath};
 

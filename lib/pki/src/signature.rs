@@ -29,6 +29,18 @@ impl CertificateKind {
     }
 }
 
+pub struct RootCertificate(pub Certificate);
+
+impl RootCertificate {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, PkiError> {
+        Ok(self.0.to_der()?)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, PkiError> {
+        Ok(RootCertificate(Certificate::from_der(bytes)?))
+    }
+}
+
 pub struct HookSignature {
     pub certificate_kind: CertificateKind,
     pub certificate: Certificate,
@@ -47,8 +59,8 @@ impl HookSignature {
         })
     }
 
-    pub fn verify(&self, hook_bytes: &[u8], root_certificate: &Certificate) -> Result<(), PkiError> {
-        Self::verify_issued_by(&self.certificate, root_certificate)?;
+    pub fn verify(&self, hook_bytes: &[u8], root_certificate: &RootCertificate) -> Result<(), PkiError> {
+        Self::verify_issued_by(&self.certificate, &root_certificate.0)?;
 
         let verifying_key = Self::extract_verifying_key(&self.certificate)?;
         verifying_key
