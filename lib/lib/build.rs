@@ -25,7 +25,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     for (section, entries) in sections {
         generated.push_str(&format!("pub mod {section} {{\n"));
 
-        let entries = entries.as_table().ok_or_else(|| format!("lib.toml: [{section}] must be a table"))?;
+        let entries = entries
+            .as_table()
+            .ok_or_else(|| format!("lib.toml: [{section}] must be a table"))?;
         for (key, value) in entries {
             let value = value
                 .as_str()
