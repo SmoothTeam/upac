@@ -8,8 +8,8 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use crate::script_hooks::error::HookError;
-use crate::script_hooks::native::{NativeTrigger, Operation, Timing};
+use crate::scripts::error::HookError;
+use crate::scripts::native::{NativeTrigger, Operation, Timing};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
