@@ -13,6 +13,8 @@ use upac_abi::request::CUninstallRequest;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
+use crate::scripts::HookStage;
+use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::UninstallStateId;
 use crate::types::{Branch, PackageEntry, Targets, TmpPath};
 
@@ -97,12 +99,24 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
 
 fn assemble() -> SequentialOrchestrator<UninstallError> {
     SequentialOrchestrator::new(vec![
+        Box::new(HookStage {
+            trigger: NativeTrigger {
+                operation: Operation::Uninstall,
+                timing: Timing::Pre,
+            },
+        }),
         Box::new(PreparationStage),
         Box::new(BuildStage),
         Box::new(CommitStage),
         Box::new(ConfigMergeStage),
         Box::new(PrepareBootStage),
         Box::new(BootOptionStage),
+        Box::new(HookStage {
+            trigger: NativeTrigger {
+                operation: Operation::Uninstall,
+                timing: Timing::Post,
+            },
+        }),
     ])
 }
 

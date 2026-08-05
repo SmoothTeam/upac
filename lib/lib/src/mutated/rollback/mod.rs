@@ -17,6 +17,8 @@ use self::swap::SwapStage;
 
 use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
+use crate::scripts::HookStage;
+use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::RollbackStateId;
 use crate::types::{Branch, TmpPath};
 
@@ -62,7 +64,23 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
 }
 
 fn assemble() -> SequentialOrchestrator<RollbackError> {
-    SequentialOrchestrator::new(vec![Box::new(MergeStage), Box::new(CheckoutStage), Box::new(SwapStage)])
+    SequentialOrchestrator::new(vec![
+        Box::new(HookStage {
+            trigger: NativeTrigger {
+                operation: Operation::Rollback,
+                timing: Timing::Pre,
+            },
+        }),
+        Box::new(MergeStage),
+        Box::new(CheckoutStage),
+        Box::new(SwapStage),
+        Box::new(HookStage {
+            trigger: NativeTrigger {
+                operation: Operation::Rollback,
+                timing: Timing::Post,
+            },
+        }),
+    ])
 }
 
 pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
