@@ -43,3 +43,18 @@ hooks_dir = "/etc/upac.d/hooks"
 root_cert_path = "/etc/upac.d/root.crt"
 hook_extension = "hook"
 signature_extension = "sig"
+
+# Directory holding declarative decoder manifests (§6): small TOML files, one
+# per decoder, each naming the package format it handles (format = "...",
+# singular — one decoder never covers more than one format), the file
+# extensions/archive variants of that format it can actually open (extensions
+# = [...] — e.g. alpm packages ship as pkg.tar/pkg.tar.gz/pkg.tar.xz/etc, all
+# one format but several file variants), and the library to dlopen for it
+# (library = "..."). This is not the directory the decoder .so files
+# themselves live in — lib never scans or probes a .so directly, it resolves
+# the library name/path straight from the matching manifest's `library` field
+# on first use. manifest_extension (without the leading dot) names the
+# manifest file itself.
+[decoders]
+decoders_dir = "/etc/upac.d/decoders"
+manifest_extension = "toml"

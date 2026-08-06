@@ -10,7 +10,7 @@ use crate::deploy::SysrootError;
 use crate::types::errors::{CommonError, common_error_from, database_error_from, lock_error_from, sysroot_error_from};
 use crate::types::lock::LockError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RollbackError {
     Common(CommonError),
 }

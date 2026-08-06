@@ -18,6 +18,8 @@ use crate::plugin::decoder::error::DecoderError;
 use crate::types::{Dependency, PackageMeta};
 
 pub mod error;
+pub mod manifest;
+pub mod triggers;
 
 unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, DecoderError> {
     unsafe { library.get::<T>(name.as_bytes()) }
@@ -38,8 +40,8 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn load(so_path: &str) -> Result<Self, DecoderError> {
-        let library = unsafe { Library::new(so_path) }.map_err(|_| DecoderError::Load)?;
+    pub fn load(library_name: &str) -> Result<Self, DecoderError> {
+        let library = unsafe { Library::new(library_name) }.map_err(|_| DecoderError::Load)?;
 
         let abi_version: AbiVersionFn = unsafe { load_symbol(&library, "abi_version")? };
         let decode: DecodeFn = unsafe { load_symbol(&library, "decode")? };

@@ -11,7 +11,7 @@ use toml::de::Error as TomlError;
 use upac_abi::error::ErrorKind;
 use upac_pki::error::PkiError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HookError {
     Parse,
     InvalidTrigger,
@@ -20,6 +20,7 @@ pub enum HookError {
     Encoding,
     MalformedSignature,
     InvalidSignature,
+    TriggerConflict(String),
 }
 
 impl From<TomlError> for HookError {
@@ -60,6 +61,7 @@ impl From<HookError> for ErrorKind {
             HookError::Encoding => ErrorKind::InvalidEntry,
             HookError::MalformedSignature => ErrorKind::InvalidEntry,
             HookError::InvalidSignature => ErrorKind::InvalidEntry,
+            HookError::TriggerConflict(_) => ErrorKind::InvalidEntry,
         }
     }
 }
