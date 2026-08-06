@@ -5,6 +5,8 @@
 
 use std::slice::from_raw_parts;
 
+use upac_macro::CValidate;
+
 use crate::error::ErrorKind;
 use crate::hook::CancelToken;
 use crate::package::{CPackageMeta, CVersion};
@@ -36,6 +38,7 @@ pub struct CDecodeRequest {
 }
 
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CDecodeResponse {
     pub struct_size: usize,
 
@@ -46,25 +49,6 @@ pub struct CDecodeResponse {
     pub free: FreeDecodeResponseFn,
 }
 
-impl CDecodeResponse {
-    /// # Safety
-    /// `meta` and every `CDependency` in `dependencies` must be null/empty or point to valid,
-    /// correctly sized memory for the duration of this call — this is the entry point that checks an
-    /// untrusted, decoder-supplied struct is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CDecodeResponse>(self.struct_size)?;
-        unsafe { self.meta.validate()? };
-
-        unsafe { self.dependencies.validate()? };
-
-        for dependency in unsafe { self.dependencies.as_slice() } {
-            unsafe { dependency.validate()? };
-        }
-
-        Ok(())
-    }
-}
-
 impl Drop for CDecodeResponse {
     fn drop(&mut self) {
         unsafe { (self.free)(self) };
@@ -72,6 +56,7 @@ impl Drop for CDecodeResponse {
 }
 
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CDependency {
     pub struct_size: usize,
 
@@ -80,63 +65,20 @@ pub struct CDependency {
     pub version: CVersion,
 }
 
-impl CDependency {
-    /// # Safety
-    /// `name` must be null/empty or point to valid, correctly sized memory for the duration of this
-    /// call — this is the entry point that checks an untrusted, decoder-supplied struct is safe to
-    /// read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CDependency>(self.struct_size)?;
-        unsafe { self.name.validate()? };
-        unsafe { self.version.validate()? };
-        Ok(())
-    }
-}
-
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CTriggerEntry {
     pub struct_size: usize,
     pub name: CSlice,
     pub hook_id: u16,
 }
 
-impl CTriggerEntry {
-    /// # Safety
-    /// `name` must be null/empty or point to valid, correctly sized memory for the duration of this
-    /// call — this is the entry point that checks an untrusted, C-supplied struct is safe to read
-    /// further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CTriggerEntry>(self.struct_size)?;
-
-        unsafe { self.name.validate()? };
-
-        Ok(())
-    }
-}
-
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CTriggerTable {
     pub struct_size: usize,
 
     pub entries: CVec<CTriggerEntry>,
-}
-
-impl CTriggerTable {
-    /// # Safety
-    /// Every `CTriggerEntry` in `entries` must be null/empty or point to valid, correctly sized memory
-    /// for the duration of this call — this is the entry point that checks an untrusted, C-supplied
-    /// struct is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CTriggerTable>(self.struct_size)?;
-
-        unsafe { self.entries.validate()? };
-
-        for entry in unsafe { self.entries.as_slice() } {
-            unsafe { entry.validate()? };
-        }
-
-        Ok(())
-    }
 }
 
 #[repr(C)]

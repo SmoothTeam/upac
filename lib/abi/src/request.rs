@@ -11,7 +11,7 @@ use crate::DiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
 use crate::package::{CPackageInfo, CUnpackedPackage};
-use crate::types::{CBorrowed, CSlice, CVec, check_size};
+use crate::types::{CSlice, CVec, check_size};
 
 #[repr(C)]
 #[derive(CValidate)]
@@ -27,6 +27,7 @@ pub struct CRequestBase {
 }
 
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CInstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -34,35 +35,14 @@ pub struct CInstallRequest {
     pub tmp_path: CSlice,
 
     pub subject: CSlice,
+    #[optional]
     pub message: CSlice,
 
     pub packages: CVec<CUnpackedPackage>,
 }
 
-impl CInstallRequest {
-    /// # Safety
-    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
-    /// correctly sized memory for the duration of this call — this is the entry point that checks
-    /// an untrusted, C-supplied struct is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CInstallRequest>(self.struct_size)?;
-        unsafe { self.base.validate()? };
-        unsafe { self.tmp_path.validate()? };
-        unsafe { self.subject.validate()? };
-        if !self.message.ptr.is_null() {
-            unsafe { self.message.validate()? };
-        }
-        unsafe { self.packages.validate()? };
-
-        for package in unsafe { self.packages.as_slice() } {
-            unsafe { package.validate()? };
-        }
-
-        Ok(())
-    }
-}
-
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CUpdateRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -70,66 +50,23 @@ pub struct CUpdateRequest {
     pub tmp_path: CSlice,
 
     pub subject: CSlice,
+    #[optional]
     pub message: CSlice,
 
     pub packages: CVec<CUnpackedPackage>,
 }
 
-impl CUpdateRequest {
-    /// # Safety
-    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
-    /// correctly sized memory for the duration of this call — this is the entry point that checks
-    /// an untrusted, C-supplied struct is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CUpdateRequest>(self.struct_size)?;
-        unsafe { self.base.validate()? };
-        unsafe { self.tmp_path.validate()? };
-        unsafe { self.subject.validate()? };
-        if !self.message.ptr.is_null() {
-            unsafe { self.message.validate()? };
-        }
-        unsafe { self.packages.validate()? };
-
-        for package in unsafe { self.packages.as_slice() } {
-            unsafe { package.validate()? };
-        }
-
-        Ok(())
-    }
-}
-
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CUninstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
     pub subject: CSlice,
+    #[optional]
     pub message: CSlice,
     pub packages: CVec<CPackageInfo>,
-}
-
-impl CUninstallRequest {
-    /// # Safety
-    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
-    /// correctly sized memory for the duration of this call — this is the entry point that checks
-    /// an untrusted, C-supplied struct is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CUninstallRequest>(self.struct_size)?;
-        unsafe { self.base.validate()? };
-        unsafe { self.tmp_path.validate()? };
-        unsafe { self.subject.validate()? };
-        if !self.message.ptr.is_null() {
-            unsafe { self.message.validate()? };
-        }
-        unsafe { self.packages.validate()? };
-
-        for package in unsafe { self.packages.as_slice() } {
-            unsafe { package.validate()? };
-        }
-
-        Ok(())
-    }
 }
 
 #[repr(C)]
@@ -155,43 +92,18 @@ pub struct CCommitRequest {
 }
 
 #[repr(C)]
+#[derive(CValidate)]
 pub struct CFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
     pub subject: CSlice,
+    #[optional]
     pub message: CSlice,
     pub files: CVec<CSlice>,
     pub file_kind: DiffKind,
     pub file_package: *const CPackageInfo,
-}
-
-impl CFilesRequest {
-    /// # Safety
-    /// Every `CSlice`/`CVec` field (directly or via `base`) must be null/empty or point to valid,
-    /// correctly sized memory for the duration of this call — this is the entry point that checks
-    /// an untrusted, C-supplied struct is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-        check_size::<CFilesRequest>(self.struct_size)?;
-        unsafe { self.base.validate()? };
-        unsafe { self.tmp_path.validate()? };
-        unsafe { self.subject.validate()? };
-        if !self.message.ptr.is_null() {
-            unsafe { self.message.validate()? };
-        }
-
-        for file in unsafe { self.files.as_borrowed() } {
-            unsafe { file.validate()? };
-        }
-
-        if self.file_package.is_null() {
-            return Err(ErrorKind::InvalidEntry);
-        }
-        unsafe { (*self.file_package).validate()? };
-
-        Ok(())
-    }
 }
 
 #[repr(C)]
