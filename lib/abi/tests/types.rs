@@ -58,7 +58,10 @@ fn cvec_empty_owned_is_null() {
 
 #[test]
 fn cvec_null_with_nonzero_len_fails_validate() {
-    let vec: CVec<u32> = CVec { ptr: null_mut(), len: 3 };
+    let vec: CVec<u32> = CVec {
+        ptr: null_mut(),
+        len: 3,
+    };
 
     assert_eq!(unsafe { vec.validate() }, Err(ErrorKind::InvalidEntry));
 }
