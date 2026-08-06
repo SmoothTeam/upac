@@ -111,6 +111,12 @@ pub struct CancelToken {
 unsafe impl Sync for CancelToken {}
 
 impl CancelToken {
+    pub const fn new() -> Self {
+        Self {
+            cancelled: AtomicU8::new(0),
+        }
+    }
+
     pub fn cancel(&self) {
         self.cancelled.store(1, Ordering::Release);
     }
