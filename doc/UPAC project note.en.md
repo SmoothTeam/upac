@@ -415,6 +415,8 @@ What travels along the arrows:
 
 **Boundary rule:** "touches state / needs root / must be atomic" → `lib`; "presents or collects input" → frontend. CLI and GUI are equal thin frontends over one FFI, with no logic duplicated.
 
+**`lib` has two public contracts.** Besides the stable C-ABI (`export`, via `dlopen`), the Rust layer itself is also public for direct static linking: `orchestrator`, `scripts`, `plugin`, `composefs`, `database`, `deploy`, `errors`, `lock` — all `pub mod`, with zero `pub use` re-exports (access only through the full path, e.g. `crate::database::error::DatabaseError`). What stays private: `export` (no reason to call the C-ABI from Rust), `mutated`/`unmutated` (assembling the 15 commands' pipelines — internal machinery), and `types` (the domain model); `Cursor` inside `orchestrator` is private too — it's `SequentialOrchestrator`'s stepping mechanism, not something external code touches.
+
 ---
 
 ## 7. Planned modules
@@ -431,7 +433,8 @@ A design guide, refined as we go.
 - `composefs` — access to the composefs repo (`objects` / `images` / `streams`).
 - `deploy` — deployment staging (§5.3): sysroot, mounts, the one-shot entry.
 - `database` — the package DB (redb) inside the image; built via a custom in-memory `StorageBackend`, read at runtime with `ReadOnlyDatabase` from the file in the image.
-- `types` / `errors` — shared domain types, per-command error enums, `CommonError`.
+- `types` — domain types (`Version`, `PackageMeta`, `Dependency`, `Targets`, ...) and per-command `StateId` enums (`states`); fully private, not reachable through either the C-ABI or the direct Rust API.
+- `errors` / `lock` — split out of `types` into their own top-level public modules: `CommonError` (wraps `HookError`/`DecoderError`/`RepoError`/`DatabaseError`/`SysrootError`/`LockError` — all of them public too now, one under each module listed above) and `Lock`/`LockError` (the exclusive system lock, §5.9). Made public because external code implementing `E: From<CommonError>` to build its own pipeline via `orchestrator` under static linking needs to name `CommonError`.
 
 Not started yet: `etc_merge` (the 3-way `/etc` merge, §5.1), `boot` (boot entries, one-shot/confirmation/rollback, §5.2; uses `composefs-boot`, grub via `blscfg` — no separate boot plugins, only BLS-capable bootloaders by design), `gc` (retention policy and pruning, §5.5), and the actual dependency-graph resolution on `lib`'s side (the decoder only reports a package's raw dependency list today, via `decode` — nothing walks the graph yet, and there's no network layer to fetch resolved packages either).
 
