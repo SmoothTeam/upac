@@ -18,32 +18,54 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
+use syn::{Data, DeriveInput, Error, Fields, Ident, PathSegment, Type, parse_macro_input};
 
 use crate::common::{VALIDATABLE_COMPOSITES, generic_arg, segment_name};
 
-fn field_free(ident: &syn::Ident, ty: &Type) -> TokenStream2 {
+fn cslice_free(ident: &Ident) -> TokenStream2 {
+    quote! { free_cslice(&self.#ident); }
+}
+
+fn composite_free(ident: &Ident) -> TokenStream2 {
+    quote! { self.#ident.free(); }
+}
+
+fn cvec_free(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
+    match generic_arg(segment).and_then(segment_name) {
+        Some(name) if VALIDATABLE_COMPOSITES.contains(&name.as_str()) => quote! {
+            free_cvec_owning(&self.#ident, |entry| entry.free());
+        },
+        _ => quote! { free_cvec(&self.#ident); },
+    }
+}
+
+fn field_path_free(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
+    match segment.ident.to_string().as_str() {
+        "CSlice" => cslice_free(ident),
+        "CVec" => cvec_free(ident, segment),
+        name if VALIDATABLE_COMPOSITES.contains(&name) => composite_free(ident),
+        _ => quote! {},
+    }
+}
+
+fn field_free(ident: &Ident, ty: &Type) -> TokenStream2 {
     let Type::Path(type_path) = ty else {
         return quote! {};
     };
 
-    let Some(segment) = type_path.path.segments.last() else {
-        return quote! {};
-    };
+    match type_path.path.segments.last() {
+        Some(segment) => field_path_free(ident, segment),
+        None => quote! {},
+    }
+}
 
-    match segment.ident.to_string().as_str() {
-        "CSlice" => quote! { free_cslice(&self.#ident); },
-        "CVec" => {
-            let inner_name = generic_arg(segment).and_then(segment_name);
-            match inner_name.as_deref() {
-                Some(name) if VALIDATABLE_COMPOSITES.contains(&name) => quote! {
-                    free_cvec_owning(&self.#ident, |entry| entry.free());
-                },
-                _ => quote! { free_cvec(&self.#ident); },
+fn free_impl(name: &Ident, frees: &[TokenStream2]) -> TokenStream2 {
+    quote! {
+        impl #name {
+            pub unsafe fn free(&self) {
+                #(#frees)*
             }
         }
-        name if VALIDATABLE_COMPOSITES.contains(&name) => quote! { self.#ident.free(); },
-        _ => quote! {},
     }
 }
 
@@ -55,13 +77,13 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
         Data::Struct(s) => match &s.fields {
             Fields::Named(named) => &named.named,
             _ => {
-                return syn::Error::new_spanned(name, "CFree only supports structs with named fields")
+                return Error::new_spanned(name, "CFree only supports structs with named fields")
                     .to_compile_error()
                     .into();
             }
         },
         _ => {
-            return syn::Error::new_spanned(name, "CFree only supports structs")
+            return Error::new_spanned(name, "CFree only supports structs")
                 .to_compile_error()
                 .into();
         }
@@ -71,7 +93,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
 
     for field in fields {
         let Some(ident) = field.ident.as_ref() else {
-            return syn::Error::new_spanned(field, "CFree only supports named fields")
+            return Error::new_spanned(field, "CFree only supports named fields")
                 .to_compile_error()
                 .into();
         };
@@ -79,13 +101,5 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
         frees.push(field_free(ident, &field.ty));
     }
 
-    let expanded = quote! {
-        impl #name {
-            pub unsafe fn free(&self) {
-                #(#frees)*
-            }
-        }
-    };
-
-    expanded.into()
+    free_impl(name, &frees).into()
 }

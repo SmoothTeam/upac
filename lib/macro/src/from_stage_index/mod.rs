@@ -8,8 +8,22 @@
 //! at that DECLARATION position (not by explicit discriminant).
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, parse_macro_input};
+use syn::{Data, DeriveInput, Error, Fields, Ident, parse_macro_input};
+
+fn from_stage_index_impl(name: &Ident, arms: &[TokenStream2]) -> TokenStream2 {
+    quote! {
+        impl #name {
+            pub fn from_stage_index(index: usize) -> Self {
+                match index {
+                    #(#arms)*
+                    _ => unreachable!(),
+                }
+            }
+        }
+    }
+}
 
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -18,7 +32,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let variants = match &input.data {
         Data::Enum(data_enum) => &data_enum.variants,
         _ => {
-            return syn::Error::new_spanned(name, "FromStageIndex only supports enums")
+            return Error::new_spanned(name, "FromStageIndex only supports enums")
                 .to_compile_error()
                 .into();
         }
@@ -28,7 +42,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
 
     for (index, variant) in variants.iter().enumerate() {
         if !matches!(variant.fields, Fields::Unit) {
-            return syn::Error::new_spanned(variant, "FromStageIndex only supports fieldless variants")
+            return Error::new_spanned(variant, "FromStageIndex only supports fieldless variants")
                 .to_compile_error()
                 .into();
         }
@@ -39,16 +53,5 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
         });
     }
 
-    let expanded = quote! {
-        impl #name {
-            pub fn from_stage_index(index: usize) -> Self {
-                match index {
-                    #(#arms)*
-                    _ => unreachable!(),
-                }
-            }
-        }
-    };
-
-    expanded.into()
+    from_stage_index_impl(name, &arms).into()
 }

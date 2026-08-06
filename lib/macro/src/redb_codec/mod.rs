@@ -9,21 +9,86 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
+use syn::{Data, DeriveInput, Error, Fields, Ident, PathSegment, Type, TypeArray, parse_macro_input};
 
-fn field_codec(ident: &syn::Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
+fn array_codec(ident: &Ident, ty: &Type, array: &TypeArray) -> (TokenStream2, TokenStream2) {
+    let len = &array.len;
+
+    let encode = quote! {
+        buf.extend_from_slice(&value.#ident);
+    };
+    let decode = quote! {
+        let #ident: #ty = data[*offset..*offset + (#len)].try_into().unwrap();
+        *offset += #len;
+    };
+
+    (encode, decode)
+}
+
+fn string_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { crate::database::codec::write_len_prefixed(buf, value.#ident.as_bytes()); },
+        quote! { let #ident = crate::database::codec::read_str(data, offset); },
+    )
+}
+
+fn u32_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { crate::database::codec::write_u32(buf, value.#ident); },
+        quote! { let #ident = crate::database::codec::read_u32(data, offset); },
+    )
+}
+
+fn u64_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { crate::database::codec::write_u64(buf, value.#ident); },
+        quote! { let #ident = crate::database::codec::read_u64(data, offset); },
+    )
+}
+
+fn bool_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { crate::database::codec::write_bool(buf, value.#ident); },
+        quote! { let #ident = crate::database::codec::read_bool(data, offset); },
+    )
+}
+
+fn option_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { crate::database::codec::write_opt_str(buf, value.#ident.as_deref()); },
+        quote! { let #ident = crate::database::codec::read_opt_str(data, offset); },
+    )
+}
+
+fn vec_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { crate::database::codec::write_vec_u32(buf, &value.#ident); },
+        quote! { let #ident = crate::database::codec::read_vec_u32(data, offset); },
+    )
+}
+
+fn composite_codec(ident: &Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { #ty::encode_into(buf, &value.#ident); },
+        quote! { let #ident = #ty::decode_from(data, offset); },
+    )
+}
+
+fn field_path_codec(ident: &Ident, segment: &PathSegment, ty: &Type) -> (TokenStream2, TokenStream2) {
+    match segment.ident.to_string().as_str() {
+        "String" => string_codec(ident),
+        "u32" => u32_codec(ident),
+        "u64" => u64_codec(ident),
+        "bool" => bool_codec(ident),
+        "Option" => option_codec(ident),
+        "Vec" => vec_codec(ident),
+        _ => composite_codec(ident, ty),
+    }
+}
+
+fn field_codec(ident: &Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
     if let Type::Array(array) = ty {
-        let len = &array.len;
-
-        let encode = quote! {
-            buf.extend_from_slice(&value.#ident);
-        };
-        let decode = quote! {
-            let #ident: #ty = data[*offset..*offset + (#len)].try_into().unwrap();
-            *offset += #len;
-        };
-
-        return (encode, decode);
+        return array_codec(ident, ty, array);
     }
 
     let Type::Path(type_path) = ty else {
@@ -36,76 +101,11 @@ fn field_codec(ident: &syn::Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
         return (error.clone(), error);
     };
 
-    match segment.ident.to_string().as_str() {
-        "String" => (
-            quote! { crate::database::codec::write_len_prefixed(buf, value.#ident.as_bytes()); },
-            quote! { let #ident = crate::database::codec::read_str(data, offset); },
-        ),
-        "u32" => (
-            quote! { crate::database::codec::write_u32(buf, value.#ident); },
-            quote! { let #ident = crate::database::codec::read_u32(data, offset); },
-        ),
-        "u64" => (
-            quote! { crate::database::codec::write_u64(buf, value.#ident); },
-            quote! { let #ident = crate::database::codec::read_u64(data, offset); },
-        ),
-        "bool" => (
-            quote! { crate::database::codec::write_bool(buf, value.#ident); },
-            quote! { let #ident = crate::database::codec::read_bool(data, offset); },
-        ),
-        "Option" => (
-            quote! { crate::database::codec::write_opt_str(buf, value.#ident.as_deref()); },
-            quote! { let #ident = crate::database::codec::read_opt_str(data, offset); },
-        ),
-        "Vec" => (
-            quote! { crate::database::codec::write_vec_u32(buf, &value.#ident); },
-            quote! { let #ident = crate::database::codec::read_vec_u32(data, offset); },
-        ),
-        _ => (
-            quote! { #ty::encode_into(buf, &value.#ident); },
-            quote! { let #ident = #ty::decode_from(data, offset); },
-        ),
-    }
+    field_path_codec(ident, segment, ty)
 }
 
-pub(crate) fn expand(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = &input.ident;
-
-    let fields = match &input.data {
-        Data::Struct(s) => match &s.fields {
-            Fields::Named(named) => &named.named,
-            _ => {
-                return syn::Error::new_spanned(name, "RedbCodec only supports structs with named fields")
-                    .to_compile_error()
-                    .into();
-            }
-        },
-        _ => {
-            return syn::Error::new_spanned(name, "RedbCodec only supports structs")
-                .to_compile_error()
-                .into();
-        }
-    };
-
-    let mut encodes = Vec::new();
-    let mut decodes = Vec::new();
-    let mut names = Vec::new();
-
-    for filed in fields {
-        let Some(ident) = filed.ident.as_ref() else {
-            return syn::Error::new_spanned(filed, "RedbCodec only supports named fields")
-                .to_compile_error()
-                .into();
-        };
-        let (encode, decode) = field_codec(ident, &filed.ty);
-
-        names.push(ident.clone());
-        encodes.push(encode);
-        decodes.push(decode);
-    }
-
-    let expanded = quote! {
+fn codec_impl(name: &Ident, encodes: &[TokenStream2], decodes: &[TokenStream2], names: &[Ident]) -> TokenStream2 {
+    quote! {
         impl #name {
             pub(crate) fn encode_into(buf: &mut Vec<u8>, value: &#name) {
                 #(#encodes)*
@@ -119,7 +119,45 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
                 }
             }
         }
+    }
+}
+
+pub(crate) fn expand(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    let fields = match &input.data {
+        Data::Struct(s) => match &s.fields {
+            Fields::Named(named) => &named.named,
+            _ => {
+                return Error::new_spanned(name, "RedbCodec only supports structs with named fields")
+                    .to_compile_error()
+                    .into();
+            }
+        },
+        _ => {
+            return Error::new_spanned(name, "RedbCodec only supports structs")
+                .to_compile_error()
+                .into();
+        }
     };
 
-    expanded.into()
+    let mut encodes = Vec::new();
+    let mut decodes = Vec::new();
+    let mut names = Vec::new();
+
+    for filed in fields {
+        let Some(ident) = filed.ident.as_ref() else {
+            return Error::new_spanned(filed, "RedbCodec only supports named fields")
+                .to_compile_error()
+                .into();
+        };
+        let (encode, decode) = field_codec(ident, &filed.ty);
+
+        names.push(ident.clone());
+        encodes.push(encode);
+        decodes.push(decode);
+    }
+
+    codec_impl(name, &encodes, &decodes, &names).into()
 }
