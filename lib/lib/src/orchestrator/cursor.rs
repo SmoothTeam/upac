@@ -9,7 +9,7 @@ use upac_abi::hook::CancelToken;
 
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{Stage, StageResult};
-use crate::types::errors::CommonError;
+use crate::errors::CommonError;
 
 pub struct Cursor<E> {
     stages: Vec<Box<dyn Stage<E>>>,

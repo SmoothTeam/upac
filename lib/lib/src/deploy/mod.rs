@@ -14,11 +14,11 @@ use rsblkid::utils::evaluation::find_canonical_device_name_from_path;
 use rsmount::tables::MountInfo;
 use uuid::Uuid;
 
-pub use self::error::SysrootError;
+use self::error::SysrootError;
 
 use crate::types::deployment::{DEPLOYS_DIR, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
 
-mod error;
+pub mod error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeployMode {

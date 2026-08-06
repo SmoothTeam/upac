@@ -17,8 +17,6 @@ use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
-pub mod errors;
-pub mod lock;
 pub mod states;
 
 macro_rules! as_str_method {
@@ -185,3 +183,92 @@ as_str_method!(TmpPath);
 pub struct Branch(pub String);
 
 as_str_method!(Branch);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_version() -> Version {
+        Version {
+            epoch: 1,
+            parts: vec![2, 5, 0],
+            pre: Some("rc1".to_owned()),
+            release: 3,
+        }
+    }
+
+    #[test]
+    fn version_c_round_trip_preserves_value() {
+        let original = sample_version();
+
+        let c_version = CVersion::from(original.clone());
+        let restored = Version::try_from(&c_version).unwrap();
+
+        assert_eq!(restored, original);
+        unsafe { c_version.free() };
+    }
+
+    #[test]
+    fn version_redb_round_trip_preserves_value() {
+        let original = sample_version();
+
+        let mut buf = Vec::new();
+        Version::encode_into(&mut buf, &original);
+
+        let mut offset = 0;
+        let restored = Version::decode_from(&buf, &mut offset);
+
+        assert_eq!(restored, original);
+        assert_eq!(offset, buf.len());
+    }
+
+    #[test]
+    fn package_meta_c_round_trip_preserves_value() {
+        let original = PackageMeta {
+            name: "upac".to_owned(),
+            version: sample_version(),
+            arch: "x86_64".to_owned(),
+            arch_sub: None,
+            maintainer: "JustPav".to_owned(),
+            description: "package manager".to_owned(),
+            license: Some("GPL-3.0-only".to_owned()),
+            url: None,
+            sha256: [7; 32],
+            installed_size: 4096,
+        };
+
+        let c_meta = CPackageMeta::from(original.clone());
+        let restored = PackageMeta::try_from(&c_meta).unwrap();
+
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.version, original.version);
+        assert_eq!(restored.arch, original.arch);
+        assert_eq!(restored.arch_sub, original.arch_sub);
+        assert_eq!(restored.maintainer, original.maintainer);
+        assert_eq!(restored.description, original.description);
+        assert_eq!(restored.license, original.license);
+        assert_eq!(restored.url, original.url);
+        assert_eq!(restored.sha256, original.sha256);
+        assert_eq!(restored.installed_size, original.installed_size);
+
+        unsafe { c_meta.free() };
+    }
+
+    #[test]
+    fn file_entry_redb_round_trip_preserves_value() {
+        let original = FileEntry {
+            path: "/usr/bin/up".to_owned(),
+            is_user: false,
+        };
+
+        let mut buf = Vec::new();
+        FileEntry::encode_into(&mut buf, &original);
+
+        let mut offset = 0;
+        let restored = FileEntry::decode_from(&buf, &mut offset);
+
+        assert_eq!(restored.path, original.path);
+        assert_eq!(restored.is_user, original.is_user);
+        assert_eq!(offset, buf.len());
+    }
+}

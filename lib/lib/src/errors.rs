@@ -7,12 +7,12 @@ use std::io::ErrorKind as IoErrorKind;
 
 use upac_abi::error::ErrorKind;
 
-use crate::composefs::RepoError;
-use crate::database::DatabaseError;
-use crate::deploy::SysrootError;
+use crate::composefs::error::RepoError;
+use crate::database::error::DatabaseError;
+use crate::deploy::error::SysrootError;
+use crate::lock::LockError;
 use crate::plugin::decoder::error::DecoderError;
 use crate::scripts::error::HookError;
-use crate::types::lock::LockError;
 
 macro_rules! common_error_from {
     ($name:ident) => {

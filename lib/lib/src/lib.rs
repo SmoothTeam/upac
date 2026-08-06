@@ -3,13 +3,15 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-mod composefs;
-mod database;
-mod deploy;
+pub mod composefs;
+pub mod database;
+pub mod deploy;
+pub mod errors;
 mod export;
+pub mod lock;
 mod mutated;
-mod orchestrator;
-mod plugin;
-mod scripts;
+pub mod orchestrator;
+pub mod plugin;
+pub mod scripts;
 mod types;
 mod unmutated;

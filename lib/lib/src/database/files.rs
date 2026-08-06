@@ -7,7 +7,8 @@ use redb::{ReadableDatabase, ReadableTable, TypeName, Value as RedbValue};
 use twox_hash::xxhash3_64::Hasher as XxHasher;
 use uuid::Uuid;
 
-use super::{DatabaseError, FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadableSource};
+use super::error::DatabaseError;
+use super::{FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadableSource};
 
 use crate::types::FileEntry;
 use crate::types::database::FILES_ENTRY_TYPE_NAME;

@@ -8,7 +8,8 @@ use twox_hash::xxhash3_64::Hasher as XxHasher;
 use uuid::Uuid;
 
 use super::codec::{write_len_prefixed, write_opt_str};
-use super::{DatabaseError, MemoryDatabase, PACKAGES_HASH_TABLE, PACKAGES_UUID_TABLE, ReadableSource};
+use super::error::DatabaseError;
+use super::{MemoryDatabase, PACKAGES_HASH_TABLE, PACKAGES_UUID_TABLE, ReadableSource};
 
 use crate::types::PackageMeta;
 use crate::types::database::PACKAGES_META_TYPE_NAME;

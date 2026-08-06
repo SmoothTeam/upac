@@ -19,9 +19,9 @@ use crate::types::database::{
     FILES_BY_PATH_TABLE_NAME, FILES_TABLE_NAME, PACKAGES_BY_NAME_TABLE_NAME, PACKAGES_TABLE_NAME,
 };
 
-pub use self::error::DatabaseError;
+use self::error::DatabaseError;
 
-mod error;
+pub mod error;
 pub mod files;
 pub mod meta;
 

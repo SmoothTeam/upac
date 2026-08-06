@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use crate::types::lock::LockError;
+use crate::lock::LockError;
 
 pub enum OrchestratorError<E> {
     Setup(LockError),

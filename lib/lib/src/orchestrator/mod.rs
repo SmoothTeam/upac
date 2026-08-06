@@ -12,13 +12,13 @@ use tokio::runtime::Runtime;
 use tokio::task::JoinSet;
 use upac_abi::hook::{CancelToken, HookAck, MessageHook, ProgressEventBuilder};
 
+use crate::errors::CommonError;
+use crate::lock::Lock;
 use crate::orchestrator::cursor::Cursor;
 use crate::orchestrator::error::OrchestratorError;
 use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard, Stage, StageResult};
-use crate::types::errors::CommonError;
-use crate::types::lock::Lock;
 
-pub mod cursor;
+mod cursor;
 pub mod error;
 pub mod stage;
 
@@ -27,7 +27,7 @@ macro_rules! run_mutating {
         if $orchestrator.validate(&$context).is_err() {
             Err((
                 <$state>::Setup,
-                <$error>::from($crate::types::errors::CommonError::PipelineInvalid),
+                <$error>::from($crate::errors::CommonError::PipelineInvalid),
             ))
         } else {
             $orchestrator
@@ -48,7 +48,7 @@ pub(crate) use run_mutating;
 macro_rules! run_unmutated {
     ($orchestrator:expr, $context:expr, $cancel:expr, $state:ty, $error:ty, $($take:ty),+) => {
         if $orchestrator.validate(&$context).is_err() {
-            Err((<$state>::Setup, <$error>::from($crate::types::errors::CommonError::PipelineInvalid)))
+            Err((<$state>::Setup, <$error>::from($crate::errors::CommonError::PipelineInvalid)))
         } else {
             (|| {
                 $orchestrator
@@ -58,7 +58,7 @@ macro_rules! run_unmutated {
                 Ok(($(
                     $context.take::<$take>().ok_or((
                         <$state>::Setup,
-                        <$error>::from($crate::types::errors::CommonError::MissingResult),
+                        <$error>::from($crate::errors::CommonError::MissingResult),
                     ))?,
                 )+))
             })()

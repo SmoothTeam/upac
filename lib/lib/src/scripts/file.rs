@@ -12,7 +12,7 @@ use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard};
 use crate::scripts::error::HookError;
 use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::scripts::primitive::{Primitive, Step};
-use crate::types::errors::CommonError;
+use crate::errors::CommonError;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct HookFile {
