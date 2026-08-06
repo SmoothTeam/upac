@@ -26,7 +26,7 @@ pub unsafe extern "C" fn diff_packages(
     }));
 
     match result {
-        Ok(Ok(diff_packages)) => {
+        Ok(Ok((diff_packages,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CDiffPackagesResponse {

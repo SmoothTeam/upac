@@ -15,8 +15,7 @@ use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::swap::SwapStage;
 
-use crate::orchestrator::error::OrchestratorError;
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::RollbackStateId;
@@ -91,12 +90,7 @@ pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
 
     let orchestrator = assemble();
 
-    let result = orchestrator
-        .run_exclusive(&mut context, data.cancel_token)
-        .map_err(|failure| match failure {
-            OrchestratorError::Setup(lock_error) => (RollbackStateId::Setup, RollbackError::from(lock_error)),
-            OrchestratorError::Stage(index, error) => (RollbackStateId::from_stage_index(index), error),
-        });
+    let result = run_mutating!(orchestrator, context, data.cancel_token, RollbackStateId, RollbackError);
 
     data.cancel_token.reset();
 

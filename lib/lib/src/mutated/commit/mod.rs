@@ -13,8 +13,7 @@ pub use self::error::CommitError;
 
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::error::OrchestratorError;
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::CommitStateId;
@@ -87,12 +86,7 @@ pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {
 
     let orchestrator = assemble();
 
-    let result = orchestrator
-        .run_exclusive(&mut context, data.cancel_token)
-        .map_err(|failure| match failure {
-            OrchestratorError::Setup(lock_error) => (CommitStateId::Setup, CommitError::from(lock_error)),
-            OrchestratorError::Stage(index, error) => (CommitStateId::from_stage_index(index), error),
-        });
+    let result = run_mutating!(orchestrator, context, data.cancel_token, CommitStateId, CommitError);
 
     data.cancel_token.reset();
 

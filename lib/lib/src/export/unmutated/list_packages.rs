@@ -27,7 +27,7 @@ pub unsafe extern "C" fn list_packages(
     }));
 
     match result {
-        Ok(Ok(metas)) => {
+        Ok(Ok((metas,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CListPackagesResponse {

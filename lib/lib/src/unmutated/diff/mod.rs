@@ -14,8 +14,7 @@ pub use self::error::DiffError;
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
-use crate::types::errors::CommonError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::DiffStateId;
 use crate::types::{Branch, DiffFileEntry, DiffPackageEntry};
 
@@ -68,16 +67,13 @@ pub fn run(data: DiffData) -> Result<(Vec<DiffFileEntry>, Vec<DiffPackageEntry>)
 
     let orchestrator = assemble();
 
-    orchestrator
-        .run_concurrent(&mut context, data.cancel_token)
-        .map_err(|(index, error)| (DiffStateId::from_stage_index(index), error))?;
-
-    let files = context
-        .take::<Vec<DiffFileEntry>>()
-        .ok_or((DiffStateId::Setup, DiffError::from(CommonError::MissingResult)))?;
-    let diff_packages = context
-        .take::<Vec<DiffPackageEntry>>()
-        .ok_or((DiffStateId::Setup, DiffError::from(CommonError::MissingResult)))?;
-
-    Ok((files, diff_packages))
+    run_unmutated!(
+        orchestrator,
+        context,
+        data.cancel_token,
+        DiffStateId,
+        DiffError,
+        Vec<DiffFileEntry>,
+        Vec<DiffPackageEntry>
+    )
 }

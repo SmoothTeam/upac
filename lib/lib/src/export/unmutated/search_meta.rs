@@ -27,7 +27,7 @@ pub unsafe extern "C" fn search_meta(
     }));
 
     match result {
-        Ok(Ok(metas)) => {
+        Ok(Ok((metas,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CSearchMetaResponse {

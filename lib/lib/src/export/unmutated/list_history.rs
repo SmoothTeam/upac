@@ -26,7 +26,7 @@ pub unsafe extern "C" fn list_history(
     }));
 
     match result {
-        Ok(Ok(history)) => {
+        Ok(Ok((history,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CListHistoryResponse {

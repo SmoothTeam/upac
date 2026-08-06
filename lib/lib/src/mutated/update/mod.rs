@@ -17,8 +17,7 @@ use self::preparation::PreparationStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
-use crate::orchestrator::error::OrchestratorError;
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::UpdateStateId;
@@ -104,12 +103,7 @@ pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
 
     let orchestrator = assemble();
 
-    let result = orchestrator
-        .run_exclusive(&mut context, data.cancel_token)
-        .map_err(|failure| match failure {
-            OrchestratorError::Setup(lock_error) => (UpdateStateId::Setup, UpdateError::from(lock_error)),
-            OrchestratorError::Stage(index, error) => (UpdateStateId::from_stage_index(index), error),
-        });
+    let result = run_mutating!(orchestrator, context, data.cancel_token, UpdateStateId, UpdateError);
 
     data.cancel_token.reset();
 

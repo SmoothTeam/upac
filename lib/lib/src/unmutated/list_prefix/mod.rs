@@ -13,8 +13,7 @@ pub use self::error::ListPrefixError;
 
 use self::fetching::FetchingStage;
 
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
-use crate::types::errors::CommonError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::ListPrefixStateId;
 use crate::types::{Branch, PrefixEntry};
 
@@ -53,19 +52,19 @@ fn assemble() -> SequentialOrchestrator<ListPrefixError> {
     SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
 }
 
-pub fn run(data: ListPrefixData) -> Result<Vec<PrefixEntry>, (ListPrefixStateId, ListPrefixError)> {
+pub fn run(data: ListPrefixData) -> Result<(Vec<PrefixEntry>,), (ListPrefixStateId, ListPrefixError)> {
     let mut context = Context::new();
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
 
-    orchestrator
-        .run_concurrent(&mut context, data.cancel_token)
-        .map_err(|(index, error)| (ListPrefixStateId::from_stage_index(index), error))?;
-
-    context.take::<Vec<PrefixEntry>>().ok_or((
-        ListPrefixStateId::Setup,
-        ListPrefixError::from(CommonError::MissingResult),
-    ))
+    run_unmutated!(
+        orchestrator,
+        context,
+        data.cancel_token,
+        ListPrefixStateId,
+        ListPrefixError,
+        Vec<PrefixEntry>
+    )
 }

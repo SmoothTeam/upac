@@ -13,8 +13,7 @@ pub use self::error::SearchMetaError;
 
 use self::searching::SearchingStage;
 
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
-use crate::types::errors::CommonError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::SearchMetaStateId;
 use crate::types::{Branch, PackageMeta};
 
@@ -57,19 +56,19 @@ fn assemble() -> SequentialOrchestrator<SearchMetaError> {
     SequentialOrchestrator::new(vec![Box::new(SearchingStage)])
 }
 
-pub fn run(data: SearchMetaData) -> Result<Vec<PackageMeta>, (SearchMetaStateId, SearchMetaError)> {
+pub fn run(data: SearchMetaData) -> Result<(Vec<PackageMeta>,), (SearchMetaStateId, SearchMetaError)> {
     let mut context = Context::new();
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
 
-    orchestrator
-        .run_concurrent(&mut context, data.cancel_token)
-        .map_err(|(index, error)| (SearchMetaStateId::from_stage_index(index), error))?;
-
-    context.take::<Vec<PackageMeta>>().ok_or((
-        SearchMetaStateId::Setup,
-        SearchMetaError::from(CommonError::MissingResult),
-    ))
+    run_unmutated!(
+        orchestrator,
+        context,
+        data.cancel_token,
+        SearchMetaStateId,
+        SearchMetaError,
+        Vec<PackageMeta>
+    )
 }

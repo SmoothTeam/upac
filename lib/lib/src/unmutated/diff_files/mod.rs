@@ -14,8 +14,7 @@ pub use self::error::DiffFilesError;
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
-use crate::types::errors::CommonError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::DiffFilesStateId;
 use crate::types::{Branch, DiffFileEntry};
 
@@ -61,19 +60,19 @@ fn assemble() -> SequentialOrchestrator<DiffFilesError> {
     SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
 }
 
-pub fn run(data: DiffFilesData) -> Result<Vec<DiffFileEntry>, (DiffFilesStateId, DiffFilesError)> {
+pub fn run(data: DiffFilesData) -> Result<(Vec<DiffFileEntry>,), (DiffFilesStateId, DiffFilesError)> {
     let mut context = Context::new();
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
 
-    orchestrator
-        .run_concurrent(&mut context, data.cancel_token)
-        .map_err(|(index, error)| (DiffFilesStateId::from_stage_index(index), error))?;
-
-    context.take::<Vec<DiffFileEntry>>().ok_or((
-        DiffFilesStateId::Setup,
-        DiffFilesError::from(CommonError::MissingResult),
-    ))
+    run_unmutated!(
+        orchestrator,
+        context,
+        data.cancel_token,
+        DiffFilesStateId,
+        DiffFilesError,
+        Vec<DiffFileEntry>
+    )
 }

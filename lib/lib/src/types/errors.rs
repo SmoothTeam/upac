@@ -66,6 +66,7 @@ pub enum CommonError {
     StageNotFound,
     StagePanicked,
     MissingResult,
+    PipelineInvalid,
     RuntimeInit(IoErrorKind),
     Hook(HookError),
     Decoder(DecoderError),
@@ -81,10 +82,11 @@ impl From<CommonError> for ErrorKind {
             CommonError::OutOfMemory => ErrorKind::OutOfMemory,
             CommonError::Cancelled => ErrorKind::Cancelled,
             CommonError::AccessDenied => ErrorKind::PermissionDenied,
-            CommonError::StageNotFound => ErrorKind::Unexpected,
-            CommonError::StagePanicked => ErrorKind::Unexpected,
-            CommonError::MissingResult => ErrorKind::Unexpected,
-            CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
+            CommonError::StageNotFound
+            | CommonError::StagePanicked
+            | CommonError::MissingResult
+            | CommonError::PipelineInvalid
+            | CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
             CommonError::Hook(hook_error) => hook_error.into(),
             CommonError::Decoder(decoder_error) => decoder_error.into(),
             CommonError::Repo(repo_error) => repo_error.into(),

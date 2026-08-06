@@ -22,6 +22,51 @@ pub mod cursor;
 pub mod error;
 pub mod stage;
 
+macro_rules! run_mutating {
+    ($orchestrator:expr, $context:expr, $cancel:expr, $state:ty, $error:ty) => {
+        if $orchestrator.validate(&$context).is_err() {
+            Err((
+                <$state>::Setup,
+                <$error>::from($crate::types::errors::CommonError::PipelineInvalid),
+            ))
+        } else {
+            $orchestrator
+                .run_exclusive(&mut $context, $cancel)
+                .map_err(|failure| match failure {
+                    $crate::orchestrator::error::OrchestratorError::Setup(lock_error) => {
+                        (<$state>::Setup, <$error>::from(lock_error))
+                    }
+                    $crate::orchestrator::error::OrchestratorError::Stage(index, error) => {
+                        (<$state>::from_stage_index(index), error)
+                    }
+                })
+        }
+    };
+}
+pub(crate) use run_mutating;
+
+macro_rules! run_unmutated {
+    ($orchestrator:expr, $context:expr, $cancel:expr, $state:ty, $error:ty, $($take:ty),+) => {
+        if $orchestrator.validate(&$context).is_err() {
+            Err((<$state>::Setup, <$error>::from($crate::types::errors::CommonError::PipelineInvalid)))
+        } else {
+            (|| {
+                $orchestrator
+                    .run_concurrent(&mut $context, $cancel)
+                    .map_err(|(index, error)| (<$state>::from_stage_index(index), error))?;
+
+                Ok(($(
+                    $context.take::<$take>().ok_or((
+                        <$state>::Setup,
+                        <$error>::from($crate::types::errors::CommonError::MissingResult),
+                    ))?,
+                )+))
+            })()
+        }
+    };
+}
+pub(crate) use run_unmutated;
+
 pub type StagePipelineError = TypeId;
 
 pub struct Context {

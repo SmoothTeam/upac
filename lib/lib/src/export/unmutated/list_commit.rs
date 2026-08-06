@@ -26,7 +26,7 @@ pub unsafe extern "C" fn list_commit(
     }));
 
     match result {
-        Ok(Ok(commits)) => {
+        Ok(Ok((commits,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CListCommitResponse {

@@ -26,7 +26,7 @@ pub unsafe extern "C" fn list_prefix(
     }));
 
     match result {
-        Ok(Ok(prefixes)) => {
+        Ok(Ok((prefixes,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CListPrefixResponse {

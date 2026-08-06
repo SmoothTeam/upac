@@ -11,8 +11,7 @@ use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
 use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::error::OrchestratorError;
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation, Timing};
 use crate::types::states::UninstallStateId;
@@ -144,16 +143,13 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
 
     let orchestrator = assemble();
 
-    let result = if orchestrator.validate(&context).is_err() {
-        Err((UninstallStateId::Setup, UninstallError::UninstallFailed))
-    } else {
-        orchestrator
-            .run_exclusive(&mut context, data.cancel_token)
-            .map_err(|failure| match failure {
-                OrchestratorError::Setup(lock_error) => (UninstallStateId::Setup, UninstallError::from(lock_error)),
-                OrchestratorError::Stage(index, error) => (UninstallStateId::from_stage_index(index), error),
-            })
-    };
+    let result = run_mutating!(
+        orchestrator,
+        context,
+        data.cancel_token,
+        UninstallStateId,
+        UninstallError
+    );
 
     data.cancel_token.reset();
 

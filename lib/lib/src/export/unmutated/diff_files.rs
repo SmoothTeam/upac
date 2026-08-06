@@ -24,7 +24,7 @@ pub unsafe extern "C" fn diff_files(
     let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::diff_files::run(diff_files_data)));
 
     match result {
-        Ok(Ok(files)) => {
+        Ok(Ok((files,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CDiffFilesResponse {

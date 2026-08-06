@@ -13,7 +13,6 @@ use crate::types::lock::LockError;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UninstallError {
     PackageNotFound,
-    UninstallFailed,
     FileMapCorrupted,
     StagingNotCleaned,
     CheckoutFailed,
@@ -34,7 +33,6 @@ impl From<UninstallError> for ErrorKind {
     fn from(error: UninstallError) -> Self {
         match error {
             UninstallError::PackageNotFound => ErrorKind::NotFound,
-            UninstallError::UninstallFailed => ErrorKind::Unexpected,
             UninstallError::FileMapCorrupted => ErrorKind::Unexpected,
             UninstallError::StagingNotCleaned => ErrorKind::Unexpected,
             UninstallError::CheckoutFailed => ErrorKind::WriteFailed,

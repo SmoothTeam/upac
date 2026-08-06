@@ -13,8 +13,7 @@ pub use self::error::ListPackagesError;
 
 use self::fetching::FetchingStage;
 
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
-use crate::types::errors::CommonError;
+use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::ListPackagesStateId;
 use crate::types::{Branch, PackageMeta};
 
@@ -53,19 +52,19 @@ fn assemble() -> SequentialOrchestrator<ListPackagesError> {
     SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
 }
 
-pub fn run(data: ListPackagesData) -> Result<Vec<PackageMeta>, (ListPackagesStateId, ListPackagesError)> {
+pub fn run(data: ListPackagesData) -> Result<(Vec<PackageMeta>,), (ListPackagesStateId, ListPackagesError)> {
     let mut context = Context::new();
     context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
 
-    orchestrator
-        .run_concurrent(&mut context, data.cancel_token)
-        .map_err(|(index, error)| (ListPackagesStateId::from_stage_index(index), error))?;
-
-    context.take::<Vec<PackageMeta>>().ok_or((
-        ListPackagesStateId::Setup,
-        ListPackagesError::from(CommonError::MissingResult),
-    ))
+    run_unmutated!(
+        orchestrator,
+        context,
+        data.cancel_token,
+        ListPackagesStateId,
+        ListPackagesError,
+        Vec<PackageMeta>
+    )
 }

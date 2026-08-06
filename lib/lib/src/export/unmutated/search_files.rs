@@ -26,7 +26,7 @@ pub unsafe extern "C" fn search_files(
     }));
 
     match result {
-        Ok(Ok(files)) => {
+        Ok(Ok((files,))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CSearchFilesResponse {
