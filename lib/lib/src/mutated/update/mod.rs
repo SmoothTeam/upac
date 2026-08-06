@@ -19,7 +19,7 @@ use self::transaction::TransactionStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation, Timing};
+use crate::scripts::native::{NativeTrigger, Operation};
 use crate::types::states::UpdateStateId;
 use crate::types::{Branch, PackageTemp, TmpPath};
 
@@ -75,10 +75,7 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
 fn assemble() -> SequentialOrchestrator<UpdateError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Update,
-                timing: Timing::Pre,
-            },
+            trigger: NativeTrigger::pre(Operation::Update),
         }),
         Box::new(PreparationStage),
         Box::new(TransactionStage),
@@ -86,10 +83,7 @@ fn assemble() -> SequentialOrchestrator<UpdateError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Update,
-                timing: Timing::Post,
-            },
+            trigger: NativeTrigger::post(Operation::Update),
         }),
     ])
 }

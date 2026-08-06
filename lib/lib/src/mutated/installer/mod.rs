@@ -19,7 +19,7 @@ use self::transaction::TransactionStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation, Timing};
+use crate::scripts::native::{NativeTrigger, Operation};
 use crate::types::states::InstallStateId;
 use crate::types::{Branch, PackageTemp, TmpPath};
 
@@ -75,10 +75,7 @@ impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
 fn assemble() -> SequentialOrchestrator<InstallError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Install,
-                timing: Timing::Pre,
-            },
+            trigger: NativeTrigger::pre(Operation::Install),
         }),
         Box::new(PreparationStage),
         Box::new(TransactionStage),
@@ -86,10 +83,7 @@ fn assemble() -> SequentialOrchestrator<InstallError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Install,
-                timing: Timing::Post,
-            },
+            trigger: NativeTrigger::post(Operation::Install),
         }),
     ])
 }

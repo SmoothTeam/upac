@@ -15,7 +15,7 @@ use self::transaction::TransactionStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation, Timing};
+use crate::scripts::native::{NativeTrigger, Operation};
 use crate::types::states::CommitStateId;
 use crate::types::{Branch, TmpPath};
 
@@ -63,17 +63,11 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
 fn assemble() -> SequentialOrchestrator<CommitError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Commit,
-                timing: Timing::Pre,
-            },
+            trigger: NativeTrigger::pre(Operation::Commit),
         }),
         Box::new(TransactionStage),
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Commit,
-                timing: Timing::Post,
-            },
+            trigger: NativeTrigger::post(Operation::Commit),
         }),
     ])
 }

@@ -19,7 +19,7 @@ use self::transaction::TransactionStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation, Timing};
+use crate::scripts::native::{NativeTrigger, Operation};
 use crate::types::states::FilesStateId;
 use crate::types::{Branch, TmpPath};
 
@@ -78,19 +78,13 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
 fn assemble() -> SequentialOrchestrator<FilesError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Files,
-                timing: Timing::Pre,
-            },
+            trigger: NativeTrigger::pre(Operation::Files),
         }),
         Box::new(TransactionStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger {
-                operation: Operation::Files,
-                timing: Timing::Post,
-            },
+            trigger: NativeTrigger::post(Operation::Files),
         }),
     ])
 }

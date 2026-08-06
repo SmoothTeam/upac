@@ -28,3 +28,19 @@ pub struct NativeTrigger {
     pub operation: Operation,
     pub timing: Timing,
 }
+
+impl NativeTrigger {
+    pub fn pre(operation: Operation) -> Self {
+        Self {
+            operation,
+            timing: Timing::Pre,
+        }
+    }
+
+    pub fn post(operation: Operation) -> Self {
+        Self {
+            operation,
+            timing: Timing::Post,
+        }
+    }
+}
