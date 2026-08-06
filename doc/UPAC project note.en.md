@@ -388,6 +388,8 @@ The mechanism that actually runs mutating commands (and later read-only ones too
 
 **Engine failure** comes in two distinct kinds: either the pipeline couldn't even start (e.g. the lock was busy), or a specific stage at position N failed — the command that invoked the engine tells them apart, because in the first case no stage number exists at all.
 
+**Pipeline validation, before the first call.** Each stage can declare what it `requires` from the shared context and what it `provides` into it (by type); before running, the engine walks the whole list once and checks every stage's requirements are satisfied by what's already in the context plus what earlier stages provide — a missing dependency fails fast, before any stage actually runs, instead of surfacing as a confusing panic or `None` deep inside some later stage. This check is uniform across every command (both the exclusive and concurrent run paths). As of this writing no stage declares real requirements yet (stage bodies are still unwritten), so the check is currently a no-op everywhere — it activates automatically as stage bodies start declaring their real dependencies.
+
 ---
 
 ## 6. FFI and boundaries
