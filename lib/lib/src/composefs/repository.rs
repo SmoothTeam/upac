@@ -17,11 +17,11 @@ use crate::composefs::error::RepoError;
 
 pub type ObjectID = Sha256HashValue;
 
-pub fn open(path: &Path) -> Result<Repository<ObjectID>, RepoError> {
+pub(crate) fn open(path: &Path) -> Result<Repository<ObjectID>, RepoError> {
     Ok(Repository::open_path(AT_FDCWD, path)?)
 }
 
-pub fn open_tree(repository: &Repository<ObjectID>, name: &str) -> Result<FileSystem<ObjectID>, RepoError> {
+pub(crate) fn open_tree(repository: &Repository<ObjectID>, name: &str) -> Result<FileSystem<ObjectID>, RepoError> {
     let (image, _enable_verity) = repository.open_image(name)?;
 
     let mut data = Vec::new();

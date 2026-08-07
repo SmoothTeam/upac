@@ -6,16 +6,19 @@
 use std::fs::{create_dir_all, remove_dir};
 use std::path::{Path, PathBuf};
 
+use composefs::repository::Repository;
+use composefs::tree::FileSystem;
 use nix::mount::{MsFlags, mount, umount};
 use nix::sched::{CloneFlags, unshare};
-use rsblkid::cache::Cache;
 use rsblkid::device::TagName;
+use rsblkid::probe::Probe;
 use rsblkid::utils::evaluation::find_canonical_device_name_from_path;
 use rsmount::tables::MountInfo;
-use uuid::Uuid;
 
 use self::error::SysrootError;
 
+use crate::composefs::error::RepoError;
+use crate::composefs::repository::{self, ObjectID};
 use crate::types::deployment::{DEPLOYS_DIR, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
 
 pub mod error;
@@ -36,8 +39,6 @@ impl From<DeployMode> for MsFlags {
 }
 
 pub struct Deploy {
-    uuid: Uuid,
-
     sysroot: PathBuf,
     deploy: PathBuf,
     repo: PathBuf,
@@ -46,15 +47,24 @@ pub struct Deploy {
 impl Deploy {
     pub fn new(mode: DeployMode) -> Result<Self, SysrootError> {
         let device_path = Self::device_path()?;
-
-        let mut cache = Cache::builder().discard_changes_on_drop().build()?;
-        cache.add_new_entry(&device_path)?;
-
-        let uuid = Self::uuid(&cache, device_path.as_path())?;
+        let filesystem_type = Self::filesystem_type(device_path.as_path())?;
         let sysroot = Self::sysroot_path()?;
 
         unshare(CloneFlags::CLONE_NEWNS)?;
-        mount(Some(&device_path), &sysroot, None::<&str>, mode.into(), None::<&str>)?;
+        mount(
+            None::<&str>,
+            "/",
+            None::<&str>,
+            MsFlags::MS_REC | MsFlags::MS_PRIVATE,
+            None::<&str>,
+        )?;
+        mount(
+            Some(&device_path),
+            &sysroot,
+            Some(filesystem_type.as_str()),
+            mode.into(),
+            None::<&str>,
+        )?;
 
         let deploy = sysroot.join(DEPLOYS_DIR);
         if !deploy.try_exists()? {
@@ -66,20 +76,23 @@ impl Deploy {
             return Err(SysrootError::RepoDirNotFound);
         }
 
-        Ok(Self {
-            uuid,
-            sysroot,
-            deploy,
-            repo,
-        })
+        Ok(Self { sysroot, deploy, repo })
     }
 
-    pub fn deploy(&self, os: &str, checksum: &str) -> PathBuf {
-        self.deploy.join(os).join(checksum)
+    pub fn deploy(&self, usr_digest: &str) -> PathBuf {
+        self.deploy.join(usr_digest)
     }
 
     pub fn repo(&self) -> &Path {
         &self.repo
+    }
+
+    pub fn open_repository(&self) -> Result<Repository<ObjectID>, RepoError> {
+        repository::open(&self.repo)
+    }
+
+    pub fn open_tree(&self, name: &str) -> Result<FileSystem<ObjectID>, RepoError> {
+        repository::open_tree(&self.open_repository()?, name)
     }
 
     fn sysroot_path() -> Result<PathBuf, SysrootError> {
@@ -101,12 +114,19 @@ impl Deploy {
         find_canonical_device_name_from_path(raw_device_path).ok_or(SysrootError::CanonicalDeviceNotFound)
     }
 
-    fn uuid(cache: &Cache, device_path: &Path) -> Result<Uuid, SysrootError> {
-        let raw_uuid_as_raw_bytes = cache
-            .tag_value_from_device(TagName::Uuid, device_path)
-            .ok_or(SysrootError::UuidNotFound)?;
+    fn filesystem_type(device_path: &Path) -> Result<String, SysrootError> {
+        let mut probe = Probe::builder()
+            .scan_device(device_path)
+            .scan_device_superblocks(true)
+            .build()?;
 
-        Ok(Uuid::parse_str(raw_uuid_as_raw_bytes.as_str_lossy())?)
+        probe.find_device_properties();
+
+        let tag = probe
+            .lookup_device_property_value(TagName::Type)
+            .ok_or(SysrootError::FilesystemTypeNotFound)?;
+
+        Ok(tag.value().to_string())
     }
 }
 
