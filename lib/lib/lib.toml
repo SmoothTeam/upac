@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+# Names of the redb tables inside the package database embedded in the image.
+# Changing a name means already-built images stop finding their tables when
+# reading their DB (tables are looked up by name) — data isn't lost, but
+# becomes unreachable through the API.
+[database]
+packages_table_name = "packages"
+packages_by_name_table_name = "packages_by_name"
+files_table_name = "files"
+files_by_path_table_name = "files_by_path"
+packages_meta_type_name = "upac::PackageMeta"
+files_entry_type_name = "upac::FileEntry"
+
+# Names of the well-known directories on the deployment partition (deploys +
+# ostree repo). Changing a name means existing installs stop finding their
+# deploys/repo on upgrade.
+[deployment]
+root_dir = "/"
+deploys_dir = "deploys"
+repo_dir = "ostree-repo"
+sysroot_dir = "sysroot"
+
+# Name of the abstract Unix socket address upac uses to hold its exclusive
+# process lock (bind() on this address — a second concurrent upac gets
+# EADDRINUSE). Changing the name doesn't break on-disk data compatibility,
+# but a concurrently running old and new upac version stop seeing each other
+# as competitors.
+[runtime]
+lock_address = "upac.lock"
+
+# Directory holding hook files (§5.8) and the path to the trusted root
+# certificate used to verify them. root_cert_path is a configurable file: a
+# distro/OEM plugs in its own root without rebuilding upac; hooks signed
+# under the old root stop verifying after the switch. hook_extension and
+# signature_extension (without the leading dot) name the hook file itself
+# and its detached signature sidecar (name.hook + name.hook.sig).
+[hooks]
+hooks_dir = "/etc/upac.d/hooks"
+root_cert_path = "/etc/upac.d/root.crt"
+hook_extension = "hook"
+signature_extension = "sig"
+
+# Directory holding declarative decoder manifests (§6): small TOML files, one
+# per decoder, each naming the package format it handles (format = "...",
+# singular — one decoder never covers more than one format), the file
+# extensions/archive variants of that format it can actually open (extensions
+# = [...] — e.g. alpm packages ship as pkg.tar/pkg.tar.gz/pkg.tar.xz/etc, all
+# one format but several file variants), and the library to dlopen for it
+# (library = "..."). This is not the directory the decoder .so files
+# themselves live in — lib never scans or probes a .so directly, it resolves
+# the library name/path straight from the matching manifest's `library` field
+# on first use. manifest_extension (without the leading dot) names the
+# manifest file itself.
+[decoders]
+decoders_dir = "/etc/upac.d/decoders"
+manifest_extension = "toml"

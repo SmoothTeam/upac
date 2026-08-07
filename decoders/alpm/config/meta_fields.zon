@@ -1,0 +1,16 @@
+/*
+ * SPDX-FileCopyrightText: 2026 2026 JustPav
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ */
+
+.{
+    .Package = "pkgname",
+    .Version = "pkgver",
+    .@"Installed-Size" = "size",
+    .Architecture = "arch",
+    .Description = "pkgdesc",
+    .License = "license",
+    .Homepage = "url",
+    .Maintainer = "packager",
+}

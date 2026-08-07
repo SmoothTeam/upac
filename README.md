@@ -1,125 +1,106 @@
 # 📦 Upac
 
-[![License: LGPL-3.0-or-later](https://img.shields.io/badge/License-LGPL_3.0+-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![GitHub](https://img.shields.io/badge/GitHub-justpav05%2Fupac-181717?logo=github)](https://github.com/justpav05/upac)
-[![Version](https://img.shields.io/badge/version-0.1.4-green)](https://github.com/justpav05/upac/releases)
+[![Version](https://img.shields.io/badge/version-0.1.5-green)](https://github.com/justpav05/upac/releases)
+[![REUSE status](https://api.reuse.software/badge/github.com/justpav05/upac)](https://api.reuse.software/info/github.com/justpav05/upac)
+[![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-blue.svg)](LICENSES/LGPL-3.0-or-later.txt)
+[![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-blue.svg)](LICENSES/GPL-3.0-only.txt)
 
-A modular package management library for Linux systems with OSTree integration.
+> **⚠️ Branch in progress.** This branch (`lib-rs`) is a from-scratch rewrite of upac's core library in Rust, built around [composefs](https://github.com/containers/composefs) instead of OSTree. The FFI/orchestration engine is done; the actual command bodies, the hook system, and packaging are still being implemented — expect gaps and `todo!()`s.
+
+A modular package management library for Linux systems with composefs-based atomic deploys.
 
 ## 🔍 Overview
 
-**Upac** is a package manager for Linux-compatible systems. It manages the updating, removal, and installation of various package formats using different backends. It also supports [OSTree](https://ostreedev.github.io/ostree/) for rolling back the state of binaries to specific commits.
+**Upac** is a package manager for Linux-compatible systems. It manages the updating, removal, and installation of various package formats using per-format decoders, and keeps every change behind an atomic, [composefs](https://github.com/containers/composefs)-backed deploy so the system can always be rolled back to a previous commit.
 
-**upac-cli** is a command-line frontend written in [Rust](https://www.rust-lang.org/) that utilizes upac-lib as its backend. It supports formatted input and output, a polished installation interface, and display of errors and debugging information.
+**upac-cli** (binary: `up`) is a command-line frontend written in [Rust](https://www.rust-lang.org/) that dynamically loads `libupac.so` and drives it through its C ABI.
 
-**upac-lib** is a low-level package management library written in [Zig](https://ziglang.org/), designed to be embedded into package managers through a stable C ABI. It handles the core operations of package installation, database management, and system snapshotting — without imposing any policy on how packages are fetched or what format they come in.
+**upac-lib** is the core library, also written in Rust, designed to be embedded into package managers through a stable C ABI. It handles installation, database management (via [`redb`](https://github.com/cberner/redb)), and composefs-based system snapshotting — without imposing any policy on how packages are fetched or what format they come in.
 
-The library is intentionally split into independent components: backends handle format-specific unpacking, the core library handles installation and database operations, and OSTree integration is optional.
+The library is intentionally split into independent components: decoders handle format-specific unpacking, the core library handles installation and database operations, and everything crosses the FFI boundary through a shared `upac-abi` crate.
+
+## 📖 Design
+
+Full architecture and design decisions live in the project design note:
+
+- [`doc/UPAC_project_note.en.md`](<doc/UPAC project note.en.md>) — English (canonical)
+- [`doc/UPAC_project_note.md`](<doc/UPAC project note.md>) — Russian
+
+It covers the disk layout, the deploy/rollback model, the `/etc` merge, GC, the FFI boundary, and the planned module structure.
 
 ## 🚀 Usage
 
 ```sh
-upac install   # installs files into the system using the selected backend, with support for checksum verification
-upac remove    # removes an installed package from the system by name
-upac rollback  # reverts the system state to a specified commit ID
-upac list      # lists packages, with optional display of versions, commit history, or full details
-upac init      # initializes the upac working environment in a specified mode (default: archive)
+up pkg install <path>    # installs a package into the system using the matching decoder, with checksum verification
+up pkg remove <name>     # removes an installed package by name (alias: uninstall)
+up pkg update <name>     # updates an installed package to a new version
+up pkg list              # lists installed packages
+up pkg diff              # diffs installed package versions against a commit or another package set
+up pkg search            # searches package metadata
+
+up file add <path>       # tracks a standalone file outside of a package
+up file remove <path>    # untracks a standalone file
+up file diff             # diffs tracked files against a commit
+up file search           # searches tracked files by path
+
+up commit new            # creates a new commit of the current deploy state
+up commit list           # lists commit history
+up commit rollback <id>  # reverts the system state to a specified commit ID
 ```
 
 ## 🧩 Components
+
+### Workspace layout
+
+| Crate | Path | License | Role |
+|---|---|---|---|
+| `upac-abi` | `lib/abi` | LGPL-3.0-or-later | C-ABI types, error codes, and conversions shared between `upac-lib` and its consumers |
+| `upac-macro` | `lib/macro` | LGPL-3.0-or-later | Derive macros for C-ABI struct plumbing, used internally by `upac-lib`/`upac-abi` |
+| `upac-lib` | `lib/lib` | LGPL-3.0-or-later | Core library: composefs-based atomic deploys, `redb` package database, exposed via a C ABI (`libupac.so`) |
+| `upac-cli` | `user/upac-cli` | GPL-3.0-only | CLI frontend (binary `up`) |
+| `upac-sign-cli` | `user/sign-cli` | GPL-3.0-only | CLI for signing upac hook files and other artifacts with Ed25519 certificates (binary `up-si`) |
 
 ### Core Library (`upac-lib`)
 
 The core library exposes a C-compatible ABI through `libupac.so`. All strings cross the boundary as `{ ptr, len }` pairs rather than null-terminated C strings. All functions return an integer error code.
 
-### Backends
+### Decoders (`decoders/`)
 
-Backends are separate shared libraries that handle format-specific package unpacking. Each backend receives a package path, an output directory, and a SHA-256 checksum; it verifies the checksum, extracts the package, parses the metadata, and returns a `PackageMeta` struct.
+Decoders are separate shared libraries, still written in [Zig](https://ziglang.org/), that handle format-specific package unpacking. Each decoder receives a package path, an output directory, and a SHA-256 checksum; it verifies the checksum, extracts the package, parses the metadata, and returns a `PackageMeta` struct.
 
-| Backend | Formats | Distributions |
+| Decoder | Formats | Distributions |
 |---|---|---|
 | **`libupac-alpm.so`** | `.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz` | Arch Linux, Manjaro, etc. |
 | **`libupac-rpm.so`** | `.rpm` | Fedora, RHEL, openSUSE, etc. |
 | **`libupac-deb.so`** | `.deb` | Debian, Ubuntu, etc. |
 | **`libupac-xbps.so`** | `.xbps` | Void Linux |
 
-Adding support for a new package format means writing a new backend `.so` — the core library does not need to change.
+Adding support for a new package format means writing a new decoder `.so` — the core library does not need to change.
 
 ### CLI (`upac-cli`)
 
-A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate backend at runtime using [`libloading`](https://docs.rs/libloading). The backend is selected automatically by file extension or via an explicit `--backend` flag.
+A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate decoder at runtime. Subcommands are grouped under `pkg` (packages), `file` (standalone tracked files), and `commit` (deploy history/rollback).
 
 ## 🔧 Building
 
 ### Prerequisites
 
-- [Zig](https://ziglang.org/download/) ≥ 0.16.0
-- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
-- `libostree-1` — required for OSTree support (needed when building upac-lib)
-- `libarchive` — required for backends
-- `libglib-2.0`, `libgio-2.0` — pulled in by libostree
+- [Rust](https://www.rust-lang.org/tools/install) (stable — pinned via `rust-toolchain.toml`)
+- [Zig](https://ziglang.org/download/) ≥ 0.16.0 — for the decoders under `decoders/`
+- `libblkid`, `libmount` (`util-linux`) — used by `upac-lib` for filesystem/mount handling
 
-### Build everything
+### Build the Rust workspace
 
 ```sh
-make build
+cargo build --workspace
 ```
 
-By default, builds in **debug** mode. For an optimized release build:
+### Build a decoder
 
 ```sh
-make build MODE=release
+cd decoders/alpm
+zig build
 ```
 
-To target a specific CPU architecture:
-
-```sh
-make build MODE=release CPU=native
-```
-
-### Build individual components
-
-```sh
-make build-lib              # → build/lib/libupac.so
-make build-alpm-backend     # → build/lib/libupac-alpm.so
-make build-rpm-backend      # → build/lib/libupac-rpm.so
-make build-deb-backend      # → build/lib/libupac-deb.so
-make build-xbps-backend     # → build/lib/libupac-xbps.so
-make build-cli              # → build/bin/upac
-```
-
-## 📦 Packaging
-
-> **Note:** Building packages requires the appropriate packaging tools installed on your system.
-
-Build **and** package in one step:
-
-```sh
-make pkg-arch-local   # Arch Linux (.pkg.tar.zst) — requires makepkg
-make pkg-rpm-local    # RPM-based (.rpm)          — requires rpmbuild
-make pkg-deb-local    # Debian-based (.deb)        — requires dpkg-deb
-```
-
-Package only (assumes binaries are already built):
-
-```sh
-make pkg-arch
-make pkg-rpm
-make pkg-deb
-```
-
-### Version syncing
-
-After bumping the version in `cli/Cargo.toml`, sync it across all build files and package specs:
-
-```sh
-make sync
-```
-
-## 🧹 Cleaning
-
-```sh
-make clean          # full cleanup (build artifacts + packages)
-make clean-build    # only compilation results
-make clean-pkg      # only built packages and the package build tree
-```
+> **Note:** packaging (Arch/RPM/deb) and the old `make`-based build pipeline from the Zig implementation have not been ported to this branch yet.

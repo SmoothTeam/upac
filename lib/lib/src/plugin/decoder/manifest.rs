@@ -1,0 +1,43 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+use std::collections::HashMap;
+use std::fs;
+
+use serde::Deserialize;
+
+use crate::plugin::decoder::error::DecoderError;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DecoderManifest {
+    pub format: String,
+    pub extensions: Vec<String>,
+    pub library: String,
+}
+
+pub fn load_decoder_manifests(
+    decoders_dir: &str, manifest_extension: &str,
+) -> Result<HashMap<String, DecoderManifest>, DecoderError> {
+    let mut manifests = HashMap::new();
+
+    for entry in fs::read_dir(decoders_dir)? {
+        let path = entry?.path();
+
+        if path.extension().and_then(|extension| extension.to_str()) != Some(manifest_extension) {
+            continue;
+        }
+
+        let raw = fs::read_to_string(&path)?;
+        let manifest: DecoderManifest = toml::from_str(&raw)?;
+
+        if manifests.contains_key(&manifest.format) {
+            return Err(DecoderError::DuplicateFormat(manifest.format));
+        }
+
+        manifests.insert(manifest.format.clone(), manifest);
+    }
+
+    Ok(manifests)
+}

@@ -1,0 +1,282 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "name"
+msgstr "name"
+
+msgid "version"
+msgstr "version"
+
+msgid "architecture"
+msgstr "architecture"
+
+msgid "author"
+msgstr "author"
+
+msgid "license"
+msgstr "license"
+
+msgid "url"
+msgstr "url"
+
+msgid "packager"
+msgstr "packager"
+
+msgid "size"
+msgstr "size"
+
+msgid "verifying"
+msgstr "Verifying"
+
+msgid "extracting"
+msgstr "Extracting"
+
+msgid "reading_meta"
+msgstr "Reading metadata"
+
+msgid "ready"
+msgstr "Ready"
+
+msgid "failed"
+msgstr "Failed"
+
+msgid "abi_version_mismatch"
+msgstr "ABI version mismatch"
+
+msgid "prepare_failed"
+msgstr "Prepare failed"
+
+msgid "prepare_null_meta"
+msgstr "Backend returned success but null metadata"
+
+msgid "err_unexpected"
+msgstr "Unexpected error"
+
+msgid "err_oom"
+msgstr "Out of memory"
+
+msgid "err_not_found"
+msgstr "File not found"
+
+msgid "err_permission_denied"
+msgstr "Permission denied"
+
+msgid "err_invalid_path"
+msgstr "Invalid path"
+
+msgid "err_tmp_path_encoding"
+msgstr "Temporary directory path contains invalid characters"
+
+msgid "err_no_space"
+msgstr "No space left"
+
+msgid "err_abi_mismatch"
+msgstr "ABI mismatch"
+
+msgid "err_thread"
+msgstr "Thread error"
+
+msgid "err_locked"
+msgstr "Another process is running"
+
+msgid "err_alloc"
+msgstr "Allocation failed"
+
+msgid "err_cancelled"
+msgstr "Cancelled"
+
+msgid "err_max_retries"
+msgstr "Max retries exceeded"
+
+msgid "err_read"
+msgstr "Read failed"
+
+msgid "err_write"
+msgstr "Write failed"
+
+msgid "err_diff"
+msgstr "Diff failed"
+
+msgid "err_list"
+msgstr "List failed"
+
+msgid "err_missing_field"
+msgstr "Missing field"
+
+msgid "err_missing_section"
+msgstr "Missing section"
+
+msgid "err_invalid_entry"
+msgstr "Invalid entry"
+
+msgid "err_parse"
+msgstr "Parse error"
+
+msgid "err_write_db"
+msgstr "Write database failed"
+
+msgid "err_malformed_meta"
+msgstr "Malformed metadata"
+
+msgid "err_malformed_files"
+msgstr "Malformed files"
+
+msgid "err_malformed_idx"
+msgstr "Malformed index entry"
+
+msgid "err_already_installed"
+msgstr "Package already installed"
+
+msgid "err_temp_not_found"
+msgstr "Package temp path not found"
+
+msgid "err_checksum"
+msgstr "Checksum calculation failed"
+
+msgid "err_checkout"
+msgstr "Checkout failed"
+
+msgid "err_install_cancelled"
+msgstr "Install cancelled"
+
+msgid "err_check_space"
+msgstr "Disk space check failed"
+
+msgid "err_make"
+msgstr "Make failed"
+
+msgid "err_write_config"
+msgstr "Write config files failed"
+
+msgid "err_pkg_not_found"
+msgstr "Package not found"
+
+msgid "err_uninstall"
+msgstr "Uninstall failed"
+
+msgid "err_file_map"
+msgstr "File map corrupted"
+
+msgid "err_staging"
+msgstr "Staging not cleaned"
+
+msgid "err_open_repo"
+msgstr "Failed to open repository"
+
+msgid "err_transaction"
+msgstr "Transaction failed"
+
+msgid "err_commit"
+msgstr "Commit failed"
+
+msgid "err_rollback"
+msgstr "Rollback failed"
+
+msgid "err_no_prev_commit"
+msgstr "No previous commit"
+
+msgid "err_staging_checkout"
+msgstr "Staging checkout failed"
+
+msgid "err_atomic_swap"
+msgstr "Atomic swap failed"
+
+msgid "err_commit_not_found"
+msgstr "Commit not found"
+
+msgid "err_cleanup"
+msgstr "Cleanup failed"
+
+msgid "err_repo_write"
+msgstr "Repository write failed"
+
+msgid "err_mtree"
+msgstr "Mtree insert failed"
+
+msgid "err_already_init"
+msgstr "Already initialized"
+
+msgid "err_create_dir"
+msgstr "Failed to create directory"
+
+msgid "err_not_dir"
+msgstr "Not a directory"
+
+msgid "err_init"
+msgstr "Init failed"
+
+msgid "err_dir_not_empty"
+msgstr "Directory not empty"
+
+msgid "err_init_prefix"
+msgstr "Init prefix not found"
+
+msgid "err_init_prefix_extra"
+msgstr "Init additional prefix not found"
+
+msgid "err_file_checksum"
+msgstr "File checksum failed"
+
+msgid "err_file_exists"
+msgstr "File already exists"
+
+msgid "err_unknown"
+msgstr "Unknown error"
+
+msgid "error"
+msgstr "Error"
+
+msgid "err_read_config"
+msgstr "Failed to read config file"
+
+msgid "err_parse_config"
+msgstr "Failed to parse config file"
+
+msgid "err_config_repo_path_empty"
+msgstr "config: paths.repo_path is empty"
+
+msgid "err_config_root_path_empty"
+msgstr "config: paths.root_path is empty"
+
+msgid "err_config_backends_dir_empty"
+msgstr "config: paths.backends_dir is empty"
+
+msgid "err_config_branch_empty"
+msgstr "config: ostree.branch is empty"
+
+msgid "err_config_mode_empty"
+msgstr "config: ostree.mode is empty"
+
+msgid "err_config_mode_invalid"
+msgstr "config: unknown ostree.mode value"
+
+msgid "err_config_symlinks_empty_entry"
+msgstr "config: ostree.symlinks contains an empty entry"
+
+msgid "err_config_symlink_slash"
+msgstr "config: ostree.symlinks entry must be a single path component (no '/')"
+
+msgid "err_no_backend"
+msgstr "no backend found for"
+
+msgid "multiple_found"
+msgstr "Multiple packages found matching"
+
+msgid "choose"
+msgstr "Choose"
+
+msgid "err_invalid_choice"
+msgstr "invalid choice"
+
+msgid "description"
+msgstr "Description"
+
+msgid "checksum"
+msgstr "Checksum"

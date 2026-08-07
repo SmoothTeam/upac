@@ -1,0 +1,282 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+msgid "name"
+msgstr "имя"
+
+msgid "version"
+msgstr "версия"
+
+msgid "architecture"
+msgstr "архитектура"
+
+msgid "author"
+msgstr "автор"
+
+msgid "license"
+msgstr "лицензия"
+
+msgid "url"
+msgstr "сайт"
+
+msgid "packager"
+msgstr "сборщик"
+
+msgid "size"
+msgstr "размер"
+
+msgid "verifying"
+msgstr "Проверка"
+
+msgid "extracting"
+msgstr "Извлечение"
+
+msgid "reading_meta"
+msgstr "Чтение метаданных"
+
+msgid "ready"
+msgstr "Готово"
+
+msgid "failed"
+msgstr "Ошибка"
+
+msgid "abi_version_mismatch"
+msgstr "Несовпадение версии ABI"
+
+msgid "prepare_failed"
+msgstr "Ошибка подготовки"
+
+msgid "prepare_null_meta"
+msgstr "Бэкенд вернул успех, но метаданные пусты"
+
+msgid "err_unexpected"
+msgstr "Неожиданная ошибка"
+
+msgid "err_oom"
+msgstr "Недостаточно памяти"
+
+msgid "err_not_found"
+msgstr "Файл не найден"
+
+msgid "err_permission_denied"
+msgstr "Доступ запрещён"
+
+msgid "err_invalid_path"
+msgstr "Неверный путь"
+
+msgid "err_tmp_path_encoding"
+msgstr "Путь к временной директории содержит недопустимые символы"
+
+msgid "err_no_space"
+msgstr "Нет свободного места"
+
+msgid "err_abi_mismatch"
+msgstr "Несовпадение ABI"
+
+msgid "err_thread"
+msgstr "Ошибка потока"
+
+msgid "err_locked"
+msgstr "Другой процесс уже запущен"
+
+msgid "err_alloc"
+msgstr "Ошибка выделения памяти"
+
+msgid "err_cancelled"
+msgstr "Отменено"
+
+msgid "err_max_retries"
+msgstr "Превышено число попыток"
+
+msgid "err_read"
+msgstr "Ошибка чтения"
+
+msgid "err_write"
+msgstr "Ошибка записи"
+
+msgid "err_diff"
+msgstr "Ошибка сравнения"
+
+msgid "err_list"
+msgstr "Ошибка получения списка"
+
+msgid "err_missing_field"
+msgstr "Отсутствует поле"
+
+msgid "err_missing_section"
+msgstr "Отсутствует секция"
+
+msgid "err_invalid_entry"
+msgstr "Некорректная запись"
+
+msgid "err_parse"
+msgstr "Ошибка разбора"
+
+msgid "err_write_db"
+msgstr "Ошибка записи базы данных"
+
+msgid "err_malformed_meta"
+msgstr "Повреждённые метаданные"
+
+msgid "err_malformed_files"
+msgstr "Повреждённые файлы"
+
+msgid "err_malformed_idx"
+msgstr "Повреждённая запись индекса"
+
+msgid "err_already_installed"
+msgstr "Пакет уже установлен"
+
+msgid "err_temp_not_found"
+msgstr "Временный путь пакета не найден"
+
+msgid "err_checksum"
+msgstr "Ошибка вычисления контрольной суммы"
+
+msgid "err_checkout"
+msgstr "Ошибка извлечения"
+
+msgid "err_install_cancelled"
+msgstr "Установка отменена"
+
+msgid "err_check_space"
+msgstr "Ошибка проверки места на диске"
+
+msgid "err_make"
+msgstr "Ошибка сборки"
+
+msgid "err_write_config"
+msgstr "Ошибка записи конфигурационных файлов"
+
+msgid "err_pkg_not_found"
+msgstr "Пакет не найден"
+
+msgid "err_uninstall"
+msgstr "Ошибка удаления"
+
+msgid "err_file_map"
+msgstr "Карта файлов повреждена"
+
+msgid "err_staging"
+msgstr "Промежуточная область не очищена"
+
+msgid "err_open_repo"
+msgstr "Не удалось открыть репозиторий"
+
+msgid "err_transaction"
+msgstr "Ошибка транзакции"
+
+msgid "err_commit"
+msgstr "Ошибка коммита"
+
+msgid "err_rollback"
+msgstr "Ошибка отката"
+
+msgid "err_no_prev_commit"
+msgstr "Нет предыдущего коммита"
+
+msgid "err_staging_checkout"
+msgstr "Ошибка извлечения промежуточной области"
+
+msgid "err_atomic_swap"
+msgstr "Ошибка атомарной замены"
+
+msgid "err_commit_not_found"
+msgstr "Коммит не найден"
+
+msgid "err_cleanup"
+msgstr "Ошибка очистки"
+
+msgid "err_repo_write"
+msgstr "Ошибка записи репозитория"
+
+msgid "err_mtree"
+msgstr "Ошибка вставки в mtree"
+
+msgid "err_already_init"
+msgstr "Уже инициализировано"
+
+msgid "err_create_dir"
+msgstr "Не удалось создать директорию"
+
+msgid "err_not_dir"
+msgstr "Не является директорией"
+
+msgid "err_init"
+msgstr "Ошибка инициализации"
+
+msgid "err_dir_not_empty"
+msgstr "Директория не пуста"
+
+msgid "err_init_prefix"
+msgstr "Префикс инициализации не найден"
+
+msgid "err_init_prefix_extra"
+msgstr "Дополнительный префикс инициализации не найден"
+
+msgid "err_file_checksum"
+msgstr "Ошибка контрольной суммы файла"
+
+msgid "err_file_exists"
+msgstr "Файл уже существует"
+
+msgid "err_unknown"
+msgstr "Неизвестная ошибка"
+
+msgid "error"
+msgstr "Ошибка"
+
+msgid "err_read_config"
+msgstr "Не удалось прочитать файл конфигурации"
+
+msgid "err_parse_config"
+msgstr "Не удалось разобрать файл конфигурации"
+
+msgid "err_config_repo_path_empty"
+msgstr "config: paths.repo_path не заполнено"
+
+msgid "err_config_root_path_empty"
+msgstr "config: paths.root_path не заполнено"
+
+msgid "err_config_backends_dir_empty"
+msgstr "config: paths.backends_dir не заполнено"
+
+msgid "err_config_branch_empty"
+msgstr "config: ostree.branch не заполнено"
+
+msgid "err_config_mode_empty"
+msgstr "config: ostree.mode не заполнено"
+
+msgid "err_config_mode_invalid"
+msgstr "config: неизвестное значение ostree.mode"
+
+msgid "err_config_symlinks_empty_entry"
+msgstr "config: ostree.symlinks содержит пустую запись"
+
+msgid "err_config_symlink_slash"
+msgstr "config: запись в ostree.symlinks должна быть одним компонентом пути (без '/')"
+
+msgid "err_no_backend"
+msgstr "бэкенд не найден для"
+
+msgid "multiple_found"
+msgstr "Найдено несколько пакетов для"
+
+msgid "choose"
+msgstr "Выберите"
+
+msgid "err_invalid_choice"
+msgstr "неверный выбор"
+
+msgid "description"
+msgstr "Описание"
+
+msgid "checksum"
+msgstr "Контрольная сумма"
