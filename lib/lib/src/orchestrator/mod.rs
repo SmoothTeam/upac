@@ -190,7 +190,12 @@ where
         let mut previous = None;
 
         while let Some(index) = cursor.next(context, cancel, previous.take())? {
-            previous = Some(Self::run_stage(cursor.stages()[index].as_ref(), index, context, cancel)?);
+            previous = Some(Self::run_stage(
+                cursor.stages()[index].as_ref(),
+                index,
+                context,
+                cancel,
+            )?);
         }
 
         Ok(())

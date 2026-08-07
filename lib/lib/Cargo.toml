@@ -28,6 +28,7 @@ rsmount = "0.2"
 nix = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
 libloading = "0.9"
 
+anyhow = "1"
 composefs = { version = "0.7.0", features = ["tempfile"] }
 composefs-boot = { version = "0.7.0" }
 composefs-oci = { version = "0.7.0", features = ["composefs-boot", "boot", "tar"] }
