@@ -121,6 +121,12 @@ impl Context {
     }
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub trait Orchestrator<E>: Sized {
     fn run_exclusive(self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>>;
 
@@ -184,14 +190,14 @@ where
         let mut previous = None;
 
         while let Some(index) = cursor.next(context, cancel, previous.take())? {
-            previous = Some(Self::run_stage(&cursor.stages()[index], index, context, cancel)?);
+            previous = Some(Self::run_stage(cursor.stages()[index].as_ref(), index, context, cancel)?);
         }
 
         Ok(())
     }
 
     fn run_stage(
-        stage: &Box<dyn Stage<E>>, index: usize, context: &mut Context, cancel: &CancelToken,
+        stage: &dyn Stage<E>, index: usize, context: &mut Context, cancel: &CancelToken,
     ) -> Result<StageResult, (usize, E)> {
         let progress = ProgressEventBuilder::new(index as u32);
 

@@ -130,6 +130,12 @@ impl CancelToken {
     }
 }
 
+impl Default for CancelToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[repr(C)]
 pub struct CHookPreInstall {
     pub packages_count: u32,
