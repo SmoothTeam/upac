@@ -151,13 +151,13 @@ fn field_codec(ident: &Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
 fn codec_impl(name: &Ident, encodes: &[TokenStream2], decodes: &[TokenStream2], names: &[Ident]) -> TokenStream2 {
     quote! {
         impl #name {
-            pub(crate) fn to_json(&self) -> serde_json::Value {
+            pub fn to_json(&self) -> serde_json::Value {
                 let mut object = serde_json::Map::new();
                 #(#encodes)*
                 serde_json::Value::Object(object)
             }
 
-            pub(crate) fn from_json(value: &serde_json::Value) -> Result<#name, crate::database::error::DeployRecordError> {
+            pub fn from_json(value: &serde_json::Value) -> Result<#name, crate::database::error::DeployRecordError> {
                 let object = value.as_object().ok_or(crate::database::error::DeployRecordError::InvalidField)?;
                 #(#decodes)*
 
