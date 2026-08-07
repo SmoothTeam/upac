@@ -3,9 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use composefs::MAX_INLINE_CONTENT;
 use composefs::generic_tree::{Inode, Stat};
@@ -23,6 +24,15 @@ impl FileHandle {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self { path: path.into() }
     }
+
+    pub fn from_tree(tree: &FileSystem<ObjectID>, path: impl Into<PathBuf>) -> Result<Self, RepoError> {
+        let path = path.into();
+
+        let (parent, filename) = tree.root.split(path.as_os_str())?;
+        parent.lookup(filename).ok_or(RepoError::NotFound)?;
+
+        Ok(Self { path })
+    }
 }
 
 impl FileHandle {
@@ -35,6 +45,27 @@ impl FileHandle {
 
     pub fn update_in_tree(&self, tree: &mut FileSystem<ObjectID>, stat: Stat) -> Result<(), RepoError> {
         tree.root.get_directory_mut(self.path.as_os_str())?.stat = stat;
+
+        Ok(())
+    }
+
+    pub fn symlink_in_tree(
+        &self, tree: &mut FileSystem<ObjectID>, target: impl AsRef<OsStr>, stat: Stat,
+    ) -> Result<(), RepoError> {
+        let leaf_id = tree.push_leaf(stat, LeafContent::Symlink(target.as_ref().into()));
+
+        let (parent, filename) = tree.root.split_mut(self.path.as_os_str())?;
+        parent.insert(filename, Inode::leaf(leaf_id));
+
+        Ok(())
+    }
+
+    pub fn hardlink_in_tree(&self, tree: &mut FileSystem<ObjectID>, source: &Path) -> Result<(), RepoError> {
+        let (source_parent, source_filename) = tree.root.split(source.as_os_str())?;
+        let leaf_id = source_parent.leaf_id(source_filename)?;
+
+        let (parent, filename) = tree.root.split_mut(self.path.as_os_str())?;
+        parent.insert(filename, Inode::leaf(leaf_id));
 
         Ok(())
     }
