@@ -1,7 +1,7 @@
 version = 1
 
 [[annotations]]
-path = [".gitignore", "rustfmt.toml", "rust-toolchain.toml", "Cargo.toml", "README.md", "CHANGELOG.md"]
+path = [".gitignore", "rustfmt.toml", "rust-toolchain.toml", "Cargo.toml", "README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md"]
 SPDX-FileCopyrightText = "JustPav"
 SPDX-License-Identifier = "GPL-3.0-only"
 

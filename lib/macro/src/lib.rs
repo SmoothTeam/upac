@@ -13,6 +13,7 @@
 //!   CValidate      - unsafe validate() checking struct_size + every field
 //!   FromStageIndex - orchestrator stage index -> enum variant (by position)
 //!   RedbCodec      - encode_into()/decode_from() for the redb key-value store
+//!   JsonCodec      - to_json()/from_json() for on-disk records outside the redb DB
 //!
 //! `#[proc_macro_derive]` functions must live at the crate root, so each of
 //! the derives below is a thin wrapper delegating into its own module, which
@@ -26,6 +27,7 @@ mod c_try_to_rust;
 mod c_validate;
 mod common;
 mod from_stage_index;
+mod json_codec;
 mod redb_codec;
 mod rust_to_c;
 
@@ -62,4 +64,9 @@ pub fn derive_from_stage_index(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(RedbCodec)]
 pub fn derive_redb_codec(input: TokenStream) -> TokenStream {
     redb_codec::expand(input)
+}
+
+#[proc_macro_derive(JsonCodec)]
+pub fn derive_json_codec(input: TokenStream) -> TokenStream {
+    json_codec::expand(input)
 }

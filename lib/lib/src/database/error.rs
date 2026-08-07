@@ -98,3 +98,39 @@ impl From<DatabaseError> for ErrorKind {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeployRecordError {
+    NotFound,
+    AccessDenied,
+    MalformedJson,
+    InvalidField,
+    WriteFailed,
+}
+
+impl From<IoError> for DeployRecordError {
+    fn from(error: IoError) -> Self {
+        match error.kind() {
+            std::io::ErrorKind::NotFound => DeployRecordError::NotFound,
+            std::io::ErrorKind::PermissionDenied => DeployRecordError::AccessDenied,
+            _ => DeployRecordError::WriteFailed,
+        }
+    }
+}
+
+impl From<serde_json::Error> for DeployRecordError {
+    fn from(_: serde_json::Error) -> Self {
+        DeployRecordError::MalformedJson
+    }
+}
+
+impl From<DeployRecordError> for ErrorKind {
+    fn from(error: DeployRecordError) -> Self {
+        match error {
+            DeployRecordError::NotFound => ErrorKind::NotFound,
+            DeployRecordError::AccessDenied => ErrorKind::PermissionDenied,
+            DeployRecordError::MalformedJson | DeployRecordError::InvalidField => ErrorKind::ReadFailed,
+            DeployRecordError::WriteFailed => ErrorKind::WriteFailed,
+        }
+    }
+}

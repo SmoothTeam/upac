@@ -15,14 +15,15 @@ files_by_path_table_name = "files_by_path"
 packages_meta_type_name = "upac::PackageMeta"
 files_entry_type_name = "upac::FileEntry"
 
-# Names of the well-known directories on the deployment partition (deploys +
-# ostree repo). Changing a name means existing installs stop finding their
-# deploys/repo on upgrade.
+# Names of the well-known directories on the deployment partition (deploy
+# records + composefs repo, see doc §3). Changing a name means existing
+# installs stop finding their deploys/repo on upgrade.
 [deployment]
 root_dir = "/"
-deploys_dir = "deploys"
-repo_dir = "ostree-repo"
+deploys_dir = "state/deploy"
+repo_dir = "composefs"
 sysroot_dir = "sysroot"
+record_filename = "meta.json"
 
 # Name of the abstract Unix socket address upac uses to hold its exclusive
 # process lock (bind() on this address — a second concurrent upac gets
