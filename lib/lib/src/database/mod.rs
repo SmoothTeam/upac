@@ -24,6 +24,7 @@ use self::error::DatabaseError;
 pub mod error;
 pub mod files;
 pub mod meta;
+pub mod record;
 
 pub(crate) const PACKAGES_UUID_TABLE: TableDefinition<Uuid, PackageMeta> = TableDefinition::new(PACKAGES_TABLE_NAME);
 pub(crate) const PACKAGES_HASH_TABLE: TableDefinition<u64, Uuid> = TableDefinition::new(PACKAGES_BY_NAME_TABLE_NAME);

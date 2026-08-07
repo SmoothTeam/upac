@@ -23,6 +23,7 @@ root_dir = "/"
 deploys_dir = "state/deploy"
 repo_dir = "composefs"
 sysroot_dir = "sysroot"
+record_filename = "meta.json"
 
 # Name of the abstract Unix socket address upac uses to hold its exclusive
 # process lock (bind() on this address — a second concurrent upac gets

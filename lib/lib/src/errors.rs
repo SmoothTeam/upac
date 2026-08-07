@@ -8,7 +8,7 @@ use std::io::ErrorKind as IoErrorKind;
 use upac_abi::error::ErrorKind;
 
 use crate::composefs::error::RepoError;
-use crate::database::error::DatabaseError;
+use crate::database::error::{DatabaseError, DeployRecordError};
 use crate::deploy::error::SysrootError;
 use crate::lock::LockError;
 use crate::plugin::decoder::error::DecoderError;
@@ -58,6 +58,17 @@ macro_rules! lock_error_from {
 }
 pub(crate) use lock_error_from;
 
+macro_rules! deploy_record_error_from {
+    ($name:ident) => {
+        impl From<DeployRecordError> for $name {
+            fn from(error: DeployRecordError) -> Self {
+                $name::Common(CommonError::DeployRecord(error))
+            }
+        }
+    };
+}
+pub(crate) use deploy_record_error_from;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonError {
     OutOfMemory,
@@ -74,6 +85,7 @@ pub enum CommonError {
     Database(DatabaseError),
     Sysroot(SysrootError),
     Lock(LockError),
+    DeployRecord(DeployRecordError),
 }
 
 impl From<CommonError> for ErrorKind {
@@ -93,6 +105,7 @@ impl From<CommonError> for ErrorKind {
             CommonError::Database(database_error) => database_error.into(),
             CommonError::Sysroot(sysroot_error) => sysroot_error.into(),
             CommonError::Lock(lock_error) => lock_error.into(),
+            CommonError::DeployRecord(deploy_record_error) => deploy_record_error.into(),
         }
     }
 }
@@ -130,5 +143,11 @@ impl From<SysrootError> for CommonError {
 impl From<LockError> for CommonError {
     fn from(error: LockError) -> Self {
         CommonError::Lock(error)
+    }
+}
+
+impl From<DeployRecordError> for CommonError {
+    fn from(error: DeployRecordError) -> Self {
+        CommonError::DeployRecord(error)
     }
 }
