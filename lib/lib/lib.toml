@@ -24,12 +24,17 @@ database_path = "share/upac/packages.redb"
 # Names of the well-known directories on the deployment partition (deploy
 # records + composefs repo, see doc §3). Changing a name means existing
 # installs stop finding their deploys/repo on upgrade.
+#
+# usr_digest_cmdline_param names the kernel cmdline parameter written at boot
+# entry creation (§5.2, "composefs.digest=D'") and read back at runtime to
+# resolve the currently booted usr-digest — one name shared by both sides.
 [deployment]
 root_dir = "/"
 deploys_dir = "state/deploy"
 repo_dir = "composefs"
 sysroot_dir = "sysroot"
 record_filename = "meta.json"
+usr_digest_cmdline_param = "composefs.digest"
 
 # Name of the abstract Unix socket address upac uses to hold its exclusive
 # process lock (bind() on this address — a second concurrent upac gets

@@ -21,6 +21,7 @@ use crate::composefs::error::RepoError;
 use crate::composefs::repository::{self, ObjectID};
 use crate::types::deployment::{DEPLOYS_DIR, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
 
+pub mod digest;
 pub mod error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
