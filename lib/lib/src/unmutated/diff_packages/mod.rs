@@ -15,8 +15,8 @@ use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::types::DiffPackageEntry;
 use crate::types::states::DiffPackagesStateId;
-use crate::types::{Branch, DiffPackageEntry};
 
 mod comparing;
 mod error;
@@ -25,8 +25,6 @@ mod preparing;
 pub struct DiffPackagesData<'a> {
     pub from_commit_hash: Option<&'a str>,
     pub to_commit_hash: Option<&'a str>,
-
-    pub branch: &'a str,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -46,8 +44,6 @@ impl<'a> TryFrom<&'a CDiffPackagesRequest> for DiffPackagesData<'a> {
             from_commit_hash: (&request.from_commit_hash).try_into()?,
             to_commit_hash: (&request.to_commit_hash).try_into()?,
 
-            branch: (&request.base.branch).try_into()?,
-
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
@@ -62,7 +58,6 @@ fn assemble() -> SequentialOrchestrator<DiffPackagesError> {
 
 pub fn run(data: DiffPackagesData) -> Result<(Vec<DiffPackageEntry>,), (DiffPackagesStateId, DiffPackagesError)> {
     let mut context = Context::new();
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

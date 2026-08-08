@@ -14,15 +14,13 @@ pub use self::error::ListHistoryError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::types::HistoryEntry;
 use crate::types::states::ListHistoryStateId;
-use crate::types::{Branch, HistoryEntry};
 
 mod error;
 mod fetching;
 
 pub struct ListHistoryData<'a> {
-    pub branch: &'a str,
-
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
@@ -38,8 +36,6 @@ impl<'a> TryFrom<&'a CListHistoryRequest> for ListHistoryData<'a> {
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(ListHistoryData {
-            branch: (&request.base.branch).try_into()?,
-
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
@@ -54,7 +50,6 @@ fn assemble() -> SequentialOrchestrator<ListHistoryError> {
 
 pub fn run(data: ListHistoryData) -> Result<(Vec<HistoryEntry>,), (ListHistoryStateId, ListHistoryError)> {
     let mut context = Context::new();
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

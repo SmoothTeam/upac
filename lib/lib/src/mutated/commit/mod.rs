@@ -16,15 +16,13 @@ use self::transaction::TransactionStage;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
+use crate::types::TmpPath;
 use crate::types::states::CommitStateId;
-use crate::types::{Branch, TmpPath};
 
 mod error;
 mod transaction;
 
 pub struct CommitData<'a> {
-    pub branch: &'a str,
-
     pub tmp_path: &'a str,
 
     pub subject: &'a str,
@@ -45,8 +43,6 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(CommitData {
-            branch: (&request.base.branch).try_into()?,
-
             tmp_path: (&request.tmp_path).try_into()?,
 
             subject: (&request.subject).try_into()?,
@@ -75,7 +71,6 @@ fn assemble() -> SequentialOrchestrator<CommitError> {
 pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {
     let mut context = Context::new();
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

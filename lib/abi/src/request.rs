@@ -18,8 +18,6 @@ use crate::types::{CSlice, CVec, check_size};
 pub struct CRequestBase {
     pub struct_size: usize,
 
-    pub branch: CSlice,
-
     pub on_hook: Option<HookMessageFn>,
     pub hook_ctx: *mut c_void,
 

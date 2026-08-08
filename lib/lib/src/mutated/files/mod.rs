@@ -20,8 +20,8 @@ use self::transaction::TransactionStage;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
+use crate::types::TmpPath;
 use crate::types::states::FilesStateId;
-use crate::types::{Branch, TmpPath};
 
 mod checkout;
 mod error;
@@ -32,8 +32,6 @@ pub struct FilesData<'a> {
     pub files: Vec<&'a str>,
     pub file_kind: DiffKind,
     pub file_package: &'a CPackageInfo,
-
-    pub branch: &'a str,
 
     pub tmp_path: &'a str,
 
@@ -59,8 +57,6 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
             files: Vec::try_from(&request.files)?,
             file_kind: request.file_kind,
             file_package,
-
-            branch: (&request.base.branch).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
 
@@ -92,7 +88,6 @@ fn assemble() -> SequentialOrchestrator<FilesError> {
 pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
     let mut context = Context::new();
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

@@ -18,8 +18,8 @@ use self::swap::SwapStage;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
+use crate::types::TmpPath;
 use crate::types::states::RollbackStateId;
-use crate::types::{Branch, TmpPath};
 
 mod checkout;
 mod error;
@@ -28,8 +28,6 @@ mod swap;
 
 pub struct RollbackData<'a> {
     pub commit_hash: &'a str,
-
-    pub branch: &'a str,
 
     pub tmp_path: &'a str,
 
@@ -49,8 +47,6 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
 
         Ok(RollbackData {
             commit_hash: (&request.commit_hash).try_into()?,
-
-            branch: (&request.base.branch).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
 
@@ -79,7 +75,6 @@ fn assemble() -> SequentialOrchestrator<RollbackError> {
 pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
     let mut context = Context::new();
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

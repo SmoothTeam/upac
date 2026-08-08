@@ -21,7 +21,7 @@ use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mut
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
 use crate::types::states::UpdateStateId;
-use crate::types::{Branch, PackageTemp, TmpPath};
+use crate::types::{PackageTemp, TmpPath};
 
 mod checkout;
 mod error;
@@ -32,8 +32,6 @@ mod transaction;
 
 pub struct UpdateData<'a> {
     pub packages: Vec<PackageTemp>,
-
-    pub branch: &'a str,
 
     pub tmp_path: &'a str,
 
@@ -56,8 +54,6 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
 
         Ok(UpdateData {
             packages: Vec::try_from(&request.packages)?,
-
-            branch: (&request.base.branch).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
 
@@ -92,7 +88,6 @@ pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
     let mut context = Context::new();
     context.put(data.packages);
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

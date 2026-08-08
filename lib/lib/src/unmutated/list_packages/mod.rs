@@ -14,15 +14,13 @@ pub use self::error::ListPackagesError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::types::PackageMeta;
 use crate::types::states::ListPackagesStateId;
-use crate::types::{Branch, PackageMeta};
 
 mod error;
 mod fetching;
 
 pub struct ListPackagesData<'a> {
-    pub branch: &'a str,
-
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
@@ -38,8 +36,6 @@ impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(ListPackagesData {
-            branch: (&request.base.branch).try_into()?,
-
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
@@ -54,7 +50,6 @@ fn assemble() -> SequentialOrchestrator<ListPackagesError> {
 
 pub fn run(data: ListPackagesData) -> Result<(Vec<PackageMeta>,), (ListPackagesStateId, ListPackagesError)> {
     let mut context = Context::new();
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

@@ -180,10 +180,6 @@ pub struct TmpPath(pub String);
 
 as_str_method!(TmpPath);
 
-pub struct Branch(pub String);
-
-as_str_method!(Branch);
-
 #[cfg(test)]
 mod tests {
     use super::*;
