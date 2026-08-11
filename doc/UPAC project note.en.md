@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 JustPav
+
+SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 # UPAC — Project Document
 
 Project document.
