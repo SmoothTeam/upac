@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+[package]
+name = "upac-xtask"
+version = "0.1.0"
+
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
+
+[workspace]
+# Empty on purpose: this marks xtask as its OWN workspace root, so Cargo's
+# implicit member auto-discovery doesn't pull it into the root workspace
+# (which would otherwise force it onto the same MSRV/edition as every
+# other crate here).
