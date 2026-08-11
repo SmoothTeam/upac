@@ -20,14 +20,23 @@ A modular package management library for Linux systems with composefs-based atom
 
 The library is intentionally split into independent components: decoders handle format-specific unpacking, the core library handles installation and database operations, and everything crosses the FFI boundary through a shared `upac-abi` crate.
 
+It covers the disk layout, the deploy/rollback model, the `/etc` merge, GC, the FFI boundary, and the planned module structure.
+
 ## 📖 Design
 
-Full architecture and design decisions live in the project design note:
+Full architecture and design decisions live in the project design notes:
 
-- [`doc/UPAC_project_note.en.md`](<doc/UPAC project note.en.md>) — English (canonical)
-- [`doc/UPAC_project_note.md`](<doc/UPAC project note.md>) — Russian
+- [`Project note en.md`](<doc/UPAC project note.en.md>) — English (canonical);
 
-It covers the disk layout, the deploy/rollback model, the `/etc` merge, GC, the FFI boundary, and the planned module structure.
+For russian:
+1. [`Вступление и определения`](<doc/rus/Upac chapter 0.md>);
+2. [`Постановка задач`](<doc/rus/Upac chapter 1.md>);
+3. [`Определение того, чем проект НЕ является (Non-goals)`](<doc/rus/Upac chapter 2.md>);
+4. [`Структура диска`](<doc/rus/Upac chapter 3.md>);
+5. [`Структура репозитория проекта`](<doc/rus/Upac chapter 4.md>);
+6. [`Механизмы работы`](<doc/rus/Upac chapter 5.md>);
+7. [`FFI и границы взаимодействия составных частей`](<doc/rus/Upac chapter 6.md>);
+8. [`Модули программы`](<doc/rus/Upac chapter 7.md>).
 
 ## 🚀 Usage
 
