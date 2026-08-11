@@ -29,10 +29,3 @@ sha2       = { version = "0.11" }
 hex        = { version = "0.4" }
 ctrlc      = { version = "3.5.2", features = ["termination"] }
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
-
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-strip = true
-panic = "abort"

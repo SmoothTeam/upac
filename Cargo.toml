@@ -19,5 +19,8 @@ quote = "1"
 proc-macro2 = "1"
 
 [profile.release]
-lto = true
+opt-level = 3
+lto = "fat"
 codegen-units = 1
+strip = true
+panic = "abort"

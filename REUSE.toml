@@ -11,6 +11,16 @@ SPDX-FileCopyrightText = "JustPav"
 SPDX-License-Identifier = "GPL-3.0-only"
 
 [[annotations]]
+path = ".cargo/**"
+SPDX-FileCopyrightText = "JustPav"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+[[annotations]]
+path = ["**/Cargo.lock"]
+SPDX-FileCopyrightText = "JustPav"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+[[annotations]]
 path = "doc/**"
 SPDX-FileCopyrightText = "JustPav"
 SPDX-License-Identifier = "CC-BY-SA-4.0"

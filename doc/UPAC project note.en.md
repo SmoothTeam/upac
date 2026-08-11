@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 JustPav
+
+SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 # UPAC — Project Document
 
 Project document.
@@ -46,8 +52,8 @@ Terms the rest of the document operates with.
 
 - **Content-addressed store (CAS)** — storage where a file is addressed by the hash of its content, not by name; identical files are stored once (deduplication).
 - **Image** — a whole content-addressed snapshot of a file tree (`/usr` or `/etc`) at a specific version.
-- **Digest** — an image's hash, its identity; names the deploy in the cmdline.
-- **Deployment** — a specific deployed version of the system; in this model = a pair `(usr-digest, etc-digest)`.
+- **Digest** — an image's hash, its identity.
+- **Deployment** — a specific deployed version of the system; in this model = a pair `(usr-digest, etc-digest)`, but an asymmetric one: `usr` is primary and externally addressable — it's what the boot cmdline names (`composefs.digest=<usr-digest>`, §5.2) and what keys `state/deploy/<usr-digest>/` (§3, §5.7); `etc` is secondary and resolved from *inside* that usr's own record (its `working_etc` field, §5.7), never carried as its own cmdline parameter. Cmdline tells you "which usr"; "which etc" follows from that record, not from cmdline directly.
 - **Ref** — a human-readable named pointer to an image.
 - **overlay (lower / upper)** — stacking a writable layer (upper) over a read-only one (lower); this is how the live `/etc` sits over the image.
 - **fs-verity** — a kernel feature that cryptographically attests a file's content and catches any change to it.
@@ -241,6 +247,10 @@ Rollback is built on a one-shot boot choice plus a late confirmation that the sy
 2. Reboot: the bootloader boots D' once, the one-shot variable is cleared. initramfs mounts the digest from the cmdline (composefs overlay), then pivot and PID1.
 3. The system reached a healthy state — a late hook / init unit makes D' the persistent default and marks the **pair as working**: it updates the current `/usr`'s `working_etc` (§5.7). This is the confirmation.
 4. The confirmation did not fire (the system went down earlier, for any reason) — the one-shot variable is already cleared, so the next boot goes to the persistent default, i.e. the previous deploy. This is the auto-rollback.
+
+**D' is the usr-digest, not a combined pair.** `composefs.digest=D'` carries exactly the `usr-digest` — the same value that keys `state/deploy/<usr-digest>/` and that `open_tree()` (see composefs module, §7) takes directly, with no translation step. This is also how "the currently running deploy" gets resolved at runtime with no separate pointer file on disk (§5.7 calls this out too: "the active deploy is a separate pointer — the booted `composefs.digest` / boot default"): read `/proc/cmdline`, pull `composefs.digest`, that's the usr-digest. The `etc` side of the pair is deliberately NOT in cmdline — once the usr-digest is known, its `state/deploy/<usr-digest>/meta.json` is read for `working_etc` (§5.7), which names the currently confirmed `etc-digest`.
+
+**Why an unrecognized parameter like `composefs.digest=` survives in `/proc/cmdline` at all.** `/proc/cmdline` is not a filtered view of parameters the kernel understands — it's the raw, untouched string the bootloader handed the kernel. When the kernel's argument parser meets a parameter it doesn't recognize, it does not drop it; it logs "Unknown kernel command line parameters ..., will be passed to user space" and leaves the string intact for `/proc/cmdline` and PID 1's own cmdline. This is standard, relied-upon kernel behavior — it's exactly how `systemd.*`, dracut's `rd.*`, `luks.uuid=`, and OSTree's own `ostree=` already work: none of them are kernel parameters either, all of them are userspace-only, all of them survive the same way.
 
 **Rollback tiers** (which level catches what):
 

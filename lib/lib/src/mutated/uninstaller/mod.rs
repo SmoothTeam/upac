@@ -15,7 +15,7 @@ use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mut
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
 use crate::types::states::UninstallStateId;
-use crate::types::{Branch, PackageEntry, Targets, TmpPath};
+use crate::types::{PackageEntry, Targets, TmpPath};
 
 pub use self::error::UninstallError;
 
@@ -57,8 +57,6 @@ impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
 pub struct UninstallData<'a> {
     pub packages: Vec<UninstallPackage<'a>>,
 
-    pub branch: &'a str,
-
     pub tmp_path: &'a str,
 
     pub subject: &'a str,
@@ -80,8 +78,6 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
 
         Ok(UninstallData {
             packages: Vec::try_from(&request.packages)?,
-
-            branch: (&request.base.branch).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
 
@@ -132,7 +128,6 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     context.put(targets);
     context.put(deploy);
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

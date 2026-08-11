@@ -14,15 +14,13 @@ pub use self::error::ListPrefixError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::types::PrefixEntry;
 use crate::types::states::ListPrefixStateId;
-use crate::types::{Branch, PrefixEntry};
 
 mod error;
 mod fetching;
 
 pub struct ListPrefixData<'a> {
-    pub branch: &'a str,
-
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
@@ -38,8 +36,6 @@ impl<'a> TryFrom<&'a CListPrefixRequest> for ListPrefixData<'a> {
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(ListPrefixData {
-            branch: (&request.base.branch).try_into()?,
-
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
 
@@ -54,7 +50,6 @@ fn assemble() -> SequentialOrchestrator<ListPrefixError> {
 
 pub fn run(data: ListPrefixData) -> Result<(Vec<PrefixEntry>,), (ListPrefixStateId, ListPrefixError)> {
     let mut context = Context::new();
-    context.put(Branch(data.branch.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
