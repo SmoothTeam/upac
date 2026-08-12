@@ -3,22 +3,21 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use der::{Decode, Encode};
-use x509_cert::Certificate;
-
 use upac_pki::error::PkiError;
-use upac_pki::generate::{Identity, SigningIdentity, generate_root, generate_signing_cert};
+use upac_pki::generate::{Identity, RootIdentity, SigningIdentity, generate_root, generate_signing_cert};
 use upac_pki::signature::{HookSignature, RootCertificate};
 
-fn root_certificate_of(certificate: &Certificate) -> RootCertificate {
-    RootCertificate(Certificate::from_der(&certificate.to_der().unwrap()).unwrap())
+fn root_certificate_of(root: &RootIdentity) -> RootCertificate {
+    let certificate_der = root.to_bytes().unwrap().certificate_der;
+
+    RootCertificate::from_bytes(&certificate_der).unwrap()
 }
 
 fn signing_identity() -> (SigningIdentity, RootCertificate) {
     let root = generate_root("upac test root").unwrap();
     let signing = generate_signing_cert("upac test signer", &root).unwrap();
 
-    (signing, root_certificate_of(&root.certificate))
+    (signing, root_certificate_of(&root))
 }
 
 #[test]
@@ -48,7 +47,7 @@ fn verify_fails_with_unrelated_root() {
     let hook_bytes = b"#!/bin/sh\necho hook";
 
     let signature = HookSignature::sign(hook_bytes, &signing).unwrap();
-    let result = signature.verify(hook_bytes, &root_certificate_of(&unrelated_root.certificate));
+    let result = signature.verify(hook_bytes, &root_certificate_of(&unrelated_root));
 
     assert_eq!(result, Err(PkiError::InvalidSignature));
 }
