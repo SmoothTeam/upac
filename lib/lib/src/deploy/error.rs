@@ -20,7 +20,7 @@ pub enum SysrootError {
     RepoDirNotFound,
     ProbeUnavailable,
     FilesystemTypeNotFound,
-    CurrentUsrDigestNotFound,
+    CurrentPrefixDigestNotFound,
     System(Errno),
 }
 
@@ -56,7 +56,7 @@ impl From<Errno> for SysrootError {
 
 impl From<anyhow::Error> for SysrootError {
     fn from(_: anyhow::Error) -> Self {
-        SysrootError::CurrentUsrDigestNotFound
+        SysrootError::CurrentPrefixDigestNotFound
     }
 }
 
@@ -71,7 +71,7 @@ impl From<SysrootError> for ErrorKind {
             SysrootError::RepoDirNotFound => ErrorKind::NotFound,
             SysrootError::ProbeUnavailable => ErrorKind::Unexpected,
             SysrootError::FilesystemTypeNotFound => ErrorKind::NotFound,
-            SysrootError::CurrentUsrDigestNotFound => ErrorKind::NotFound,
+            SysrootError::CurrentPrefixDigestNotFound => ErrorKind::NotFound,
             SysrootError::System(_) => ErrorKind::Unexpected,
         }
     }

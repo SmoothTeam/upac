@@ -80,8 +80,8 @@ impl Deploy {
         Ok(Self { sysroot, deploy, repo })
     }
 
-    pub fn deploy(&self, usr_digest: &str) -> PathBuf {
-        self.deploy.join(usr_digest)
+    pub fn deploy(&self, prefix_digest: &str) -> PathBuf {
+        self.deploy.join(prefix_digest)
     }
 
     pub fn repo(&self) -> &Path {

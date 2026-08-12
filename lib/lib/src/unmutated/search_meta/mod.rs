@@ -14,8 +14,8 @@ pub use self::error::SearchMetaError;
 use self::searching::SearchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::PackageMeta;
 use crate::types::states::SearchMetaStateId;
+use crate::types::{PackageMeta, Search};
 
 mod error;
 mod searching;
@@ -54,6 +54,7 @@ fn assemble() -> SequentialOrchestrator<SearchMetaError> {
 
 pub fn run(data: SearchMetaData) -> Result<(Vec<PackageMeta>,), (SearchMetaStateId, SearchMetaError)> {
     let mut context = Context::new();
+    context.put(Search(data.search.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

@@ -18,7 +18,7 @@ fn scratch_dir(name: &str) -> PathBuf {
 
 fn sample_record() -> DeployRecord {
     DeployRecord {
-        usr_digest: "usr-digest-abc123".to_string(),
+        prefix_digest: "usr-digest-abc123".to_string(),
         subject: "install firefox".to_string(),
         message: Some("long-form commit message".to_string()),
         seq: 7,
@@ -84,7 +84,7 @@ fn deploy_record_from_json_fails_on_non_object() {
 #[test]
 fn deploy_record_from_json_fails_on_missing_field() {
     let mut object = sample_record().to_json();
-    object.as_object_mut().unwrap().remove("usr_digest");
+    object.as_object_mut().unwrap().remove("prefix_digest");
 
     assert!(matches!(
         DeployRecord::from_json(&object),
