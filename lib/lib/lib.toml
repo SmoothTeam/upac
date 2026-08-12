@@ -10,7 +10,7 @@
 #
 # database_path is where the redb file itself lives inside the mounted /usr
 # tree (relative to that tree's root, e.g. read via FileHandle::read_file
-# after Deploy::open_tree(usr_digest), see doc §7). Changing it means
+# after Deploy::open_tree(prefix_digest), see doc §7). Changing it means
 # already-built images stop finding their own embedded DB on read.
 [database]
 packages_table_name = "packages"
