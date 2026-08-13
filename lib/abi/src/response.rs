@@ -45,6 +45,15 @@ pub struct CDiffConfigFileEntry {
 
 #[repr(C)]
 #[derive(CFree, CValidate)]
+pub struct CDiffUntrackedFileEntry {
+    pub struct_size: usize,
+
+    pub path: CSlice,
+    pub kind: DiffKind,
+}
+
+#[repr(C)]
+#[derive(CFree, CValidate)]
 pub struct CCommitEntry {
     pub struct_size: usize,
 
@@ -231,8 +240,8 @@ impl CDiffPackagesResponse {
 #[repr(C)]
 pub struct CDiffResponse {
     pub struct_size: usize,
-    pub unattached_files: CVec<CDiffPrefixFileEntry>,
     pub diff_packages: CVec<CDiffPackageEntry>,
+    pub unattached_files: CVec<CDiffUntrackedFileEntry>,
 }
 
 impl CDiffResponse {
