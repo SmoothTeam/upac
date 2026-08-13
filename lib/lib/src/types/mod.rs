@@ -10,8 +10,8 @@ use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
 use upac_abi::response::{
-    CCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CHistoryEntry, CPrefixEntry,
-    CSearchFileEntry,
+    CCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
+    CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
@@ -180,6 +180,17 @@ pub struct DiffPackageEntry {
     // attach to is not here — it's in `diff::run()`'s separate
     // unattached-files return value.
     pub files: Vec<DiffPrefixFileEntry>,
+}
+
+// ── DiffUntrackedFileEntry ──────────────────────────────────────────────────
+// A changed /usr file that belongs to no package at all — not package-owned,
+// not attached as a user file. By design this shouldn't normally happen
+// (every /usr file is meant to come with a package), but if it does, it's
+// surfaced here rather than silently dropped. No package_name: there is none.
+#[derive(Debug, Clone, RustToC)]
+pub struct DiffUntrackedFileEntry {
+    pub path: String,
+    pub kind: DiffKind,
 }
 
 pub struct Targets(pub Vec<PackageEntry>);

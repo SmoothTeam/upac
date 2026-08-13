@@ -5,16 +5,58 @@
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
+use crate::composefs::diff::TreeDiff;
+use crate::composefs::file::FileHandle;
+use crate::database::InMemory;
+use crate::database::MemoryDatabase;
+use crate::deploy::digest::current_prefix_digest;
+use crate::deploy::{Deploy, DeployMode};
+use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
-use crate::unmutated::diff_files_prefix::DiffFilesPrefixError;
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::types::RequestedPrefixDigestRange;
+use crate::types::database::DATABASE_PATH;
+use crate::unmutated::diff_files_prefix::{DiffFilesPrefixError, DiffFilesPrefixSnapshot};
 
 pub struct PreparingStage;
 
 impl Stage<DiffFilesPrefixError> for PreparingStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesPrefixError> {
-        todo!()
+        let requested = context
+            .get::<RequestedPrefixDigestRange>()
+            .ok_or(CommonError::MissingResult)?;
+
+        let from_prefix_digest = match &requested.from {
+            Some(prefix_digest) => prefix_digest.clone(),
+            None => current_prefix_digest()?,
+        };
+        let to_prefix_digest = match &requested.to {
+            Some(prefix_digest) => prefix_digest.clone(),
+            None => current_prefix_digest()?,
+        };
+
+        let deploy = Deploy::new(DeployMode::ReadOnly)?;
+        let repository = deploy.open_repository()?;
+
+        let from_tree = deploy.open_tree(&from_prefix_digest)?;
+        let to_tree = deploy.open_tree(&to_prefix_digest)?;
+
+        let changed = TreeDiff::run(&from_tree, &to_tree);
+
+        let from_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &from_tree)?;
+        let from_database = MemoryDatabase::open_in_memory(from_bytes)?;
+
+        let to_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &to_tree)?;
+        let to_database = MemoryDatabase::open_in_memory(to_bytes)?;
+
+        context.put(DiffFilesPrefixSnapshot {
+            changed,
+            from_database,
+            to_database,
+        });
+
+        Ok((progress, Box::new(NoRollback)))
     }
 }

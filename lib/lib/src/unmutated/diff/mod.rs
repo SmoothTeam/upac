@@ -16,7 +16,7 @@ use self::preparing::PreparingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::DiffStateId;
-use crate::types::{DiffPackageEntry, DiffPrefixFileEntry};
+use crate::types::{DiffPackageEntry, DiffUntrackedFileEntry};
 
 mod comparing;
 mod error;
@@ -52,7 +52,7 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
     }
 }
 
-pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffPrefixFileEntry>), (DiffStateId, DiffError)> {
+pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffUntrackedFileEntry>), (DiffStateId, DiffError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
@@ -65,6 +65,6 @@ pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffPrefixFileE
         DiffStateId,
         DiffError,
         Vec<DiffPackageEntry>,
-        Vec<DiffPrefixFileEntry>
+        Vec<DiffUntrackedFileEntry>
     )
 }

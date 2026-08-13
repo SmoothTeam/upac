@@ -20,7 +20,9 @@ impl Stage<DiffPackagesError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPackagesError> {
-        let snapshot = context.take::<DiffPackagesSnapshot>().ok_or(CommonError::MissingResult)?;
+        let snapshot = context
+            .take::<DiffPackagesSnapshot>()
+            .ok_or(CommonError::MissingResult)?;
 
         let from: HashMap<_, _> = snapshot
             .from
