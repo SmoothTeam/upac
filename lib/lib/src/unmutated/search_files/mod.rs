@@ -48,15 +48,11 @@ impl<'a> TryFrom<&'a CSearchFilesRequest> for SearchFilesData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<SearchFilesError> {
-    SequentialOrchestrator::new(vec![Box::new(SearchingStage)])
-}
-
 pub fn run(data: SearchFilesData) -> Result<(Vec<SearchFileEntry>,), (SearchFilesStateId, SearchFilesError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(SearchingStage)]);
 
     run_unmutated!(
         orchestrator,

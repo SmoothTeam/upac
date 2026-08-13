@@ -23,8 +23,8 @@ mod error;
 mod preparing;
 
 pub struct DiffData<'a> {
-    pub from_commit_hash: Option<&'a str>,
-    pub to_commit_hash: Option<&'a str>,
+    pub from_prefix_digest: Option<&'a str>,
+    pub to_prefix_digest: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -41,8 +41,8 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(DiffData {
-            from_commit_hash: (&request.from_commit_hash).try_into()?,
-            to_commit_hash: (&request.to_commit_hash).try_into()?,
+            from_prefix_digest: (&request.from_prefix_digest).try_into()?,
+            to_prefix_digest: (&request.to_prefix_digest).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
@@ -52,15 +52,11 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<DiffError> {
-    SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
-}
-
 pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffPrefixFileEntry>), (DiffStateId, DiffError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
 
     run_unmutated!(
         orchestrator,

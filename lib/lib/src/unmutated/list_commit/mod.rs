@@ -48,15 +48,11 @@ impl<'a> TryFrom<&'a CListCommitRequest> for ListCommitData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<ListCommitError> {
-    SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
-}
-
 pub fn run(data: ListCommitData) -> Result<(Vec<CommitEntry>,), (ListCommitStateId, ListCommitError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(FetchingStage)]);
 
     run_unmutated!(
         orchestrator,

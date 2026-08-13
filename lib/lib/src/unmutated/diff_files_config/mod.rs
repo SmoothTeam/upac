@@ -52,17 +52,13 @@ impl<'a> TryFrom<&'a CDiffFilesConfigRequest> for DiffFilesConfigData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<DiffFilesConfigError> {
-    SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
-}
-
 pub fn run(
     data: DiffFilesConfigData,
 ) -> Result<(Vec<DiffConfigFileEntry>,), (DiffFilesConfigStateId, DiffFilesConfigError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
 
     run_unmutated!(
         orchestrator,
