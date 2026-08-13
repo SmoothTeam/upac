@@ -22,12 +22,14 @@ pub unsafe extern "C" fn diff(request_c: CDiffRequest, response_out: *mut CDiffR
     let result = catch_unwind(AssertUnwindSafe(|| crate::unmutated::diff::run(diff_data)));
 
     match result {
-        Ok(Ok((files, diff_packages))) => {
+        Ok(Ok((diff_packages, unattached_files))) => {
             if !response_out.is_null() {
                 unsafe {
                     *response_out = CDiffResponse {
                         struct_size: size_of::<CDiffResponse>(),
-                        files: CVec::from_owned(files.into_iter().map(CDiffPrefixFileEntry::from).collect()),
+                        unattached_files: CVec::from_owned(
+                            unattached_files.into_iter().map(CDiffPrefixFileEntry::from).collect(),
+                        ),
                         diff_packages: CVec::from_owned(
                             diff_packages.into_iter().map(CDiffPackageEntry::from).collect(),
                         ),

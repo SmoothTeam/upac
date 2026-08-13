@@ -175,6 +175,11 @@ pub struct DiffPackageEntry {
     pub name: String,
     pub kind: DiffKind,
     pub version: Version,
+
+    // Only this package's own files. A changed file with no package to
+    // attach to is not here — it's in `diff::run()`'s separate
+    // unattached-files return value.
+    pub files: Vec<DiffPrefixFileEntry>,
 }
 
 pub struct Targets(pub Vec<PackageEntry>);
