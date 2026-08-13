@@ -26,7 +26,15 @@ It covers the disk layout, the deploy/rollback model, the `/etc` merge, GC, the 
 
 Full architecture and design decisions live in the project design notes:
 
-- [`Project note en.md`](<doc/UPAC project note.en.md>) — English (canonical);
+For english (canonical):
+1. [`Introduction and definitions`](<doc/eng/Upac chapter 0.md>);
+2. [`Problem statement`](<doc/eng/Upac chapter 1.md>);
+3. [`Defining what the project is NOT (Non-goals)`](<doc/eng/Upac chapter 2.md>);
+4. [`Disk structure`](<doc/eng/Upac chapter 3.md>);
+5. [`Project repository structure`](<doc/eng/Upac chapter 4.md>);
+6. [`Operating mechanisms`](<doc/eng/Upac chapter 5.md>);
+7. [`FFI and the boundaries of interaction between the components`](<doc/eng/Upac chapter 6.md>);
+8. [`Program modules`](<doc/eng/Upac chapter 7.md>).
 
 For russian:
 1. [`Вступление и определения`](<doc/rus/Upac chapter 0.md>);
