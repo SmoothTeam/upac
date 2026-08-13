@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::fs::{create_dir_all, remove_dir};
+use std::fs::{create_dir_all, read_dir, remove_dir};
 use std::path::{Path, PathBuf};
 
 use composefs::repository::Repository;
@@ -80,8 +80,26 @@ impl Deploy {
         Ok(Self { sysroot, deploy, repo })
     }
 
-    pub fn deploy(&self, usr_digest: &str) -> PathBuf {
-        self.deploy.join(usr_digest)
+    pub fn deploy(&self, prefix_digest: &str) -> PathBuf {
+        self.deploy.join(prefix_digest)
+    }
+
+    pub fn deploys(&self) -> Result<Vec<String>, SysrootError> {
+        let mut digests = Vec::new();
+
+        for entry in read_dir(&self.deploy)? {
+            let entry = entry?;
+
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+
+            if let Some(digest) = entry.file_name().to_str() {
+                digests.push(digest.to_owned());
+            }
+        }
+
+        Ok(digests)
     }
 
     pub fn repo(&self) -> &Path {

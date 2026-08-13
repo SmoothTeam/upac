@@ -29,7 +29,7 @@ impl CertificateKind {
     }
 }
 
-pub struct RootCertificate(pub Certificate);
+pub struct RootCertificate(pub(crate) Certificate);
 
 impl RootCertificate {
     pub fn to_bytes(&self) -> Result<Vec<u8>, PkiError> {
@@ -42,9 +42,9 @@ impl RootCertificate {
 }
 
 pub struct HookSignature {
-    pub certificate_kind: CertificateKind,
-    pub certificate: Certificate,
-    pub signature: Signature,
+    pub(crate) certificate_kind: CertificateKind,
+    pub(crate) certificate: Certificate,
+    pub(crate) signature: Signature,
 }
 
 impl HookSignature {

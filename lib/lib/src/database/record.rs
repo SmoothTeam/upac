@@ -21,7 +21,7 @@ pub struct EtcHistoryEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq, JsonCodec)]
 pub struct DeployRecord {
-    pub usr_digest: String,
+    pub prefix_digest: String,
     pub subject: String,
     pub message: Option<String>,
     pub seq: u64,

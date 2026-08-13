@@ -16,7 +16,7 @@ use self::preparing::PreparingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::DiffStateId;
-use crate::types::{DiffFileEntry, DiffPackageEntry};
+use crate::types::{DiffPackageEntry, DiffPrefixFileEntry};
 
 mod comparing;
 mod error;
@@ -56,7 +56,7 @@ fn assemble() -> SequentialOrchestrator<DiffError> {
     SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
 }
 
-pub fn run(data: DiffData) -> Result<(Vec<DiffFileEntry>, Vec<DiffPackageEntry>), (DiffStateId, DiffError)> {
+pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffPrefixFileEntry>), (DiffStateId, DiffError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
@@ -68,7 +68,7 @@ pub fn run(data: DiffData) -> Result<(Vec<DiffFileEntry>, Vec<DiffPackageEntry>)
         data.cancel_token,
         DiffStateId,
         DiffError,
-        Vec<DiffFileEntry>,
-        Vec<DiffPackageEntry>
+        Vec<DiffPackageEntry>,
+        Vec<DiffPrefixFileEntry>
     )
 }

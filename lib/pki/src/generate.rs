@@ -24,8 +24,8 @@ pub trait Identity: Sized {
 }
 
 pub struct RootIdentity {
-    pub issuer: Issuer<'static, KeyPair>,
-    pub certificate: Certificate,
+    pub(crate) issuer: Issuer<'static, KeyPair>,
+    pub(crate) certificate: Certificate,
 }
 
 impl Identity for RootIdentity {
@@ -47,8 +47,8 @@ impl Identity for RootIdentity {
 }
 
 pub struct SigningIdentity {
-    pub key_pair: KeyPair,
-    pub certificate: Certificate,
+    pub(crate) key_pair: KeyPair,
+    pub(crate) certificate: Certificate,
 }
 
 impl Identity for SigningIdentity {

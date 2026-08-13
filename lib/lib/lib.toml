@@ -10,7 +10,7 @@
 #
 # database_path is where the redb file itself lives inside the mounted /usr
 # tree (relative to that tree's root, e.g. read via FileHandle::read_file
-# after Deploy::open_tree(usr_digest), see doc §7). Changing it means
+# after Deploy::open_tree(prefix_digest), see doc §7). Changing it means
 # already-built images stop finding their own embedded DB on read.
 [database]
 packages_table_name = "packages"
@@ -25,16 +25,17 @@ database_path = "share/upac/packages.redb"
 # records + composefs repo, see doc §3). Changing a name means existing
 # installs stop finding their deploys/repo on upgrade.
 #
-# usr_digest_cmdline_param names the kernel cmdline parameter written at boot
-# entry creation (§5.2, "composefs.digest=D'") and read back at runtime to
-# resolve the currently booted usr-digest — one name shared by both sides.
+# prefix_digest_cmdline_param names the kernel cmdline parameter written at
+# boot entry creation (§5.2, "composefs.digest=D'") and read back at runtime
+# to resolve the currently booted deploy's prefix_digest — one name shared by
+# both sides.
 [deployment]
 root_dir = "/"
 deploys_dir = "state/deploy"
 repo_dir = "composefs"
 sysroot_dir = "sysroot"
 record_filename = "meta.json"
-usr_digest_cmdline_param = "composefs.digest"
+prefix_digest_cmdline_param = "composefs.digest"
 
 # Name of the abstract Unix socket address upac uses to hold its exclusive
 # process lock (bind() on this address — a second concurrent upac gets

@@ -18,17 +18,29 @@ pub struct CDiffPackageEntry {
     pub name: CSlice,
     pub kind: DiffKind,
     pub version: CVersion,
+    pub files: CVec<CDiffPrefixFileEntry>,
 }
 
 #[repr(C)]
 #[derive(CFree, CValidate)]
-pub struct CDiffFileEntry {
+pub struct CDiffPrefixFileEntry {
     pub struct_size: usize,
 
     pub path: CSlice,
     pub kind: DiffKind,
     pub package_name: CSlice,
     pub is_user: bool,
+}
+
+#[repr(C)]
+#[derive(CFree, CValidate)]
+pub struct CDiffConfigFileEntry {
+    pub struct_size: usize,
+
+    pub path: CSlice,
+    pub kind: DiffKind,
+    #[optional]
+    pub package_name: CSlice,
 }
 
 #[repr(C)]
@@ -172,12 +184,27 @@ impl CListHistoryResponse {
 }
 
 #[repr(C)]
-pub struct CDiffFilesResponse {
+pub struct CDiffFilesPrefixResponse {
     pub struct_size: usize,
-    pub files: CVec<CDiffFileEntry>,
+    pub files: CVec<CDiffPrefixFileEntry>,
 }
 
-impl CDiffFilesResponse {
+impl CDiffFilesPrefixResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
+    pub unsafe fn free(&self) {
+        unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
+    }
+}
+
+#[repr(C)]
+pub struct CDiffFilesConfigResponse {
+    pub struct_size: usize,
+    pub files: CVec<CDiffConfigFileEntry>,
+}
+
+impl CDiffFilesConfigResponse {
     /// # Safety
     /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
     /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
@@ -204,7 +231,7 @@ impl CDiffPackagesResponse {
 #[repr(C)]
 pub struct CDiffResponse {
     pub struct_size: usize,
-    pub files: CVec<CDiffFileEntry>,
+    pub unattached_files: CVec<CDiffPrefixFileEntry>,
     pub diff_packages: CVec<CDiffPackageEntry>,
 }
 
@@ -214,7 +241,7 @@ impl CDiffResponse {
     /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe {
-            free_cvec_owning(&self.files, |entry| entry.free());
+            free_cvec_owning(&self.unattached_files, |entry| entry.free());
             free_cvec_owning(&self.diff_packages, |entry| entry.free());
         }
     }
@@ -225,7 +252,7 @@ pub struct CUnmutatedResponse {
     pub struct_size: usize,
 
     pub metas: CVec<CPackageMeta>,
-    pub files: CVec<CDiffFileEntry>,
+    pub files: CVec<CDiffPrefixFileEntry>,
     pub commits: CVec<CCommitEntry>,
     pub diff_packages: CVec<CDiffPackageEntry>,
 }

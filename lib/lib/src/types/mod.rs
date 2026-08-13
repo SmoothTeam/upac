@@ -10,7 +10,8 @@ use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
 use upac_abi::response::{
-    CCommitEntry, CDiffFileEntry, CDiffPackageEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
+    CCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CHistoryEntry, CPrefixEntry,
+    CSearchFileEntry,
 };
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
@@ -151,13 +152,21 @@ pub struct HistoryEntry {
     pub config_history: Vec<CommitEntry>,
 }
 
-// ── DiffFileEntry ───────────────────────────────────────────────────────────
+// ── DiffPrefixFileEntry ─────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
-pub struct DiffFileEntry {
+pub struct DiffPrefixFileEntry {
     pub path: String,
     pub kind: DiffKind,
     pub package_name: String,
     pub is_user: bool,
+}
+
+// ── DiffConfigFileEntry ─────────────────────────────────────────────────────
+#[derive(Debug, Clone, RustToC)]
+pub struct DiffConfigFileEntry {
+    pub path: String,
+    pub kind: DiffKind,
+    pub package_name: Option<String>,
 }
 
 // ── DiffPackageEntry ────────────────────────────────────────────────────────
@@ -166,6 +175,11 @@ pub struct DiffPackageEntry {
     pub name: String,
     pub kind: DiffKind,
     pub version: Version,
+
+    // Only this package's own files. A changed file with no package to
+    // attach to is not here — it's in `diff::run()`'s separate
+    // unattached-files return value.
+    pub files: Vec<DiffPrefixFileEntry>,
 }
 
 pub struct Targets(pub Vec<PackageEntry>);
@@ -179,6 +193,10 @@ impl Targets {
 pub struct TmpPath(pub String);
 
 as_str_method!(TmpPath);
+
+pub struct Search(pub String);
+
+as_str_method!(Search);
 
 #[cfg(test)]
 mod tests {

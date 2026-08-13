@@ -36,6 +36,17 @@ macro_rules! database_error_from {
 }
 pub(crate) use database_error_from;
 
+macro_rules! repo_error_from {
+    ($name:ident) => {
+        impl From<RepoError> for $name {
+            fn from(error: RepoError) -> Self {
+                $name::Common(CommonError::Repo(error))
+            }
+        }
+    };
+}
+pub(crate) use repo_error_from;
+
 macro_rules! sysroot_error_from {
     ($name:ident) => {
         impl From<SysrootError> for $name {
@@ -57,6 +68,17 @@ macro_rules! lock_error_from {
     };
 }
 pub(crate) use lock_error_from;
+
+macro_rules! deploy_record_error_from {
+    ($name:ident) => {
+        impl From<DeployRecordError> for $name {
+            fn from(error: DeployRecordError) -> Self {
+                $name::Common(CommonError::DeployRecord(error))
+            }
+        }
+    };
+}
+pub(crate) use deploy_record_error_from;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonError {
