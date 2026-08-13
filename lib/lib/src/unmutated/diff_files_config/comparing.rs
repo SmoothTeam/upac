@@ -21,7 +21,9 @@ impl Stage<DiffFilesConfigError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesConfigError> {
-        let snapshot = context.take::<DiffFilesConfigSnapshot>().ok_or(CommonError::MissingResult)?;
+        let snapshot = context
+            .take::<DiffFilesConfigSnapshot>()
+            .ok_or(CommonError::MissingResult)?;
 
         let mut entries = Vec::new();
 
@@ -33,7 +35,11 @@ impl Stage<DiffFilesConfigError> for ComparingStage {
 
             let package_name = Self::attribute(database, &path)?;
 
-            entries.push(DiffConfigFileEntry { path, kind, package_name });
+            entries.push(DiffConfigFileEntry {
+                path,
+                kind,
+                package_name,
+            });
         }
 
         context.put(entries);

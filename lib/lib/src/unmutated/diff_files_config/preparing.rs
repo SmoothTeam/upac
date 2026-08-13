@@ -25,7 +25,9 @@ impl Stage<DiffFilesConfigError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesConfigError> {
-        let requested = context.get::<RequestedConfigDigestRange>().ok_or(CommonError::MissingResult)?;
+        let requested = context
+            .get::<RequestedConfigDigestRange>()
+            .ok_or(CommonError::MissingResult)?;
 
         let deploy = Deploy::new(DeployMode::ReadOnly)?;
 
@@ -73,7 +75,10 @@ impl PreparingStage {
                     };
 
                     let owns_config_digest = record.working_etc == *config_digest
-                        || record.config_history.iter().any(|entry| entry.config_digest == *config_digest);
+                        || record
+                            .config_history
+                            .iter()
+                            .any(|entry| entry.config_digest == *config_digest);
 
                     if owns_config_digest {
                         return Ok((config_digest.clone(), prefix_digest));
