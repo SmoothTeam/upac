@@ -13,7 +13,7 @@ only the latest commit on `main` is supported. Security fixes are not backported
 
 Please use one of the following instead of opening a public issue:
 
-- GitHub's [private vulnerability reporting](https://github.com/justpav05/upac/security/advisories/new)
+- GitHub's [private vulnerability reporting](https://github.com/SmoothTeam/upac/security/advisories/new)
   (Security tab → "Report a vulnerability")
 - Email: aksenovpaveldmitrievich@gmail.com
 
