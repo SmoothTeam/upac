@@ -14,8 +14,8 @@ pub use self::error::ListCommitError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::CommitEntry;
 use crate::types::states::ListCommitStateId;
+use crate::types::{CommitEntry, RequestedPrefixDigest};
 
 mod error;
 mod fetching;
@@ -50,6 +50,7 @@ impl<'a> TryFrom<&'a CListCommitRequest> for ListCommitData<'a> {
 
 pub fn run(data: ListCommitData) -> Result<(Vec<CommitEntry>,), (ListCommitStateId, ListCommitError)> {
     let mut context = Context::new();
+    context.put(RequestedPrefixDigest(data.prefix_digest.map(str::to_owned)));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = SequentialOrchestrator::new(vec![Box::new(FetchingStage)]);

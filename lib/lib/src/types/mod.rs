@@ -200,6 +200,16 @@ as_str_method!(Search);
 
 pub struct RequestedPrefixDigest(pub Option<String>);
 
+pub struct RequestedPrefixDigestRange {
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+
+pub struct DiffPackagesSnapshot {
+    pub from: Vec<PackageMeta>,
+    pub to: Vec<PackageMeta>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
