@@ -1,11 +1,31 @@
 # 📦 Upac
 
+### Links for repositories:
+
+---
+
 [![GitHub](https://img.shields.io/badge/GitHub-SmoothTeam%2Fupac-181717?logo=github)](https://github.com/SmoothTeam/upac)
 [![Codeberg](https://img.shields.io/badge/Codeberg-justpav05%2Fupac-2185D0?logo=codeberg)](https://codeberg.org/justpav05/upac)
+
+---
+
+### General information:
+
+---
+
 [![Version](https://img.shields.io/badge/version-0.1.5-green)](https://github.com/SmoothTeam/upac/releases)
 [![REUSE status](https://api.reuse.software/badge/github.com/SmoothTeam/upac)](https://api.reuse.software/info/github.com/SmoothTeam/upac)
+
+---
+
+### Licensing:
+
+---
+
 [![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-blue.svg)](LICENSES/LGPL-3.0-or-later.txt)
 [![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-blue.svg)](LICENSES/GPL-3.0-only.txt)
+
+---
 
 > **⚠️ Branch in progress.** This branch (`lib-rs`) is a from-scratch rewrite of upac's core library in Rust, built around [composefs](https://github.com/containers/composefs) instead of OSTree. The FFI/orchestration engine is done; the actual command bodies, the hook system, and packaging are still being implemented — expect gaps and `todo!()`s.
 
