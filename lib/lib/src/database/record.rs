@@ -26,7 +26,7 @@ pub struct DeployRecord {
     pub message: Option<String>,
     pub seq: u64,
     pub timestamp: u64,
-    pub etc_history: Vec<EtcHistoryEntry>,
+    pub config_history: Vec<EtcHistoryEntry>,
     pub working_etc: String,
 }
 

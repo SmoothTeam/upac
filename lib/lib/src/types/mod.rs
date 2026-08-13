@@ -198,6 +198,8 @@ pub struct Search(pub String);
 
 as_str_method!(Search);
 
+pub struct RequestedPrefixDigest(pub Option<String>);
+
 #[cfg(test)]
 mod tests {
     use super::*;
