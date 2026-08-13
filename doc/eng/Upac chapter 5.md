@@ -51,7 +51,7 @@ The system rollback is built on a one-shot selection of the new boot option and 
 
 `/proc/cmdline` is not a filtered list of parameters that only the kernel understands, but the raw, untouched string that the bootloader or the UKI passed to the kernel. When the kernel's argument parser encounters an unfamiliar parameter, it does not discard it; instead, it prints *"Unknown kernel command line parameters ..., will be passed to user space"* and leaves the string as-is, for `/proc/cmdline` and for PID1's own cmdline.
 
-This is standard, documented kernel behavior, and many userspace programs rely on it.
+This is standard, documented kernel behavior, and many userspace programs rely on it — it is exactly how `systemd.*`, dracut's `rd.*`, `luks.uuid=`, and OSTree's own `ostree=` already work: none of them are kernel parameters either, all of them are userspace-only, all of them survive the same way.
 
 **Rollback echelons.** A description of each boot-failure level and what that level catches:
 
