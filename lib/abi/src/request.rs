@@ -74,7 +74,7 @@ pub struct CRollbackRequest {
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
-    pub commit_hash: CSlice,
+    pub config_digest: CSlice,
 }
 
 #[repr(C)]
@@ -154,9 +154,9 @@ pub struct CDiffFilesConfigRequest {
     pub base: CRequestBase,
 
     #[optional]
-    pub from_commit_hash: CSlice,
+    pub from_config_digest: CSlice,
     #[optional]
-    pub to_commit_hash: CSlice,
+    pub to_config_digest: CSlice,
 }
 
 #[repr(C)]

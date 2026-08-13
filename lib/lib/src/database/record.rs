@@ -14,7 +14,7 @@ use crate::types::deployment::RECORD_FILENAME;
 
 #[derive(Debug, Clone, PartialEq, Eq, JsonCodec)]
 pub struct EtcHistoryEntry {
-    pub etc_digest: String,
+    pub config_digest: String,
     pub subject: String,
     pub message: Option<String>,
 }

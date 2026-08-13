@@ -216,6 +216,11 @@ pub struct RequestedPrefixDigestRange {
     pub to: Option<String>,
 }
 
+pub struct RequestedConfigDigestRange {
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+
 pub struct DiffPackagesSnapshot {
     pub from: Vec<PackageMeta>,
     pub to: Vec<PackageMeta>,

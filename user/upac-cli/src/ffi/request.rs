@@ -45,7 +45,7 @@ pub struct CMutatedRequest {
     packages_count: usize,
     uninstall_packages: *const CPackageInfo,
     uninstall_packages_len: usize,
-    commit_hash: CSlice,
+    config_digest: CSlice,
     message: CSlice,
     files: *const CSlice,
     files_len: usize,
@@ -71,7 +71,7 @@ impl CMutatedRequest {
             packages_count: 0,
             uninstall_packages: null(),
             uninstall_packages_len: 0,
-            commit_hash: CSlice::empty(),
+            config_digest: CSlice::empty(),
             message: CSlice::empty(),
             files: null(),
             files_len: 0,
@@ -122,11 +122,11 @@ impl CMutatedRequest {
 
     #[allow(clippy::too_many_arguments)]
     pub fn for_rollback(
-        commit_hash: &CString, repo_path: &CString, root_path: &CString, branch: &CString, on_hook: Option<HookFn>,
+        config_digest: &CString, repo_path: &CString, root_path: &CString, branch: &CString, on_hook: Option<HookFn>,
         hook_ctx: *mut c_void, cancel_token: *mut CancelToken,
     ) -> Self {
         let mut req = Self::base(repo_path, root_path, branch, on_hook, hook_ctx, cancel_token);
-        req.commit_hash = CSlice::from_cstring(commit_hash);
+        req.config_digest = CSlice::from_cstring(config_digest);
         req
     }
 
@@ -156,8 +156,8 @@ pub struct CUnmutatedRequest {
     root_path: CSlice,
     tmp_path: CSlice,
     branch: CSlice,
-    from_commit_hash: CSlice,
-    to_commit_hash: CSlice,
+    from_config_digest: CSlice,
+    to_config_digest: CSlice,
     search: CSlice,
     symlinks: *const CSlice,
     symlinks_len: usize,
@@ -175,8 +175,8 @@ impl CUnmutatedRequest {
             root_path: CSlice::from_cstring(root_path),
             tmp_path: CSlice::empty(),
             branch: CSlice::from_cstring(branch),
-            from_commit_hash: CSlice::empty(),
-            to_commit_hash: CSlice::empty(),
+            from_config_digest: CSlice::empty(),
+            to_config_digest: CSlice::empty(),
             search: CSlice::empty(),
             symlinks: null(),
             symlinks_len: 0,
@@ -192,8 +192,8 @@ impl CUnmutatedRequest {
             root_path: CSlice::from_cstring(root_path),
             tmp_path: CSlice::empty(),
             branch: CSlice::empty(),
-            from_commit_hash: CSlice::empty(),
-            to_commit_hash: CSlice::empty(),
+            from_config_digest: CSlice::empty(),
+            to_config_digest: CSlice::empty(),
             search: CSlice::empty(),
             symlinks: null(),
             symlinks_len: 0,
@@ -212,8 +212,8 @@ impl CUnmutatedRequest {
             root_path: CSlice::empty(),
             tmp_path: CSlice::from_cstring(tmp_path),
             branch: CSlice::empty(),
-            from_commit_hash: CSlice::from_cstring(from_commit),
-            to_commit_hash: CSlice::from_cstring(to_commit),
+            from_config_digest: CSlice::from_cstring(from_commit),
+            to_config_digest: CSlice::from_cstring(to_commit),
             search: CSlice::empty(),
             symlinks: null(),
             symlinks_len: 0,
@@ -229,8 +229,8 @@ impl CUnmutatedRequest {
             root_path: CSlice::from_cstring(root_path),
             tmp_path: CSlice::empty(),
             branch: CSlice::empty(),
-            from_commit_hash: CSlice::empty(),
-            to_commit_hash: CSlice::empty(),
+            from_config_digest: CSlice::empty(),
+            to_config_digest: CSlice::empty(),
             search: CSlice::from_cstring(query),
             symlinks: null(),
             symlinks_len: 0,
@@ -249,8 +249,8 @@ impl CUnmutatedRequest {
             root_path: CSlice::from_cstring(root_path),
             tmp_path: CSlice::empty_str(),
             branch: CSlice::from_cstring(branch),
-            from_commit_hash: CSlice::empty(),
-            to_commit_hash: CSlice::empty(),
+            from_config_digest: CSlice::empty(),
+            to_config_digest: CSlice::empty(),
             search: CSlice::empty(),
             symlinks: if symlinks.is_empty() { null() } else { symlinks.as_ptr() },
             symlinks_len: symlinks.len(),

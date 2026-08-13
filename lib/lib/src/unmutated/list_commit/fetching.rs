@@ -36,7 +36,7 @@ impl Stage<ListCommitError> for FetchingStage {
             .config_history
             .into_iter()
             .map(|entry| CommitEntry {
-                config_digest: entry.etc_digest,
+                config_digest: entry.config_digest,
                 subject: entry.subject,
                 message: entry.message,
             })

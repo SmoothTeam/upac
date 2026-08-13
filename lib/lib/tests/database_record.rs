@@ -25,12 +25,12 @@ fn sample_record() -> DeployRecord {
         timestamp: 1_754_000_000,
         config_history: vec![
             EtcHistoryEntry {
-                etc_digest: "etc-digest-1".to_string(),
+                config_digest: "etc-digest-1".to_string(),
                 subject: "first etc".to_string(),
                 message: None,
             },
             EtcHistoryEntry {
-                etc_digest: "etc-digest-2".to_string(),
+                config_digest: "etc-digest-2".to_string(),
                 subject: "second etc".to_string(),
                 message: Some("with a message".to_string()),
             },
