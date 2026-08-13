@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use upac_abi::DiffKind;
+use upac_abi::FileDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::database::MemoryDatabase;
@@ -29,8 +29,8 @@ impl Stage<DiffFilesPrefixError> for ComparingStage {
 
         for (path, kind) in snapshot.changed {
             let database = match kind {
-                DiffKind::Removed => &snapshot.from_database,
-                DiffKind::Added | DiffKind::Modified => &snapshot.to_database,
+                FileDiffKind::Removed => &snapshot.from_database,
+                FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
             };
 
             if let Some(entry) = Self::attribute(database, &path, kind)? {
@@ -46,7 +46,7 @@ impl Stage<DiffFilesPrefixError> for ComparingStage {
 
 impl ComparingStage {
     fn attribute(
-        database: &MemoryDatabase, path: &str, kind: DiffKind,
+        database: &MemoryDatabase, path: &str, kind: FileDiffKind,
     ) -> Result<Option<DiffPrefixFileEntry>, DiffFilesPrefixError> {
         let Some(uuid) = database.find_file_owner(path)? else {
             return Ok(None);

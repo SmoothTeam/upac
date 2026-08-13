@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 
 use composefs::tree::{Directory, FileSystem, Inode, Leaf, LeafContent, RegularFile};
-use upac_abi::DiffKind;
+use upac_abi::FileDiffKind;
 
 use crate::composefs::repository::ObjectID;
 
@@ -25,10 +25,10 @@ enum Side {
 }
 
 impl Side {
-    fn kind(self) -> DiffKind {
+    fn kind(self) -> FileDiffKind {
         match self {
-            Side::From => DiffKind::Removed,
-            Side::To => DiffKind::Added,
+            Side::From => FileDiffKind::Removed,
+            Side::To => FileDiffKind::Added,
         }
     }
 }
@@ -36,11 +36,11 @@ impl Side {
 pub struct TreeDiff<'a> {
     from_leaves: &'a [Leaf<ObjectID>],
     to_leaves: &'a [Leaf<ObjectID>],
-    changes: Vec<(String, DiffKind)>,
+    changes: Vec<(String, FileDiffKind)>,
 }
 
 impl<'a> TreeDiff<'a> {
-    pub fn run(from: &'a FileSystem<ObjectID>, to: &'a FileSystem<ObjectID>) -> Vec<(String, DiffKind)> {
+    pub fn run(from: &'a FileSystem<ObjectID>, to: &'a FileSystem<ObjectID>) -> Vec<(String, FileDiffKind)> {
         let mut differ = Self {
             from_leaves: &from.leaves,
             to_leaves: &to.leaves,
@@ -98,7 +98,7 @@ impl<'a> TreeDiff<'a> {
                     && Self::is_regular_or_symlink(to_leaf)
                     && !Self::content_matches(from_leaf, to_leaf)
                 {
-                    self.changes.push((Self::path_to_string(path), DiffKind::Modified));
+                    self.changes.push((Self::path_to_string(path), FileDiffKind::Modified));
                 }
             }
             (from_inode, to_inode) => {

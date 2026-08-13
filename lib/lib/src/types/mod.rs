@@ -5,7 +5,6 @@
 
 use std::mem::size_of;
 
-use upac_abi::DiffKind;
 use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
@@ -14,6 +13,7 @@ use upac_abi::response::{
     CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
+use upac_abi::{FileDiffKind, PackageDiffKind};
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
@@ -156,7 +156,7 @@ pub struct HistoryEntry {
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPrefixFileEntry {
     pub path: String,
-    pub kind: DiffKind,
+    pub kind: FileDiffKind,
     pub package_name: String,
     pub is_user: bool,
 }
@@ -165,7 +165,7 @@ pub struct DiffPrefixFileEntry {
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffConfigFileEntry {
     pub path: String,
-    pub kind: DiffKind,
+    pub kind: FileDiffKind,
     pub package_name: Option<String>,
 }
 
@@ -173,7 +173,7 @@ pub struct DiffConfigFileEntry {
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPackageEntry {
     pub name: String,
-    pub kind: DiffKind,
+    pub kind: PackageDiffKind,
     pub version: Version,
 
     // Only this package's own files. A changed file with no package to
@@ -190,7 +190,7 @@ pub struct DiffPackageEntry {
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffUntrackedFileEntry {
     pub path: String,
-    pub kind: DiffKind,
+    pub kind: FileDiffKind,
 }
 
 pub struct Targets(pub Vec<PackageEntry>);

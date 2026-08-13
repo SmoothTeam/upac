@@ -5,7 +5,7 @@
 
 use std::os::raw::c_void;
 
-use upac_abi::DiffKind;
+use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CDiffFilesPrefixRequest;
@@ -25,7 +25,7 @@ mod error;
 mod preparing;
 
 struct DiffFilesPrefixSnapshot {
-    changed: Vec<(String, DiffKind)>,
+    changed: Vec<(String, FileDiffKind)>,
     from_database: MemoryDatabase,
     to_database: MemoryDatabase,
 }

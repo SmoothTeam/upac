@@ -5,7 +5,7 @@
 
 use std::os::raw::c_void;
 
-use upac_abi::DiffKind;
+use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
@@ -30,7 +30,7 @@ mod transaction;
 
 pub struct FilesData<'a> {
     pub files: Vec<&'a str>,
-    pub file_kind: DiffKind,
+    pub file_kind: FileDiffKind,
     pub file_package: &'a CPackageInfo,
 
     pub tmp_path: &'a str,

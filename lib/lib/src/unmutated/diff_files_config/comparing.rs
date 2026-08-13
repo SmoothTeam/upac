@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use upac_abi::DiffKind;
+use upac_abi::FileDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::database::MemoryDatabase;
@@ -27,8 +27,8 @@ impl Stage<DiffFilesConfigError> for ComparingStage {
 
         for (path, kind) in snapshot.changed {
             let database = match kind {
-                DiffKind::Removed => &snapshot.from_database,
-                DiffKind::Added | DiffKind::Modified => &snapshot.to_database,
+                FileDiffKind::Removed => &snapshot.from_database,
+                FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
             };
 
             let package_name = Self::attribute(database, &path)?;

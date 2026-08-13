@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use upac_abi::DiffKind;
+use upac_abi::PackageDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::errors::CommonError;
@@ -41,14 +41,14 @@ impl Stage<DiffPackagesError> for ComparingStage {
             match to.remove(&identity) {
                 Some(to_meta) if to_meta.sha256 != from_meta.sha256 => entries.push(DiffPackageEntry {
                     name: to_meta.name,
-                    kind: DiffKind::Modified,
+                    kind: PackageDiffKind::Modified,
                     version: to_meta.version,
                     files: Vec::new(),
                 }),
                 Some(_) => {}
                 None => entries.push(DiffPackageEntry {
                     name: from_meta.name,
-                    kind: DiffKind::Removed,
+                    kind: PackageDiffKind::Removed,
                     version: from_meta.version,
                     files: Vec::new(),
                 }),
@@ -58,7 +58,7 @@ impl Stage<DiffPackagesError> for ComparingStage {
         for (_identity, to_meta) in to {
             entries.push(DiffPackageEntry {
                 name: to_meta.name,
-                kind: DiffKind::Added,
+                kind: PackageDiffKind::Added,
                 version: to_meta.version,
                 files: Vec::new(),
             });
