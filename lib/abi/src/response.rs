@@ -18,6 +18,7 @@ pub struct CDiffPackageEntry {
     pub name: CSlice,
     pub kind: DiffKind,
     pub version: CVersion,
+    pub files: CVec<CDiffPrefixFileEntry>,
 }
 
 #[repr(C)]
@@ -230,7 +231,7 @@ impl CDiffPackagesResponse {
 #[repr(C)]
 pub struct CDiffResponse {
     pub struct_size: usize,
-    pub files: CVec<CDiffPrefixFileEntry>,
+    pub unattached_files: CVec<CDiffPrefixFileEntry>,
     pub diff_packages: CVec<CDiffPackageEntry>,
 }
 
@@ -240,7 +241,7 @@ impl CDiffResponse {
     /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
     pub unsafe fn free(&self) {
         unsafe {
-            free_cvec_owning(&self.files, |entry| entry.free());
+            free_cvec_owning(&self.unattached_files, |entry| entry.free());
             free_cvec_owning(&self.diff_packages, |entry| entry.free());
         }
     }
