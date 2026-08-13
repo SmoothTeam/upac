@@ -15,8 +15,8 @@ use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::DiffPackageEntry;
 use crate::types::states::DiffPackagesStateId;
+use crate::types::{DiffPackageEntry, RequestedPrefixDigestRange};
 
 mod comparing;
 mod error;
@@ -54,6 +54,10 @@ impl<'a> TryFrom<&'a CDiffPackagesRequest> for DiffPackagesData<'a> {
 
 pub fn run(data: DiffPackagesData) -> Result<(Vec<DiffPackageEntry>,), (DiffPackagesStateId, DiffPackagesError)> {
     let mut context = Context::new();
+    context.put(RequestedPrefixDigestRange {
+        from: data.from_prefix_digest.map(str::to_owned),
+        to: data.to_prefix_digest.map(str::to_owned),
+    });
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
