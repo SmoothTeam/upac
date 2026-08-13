@@ -7,7 +7,7 @@ use std::os::raw::c_void;
 
 use upac_macro::CValidate;
 
-use crate::DiffKind;
+use crate::FileDiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
 use crate::package::{CPackageInfo, CUnpackedPackage};
