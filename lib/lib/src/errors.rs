@@ -69,6 +69,17 @@ macro_rules! lock_error_from {
 }
 pub(crate) use lock_error_from;
 
+macro_rules! deploy_record_error_from {
+    ($name:ident) => {
+        impl From<DeployRecordError> for $name {
+            fn from(error: DeployRecordError) -> Self {
+                $name::Common(CommonError::DeployRecord(error))
+            }
+        }
+    };
+}
+pub(crate) use deploy_record_error_from;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonError {
     OutOfMemory,
