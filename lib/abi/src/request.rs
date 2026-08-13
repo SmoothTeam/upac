@@ -137,7 +137,19 @@ pub struct CListHistoryRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CDiffFilesRequest {
+pub struct CDiffFilesPrefixRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    #[optional]
+    pub from_prefix_digest: CSlice,
+    #[optional]
+    pub to_prefix_digest: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CDiffFilesConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
@@ -154,9 +166,9 @@ pub struct CDiffPackagesRequest {
     pub base: CRequestBase,
 
     #[optional]
-    pub from_commit_hash: CSlice,
+    pub from_prefix_digest: CSlice,
     #[optional]
-    pub to_commit_hash: CSlice,
+    pub to_prefix_digest: CSlice,
 }
 
 #[repr(C)]
