@@ -58,20 +58,6 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<RollbackError> {
-    SequentialOrchestrator::new(vec![
-        Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Rollback),
-        }),
-        Box::new(MergeStage),
-        Box::new(CheckoutStage),
-        Box::new(SwapStage),
-        Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Rollback),
-        }),
-    ])
-}
-
 pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
     let mut context = Context::new();
     context.put(TmpPath(data.tmp_path.to_owned()));
@@ -84,4 +70,18 @@ pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
     data.cancel_token.reset();
 
     result
+}
+
+fn assemble() -> SequentialOrchestrator<RollbackError> {
+    SequentialOrchestrator::new(vec![
+        Box::new(HookStage {
+            trigger: NativeTrigger::pre(Operation::Rollback),
+        }),
+        Box::new(MergeStage),
+        Box::new(CheckoutStage),
+        Box::new(SwapStage),
+        Box::new(HookStage {
+            trigger: NativeTrigger::post(Operation::Rollback),
+        }),
+    ])
 }

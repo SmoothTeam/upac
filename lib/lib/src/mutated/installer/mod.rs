@@ -68,6 +68,21 @@ impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
     }
 }
 
+pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
+    let mut context = Context::new();
+    context.put(data.packages);
+    context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+
+    let orchestrator = assemble();
+
+    let result = run_mutating!(orchestrator, context, data.cancel_token, InstallStateId, InstallError);
+
+    data.cancel_token.reset();
+
+    result
+}
+
 fn assemble() -> SequentialOrchestrator<InstallError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
@@ -82,19 +97,4 @@ fn assemble() -> SequentialOrchestrator<InstallError> {
             trigger: NativeTrigger::post(Operation::Install),
         }),
     ])
-}
-
-pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
-    let mut context = Context::new();
-    context.put(data.packages);
-    context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
-
-    let orchestrator = assemble();
-
-    let result = run_mutating!(orchestrator, context, data.cancel_token, InstallStateId, InstallError);
-
-    data.cancel_token.reset();
-
-    result
 }
