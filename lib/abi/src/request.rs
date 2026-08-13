@@ -100,7 +100,7 @@ pub struct CFilesRequest {
     #[optional]
     pub message: CSlice,
     pub files: CVec<CSlice>,
-    pub file_kind: DiffKind,
+    pub file_kind: FileDiffKind,
     pub file_package: *const CPackageInfo,
 }
 
