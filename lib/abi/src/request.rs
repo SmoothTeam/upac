@@ -178,9 +178,9 @@ pub struct CDiffRequest {
     pub base: CRequestBase,
 
     #[optional]
-    pub from_commit_hash: CSlice,
+    pub from_prefix_digest: CSlice,
     #[optional]
-    pub to_commit_hash: CSlice,
+    pub to_prefix_digest: CSlice,
 }
 
 #[repr(C)]
