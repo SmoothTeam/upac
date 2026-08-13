@@ -6,9 +6,7 @@
 use upac_abi::FileDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::database::MemoryDatabase;
-use crate::database::files::FileStore;
-use crate::database::meta::MetaStore;
+use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
@@ -33,7 +31,9 @@ impl Stage<DiffFilesConfigError> for ComparingStage {
                 FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
             };
 
-            let package_name = Self::attribute(database, &path)?;
+            let package_name = database
+                .attribute_file(&path)?
+                .map(|attribution| attribution.package_meta.name);
 
             entries.push(DiffConfigFileEntry {
                 path,
@@ -45,18 +45,5 @@ impl Stage<DiffFilesConfigError> for ComparingStage {
         context.put(entries);
 
         Ok((progress, Box::new(NoRollback)))
-    }
-}
-
-impl ComparingStage {
-    fn attribute(database: &MemoryDatabase, path: &str) -> Result<Option<String>, DiffFilesConfigError> {
-        let Some(uuid) = database.find_file_owner(path)? else {
-            return Ok(None);
-        };
-        let Some(meta) = database.get_package_meta(uuid)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(meta.name))
     }
 }

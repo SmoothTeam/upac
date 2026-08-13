@@ -6,9 +6,7 @@
 use upac_abi::FileDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::database::MemoryDatabase;
-use crate::database::files::FileStore;
-use crate::database::meta::MetaStore;
+use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
@@ -33,38 +31,18 @@ impl Stage<DiffFilesPrefixError> for ComparingStage {
                 FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
             };
 
-            if let Some(entry) = Self::attribute(database, &path, kind)? {
-                entries.push(entry);
+            if let Some(attribution) = database.attribute_file(&path)? {
+                entries.push(DiffPrefixFileEntry {
+                    path,
+                    kind,
+                    package_name: attribution.package_meta.name,
+                    is_user: attribution.file_entry.is_user,
+                });
             }
         }
 
         context.put(entries);
 
         Ok((progress, Box::new(NoRollback)))
-    }
-}
-
-impl ComparingStage {
-    fn attribute(
-        database: &MemoryDatabase, path: &str, kind: FileDiffKind,
-    ) -> Result<Option<DiffPrefixFileEntry>, DiffFilesPrefixError> {
-        let Some(uuid) = database.find_file_owner(path)? else {
-            return Ok(None);
-        };
-        let Some(meta) = database.get_package_meta(uuid)? else {
-            return Ok(None);
-        };
-        let is_user = database
-            .list_files(uuid)?
-            .into_iter()
-            .find(|entry| entry.path == path)
-            .is_some_and(|entry| entry.is_user);
-
-        Ok(Some(DiffPrefixFileEntry {
-            path: path.to_owned(),
-            kind,
-            package_name: meta.name,
-            is_user,
-        }))
     }
 }
