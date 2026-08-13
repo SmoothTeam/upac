@@ -11,22 +11,22 @@ use crate::errors::{CommonError, common_error_from, database_error_from, lock_er
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DiffFilesError {
+pub enum DiffFilesConfigError {
     Common(CommonError),
 }
 
-common_error_from!(DiffFilesError);
+common_error_from!(DiffFilesConfigError);
 
-database_error_from!(DiffFilesError);
+database_error_from!(DiffFilesConfigError);
 
-sysroot_error_from!(DiffFilesError);
+sysroot_error_from!(DiffFilesConfigError);
 
-lock_error_from!(DiffFilesError);
+lock_error_from!(DiffFilesConfigError);
 
-impl From<DiffFilesError> for ErrorKind {
-    fn from(error: DiffFilesError) -> Self {
+impl From<DiffFilesConfigError> for ErrorKind {
+    fn from(error: DiffFilesConfigError) -> Self {
         match error {
-            DiffFilesError::Common(common_error) => common_error.into(),
+            DiffFilesConfigError::Common(common_error) => common_error.into(),
         }
     }
 }

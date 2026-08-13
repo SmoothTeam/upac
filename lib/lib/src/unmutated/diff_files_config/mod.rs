@@ -7,22 +7,22 @@ use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
-use upac_abi::request::CDiffRequest;
+use upac_abi::request::CDiffFilesConfigRequest;
 
-pub use self::error::DiffError;
+pub use self::error::DiffFilesConfigError;
 
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::DiffStateId;
-use crate::types::{DiffPackageEntry, DiffPrefixFileEntry};
+use crate::types::DiffConfigFileEntry;
+use crate::types::states::DiffFilesConfigStateId;
 
 mod comparing;
 mod error;
 mod preparing;
 
-pub struct DiffData<'a> {
+pub struct DiffFilesConfigData<'a> {
     pub from_commit_hash: Option<&'a str>,
     pub to_commit_hash: Option<&'a str>,
 
@@ -32,15 +32,15 @@ pub struct DiffData<'a> {
     pub cancel_token: &'a CancelToken,
 }
 
-impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
+impl<'a> TryFrom<&'a CDiffFilesConfigRequest> for DiffFilesConfigData<'a> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CDiffRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'a CDiffFilesConfigRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
-        Ok(DiffData {
+        Ok(DiffFilesConfigData {
             from_commit_hash: (&request.from_commit_hash).try_into()?,
             to_commit_hash: (&request.to_commit_hash).try_into()?,
 
@@ -52,11 +52,13 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<DiffError> {
+fn assemble() -> SequentialOrchestrator<DiffFilesConfigError> {
     SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
 }
 
-pub fn run(data: DiffData) -> Result<(Vec<DiffPrefixFileEntry>, Vec<DiffPackageEntry>), (DiffStateId, DiffError)> {
+pub fn run(
+    data: DiffFilesConfigData,
+) -> Result<(Vec<DiffConfigFileEntry>,), (DiffFilesConfigStateId, DiffFilesConfigError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
@@ -66,9 +68,8 @@ pub fn run(data: DiffData) -> Result<(Vec<DiffPrefixFileEntry>, Vec<DiffPackageE
         orchestrator,
         context,
         data.cancel_token,
-        DiffStateId,
-        DiffError,
-        Vec<DiffPrefixFileEntry>,
-        Vec<DiffPackageEntry>
+        DiffFilesConfigStateId,
+        DiffFilesConfigError,
+        Vec<DiffConfigFileEntry>
     )
 }

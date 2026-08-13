@@ -7,24 +7,24 @@ use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
-use upac_abi::request::CDiffFilesRequest;
+use upac_abi::request::CDiffFilesPrefixRequest;
 
-pub use self::error::DiffFilesError;
+pub use self::error::DiffFilesPrefixError;
 
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::DiffFileEntry;
-use crate::types::states::DiffFilesStateId;
+use crate::types::DiffPrefixFileEntry;
+use crate::types::states::DiffFilesPrefixStateId;
 
 mod comparing;
 mod error;
 mod preparing;
 
-pub struct DiffFilesData<'a> {
-    pub from_commit_hash: Option<&'a str>,
-    pub to_commit_hash: Option<&'a str>,
+pub struct DiffFilesPrefixData<'a> {
+    pub from_prefix_digest: Option<&'a str>,
+    pub to_prefix_digest: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -32,17 +32,17 @@ pub struct DiffFilesData<'a> {
     pub cancel_token: &'a CancelToken,
 }
 
-impl<'a> TryFrom<&'a CDiffFilesRequest> for DiffFilesData<'a> {
+impl<'a> TryFrom<&'a CDiffFilesPrefixRequest> for DiffFilesPrefixData<'a> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CDiffFilesRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'a CDiffFilesPrefixRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
-        Ok(DiffFilesData {
-            from_commit_hash: (&request.from_commit_hash).try_into()?,
-            to_commit_hash: (&request.to_commit_hash).try_into()?,
+        Ok(DiffFilesPrefixData {
+            from_prefix_digest: (&request.from_prefix_digest).try_into()?,
+            to_prefix_digest: (&request.to_prefix_digest).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
@@ -52,11 +52,13 @@ impl<'a> TryFrom<&'a CDiffFilesRequest> for DiffFilesData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<DiffFilesError> {
+fn assemble() -> SequentialOrchestrator<DiffFilesPrefixError> {
     SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
 }
 
-pub fn run(data: DiffFilesData) -> Result<(Vec<DiffFileEntry>,), (DiffFilesStateId, DiffFilesError)> {
+pub fn run(
+    data: DiffFilesPrefixData,
+) -> Result<(Vec<DiffPrefixFileEntry>,), (DiffFilesPrefixStateId, DiffFilesPrefixError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
@@ -66,8 +68,8 @@ pub fn run(data: DiffFilesData) -> Result<(Vec<DiffFileEntry>,), (DiffFilesState
         orchestrator,
         context,
         data.cancel_token,
-        DiffFilesStateId,
-        DiffFilesError,
-        Vec<DiffFileEntry>
+        DiffFilesPrefixStateId,
+        DiffFilesPrefixError,
+        Vec<DiffPrefixFileEntry>
     )
 }

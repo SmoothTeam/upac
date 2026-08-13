@@ -8,7 +8,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CDiffRequest;
-use upac_abi::response::{CDiffFileEntry, CDiffPackageEntry, CDiffResponse};
+use upac_abi::response::{CDiffPackageEntry, CDiffPrefixFileEntry, CDiffResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
@@ -27,7 +27,7 @@ pub unsafe extern "C" fn diff(request_c: CDiffRequest, response_out: *mut CDiffR
                 unsafe {
                     *response_out = CDiffResponse {
                         struct_size: size_of::<CDiffResponse>(),
-                        files: CVec::from_owned(files.into_iter().map(CDiffFileEntry::from).collect()),
+                        files: CVec::from_owned(files.into_iter().map(CDiffPrefixFileEntry::from).collect()),
                         diff_packages: CVec::from_owned(
                             diff_packages.into_iter().map(CDiffPackageEntry::from).collect(),
                         ),

@@ -7,14 +7,14 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage};
-use crate::unmutated::diff_files::DiffFilesError;
+use crate::unmutated::diff_files_prefix::DiffFilesPrefixError;
 
-pub struct PreparingStage;
+pub struct ComparingStage;
 
-impl Stage<DiffFilesError> for PreparingStage {
+impl Stage<DiffFilesPrefixError> for ComparingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesError> {
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesPrefixError> {
         todo!()
     }
 }
