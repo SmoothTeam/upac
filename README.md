@@ -121,3 +121,12 @@ zig build
 ```
 
 > **Note:** packaging (Arch/RPM/deb) and the old `make`-based build pipeline from the Zig implementation have not been ported to this branch yet.
+
+### Docs tooling (`xtask`)
+
+The repo tree embedded in each design chapter under `doc/` is generated, not hand-edited. `xtask` is its own standalone workspace (see `xtask/Cargo.toml`) so it doesn't affect the main workspace's MSRV/edition:
+
+```sh
+cargo xtask gen-tree          # regenerate the tree in every marked doc file
+cargo xtask gen-tree --check  # verify it's up to date, no writes
+```
