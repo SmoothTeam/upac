@@ -3,18 +3,69 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::collections::HashMap;
+
+use upac_abi::PackageDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
+use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::types::{DiffPackageEntry, DiffPackagesSnapshot};
 use crate::unmutated::diff_packages::DiffPackagesError;
 
 pub struct ComparingStage;
 
 impl Stage<DiffPackagesError> for ComparingStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPackagesError> {
-        todo!()
+        let snapshot = context
+            .take::<DiffPackagesSnapshot>()
+            .ok_or(CommonError::MissingResult)?;
+
+        let from: HashMap<_, _> = snapshot
+            .from
+            .into_iter()
+            .map(|meta| ((meta.name.clone(), meta.arch.clone(), meta.arch_sub.clone()), meta))
+            .collect();
+        let mut to: HashMap<_, _> = snapshot
+            .to
+            .into_iter()
+            .map(|meta| ((meta.name.clone(), meta.arch.clone(), meta.arch_sub.clone()), meta))
+            .collect();
+
+        let mut entries = Vec::new();
+
+        for (identity, from_meta) in from {
+            match to.remove(&identity) {
+                Some(to_meta) if to_meta.sha256 != from_meta.sha256 => entries.push(DiffPackageEntry {
+                    name: to_meta.name,
+                    kind: PackageDiffKind::Modified,
+                    version: to_meta.version,
+                    files: Vec::new(),
+                }),
+                Some(_) => {}
+                None => entries.push(DiffPackageEntry {
+                    name: from_meta.name,
+                    kind: PackageDiffKind::Removed,
+                    version: from_meta.version,
+                    files: Vec::new(),
+                }),
+            }
+        }
+
+        for (_identity, to_meta) in to {
+            entries.push(DiffPackageEntry {
+                name: to_meta.name,
+                kind: PackageDiffKind::Added,
+                version: to_meta.version,
+                files: Vec::new(),
+            });
+        }
+
+        context.put(entries);
+
+        Ok((progress, Box::new(NoRollback)))
     }
 }

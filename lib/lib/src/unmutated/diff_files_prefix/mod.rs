@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CDiffFilesPrefixRequest;
@@ -14,13 +15,20 @@ pub use self::error::DiffFilesPrefixError;
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
+use crate::database::MemoryDatabase;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::DiffPrefixFileEntry;
 use crate::types::states::DiffFilesPrefixStateId;
+use crate::types::{DiffPrefixFileEntry, RequestedPrefixDigestRange};
 
 mod comparing;
 mod error;
 mod preparing;
+
+struct DiffFilesPrefixSnapshot {
+    changed: Vec<(String, FileDiffKind)>,
+    from_database: MemoryDatabase,
+    to_database: MemoryDatabase,
+}
 
 pub struct DiffFilesPrefixData<'a> {
     pub from_prefix_digest: Option<&'a str>,
@@ -52,17 +60,17 @@ impl<'a> TryFrom<&'a CDiffFilesPrefixRequest> for DiffFilesPrefixData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<DiffFilesPrefixError> {
-    SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
-}
-
 pub fn run(
     data: DiffFilesPrefixData,
 ) -> Result<(Vec<DiffPrefixFileEntry>,), (DiffFilesPrefixStateId, DiffFilesPrefixError)> {
     let mut context = Context::new();
+    context.put(RequestedPrefixDigestRange {
+        from: data.from_prefix_digest.map(str::to_owned),
+        to: data.to_prefix_digest.map(str::to_owned),
+    });
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
 
     run_unmutated!(
         orchestrator,

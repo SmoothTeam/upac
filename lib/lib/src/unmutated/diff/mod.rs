@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CDiffRequest;
@@ -14,17 +15,26 @@ pub use self::error::DiffError;
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
+use crate::database::MemoryDatabase;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::DiffStateId;
-use crate::types::{DiffPackageEntry, DiffPrefixFileEntry};
+use crate::types::{DiffPackageEntry, DiffUntrackedFileEntry, PackageMeta, RequestedPrefixDigestRange};
 
 mod comparing;
 mod error;
 mod preparing;
 
+struct DiffSnapshot {
+    from_packages: Vec<PackageMeta>,
+    to_packages: Vec<PackageMeta>,
+    changed_files: Vec<(String, FileDiffKind)>,
+    from_database: MemoryDatabase,
+    to_database: MemoryDatabase,
+}
+
 pub struct DiffData<'a> {
-    pub from_commit_hash: Option<&'a str>,
-    pub to_commit_hash: Option<&'a str>,
+    pub from_prefix_digest: Option<&'a str>,
+    pub to_prefix_digest: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -41,8 +51,8 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
         Ok(DiffData {
-            from_commit_hash: (&request.from_commit_hash).try_into()?,
-            to_commit_hash: (&request.to_commit_hash).try_into()?,
+            from_prefix_digest: (&request.from_prefix_digest).try_into()?,
+            to_prefix_digest: (&request.to_prefix_digest).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
@@ -52,15 +62,15 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<DiffError> {
-    SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)])
-}
-
-pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffPrefixFileEntry>), (DiffStateId, DiffError)> {
+pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffUntrackedFileEntry>), (DiffStateId, DiffError)> {
     let mut context = Context::new();
+    context.put(RequestedPrefixDigestRange {
+        from: data.from_prefix_digest.map(str::to_owned),
+        to: data.to_prefix_digest.map(str::to_owned),
+    });
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
 
     run_unmutated!(
         orchestrator,
@@ -69,6 +79,6 @@ pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffPrefixFileE
         DiffStateId,
         DiffError,
         Vec<DiffPackageEntry>,
-        Vec<DiffPrefixFileEntry>
+        Vec<DiffUntrackedFileEntry>
     )
 }

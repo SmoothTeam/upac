@@ -23,14 +23,14 @@ fn sample_record() -> DeployRecord {
         message: Some("long-form commit message".to_string()),
         seq: 7,
         timestamp: 1_754_000_000,
-        etc_history: vec![
+        config_history: vec![
             EtcHistoryEntry {
-                etc_digest: "etc-digest-1".to_string(),
+                config_digest: "etc-digest-1".to_string(),
                 subject: "first etc".to_string(),
                 message: None,
             },
             EtcHistoryEntry {
-                etc_digest: "etc-digest-2".to_string(),
+                config_digest: "etc-digest-2".to_string(),
                 subject: "second etc".to_string(),
                 message: Some("with a message".to_string()),
             },

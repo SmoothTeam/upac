@@ -5,9 +5,11 @@
 
 use upac_abi::error::ErrorKind;
 
-use crate::database::error::DatabaseError;
+use crate::database::error::{DatabaseError, DeployRecordError};
 use crate::deploy::error::SysrootError;
-use crate::errors::{CommonError, common_error_from, database_error_from, lock_error_from, sysroot_error_from};
+use crate::errors::{
+    CommonError, common_error_from, database_error_from, deploy_record_error_from, lock_error_from, sysroot_error_from,
+};
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +20,8 @@ pub enum ListHistoryError {
 common_error_from!(ListHistoryError);
 
 database_error_from!(ListHistoryError);
+
+deploy_record_error_from!(ListHistoryError);
 
 sysroot_error_from!(ListHistoryError);
 

@@ -18,10 +18,10 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let commit_hash = CString::new(args.commit)?;
+    let config_digest = CString::new(args.commit)?;
 
     let request = CMutatedRequest::for_rollback(
-        &commit_hash,
+        &config_digest,
         &ctx.config.paths.repo_path,
         &ctx.config.paths.root_path,
         &ctx.config.ostree.branch,

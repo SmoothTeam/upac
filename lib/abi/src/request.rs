@@ -7,7 +7,7 @@ use std::os::raw::c_void;
 
 use upac_macro::CValidate;
 
-use crate::DiffKind;
+use crate::FileDiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
 use crate::package::{CPackageInfo, CUnpackedPackage};
@@ -74,7 +74,7 @@ pub struct CRollbackRequest {
     pub base: CRequestBase,
 
     pub tmp_path: CSlice,
-    pub commit_hash: CSlice,
+    pub config_digest: CSlice,
 }
 
 #[repr(C)]
@@ -100,7 +100,7 @@ pub struct CFilesRequest {
     #[optional]
     pub message: CSlice,
     pub files: CVec<CSlice>,
-    pub file_kind: DiffKind,
+    pub file_kind: FileDiffKind,
     pub file_package: *const CPackageInfo,
 }
 
@@ -154,9 +154,9 @@ pub struct CDiffFilesConfigRequest {
     pub base: CRequestBase,
 
     #[optional]
-    pub from_commit_hash: CSlice,
+    pub from_config_digest: CSlice,
     #[optional]
-    pub to_commit_hash: CSlice,
+    pub to_config_digest: CSlice,
 }
 
 #[repr(C)]
@@ -178,9 +178,9 @@ pub struct CDiffRequest {
     pub base: CRequestBase,
 
     #[optional]
-    pub from_commit_hash: CSlice,
+    pub from_prefix_digest: CSlice,
     #[optional]
-    pub to_commit_hash: CSlice,
+    pub to_prefix_digest: CSlice,
 }
 
 #[repr(C)]

@@ -21,16 +21,16 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let from_commit_hash = CString::new(args.from)?;
-    let to_commit_hash = CString::new(args.to)?;
+    let from_config_digest = CString::new(args.from)?;
+    let to_config_digest = CString::new(args.to)?;
 
     let mut response = CUnmutatedResponse::empty();
 
     let request = CUnmutatedRequest::for_diff(
         &ctx.config.paths.repo_path,
         &ctx.tmp_path,
-        &from_commit_hash,
-        &to_commit_hash,
+        &from_config_digest,
+        &to_config_digest,
         cancel_token_ptr(),
     );
 

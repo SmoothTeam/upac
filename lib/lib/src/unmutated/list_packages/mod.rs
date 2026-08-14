@@ -44,15 +44,11 @@ impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<ListPackagesError> {
-    SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
-}
-
 pub fn run(data: ListPackagesData) -> Result<(Vec<PackageMeta>,), (ListPackagesStateId, ListPackagesError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(FetchingStage)]);
 
     run_unmutated!(
         orchestrator,

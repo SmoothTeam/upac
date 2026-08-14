@@ -21,6 +21,7 @@ use crate::types::database::{
 
 use self::error::DatabaseError;
 
+pub mod attribution;
 pub mod error;
 pub mod files;
 pub mod meta;

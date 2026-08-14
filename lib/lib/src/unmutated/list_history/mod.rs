@@ -44,15 +44,11 @@ impl<'a> TryFrom<&'a CListHistoryRequest> for ListHistoryData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<ListHistoryError> {
-    SequentialOrchestrator::new(vec![Box::new(FetchingStage)])
-}
-
 pub fn run(data: ListHistoryData) -> Result<(Vec<HistoryEntry>,), (ListHistoryStateId, ListHistoryError)> {
     let mut context = Context::new();
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(FetchingStage)]);
 
     run_unmutated!(
         orchestrator,

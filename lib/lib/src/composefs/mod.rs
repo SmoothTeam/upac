@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+pub mod diff;
 pub mod error;
 pub mod file;
 pub mod repository;

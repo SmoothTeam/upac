@@ -5,18 +5,18 @@
 
 use upac_macro::{CFree, CValidate};
 
-use crate::DiffKind;
 use crate::error::ErrorKind;
 use crate::memory::{free_cslice, free_cvec_owning};
 use crate::package::{CPackageMeta, CVersion};
 use crate::types::{CSlice, CVec, check_size};
+use crate::{FileDiffKind, PackageDiffKind};
 
 #[repr(C)]
 #[derive(CFree)]
 pub struct CDiffPackageEntry {
     pub struct_size: usize,
     pub name: CSlice,
-    pub kind: DiffKind,
+    pub kind: PackageDiffKind,
     pub version: CVersion,
     pub files: CVec<CDiffPrefixFileEntry>,
 }
@@ -27,7 +27,7 @@ pub struct CDiffPrefixFileEntry {
     pub struct_size: usize,
 
     pub path: CSlice,
-    pub kind: DiffKind,
+    pub kind: FileDiffKind,
     pub package_name: CSlice,
     pub is_user: bool,
 }
@@ -38,9 +38,18 @@ pub struct CDiffConfigFileEntry {
     pub struct_size: usize,
 
     pub path: CSlice,
-    pub kind: DiffKind,
+    pub kind: FileDiffKind,
     #[optional]
     pub package_name: CSlice,
+}
+
+#[repr(C)]
+#[derive(CFree, CValidate)]
+pub struct CDiffUntrackedFileEntry {
+    pub struct_size: usize,
+
+    pub path: CSlice,
+    pub kind: FileDiffKind,
 }
 
 #[repr(C)]
@@ -231,8 +240,8 @@ impl CDiffPackagesResponse {
 #[repr(C)]
 pub struct CDiffResponse {
     pub struct_size: usize,
-    pub unattached_files: CVec<CDiffPrefixFileEntry>,
     pub diff_packages: CVec<CDiffPackageEntry>,
+    pub unattached_files: CVec<CDiffUntrackedFileEntry>,
 }
 
 impl CDiffResponse {

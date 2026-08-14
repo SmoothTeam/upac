@@ -3,18 +3,47 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use upac_abi::FileDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
+use crate::database::attribution::FileAttribute;
+use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
-use crate::unmutated::diff_files_config::DiffFilesConfigError;
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::types::DiffConfigFileEntry;
+use crate::unmutated::diff_files_config::{DiffFilesConfigError, DiffFilesConfigSnapshot};
 
 pub struct ComparingStage;
 
 impl Stage<DiffFilesConfigError> for ComparingStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesConfigError> {
-        todo!()
+        let snapshot = context
+            .take::<DiffFilesConfigSnapshot>()
+            .ok_or(CommonError::MissingResult)?;
+
+        let mut entries = Vec::new();
+
+        for (path, kind) in snapshot.changed {
+            let database = match kind {
+                FileDiffKind::Removed => &snapshot.from_database,
+                FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
+            };
+
+            let package_name = database
+                .attribute_file(&path)?
+                .map(|attribution| attribution.package_meta.name);
+
+            entries.push(DiffConfigFileEntry {
+                path,
+                kind,
+                package_name,
+            });
+        }
+
+        context.put(entries);
+
+        Ok((progress, Box::new(NoRollback)))
     }
 }

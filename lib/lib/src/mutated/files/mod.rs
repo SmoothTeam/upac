@@ -5,7 +5,7 @@
 
 use std::os::raw::c_void;
 
-use upac_abi::DiffKind;
+use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
@@ -30,7 +30,7 @@ mod transaction;
 
 pub struct FilesData<'a> {
     pub files: Vec<&'a str>,
-    pub file_kind: DiffKind,
+    pub file_kind: FileDiffKind,
     pub file_package: &'a CPackageInfo,
 
     pub tmp_path: &'a str,
@@ -71,20 +71,6 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<FilesError> {
-    SequentialOrchestrator::new(vec![
-        Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Files),
-        }),
-        Box::new(TransactionStage),
-        Box::new(CheckoutStage),
-        Box::new(SwapStage),
-        Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Files),
-        }),
-    ])
-}
-
 pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
     let mut context = Context::new();
     context.put(TmpPath(data.tmp_path.to_owned()));
@@ -97,4 +83,18 @@ pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
     data.cancel_token.reset();
 
     result
+}
+
+fn assemble() -> SequentialOrchestrator<FilesError> {
+    SequentialOrchestrator::new(vec![
+        Box::new(HookStage {
+            trigger: NativeTrigger::pre(Operation::Files),
+        }),
+        Box::new(TransactionStage),
+        Box::new(CheckoutStage),
+        Box::new(SwapStage),
+        Box::new(HookStage {
+            trigger: NativeTrigger::post(Operation::Files),
+        }),
+    ])
 }

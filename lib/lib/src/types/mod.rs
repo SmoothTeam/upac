@@ -5,20 +5,23 @@
 
 use std::mem::size_of;
 
-use upac_abi::DiffKind;
 use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
 use upac_abi::response::{
-    CCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CHistoryEntry, CPrefixEntry,
-    CSearchFileEntry,
+    CCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
+    CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
+use upac_abi::{FileDiffKind, PackageDiffKind};
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
 pub mod states;
+
+#[cfg(test)]
+mod tests;
 
 macro_rules! as_str_method {
     ($name:ty) => {
@@ -156,7 +159,7 @@ pub struct HistoryEntry {
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPrefixFileEntry {
     pub path: String,
-    pub kind: DiffKind,
+    pub kind: FileDiffKind,
     pub package_name: String,
     pub is_user: bool,
 }
@@ -165,7 +168,7 @@ pub struct DiffPrefixFileEntry {
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffConfigFileEntry {
     pub path: String,
-    pub kind: DiffKind,
+    pub kind: FileDiffKind,
     pub package_name: Option<String>,
 }
 
@@ -173,13 +176,24 @@ pub struct DiffConfigFileEntry {
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPackageEntry {
     pub name: String,
-    pub kind: DiffKind,
+    pub kind: PackageDiffKind,
     pub version: Version,
 
     // Only this package's own files. A changed file with no package to
     // attach to is not here — it's in `diff::run()`'s separate
     // unattached-files return value.
     pub files: Vec<DiffPrefixFileEntry>,
+}
+
+// ── DiffUntrackedFileEntry ──────────────────────────────────────────────────
+// A changed /usr file that belongs to no package at all — not package-owned,
+// not attached as a user file. By design this shouldn't normally happen
+// (every /usr file is meant to come with a package), but if it does, it's
+// surfaced here rather than silently dropped. No package_name: there is none.
+#[derive(Debug, Clone, RustToC)]
+pub struct DiffUntrackedFileEntry {
+    pub path: String,
+    pub kind: FileDiffKind,
 }
 
 pub struct Targets(pub Vec<PackageEntry>);
@@ -198,48 +212,19 @@ pub struct Search(pub String);
 
 as_str_method!(Search);
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct RequestedPrefixDigest(pub Option<String>);
 
-    fn sample_version() -> Version {
-        Version {
-            epoch: 1,
-            parts: vec![2, 5, 0],
-            pre: Some("rc1".to_owned()),
-            release: 3,
-        }
-    }
+pub struct RequestedPrefixDigestRange {
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
 
-    #[test]
-    fn version_redb_round_trip_preserves_value() {
-        let original = sample_version();
+pub struct RequestedConfigDigestRange {
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
 
-        let mut buf = Vec::new();
-        Version::encode_into(&mut buf, &original);
-
-        let mut offset = 0;
-        let restored = Version::decode_from(&buf, &mut offset);
-
-        assert_eq!(restored, original);
-        assert_eq!(offset, buf.len());
-    }
-
-    #[test]
-    fn file_entry_redb_round_trip_preserves_value() {
-        let original = FileEntry {
-            path: "/usr/bin/up".to_owned(),
-            is_user: false,
-        };
-
-        let mut buf = Vec::new();
-        FileEntry::encode_into(&mut buf, &original);
-
-        let mut offset = 0;
-        let restored = FileEntry::decode_from(&buf, &mut offset);
-
-        assert_eq!(restored.path, original.path);
-        assert_eq!(restored.is_user, original.is_user);
-        assert_eq!(offset, buf.len());
-    }
+pub struct DiffPackagesSnapshot {
+    pub from: Vec<PackageMeta>,
+    pub to: Vec<PackageMeta>,
 }

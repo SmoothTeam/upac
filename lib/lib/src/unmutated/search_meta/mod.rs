@@ -48,16 +48,12 @@ impl<'a> TryFrom<&'a CSearchMetaRequest> for SearchMetaData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<SearchMetaError> {
-    SequentialOrchestrator::new(vec![Box::new(SearchingStage)])
-}
-
 pub fn run(data: SearchMetaData) -> Result<(Vec<PackageMeta>,), (SearchMetaStateId, SearchMetaError)> {
     let mut context = Context::new();
     context.put(Search(data.search.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = assemble();
+    let orchestrator = SequentialOrchestrator::new(vec![Box::new(SearchingStage)]);
 
     run_unmutated!(
         orchestrator,

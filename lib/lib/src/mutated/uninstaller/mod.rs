@@ -92,23 +92,6 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
     }
 }
 
-fn assemble() -> SequentialOrchestrator<UninstallError> {
-    SequentialOrchestrator::new(vec![
-        Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Uninstall),
-        }),
-        Box::new(PreparationStage),
-        Box::new(BuildStage),
-        Box::new(CommitStage),
-        Box::new(ConfigMergeStage),
-        Box::new(PrepareBootStage),
-        Box::new(BootOptionStage),
-        Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Uninstall),
-        }),
-    ])
-}
-
 pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)> {
     let deploy =
         Deploy::new(DeployMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, UninstallError::from(error)))?;
@@ -143,4 +126,21 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     data.cancel_token.reset();
 
     result
+}
+
+fn assemble() -> SequentialOrchestrator<UninstallError> {
+    SequentialOrchestrator::new(vec![
+        Box::new(HookStage {
+            trigger: NativeTrigger::pre(Operation::Uninstall),
+        }),
+        Box::new(PreparationStage),
+        Box::new(BuildStage),
+        Box::new(CommitStage),
+        Box::new(ConfigMergeStage),
+        Box::new(PrepareBootStage),
+        Box::new(BootOptionStage),
+        Box::new(HookStage {
+            trigger: NativeTrigger::post(Operation::Uninstall),
+        }),
+    ])
 }
