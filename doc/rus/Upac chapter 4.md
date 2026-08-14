@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 ### Карта файлов в репозитории.
 
 <!-- tree:start -->
-```
+```text
 upac/
 ├── .cargo/
 │   └── config.toml
@@ -24,8 +24,8 @@ upac/
 │   ├── rpm/
 │   └── xbps/
 ├── doc/
-│   ├── rus/
-│   └── UPAC project note.en.md
+│   ├── eng/
+│   └── rus/
 ├── lib/
 │   ├── abi/
 │   ├── lib/
