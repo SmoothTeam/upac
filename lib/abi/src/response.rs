@@ -9,7 +9,7 @@ use crate::error::ErrorKind;
 use crate::memory::{free_cslice, free_cvec_owning};
 use crate::package::{CPackageMeta, CVersion};
 use crate::types::{CSlice, CVec, check_size};
-use crate::{FileDiffKind, PackageDiffKind};
+use crate::{DiffFileSource, FileDiffKind, PackageDiffKind};
 
 #[repr(C)]
 #[derive(CFree)]
@@ -23,11 +23,20 @@ pub struct CDiffPackageEntry {
 
 #[repr(C)]
 #[derive(CFree, CValidate)]
-pub struct CDiffPrefixFileEntry {
+pub struct CDiffFileEntryCommon {
     pub struct_size: usize,
 
     pub path: CSlice,
     pub kind: FileDiffKind,
+}
+
+#[repr(C)]
+#[derive(CFree, CValidate)]
+pub struct CDiffPrefixFileEntry {
+    pub struct_size: usize,
+
+    pub common: CDiffFileEntryCommon,
+    pub source: DiffFileSource,
     pub package_name: CSlice,
     pub is_user: bool,
 }
@@ -37,8 +46,7 @@ pub struct CDiffPrefixFileEntry {
 pub struct CDiffConfigFileEntry {
     pub struct_size: usize,
 
-    pub path: CSlice,
-    pub kind: FileDiffKind,
+    pub common: CDiffFileEntryCommon,
     #[optional]
     pub package_name: CSlice,
 }
@@ -48,8 +56,8 @@ pub struct CDiffConfigFileEntry {
 pub struct CDiffUntrackedFileEntry {
     pub struct_size: usize,
 
-    pub path: CSlice,
-    pub kind: FileDiffKind,
+    pub common: CDiffFileEntryCommon,
+    pub source: DiffFileSource,
 }
 
 #[repr(C)]
@@ -193,12 +201,12 @@ impl CListHistoryResponse {
 }
 
 #[repr(C)]
-pub struct CDiffFilesPrefixResponse {
+pub struct CDiffPrefixResponse {
     pub struct_size: usize,
     pub files: CVec<CDiffPrefixFileEntry>,
 }
 
-impl CDiffFilesPrefixResponse {
+impl CDiffPrefixResponse {
     /// # Safety
     /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
     /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
@@ -208,12 +216,12 @@ impl CDiffFilesPrefixResponse {
 }
 
 #[repr(C)]
-pub struct CDiffFilesConfigResponse {
+pub struct CDiffConfigResponse {
     pub struct_size: usize,
     pub files: CVec<CDiffConfigFileEntry>,
 }
 
-impl CDiffFilesConfigResponse {
+impl CDiffConfigResponse {
     /// # Safety
     /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
     /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.

@@ -62,3 +62,25 @@ impl PackageDiffKind {
         }
     }
 }
+
+// Distinguishes which tree a DiffPrefixFileEntry/DiffUntrackedFileEntry came
+// from when both /usr and /etc changes are folded into one list (the combined
+// diff command). Standalone diff_prefix/diff_config don't need it to
+// disambiguate (the command itself already implies the axis), but reuse the
+// same entry types and set it to a fixed value.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiffFileSource {
+    Prefix = 0,
+    Config = 1,
+}
+
+impl DiffFileSource {
+    pub fn from_u8(version: u8) -> Result<DiffFileSource, ErrorKind> {
+        match version {
+            0 => Ok(DiffFileSource::Prefix),
+            1 => Ok(DiffFileSource::Config),
+            _ => Err(ErrorKind::InvalidEntry),
+        }
+    }
+}

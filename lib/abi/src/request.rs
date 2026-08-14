@@ -137,7 +137,7 @@ pub struct CListHistoryRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CDiffFilesPrefixRequest {
+pub struct CDiffPrefixRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
@@ -149,7 +149,7 @@ pub struct CDiffFilesPrefixRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CDiffFilesConfigRequest {
+pub struct CDiffConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
