@@ -56,6 +56,11 @@ For files where a comment header doesn't make sense (e.g. Markdown, TOML), add a
 - Long, descriptive names over abbreviations, in both variables and functions.
 - When a file grows past one logical unit, split it into a folder with a `mod.rs`, not a single
   giant file.
+- Command families under `mutated`/`unmutated` (e.g. `diff`/`diff_packages`/`diff_prefix`/
+  `diff_config`, or `search_meta`/`search_files`) stay flat, one folder per command — don't
+  nest them under a shared group folder. The common name prefix already groups them in any
+  directory listing; nesting would only add import/path churn without a real benefit at the
+  current command count.
 
 ## Tests
 
