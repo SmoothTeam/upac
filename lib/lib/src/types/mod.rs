@@ -9,11 +9,11 @@ use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
 use upac_abi::response::{
-    CCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
-    CHistoryEntry, CPrefixEntry, CSearchFileEntry,
+    CCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
+    CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
-use upac_abi::{FileDiffKind, PackageDiffKind};
+use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
@@ -155,11 +155,18 @@ pub struct HistoryEntry {
     pub config_history: Vec<CommitEntry>,
 }
 
+// ── DiffFileEntryCommon ──────────────────────────────────────────────────────
+#[derive(Debug, Clone, RustToC)]
+pub struct DiffFileEntryCommon {
+    pub path: String,
+    pub kind: FileDiffKind,
+}
+
 // ── DiffPrefixFileEntry ─────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPrefixFileEntry {
-    pub path: String,
-    pub kind: FileDiffKind,
+    pub common: DiffFileEntryCommon,
+    pub source: DiffFileSource,
     pub package_name: String,
     pub is_user: bool,
 }
@@ -167,8 +174,7 @@ pub struct DiffPrefixFileEntry {
 // ── DiffConfigFileEntry ─────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffConfigFileEntry {
-    pub path: String,
-    pub kind: FileDiffKind,
+    pub common: DiffFileEntryCommon,
     pub package_name: Option<String>,
 }
 
@@ -192,8 +198,8 @@ pub struct DiffPackageEntry {
 // surfaced here rather than silently dropped. No package_name: there is none.
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffUntrackedFileEntry {
-    pub path: String,
-    pub kind: FileDiffKind,
+    pub common: DiffFileEntryCommon,
+    pub source: DiffFileSource,
 }
 
 pub struct Targets(pub Vec<PackageEntry>);

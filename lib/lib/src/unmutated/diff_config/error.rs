@@ -15,28 +15,28 @@ use crate::errors::{
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DiffFilesConfigError {
+pub enum DiffConfigError {
     Common(CommonError),
     ConfigDigestNotFound(String),
 }
 
-common_error_from!(DiffFilesConfigError);
+common_error_from!(DiffConfigError);
 
-database_error_from!(DiffFilesConfigError);
+database_error_from!(DiffConfigError);
 
-deploy_record_error_from!(DiffFilesConfigError);
+deploy_record_error_from!(DiffConfigError);
 
-repo_error_from!(DiffFilesConfigError);
+repo_error_from!(DiffConfigError);
 
-sysroot_error_from!(DiffFilesConfigError);
+sysroot_error_from!(DiffConfigError);
 
-lock_error_from!(DiffFilesConfigError);
+lock_error_from!(DiffConfigError);
 
-impl From<DiffFilesConfigError> for ErrorKind {
-    fn from(error: DiffFilesConfigError) -> Self {
+impl From<DiffConfigError> for ErrorKind {
+    fn from(error: DiffConfigError) -> Self {
         match error {
-            DiffFilesConfigError::Common(common_error) => common_error.into(),
-            DiffFilesConfigError::ConfigDigestNotFound(_) => ErrorKind::NotFound,
+            DiffConfigError::Common(common_error) => common_error.into(),
+            DiffConfigError::ConfigDigestNotFound(_) => ErrorKind::NotFound,
         }
     }
 }

@@ -10,18 +10,16 @@ use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::DiffConfigFileEntry;
-use crate::unmutated::diff_files_config::{DiffFilesConfigError, DiffFilesConfigSnapshot};
+use crate::types::{DiffConfigFileEntry, DiffFileEntryCommon};
+use crate::unmutated::diff_config::{DiffConfigError, DiffConfigSnapshot};
 
 pub struct ComparingStage;
 
-impl Stage<DiffFilesConfigError> for ComparingStage {
+impl Stage<DiffConfigError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesConfigError> {
-        let snapshot = context
-            .take::<DiffFilesConfigSnapshot>()
-            .ok_or(CommonError::MissingResult)?;
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffConfigError> {
+        let snapshot = context.take::<DiffConfigSnapshot>().ok_or(CommonError::MissingResult)?;
 
         let mut entries = Vec::new();
 
@@ -36,8 +34,7 @@ impl Stage<DiffFilesConfigError> for ComparingStage {
                 .map(|attribution| attribution.package_meta.name);
 
             entries.push(DiffConfigFileEntry {
-                path,
-                kind,
+                common: DiffFileEntryCommon { path, kind },
                 package_name,
             });
         }

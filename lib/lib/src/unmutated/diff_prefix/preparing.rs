@@ -16,14 +16,14 @@ use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 use crate::types::RequestedPrefixDigestRange;
 use crate::types::database::DATABASE_PATH;
-use crate::unmutated::diff_files_prefix::{DiffFilesPrefixError, DiffFilesPrefixSnapshot};
+use crate::unmutated::diff_prefix::{DiffPrefixError, DiffPrefixSnapshot};
 
 pub struct PreparingStage;
 
-impl Stage<DiffFilesPrefixError> for PreparingStage {
+impl Stage<DiffPrefixError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesPrefixError> {
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPrefixError> {
         let requested = context
             .get::<RequestedPrefixDigestRange>()
             .ok_or(CommonError::MissingResult)?;
@@ -51,7 +51,7 @@ impl Stage<DiffFilesPrefixError> for PreparingStage {
         let to_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &to_tree)?;
         let to_database = MemoryDatabase::open_in_memory(to_bytes)?;
 
-        context.put(DiffFilesPrefixSnapshot {
+        context.put(DiffPrefixSnapshot {
             changed,
             from_database,
             to_database,

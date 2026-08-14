@@ -17,14 +17,14 @@ use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 use crate::types::RequestedConfigDigestRange;
 use crate::types::database::DATABASE_PATH;
-use crate::unmutated::diff_files_config::{DiffFilesConfigError, DiffFilesConfigSnapshot};
+use crate::unmutated::diff_config::{DiffConfigError, DiffConfigSnapshot};
 
 pub struct PreparingStage;
 
-impl Stage<DiffFilesConfigError> for PreparingStage {
+impl Stage<DiffConfigError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesConfigError> {
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffConfigError> {
         let requested = context
             .get::<RequestedConfigDigestRange>()
             .ok_or(CommonError::MissingResult)?;
@@ -49,7 +49,7 @@ impl Stage<DiffFilesConfigError> for PreparingStage {
         let to_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &to_prefix_tree)?;
         let to_database = MemoryDatabase::open_in_memory(to_bytes)?;
 
-        context.put(DiffFilesConfigSnapshot {
+        context.put(DiffConfigSnapshot {
             changed,
             from_database,
             to_database,
@@ -64,7 +64,7 @@ impl PreparingStage {
     // itself plus the prefix_digest of the deploy it belongs to — needed because
     // the /usr package database used for file attribution lives under the prefix,
     // not under the standalone /etc image the config_digest names.
-    fn resolve(deploy: &Deploy, requested: Option<&String>) -> Result<(String, String), DiffFilesConfigError> {
+    fn resolve(deploy: &Deploy, requested: Option<&String>) -> Result<(String, String), DiffConfigError> {
         match requested {
             Some(config_digest) => {
                 for prefix_digest in deploy.deploys()? {
@@ -85,7 +85,7 @@ impl PreparingStage {
                     }
                 }
 
-                Err(DiffFilesConfigError::ConfigDigestNotFound(config_digest.clone()))
+                Err(DiffConfigError::ConfigDigestNotFound(config_digest.clone()))
             }
             None => {
                 let prefix_digest = current_prefix_digest()?;

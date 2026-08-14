@@ -3,25 +3,23 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use upac_abi::FileDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::{DiffFileSource, FileDiffKind};
 
 use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::DiffPrefixFileEntry;
-use crate::unmutated::diff_files_prefix::{DiffFilesPrefixError, DiffFilesPrefixSnapshot};
+use crate::types::{DiffFileEntryCommon, DiffPrefixFileEntry};
+use crate::unmutated::diff_prefix::{DiffPrefixError, DiffPrefixSnapshot};
 
 pub struct ComparingStage;
 
-impl Stage<DiffFilesPrefixError> for ComparingStage {
+impl Stage<DiffPrefixError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffFilesPrefixError> {
-        let snapshot = context
-            .take::<DiffFilesPrefixSnapshot>()
-            .ok_or(CommonError::MissingResult)?;
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPrefixError> {
+        let snapshot = context.take::<DiffPrefixSnapshot>().ok_or(CommonError::MissingResult)?;
 
         let mut entries = Vec::new();
 
@@ -33,8 +31,8 @@ impl Stage<DiffFilesPrefixError> for ComparingStage {
 
             if let Some(attribution) = database.attribute_file(&path)? {
                 entries.push(DiffPrefixFileEntry {
-                    path,
-                    kind,
+                    common: DiffFileEntryCommon { path, kind },
+                    source: DiffFileSource::Prefix,
                     package_name: attribution.package_meta.name,
                     is_user: attribution.file_entry.is_user,
                 });

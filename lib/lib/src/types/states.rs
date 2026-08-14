@@ -165,16 +165,16 @@ impl CommandState for ListHistoryStateId {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
-pub enum DiffFilesPrefixStateId {
+pub enum DiffPrefixStateId {
     Preparing = 0,
     Comparing = 1,
     Done = 2,
     Setup = 3,
 }
 
-impl CommandState for DiffFilesPrefixStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::DiffFilesPrefix;
-    const VALIDATION: Self = DiffFilesPrefixStateId::Setup;
+impl CommandState for DiffPrefixStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::DiffPrefix;
+    const VALIDATION: Self = DiffPrefixStateId::Setup;
 
     fn as_u32(self) -> u32 {
         self as u32
@@ -183,16 +183,16 @@ impl CommandState for DiffFilesPrefixStateId {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
-pub enum DiffFilesConfigStateId {
+pub enum DiffConfigStateId {
     Preparing = 0,
     Comparing = 1,
     Done = 2,
     Setup = 3,
 }
 
-impl CommandState for DiffFilesConfigStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::DiffFilesConfig;
-    const VALIDATION: Self = DiffFilesConfigStateId::Setup;
+impl CommandState for DiffConfigStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::DiffConfig;
+    const VALIDATION: Self = DiffConfigStateId::Setup;
 
     fn as_u32(self) -> u32 {
         self as u32

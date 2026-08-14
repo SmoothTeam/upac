@@ -4,9 +4,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 pub mod diff;
-pub mod diff_files_config;
-pub mod diff_files_prefix;
+pub mod diff_config;
 pub mod diff_packages;
+pub mod diff_prefix;
 pub mod list_commit;
 pub mod list_history;
 pub mod list_packages;

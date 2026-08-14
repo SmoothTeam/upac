@@ -6,13 +6,15 @@
 use std::collections::HashMap;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
-use upac_abi::{FileDiffKind, PackageDiffKind};
+use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
 
 use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry, PackageMeta, Version};
+use crate::types::{
+    DiffFileEntryCommon, DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry, PackageMeta, Version,
+};
 use crate::unmutated::diff::{DiffError, DiffSnapshot};
 
 type PackageIdentity = (String, String, Option<String>);
@@ -46,13 +48,16 @@ impl Stage<DiffError> for ComparingStage {
                     });
 
                     entry.files.push(DiffPrefixFileEntry {
-                        path,
-                        kind,
+                        common: DiffFileEntryCommon { path, kind },
+                        source: DiffFileSource::Prefix,
                         package_name: attribution.package_meta.name,
                         is_user: attribution.file_entry.is_user,
                     });
                 }
-                None => unattached_files.push(DiffUntrackedFileEntry { path, kind }),
+                None => unattached_files.push(DiffUntrackedFileEntry {
+                    common: DiffFileEntryCommon { path, kind },
+                    source: DiffFileSource::Prefix,
+                }),
             }
         }
 
