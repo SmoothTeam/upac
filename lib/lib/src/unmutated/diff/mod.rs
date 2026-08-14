@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CDiffRequest;
@@ -14,13 +15,22 @@ pub use self::error::DiffError;
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
+use crate::database::MemoryDatabase;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::types::states::DiffStateId;
-use crate::types::{DiffPackageEntry, DiffUntrackedFileEntry};
+use crate::types::{DiffPackageEntry, DiffUntrackedFileEntry, PackageMeta, RequestedPrefixDigestRange};
 
 mod comparing;
 mod error;
 mod preparing;
+
+struct DiffSnapshot {
+    from_packages: Vec<PackageMeta>,
+    to_packages: Vec<PackageMeta>,
+    changed_files: Vec<(String, FileDiffKind)>,
+    from_database: MemoryDatabase,
+    to_database: MemoryDatabase,
+}
 
 pub struct DiffData<'a> {
     pub from_prefix_digest: Option<&'a str>,
@@ -54,6 +64,10 @@ impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
 
 pub fn run(data: DiffData) -> Result<(Vec<DiffPackageEntry>, Vec<DiffUntrackedFileEntry>), (DiffStateId, DiffError)> {
     let mut context = Context::new();
+    context.put(RequestedPrefixDigestRange {
+        from: data.from_prefix_digest.map(str::to_owned),
+        to: data.to_prefix_digest.map(str::to_owned),
+    });
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
