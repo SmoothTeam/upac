@@ -9,16 +9,20 @@ use crate::composefs::error::RepoError;
 use crate::database::error::DatabaseError;
 use crate::deploy::error::SysrootError;
 use crate::errors::{
-    CommonError, common_error_from, database_error_from, lock_error_from, repo_error_from, sysroot_error_from,
+    CommonError, common_error_from, database_error_from, lock_error_from, regex_error_from, repo_error_from,
+    sysroot_error_from,
 };
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SearchFilesError {
     Common(CommonError),
+    InvalidSearchPattern(String),
 }
 
 common_error_from!(SearchFilesError);
+
+regex_error_from!(SearchFilesError);
 
 database_error_from!(SearchFilesError);
 
@@ -32,6 +36,7 @@ impl From<SearchFilesError> for ErrorKind {
     fn from(error: SearchFilesError) -> Self {
         match error {
             SearchFilesError::Common(common_error) => common_error.into(),
+            SearchFilesError::InvalidSearchPattern(_) => ErrorKind::InvalidEntry,
         }
     }
 }

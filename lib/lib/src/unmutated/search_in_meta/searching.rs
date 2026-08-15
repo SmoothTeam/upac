@@ -14,8 +14,9 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::search::Search;
+use crate::types::PackageEntry;
 use crate::types::database::DATABASE_PATH;
-use crate::types::{PackageEntry, Search};
 use crate::unmutated::search_in_meta::SearchInMetaError;
 
 pub struct SearchingStage;
@@ -26,7 +27,6 @@ impl Stage<SearchInMetaError> for SearchingStage {
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchInMetaError> {
         let identity = context.get::<PackageEntry>().ok_or(CommonError::MissingResult)?;
         let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
-        let needle = search.as_ref().to_lowercase();
 
         let prefix_digest = current_prefix_digest()?;
 
@@ -43,9 +43,7 @@ impl Stage<SearchInMetaError> for SearchingStage {
             .ok_or(DatabaseError::PackageNotFound)?;
         let package_meta = database.get_package_meta(uuid)?.ok_or(DatabaseError::PackageNotFound)?;
 
-        let matches = if package_meta.name.to_lowercase().contains(&needle)
-            || package_meta.description.to_lowercase().contains(&needle)
-        {
+        let matches = if search.is_match(&package_meta.name) || search.is_match(&package_meta.description) {
             vec![package_meta]
         } else {
             Vec::new()

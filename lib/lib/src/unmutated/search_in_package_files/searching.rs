@@ -15,8 +15,9 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::search::Search;
 use crate::types::database::DATABASE_PATH;
-use crate::types::{PackageEntry, Search, SearchFileEntry};
+use crate::types::{PackageEntry, SearchFileEntry};
 use crate::unmutated::search_in_package_files::SearchInPackageFilesError;
 
 pub struct SearchingStage;
@@ -27,7 +28,6 @@ impl Stage<SearchInPackageFilesError> for SearchingStage {
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchInPackageFilesError> {
         let identity = context.get::<PackageEntry>().ok_or(CommonError::MissingResult)?;
         let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
-        let needle = search.as_ref().to_lowercase();
 
         let prefix_digest = current_prefix_digest()?;
 
@@ -46,7 +46,7 @@ impl Stage<SearchInPackageFilesError> for SearchingStage {
         let matches: Vec<SearchFileEntry> = database
             .list_package_files(uuid)?
             .into_iter()
-            .filter(|entry| entry.path.to_lowercase().contains(&needle))
+            .filter(|entry| search.is_match(&entry.path))
             .map(|entry| SearchFileEntry {
                 path: entry.path,
                 package_name: identity.name.clone(),

@@ -14,7 +14,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::Search;
+use crate::search::Search;
 use crate::types::SearchFileEntry;
 use crate::types::database::DATABASE_PATH;
 use crate::unmutated::search_files::SearchFilesError;
@@ -26,7 +26,6 @@ impl Stage<SearchFilesError> for SearchingStage {
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchFilesError> {
         let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
-        let needle = search.as_ref().to_lowercase();
 
         let prefix_digest = current_prefix_digest()?;
 
@@ -41,7 +40,7 @@ impl Stage<SearchFilesError> for SearchingStage {
         let mut matches = Vec::new();
 
         for (uuid, file_entry) in database.list_files()? {
-            if !file_entry.path.to_lowercase().contains(&needle) {
+            if !search.is_match(&file_entry.path) {
                 continue;
             }
 

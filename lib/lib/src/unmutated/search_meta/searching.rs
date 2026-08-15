@@ -13,7 +13,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::Search;
+use crate::search::Search;
 use crate::types::database::DATABASE_PATH;
 use crate::unmutated::search_meta::SearchMetaError;
 
@@ -24,7 +24,6 @@ impl Stage<SearchMetaError> for SearchingStage {
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchMetaError> {
         let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
-        let needle = search.as_ref().to_lowercase();
 
         let prefix_digest = current_prefix_digest()?;
 
@@ -39,9 +38,7 @@ impl Stage<SearchMetaError> for SearchingStage {
         let matches: Vec<_> = database
             .list_packages_metas()?
             .into_iter()
-            .filter(|meta| {
-                meta.name.to_lowercase().contains(&needle) || meta.description.to_lowercase().contains(&needle)
-            })
+            .filter(|meta| search.is_match(&meta.name) || search.is_match(&meta.description))
             .collect();
 
         context.put(matches);
