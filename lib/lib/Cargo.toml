@@ -17,10 +17,11 @@ name = "upac"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-libloading = { workspace = true }
 upac-macro = { workspace = true }
 upac-abi   = { workspace = true }
 upac-pki   = { workspace = true }
+
+libloading = { workspace = true }
 anyhow     = { workspace = true }
 serde      = { workspace = true }
 toml       = { workspace = true }
