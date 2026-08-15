@@ -6,6 +6,19 @@
 use upac_abi::error::{CommandState, ErrorDomain};
 use upac_macro::FromStageIndex;
 
+macro_rules! impl_command_state {
+    ($name:ident, $domain:ident) => {
+        impl CommandState for $name {
+            const DOMAIN: ErrorDomain = ErrorDomain::$domain;
+            const VALIDATION: Self = $name::Setup;
+
+            fn as_u32(self) -> u32 {
+                self as u32
+            }
+        }
+    };
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum InstallStateId {
@@ -20,14 +33,7 @@ pub enum InstallStateId {
     Setup = 8,
 }
 
-impl CommandState for InstallStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Install;
-    const VALIDATION: Self = InstallStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(InstallStateId, Install);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -44,14 +50,7 @@ pub enum UninstallStateId {
     Setup = 9,
 }
 
-impl CommandState for UninstallStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Uninstall;
-    const VALIDATION: Self = UninstallStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(UninstallStateId, Uninstall);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -65,14 +64,7 @@ pub enum RollbackStateId {
     Setup = 6,
 }
 
-impl CommandState for RollbackStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Rollback;
-    const VALIDATION: Self = RollbackStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(RollbackStateId, Rollback);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -86,14 +78,7 @@ pub enum FilesStateId {
     Setup = 6,
 }
 
-impl CommandState for FilesStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Files;
-    const VALIDATION: Self = FilesStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(FilesStateId, Files);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -103,14 +88,7 @@ pub enum GcStateId {
     Setup = 2,
 }
 
-impl CommandState for GcStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Gc;
-    const VALIDATION: Self = GcStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(GcStateId, Gc);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -120,14 +98,7 @@ pub enum ListPackagesStateId {
     Setup = 2,
 }
 
-impl CommandState for ListPackagesStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::ListPackages;
-    const VALIDATION: Self = ListPackagesStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(ListPackagesStateId, ListPackages);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -137,14 +108,7 @@ pub enum ListConfigStateId {
     Setup = 2,
 }
 
-impl CommandState for ListConfigStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::ListConfig;
-    const VALIDATION: Self = ListConfigStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(ListConfigStateId, ListConfig);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -154,14 +118,7 @@ pub enum ListPrefixStateId {
     Setup = 2,
 }
 
-impl CommandState for ListPrefixStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::ListPrefix;
-    const VALIDATION: Self = ListPrefixStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(ListPrefixStateId, ListPrefix);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -171,14 +128,7 @@ pub enum ListHistoryStateId {
     Setup = 2,
 }
 
-impl CommandState for ListHistoryStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::ListHistory;
-    const VALIDATION: Self = ListHistoryStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(ListHistoryStateId, ListHistory);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -189,14 +139,7 @@ pub enum DiffPrefixStateId {
     Setup = 3,
 }
 
-impl CommandState for DiffPrefixStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::DiffPrefix;
-    const VALIDATION: Self = DiffPrefixStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(DiffPrefixStateId, DiffPrefix);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -207,14 +150,7 @@ pub enum DiffConfigStateId {
     Setup = 3,
 }
 
-impl CommandState for DiffConfigStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::DiffConfig;
-    const VALIDATION: Self = DiffConfigStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(DiffConfigStateId, DiffConfig);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -225,14 +161,7 @@ pub enum DiffPackagesStateId {
     Setup = 3,
 }
 
-impl CommandState for DiffPackagesStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::DiffPackages;
-    const VALIDATION: Self = DiffPackagesStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(DiffPackagesStateId, DiffPackages);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -243,14 +172,7 @@ pub enum DiffStateId {
     Setup = 3,
 }
 
-impl CommandState for DiffStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Diff;
-    const VALIDATION: Self = DiffStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(DiffStateId, Diff);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -266,14 +188,7 @@ pub enum UpdateStateId {
     Setup = 8,
 }
 
-impl CommandState for UpdateStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Update;
-    const VALIDATION: Self = UpdateStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(UpdateStateId, Update);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -283,14 +198,7 @@ pub enum SearchMetaStateId {
     Setup = 2,
 }
 
-impl CommandState for SearchMetaStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::SearchMeta;
-    const VALIDATION: Self = SearchMetaStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(SearchMetaStateId, SearchMeta);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -300,14 +208,7 @@ pub enum SearchFilesStateId {
     Setup = 2,
 }
 
-impl CommandState for SearchFilesStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::SearchFiles;
-    const VALIDATION: Self = SearchFilesStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(SearchFilesStateId, SearchFiles);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -317,14 +218,7 @@ pub enum SearchInMetaStateId {
     Setup = 2,
 }
 
-impl CommandState for SearchInMetaStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::SearchInMeta;
-    const VALIDATION: Self = SearchInMetaStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(SearchInMetaStateId, SearchInMeta);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -334,14 +228,7 @@ pub enum SearchInPackageFilesStateId {
     Setup = 2,
 }
 
-impl CommandState for SearchInPackageFilesStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::SearchInPackageFiles;
-    const VALIDATION: Self = SearchInPackageFilesStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(SearchInPackageFilesStateId, SearchInPackageFiles);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
@@ -353,11 +240,4 @@ pub enum CommitStateId {
     Setup = 4,
 }
 
-impl CommandState for CommitStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::Commit;
-    const VALIDATION: Self = CommitStateId::Setup;
-
-    fn as_u32(self) -> u32 {
-        self as u32
-    }
-}
+impl_command_state!(CommitStateId, Commit);
