@@ -12,6 +12,7 @@ use clap::Parser;
 use colored::Colorize;
 
 use std::path::Path;
+use std::process::ExitCode;
 use std::ptr::addr_of_mut;
 
 use std::sync::Arc;
@@ -58,17 +59,17 @@ enum Command {
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
-fn main() {
+fn main() -> ExitCode {
     setlocale(LocaleCategory::LcAll, "");
 
     bindtextdomain("upac", env!("LOCALEDIR")).expect("bindtextdomain failed");
     textdomain("upac").expect("textdomain failed");
 
-    let result = run();
-    match result {
-        Ok(()) => {}
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("{} {err}", format!("{}:", gettextrs::gettext("error")).red().bold());
+            ExitCode::FAILURE
         }
     }
 }

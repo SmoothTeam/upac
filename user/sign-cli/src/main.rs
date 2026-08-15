@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // ── Imports ─────────────────────────────────────────────────────────────────
+use std::process::ExitCode;
+
 use anyhow::Result;
 
 use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
@@ -31,17 +33,17 @@ enum Command {
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
-fn main() {
+fn main() -> ExitCode {
     setlocale(LocaleCategory::LcAll, "");
 
     bindtextdomain("upac-sign", env!("LOCALEDIR")).expect("bindtextdomain failed");
     textdomain("upac-sign").expect("textdomain failed");
 
-    let result = run();
-    match result {
-        Ok(()) => {}
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("{} {err}", format!("{}:", gettextrs::gettext("error")).red().bold());
+            ExitCode::FAILURE
         }
     }
 }
