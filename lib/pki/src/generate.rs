@@ -3,7 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use der::{Decode, Encode};
+use der::pem::LineEnding;
+use der::{Decode, DecodePem, Encode, EncodePem};
 use rcgen::{
     BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa, Issuer, KeyPair, KeyUsagePurpose,
     PKCS_ED25519,
@@ -18,9 +19,16 @@ pub struct SerializedIdentity {
     pub certificate_der: Vec<u8>,
 }
 
+pub struct PemIdentity {
+    pub key_pem: String,
+    pub certificate_pem: String,
+}
+
 pub trait Identity: Sized {
     fn to_bytes(&self) -> Result<SerializedIdentity, PkiError>;
     fn from_bytes(serialized: &SerializedIdentity) -> Result<Self, PkiError>;
+    fn to_pem(&self) -> Result<PemIdentity, PkiError>;
+    fn from_pem(pem: &PemIdentity) -> Result<Self, PkiError>;
 }
 
 pub struct RootIdentity {
@@ -44,6 +52,21 @@ impl Identity for RootIdentity {
 
         Ok(RootIdentity { issuer, certificate })
     }
+
+    fn to_pem(&self) -> Result<PemIdentity, PkiError> {
+        Ok(PemIdentity {
+            key_pem: self.issuer.key().serialize_pem(),
+            certificate_pem: self.certificate.to_pem(LineEnding::LF)?,
+        })
+    }
+
+    fn from_pem(pem: &PemIdentity) -> Result<Self, PkiError> {
+        let key_pair = KeyPair::from_pem(&pem.key_pem)?;
+        let issuer = Issuer::from_ca_cert_pem(&pem.certificate_pem, key_pair)?;
+        let certificate = Certificate::from_pem(pem.certificate_pem.as_bytes())?;
+
+        Ok(RootIdentity { issuer, certificate })
+    }
 }
 
 pub struct SigningIdentity {
@@ -62,6 +85,20 @@ impl Identity for SigningIdentity {
     fn from_bytes(serialized: &SerializedIdentity) -> Result<Self, PkiError> {
         let key_pair = KeyPair::try_from(serialized.key_der.as_slice())?;
         let certificate = Certificate::from_der(&serialized.certificate_der)?;
+
+        Ok(SigningIdentity { key_pair, certificate })
+    }
+
+    fn to_pem(&self) -> Result<PemIdentity, PkiError> {
+        Ok(PemIdentity {
+            key_pem: self.key_pair.serialize_pem(),
+            certificate_pem: self.certificate.to_pem(LineEnding::LF)?,
+        })
+    }
+
+    fn from_pem(pem: &PemIdentity) -> Result<Self, PkiError> {
+        let key_pair = KeyPair::from_pem(&pem.key_pem)?;
+        let certificate = Certificate::from_pem(pem.certificate_pem.as_bytes())?;
 
         Ok(SigningIdentity { key_pair, certificate })
     }

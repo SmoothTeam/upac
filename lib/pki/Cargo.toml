@@ -13,11 +13,11 @@ license = "LGPL-3.0-or-later"
 description = "Ed25519/X.509 signing and verification for upac hook files"
 
 [dependencies]
-rcgen = { version = "0.14.8", features = ["x509-parser"] }
+rcgen = { version = "0.14.8", features = ["x509-parser", "pem"] }
+der = { version = "0.8.1", features = ["pem"] }
 
 rustls-pki-types = "1.15.1"
 ed25519-dalek = "3.0.0"
 x509-cert = "0.3.0"
 rand = "0.10.2"
 spki = "0.8.0"
-der = "0.8.1"

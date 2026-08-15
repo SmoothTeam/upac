@@ -3,7 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use der::{Decode, Encode};
+use der::pem::LineEnding;
+use der::{Decode, DecodePem, Encode, EncodePem};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use rcgen::SigningKey;
 use x509_cert::Certificate;
@@ -38,6 +39,14 @@ impl RootCertificate {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, PkiError> {
         Ok(RootCertificate(Certificate::from_der(bytes)?))
+    }
+
+    pub fn to_pem(&self) -> Result<String, PkiError> {
+        Ok(self.0.to_pem(LineEnding::LF)?)
+    }
+
+    pub fn from_pem(pem: &str) -> Result<Self, PkiError> {
+        Ok(RootCertificate(Certificate::from_pem(pem.as_bytes())?))
     }
 }
 

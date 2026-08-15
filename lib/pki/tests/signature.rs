@@ -86,3 +86,38 @@ fn signing_identity_bytes_round_trip() {
 
     assert!(signature.verify(hook_bytes, &root_certificate).is_ok());
 }
+
+#[test]
+fn root_identity_pem_round_trip() {
+    let root = generate_root("upac test root").unwrap();
+
+    let restored = RootIdentity::from_pem(&root.to_pem().unwrap()).unwrap();
+    let signing = generate_signing_cert("upac test signer", &restored).unwrap();
+    let hook_bytes = b"#!/bin/sh\necho hook";
+
+    let signature = HookSignature::sign(hook_bytes, &signing).unwrap();
+
+    assert!(signature.verify(hook_bytes, &root_certificate_of(&restored)).is_ok());
+}
+
+#[test]
+fn signing_identity_pem_round_trip() {
+    let (signing, root_certificate) = signing_identity();
+    let hook_bytes = b"#!/bin/sh\necho hook";
+
+    let restored = SigningIdentity::from_pem(&signing.to_pem().unwrap()).unwrap();
+    let signature = HookSignature::sign(hook_bytes, &restored).unwrap();
+
+    assert!(signature.verify(hook_bytes, &root_certificate).is_ok());
+}
+
+#[test]
+fn root_certificate_pem_round_trip() {
+    let (signing, root_certificate) = signing_identity();
+    let hook_bytes = b"#!/bin/sh\necho hook";
+
+    let restored = RootCertificate::from_pem(&root_certificate.to_pem().unwrap()).unwrap();
+    let signature = HookSignature::sign(hook_bytes, &signing).unwrap();
+
+    assert!(signature.verify(hook_bytes, &restored).is_ok());
+}
