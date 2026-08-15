@@ -19,7 +19,8 @@ pub trait FileStore {
     }
 
     fn find_file_owner(&self, path: &str) -> Result<Option<Uuid>, DatabaseError>;
-    fn list_files(&self, uuid: Uuid) -> Result<Vec<FileEntry>, DatabaseError>;
+    fn list_package_files(&self, uuid: Uuid) -> Result<Vec<FileEntry>, DatabaseError>;
+    fn list_files(&self) -> Result<Vec<(Uuid, FileEntry)>, DatabaseError>;
 }
 
 pub trait FileStoreMut: FileStore {
@@ -36,7 +37,7 @@ impl<T: ReadableSource> FileStore for T {
         Ok(by_path.get(Self::path_hash(path))?.map(|guard| guard.value()))
     }
 
-    fn list_files(&self, uuid: Uuid) -> Result<Vec<FileEntry>, DatabaseError> {
+    fn list_package_files(&self, uuid: Uuid) -> Result<Vec<FileEntry>, DatabaseError> {
         let transaction = self.source().begin_read()?;
         let files = transaction.open_table(FILES_UUID_TABLE)?;
         let mut out = Vec::new();
@@ -50,6 +51,21 @@ impl<T: ReadableSource> FileStore for T {
             }
 
             out.push(value.value());
+        }
+
+        Ok(out)
+    }
+
+    fn list_files(&self) -> Result<Vec<(Uuid, FileEntry)>, DatabaseError> {
+        let transaction = self.source().begin_read()?;
+        let files = transaction.open_table(FILES_UUID_TABLE)?;
+        let mut out = Vec::new();
+
+        for entry in files.iter()? {
+            let (key, value) = entry?;
+            let (uuid, _hash) = key.value();
+
+            out.push((uuid, value.value()));
         }
 
         Ok(out)
