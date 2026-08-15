@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "error"
+msgstr "Error"
+
+msgid "err_read"
+msgstr "Read failed"
+
+msgid "err_write"
+msgstr "Write failed"
+
+msgid "err_malformed"
+msgstr "Malformed PKI data"
+
+msgid "err_invalid_signature"
+msgstr "Invalid signature"
+
+msgid "err_generation"
+msgstr "Certificate generation failed"
+
+msgid "signature_valid"
+msgstr "Signature valid"
