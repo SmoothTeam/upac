@@ -211,3 +211,23 @@ pub struct CSearchFilesRequest {
 
     pub search: CSlice,
 }
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CSearchInMetaRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub package: CPackageInfo,
+    pub search: CSlice,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CSearchInPackageFilesRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub package: CPackageInfo,
+    pub search: CSlice,
+}
