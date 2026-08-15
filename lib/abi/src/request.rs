@@ -201,6 +201,7 @@ pub struct CSearchMetaRequest {
     pub base: CRequestBase,
 
     pub search: CSlice,
+    pub is_regex: bool,
 }
 
 #[repr(C)]
@@ -210,6 +211,7 @@ pub struct CSearchFilesRequest {
     pub base: CRequestBase,
 
     pub search: CSlice,
+    pub is_regex: bool,
 }
 
 #[repr(C)]
@@ -220,6 +222,7 @@ pub struct CSearchInMetaRequest {
 
     pub package: CPackageInfo,
     pub search: CSlice,
+    pub is_regex: bool,
 }
 
 #[repr(C)]
@@ -230,4 +233,5 @@ pub struct CSearchInPackageFilesRequest {
 
     pub package: CPackageInfo,
     pub search: CSlice,
+    pub is_regex: bool,
 }

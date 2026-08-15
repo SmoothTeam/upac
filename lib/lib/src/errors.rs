@@ -108,6 +108,17 @@ macro_rules! config_digest_resolve_error_from {
 }
 pub(crate) use config_digest_resolve_error_from;
 
+macro_rules! regex_error_from {
+    ($name:ident) => {
+        impl From<regex::Error> for $name {
+            fn from(error: regex::Error) -> Self {
+                $name::InvalidSearchPattern(error.to_string())
+            }
+        }
+    };
+}
+pub(crate) use regex_error_from;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonError {
     OutOfMemory,
