@@ -8,7 +8,7 @@ pub mod diff_config;
 pub mod diff_packages;
 pub mod diff_prefix;
 
-pub mod list_commit;
+pub mod list_config;
 pub mod list_history;
 pub mod list_packages;
 pub mod list_prefix;

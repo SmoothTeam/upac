@@ -9,7 +9,7 @@ use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
 use upac_abi::response::{
-    CCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
+    CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
@@ -132,9 +132,9 @@ pub struct PrefixEntry {
     pub working_config: Option<String>,
 }
 
-// ── CommitEntry ─────────────────────────────────────────────────────────────
+// ── ConfigCommitEntry ─────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
-pub struct CommitEntry {
+pub struct ConfigCommitEntry {
     pub config_digest: String,
 
     pub subject: String,
@@ -152,7 +152,7 @@ pub struct HistoryEntry {
     pub timestamp: u64,
 
     pub working_config: Option<String>,
-    pub config_history: Vec<CommitEntry>,
+    pub config_history: Vec<ConfigCommitEntry>,
 }
 
 // ── DiffFileEntryCommon ──────────────────────────────────────────────────────

@@ -7,20 +7,20 @@ use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
-use upac_abi::request::CListCommitRequest;
+use upac_abi::request::CListConfigRequest;
 
-pub use self::error::ListCommitError;
+pub use self::error::ListConfigError;
 
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::ListCommitStateId;
-use crate::types::{CommitEntry, RequestedPrefixDigest};
+use crate::types::states::ListConfigStateId;
+use crate::types::{ConfigCommitEntry, RequestedPrefixDigest};
 
 mod error;
 mod fetching;
 
-pub struct ListCommitData<'a> {
+pub struct ListConfigData<'a> {
     pub prefix_digest: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
@@ -29,15 +29,15 @@ pub struct ListCommitData<'a> {
     pub cancel_token: &'a CancelToken,
 }
 
-impl<'a> TryFrom<&'a CListCommitRequest> for ListCommitData<'a> {
+impl<'a> TryFrom<&'a CListConfigRequest> for ListConfigData<'a> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CListCommitRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'a CListConfigRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
-        Ok(ListCommitData {
+        Ok(ListConfigData {
             prefix_digest: (&request.prefix_digest).try_into()?,
 
             hook_message: request.base.on_hook,
@@ -48,7 +48,7 @@ impl<'a> TryFrom<&'a CListCommitRequest> for ListCommitData<'a> {
     }
 }
 
-pub fn run(data: ListCommitData) -> Result<(Vec<CommitEntry>,), (ListCommitStateId, ListCommitError)> {
+pub fn run(data: ListConfigData) -> Result<(Vec<ConfigCommitEntry>,), (ListConfigStateId, ListConfigError)> {
     let mut context = Context::new();
     context.put(RequestedPrefixDigest(data.prefix_digest.map(str::to_owned)));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
@@ -59,8 +59,8 @@ pub fn run(data: ListCommitData) -> Result<(Vec<CommitEntry>,), (ListCommitState
         orchestrator,
         context,
         data.cancel_token,
-        ListCommitStateId,
-        ListCommitError,
-        Vec<CommitEntry>
+        ListConfigStateId,
+        ListConfigError,
+        Vec<ConfigCommitEntry>
     )
 }

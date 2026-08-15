@@ -16,7 +16,7 @@ pub enum ErrorDomain {
     Files,
     Update,
     ListPackages,
-    ListCommit,
+    ListConfig,
     ListPrefix,
     ListHistory,
     DiffPrefix,

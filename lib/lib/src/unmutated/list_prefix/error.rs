@@ -5,10 +5,10 @@
 
 use upac_abi::error::ErrorKind;
 
-use crate::database::error::{DatabaseError, DeployRecordError};
+use crate::database::error::{DatabaseError, DeployRecordsError};
 use crate::deploy::error::SysrootError;
 use crate::errors::{
-    CommonError, common_error_from, database_error_from, deploy_record_error_from, lock_error_from, sysroot_error_from,
+    CommonError, common_error_from, database_error_from, deploy_records_error_from, lock_error_from, sysroot_error_from,
 };
 use crate::lock::LockError;
 
@@ -21,7 +21,7 @@ common_error_from!(ListPrefixError);
 
 database_error_from!(ListPrefixError);
 
-deploy_record_error_from!(ListPrefixError);
+deploy_records_error_from!(ListPrefixError);
 
 sysroot_error_from!(ListPrefixError);
 

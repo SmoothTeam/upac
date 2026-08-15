@@ -80,6 +80,34 @@ macro_rules! deploy_record_error_from {
 }
 pub(crate) use deploy_record_error_from;
 
+macro_rules! deploy_records_error_from {
+    ($name:ident) => {
+        impl From<DeployRecordsError> for $name {
+            fn from(error: DeployRecordsError) -> Self {
+                match error {
+                    DeployRecordsError::Sysroot(error) => $name::Common(CommonError::Sysroot(error)),
+                    DeployRecordsError::DeployRecord(error) => $name::Common(CommonError::DeployRecord(error)),
+                }
+            }
+        }
+    };
+}
+pub(crate) use deploy_records_error_from;
+
+macro_rules! config_digest_resolve_error_from {
+    ($name:ident) => {
+        impl From<ConfigDigestResolveError> for $name {
+            fn from(error: ConfigDigestResolveError) -> Self {
+                match error {
+                    ConfigDigestResolveError::Records(records_error) => records_error.into(),
+                    ConfigDigestResolveError::NotFound(config_digest) => $name::ConfigDigestNotFound(config_digest),
+                }
+            }
+        }
+    };
+}
+pub(crate) use config_digest_resolve_error_from;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonError {
     OutOfMemory,

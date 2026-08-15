@@ -23,7 +23,7 @@ pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
     "CDiffPrefixFileEntry",
     "CDiffConfigFileEntry",
     "CDiffUntrackedFileEntry",
-    "CCommitEntry",
+    "CConfigCommitEntry",
     "CRequestBase",
     "CDependency",
     "CTriggerEntry",

@@ -7,7 +7,7 @@ use std::fs::{create_dir_all, remove_dir_all};
 use std::path::PathBuf;
 
 use upac::database::error::DeployRecordError;
-use upac::database::record::{DeployRecord, EtcHistoryEntry};
+use upac::database::record::{ConfigHistoryEntry, DeployRecord};
 
 fn scratch_dir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("upac-test-database-record-{}-{name}", std::process::id()));
@@ -24,18 +24,18 @@ fn sample_record() -> DeployRecord {
         seq: 7,
         timestamp: 1_754_000_000,
         config_history: vec![
-            EtcHistoryEntry {
+            ConfigHistoryEntry {
                 config_digest: "etc-digest-1".to_string(),
                 subject: "first etc".to_string(),
                 message: None,
             },
-            EtcHistoryEntry {
+            ConfigHistoryEntry {
                 config_digest: "etc-digest-2".to_string(),
                 subject: "second etc".to_string(),
                 message: Some("with a message".to_string()),
             },
         ],
-        working_etc: "etc-digest-2".to_string(),
+        working_config: "etc-digest-2".to_string(),
     }
 }
 

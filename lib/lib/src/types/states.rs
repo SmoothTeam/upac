@@ -114,15 +114,15 @@ impl CommandState for ListPackagesStateId {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
-pub enum ListCommitStateId {
+pub enum ListConfigStateId {
     Fetching = 0,
     Done = 1,
     Setup = 2,
 }
 
-impl CommandState for ListCommitStateId {
-    const DOMAIN: ErrorDomain = ErrorDomain::ListCommit;
-    const VALIDATION: Self = ListCommitStateId::Setup;
+impl CommandState for ListConfigStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::ListConfig;
+    const VALIDATION: Self = ListConfigStateId::Setup;
 
     fn as_u32(self) -> u32 {
         self as u32

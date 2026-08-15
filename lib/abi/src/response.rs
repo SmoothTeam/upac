@@ -62,7 +62,7 @@ pub struct CDiffUntrackedFileEntry {
 
 #[repr(C)]
 #[derive(CFree, CValidate)]
-pub struct CCommitEntry {
+pub struct CConfigCommitEntry {
     pub struct_size: usize,
 
     pub config_digest: CSlice,
@@ -72,12 +72,12 @@ pub struct CCommitEntry {
 }
 
 #[repr(C)]
-pub struct CListCommitResponse {
+pub struct CListConfigResponse {
     pub struct_size: usize,
-    pub commits: CVec<CCommitEntry>,
+    pub commits: CVec<CConfigCommitEntry>,
 }
 
-impl CListCommitResponse {
+impl CListConfigResponse {
     /// # Safety
     /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
     /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
@@ -182,7 +182,7 @@ pub struct CHistoryEntry {
     pub timestamp: u64,
     #[optional]
     pub working_config: CSlice,
-    pub config_history: CVec<CCommitEntry>,
+    pub config_history: CVec<CConfigCommitEntry>,
 }
 
 #[repr(C)]
@@ -270,7 +270,7 @@ pub struct CUnmutatedResponse {
 
     pub metas: CVec<CPackageMeta>,
     pub files: CVec<CDiffPrefixFileEntry>,
-    pub commits: CVec<CCommitEntry>,
+    pub commits: CVec<CConfigCommitEntry>,
     pub diff_packages: CVec<CDiffPackageEntry>,
 }
 

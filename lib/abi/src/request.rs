@@ -113,7 +113,7 @@ pub struct CListPackagesRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CListCommitRequest {
+pub struct CListConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
