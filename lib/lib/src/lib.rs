@@ -5,6 +5,7 @@
 
 mod export;
 mod mutated;
+mod search;
 mod unmutated;
 
 pub mod composefs;

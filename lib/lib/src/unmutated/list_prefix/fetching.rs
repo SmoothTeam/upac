@@ -5,7 +5,6 @@
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::database::error::DeployRecordError;
 use crate::database::record::DeployRecord;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::Context;
@@ -21,23 +20,16 @@ impl Stage<ListPrefixError> for FetchingStage {
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), ListPrefixError> {
         let deploy = Deploy::new(DeployMode::ReadOnly)?;
 
-        let mut entries = Vec::new();
-
-        for prefix_digest in deploy.deploys()? {
-            let record = match DeployRecord::read(&deploy.deploy(&prefix_digest)) {
-                Ok(record) => record,
-                Err(DeployRecordError::NotFound) => continue,
-                Err(error) => return Err(error.into()),
-            };
-
-            entries.push(PrefixEntry {
+        let entries: Vec<PrefixEntry> = DeployRecord::read_all(&deploy)?
+            .into_iter()
+            .map(|record| PrefixEntry {
                 prefix_digest: record.prefix_digest,
                 subject: record.subject,
                 message: record.message,
                 timestamp: record.timestamp,
-                working_config: Some(record.working_etc),
-            });
-        }
+                working_config: Some(record.working_config),
+            })
+            .collect();
 
         context.put(entries);
 

@@ -13,24 +13,24 @@ use crate::errors::{
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ListCommitError {
+pub enum ListConfigError {
     Common(CommonError),
 }
 
-common_error_from!(ListCommitError);
+common_error_from!(ListConfigError);
 
-database_error_from!(ListCommitError);
+database_error_from!(ListConfigError);
 
-deploy_record_error_from!(ListCommitError);
+deploy_record_error_from!(ListConfigError);
 
-sysroot_error_from!(ListCommitError);
+sysroot_error_from!(ListConfigError);
 
-lock_error_from!(ListCommitError);
+lock_error_from!(ListConfigError);
 
-impl From<ListCommitError> for ErrorKind {
-    fn from(error: ListCommitError) -> Self {
+impl From<ListConfigError> for ErrorKind {
+    fn from(error: ListConfigError) -> Self {
         match error {
-            ListCommitError::Common(common_error) => common_error.into(),
+            ListConfigError::Common(common_error) => common_error.into(),
         }
     }
 }

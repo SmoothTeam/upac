@@ -22,7 +22,11 @@ pub trait FileAttribute: FileStore + MetaStore {
         let Some(package_meta) = self.get_package_meta(uuid)? else {
             return Ok(None);
         };
-        let Some(file_entry) = self.list_files(uuid)?.into_iter().find(|entry| entry.path == path) else {
+        let Some(file_entry) = self
+            .list_package_files(uuid)?
+            .into_iter()
+            .find(|entry| entry.path == path)
+        else {
             return Ok(None);
         };
 

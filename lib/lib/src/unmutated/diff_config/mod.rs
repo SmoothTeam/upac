@@ -8,31 +8,31 @@ use std::os::raw::c_void;
 use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
-use upac_abi::request::CDiffFilesPrefixRequest;
+use upac_abi::request::CDiffConfigRequest;
 
-pub use self::error::DiffFilesPrefixError;
+pub use self::error::DiffConfigError;
 
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
 use crate::database::MemoryDatabase;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::DiffFilesPrefixStateId;
-use crate::types::{DiffPrefixFileEntry, RequestedPrefixDigestRange};
+use crate::types::states::DiffConfigStateId;
+use crate::types::{DiffConfigFileEntry, RequestedConfigDigestRange};
 
 mod comparing;
 mod error;
 mod preparing;
 
-struct DiffFilesPrefixSnapshot {
+struct DiffConfigSnapshot {
     changed: Vec<(String, FileDiffKind)>,
     from_database: MemoryDatabase,
     to_database: MemoryDatabase,
 }
 
-pub struct DiffFilesPrefixData<'a> {
-    pub from_prefix_digest: Option<&'a str>,
-    pub to_prefix_digest: Option<&'a str>,
+pub struct DiffConfigData<'a> {
+    pub from_config_digest: Option<&'a str>,
+    pub to_config_digest: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -40,17 +40,17 @@ pub struct DiffFilesPrefixData<'a> {
     pub cancel_token: &'a CancelToken,
 }
 
-impl<'a> TryFrom<&'a CDiffFilesPrefixRequest> for DiffFilesPrefixData<'a> {
+impl<'a> TryFrom<&'a CDiffConfigRequest> for DiffConfigData<'a> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CDiffFilesPrefixRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'a CDiffConfigRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
 
-        Ok(DiffFilesPrefixData {
-            from_prefix_digest: (&request.from_prefix_digest).try_into()?,
-            to_prefix_digest: (&request.to_prefix_digest).try_into()?,
+        Ok(DiffConfigData {
+            from_config_digest: (&request.from_config_digest).try_into()?,
+            to_config_digest: (&request.to_config_digest).try_into()?,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
@@ -60,13 +60,11 @@ impl<'a> TryFrom<&'a CDiffFilesPrefixRequest> for DiffFilesPrefixData<'a> {
     }
 }
 
-pub fn run(
-    data: DiffFilesPrefixData,
-) -> Result<(Vec<DiffPrefixFileEntry>,), (DiffFilesPrefixStateId, DiffFilesPrefixError)> {
+pub fn run(data: DiffConfigData) -> Result<(Vec<DiffConfigFileEntry>,), (DiffConfigStateId, DiffConfigError)> {
     let mut context = Context::new();
-    context.put(RequestedPrefixDigestRange {
-        from: data.from_prefix_digest.map(str::to_owned),
-        to: data.to_prefix_digest.map(str::to_owned),
+    context.put(RequestedConfigDigestRange {
+        from: data.from_config_digest.map(str::to_owned),
+        to: data.to_config_digest.map(str::to_owned),
     });
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
@@ -76,8 +74,8 @@ pub fn run(
         orchestrator,
         context,
         data.cancel_token,
-        DiffFilesPrefixStateId,
-        DiffFilesPrefixError,
-        Vec<DiffPrefixFileEntry>
+        DiffConfigStateId,
+        DiffConfigError,
+        Vec<DiffConfigFileEntry>
     )
 }

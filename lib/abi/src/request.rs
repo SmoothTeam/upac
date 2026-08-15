@@ -106,6 +106,13 @@ pub struct CFilesRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
+pub struct CGcRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
 pub struct CListPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -113,7 +120,7 @@ pub struct CListPackagesRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CListCommitRequest {
+pub struct CListConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
@@ -137,7 +144,7 @@ pub struct CListHistoryRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CDiffFilesPrefixRequest {
+pub struct CDiffPrefixRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
@@ -149,7 +156,7 @@ pub struct CDiffFilesPrefixRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CDiffFilesConfigRequest {
+pub struct CDiffConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
@@ -181,6 +188,10 @@ pub struct CDiffRequest {
     pub from_prefix_digest: CSlice,
     #[optional]
     pub to_prefix_digest: CSlice,
+    #[optional]
+    pub from_config_digest: CSlice,
+    #[optional]
+    pub to_config_digest: CSlice,
 }
 
 #[repr(C)]
@@ -190,6 +201,7 @@ pub struct CSearchMetaRequest {
     pub base: CRequestBase,
 
     pub search: CSlice,
+    pub is_regex: bool,
 }
 
 #[repr(C)]
@@ -199,4 +211,27 @@ pub struct CSearchFilesRequest {
     pub base: CRequestBase,
 
     pub search: CSlice,
+    pub is_regex: bool,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CSearchInMetaRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub package: CPackageInfo,
+    pub search: CSlice,
+    pub is_regex: bool,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CSearchInPackageFilesRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub package: CPackageInfo,
+    pub search: CSlice,
+    pub is_regex: bool,
 }

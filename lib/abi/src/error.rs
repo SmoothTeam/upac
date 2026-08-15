@@ -15,16 +15,19 @@ pub enum ErrorDomain {
     Commit,
     Files,
     Update,
+    Gc,
     ListPackages,
-    ListCommit,
+    ListConfig,
     ListPrefix,
     ListHistory,
-    DiffFilesPrefix,
-    DiffFilesConfig,
+    DiffPrefix,
+    DiffConfig,
     DiffPackages,
     Diff,
     SearchMeta,
     SearchFiles,
+    SearchInMeta,
+    SearchInPackageFiles,
 }
 
 #[repr(u32)]

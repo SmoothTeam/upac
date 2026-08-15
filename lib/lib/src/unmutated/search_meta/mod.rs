@@ -14,14 +14,16 @@ pub use self::error::SearchMetaError;
 use self::searching::SearchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::search::Search;
+use crate::types::PackageMeta;
 use crate::types::states::SearchMetaStateId;
-use crate::types::{PackageMeta, Search};
 
 mod error;
 mod searching;
 
 pub struct SearchMetaData<'a> {
     pub search: &'a str,
+    pub is_regex: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -39,6 +41,7 @@ impl<'a> TryFrom<&'a CSearchMetaRequest> for SearchMetaData<'a> {
 
         Ok(SearchMetaData {
             search: (&request.search).try_into()?,
+            is_regex: request.is_regex,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
@@ -49,8 +52,11 @@ impl<'a> TryFrom<&'a CSearchMetaRequest> for SearchMetaData<'a> {
 }
 
 pub fn run(data: SearchMetaData) -> Result<(Vec<PackageMeta>,), (SearchMetaStateId, SearchMetaError)> {
+    let search = Search::new(data.search, data.is_regex)
+        .map_err(|error| (SearchMetaStateId::Setup, SearchMetaError::from(error)))?;
+
     let mut context = Context::new();
-    context.put(Search(data.search.to_owned()));
+    context.put(search);
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = SequentialOrchestrator::new(vec![Box::new(SearchingStage)]);

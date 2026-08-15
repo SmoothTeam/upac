@@ -11,15 +11,15 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{CommitEntry, RequestedPrefixDigest};
-use crate::unmutated::list_commit::ListCommitError;
+use crate::types::{ConfigCommitEntry, RequestedPrefixDigest};
+use crate::unmutated::list_config::ListConfigError;
 
 pub struct FetchingStage;
 
-impl Stage<ListCommitError> for FetchingStage {
+impl Stage<ListConfigError> for FetchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), ListCommitError> {
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), ListConfigError> {
         let requested = context
             .get::<RequestedPrefixDigest>()
             .ok_or(CommonError::MissingResult)?;
@@ -32,10 +32,10 @@ impl Stage<ListCommitError> for FetchingStage {
         let deploy = Deploy::new(DeployMode::ReadOnly)?;
         let record = DeployRecord::read(&deploy.deploy(&prefix_digest))?;
 
-        let entries: Vec<CommitEntry> = record
+        let entries: Vec<ConfigCommitEntry> = record
             .config_history
             .into_iter()
-            .map(|entry| CommitEntry {
+            .map(|entry| ConfigCommitEntry {
                 config_digest: entry.config_digest,
                 subject: entry.subject,
                 message: entry.message,

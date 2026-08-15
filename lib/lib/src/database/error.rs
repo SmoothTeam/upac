@@ -7,6 +7,8 @@ use std::io::Error as IoError;
 
 use upac_abi::error::ErrorKind;
 
+use crate::deploy::error::SysrootError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DatabaseError {
     PackageNotFound,
@@ -132,5 +134,35 @@ impl From<DeployRecordError> for ErrorKind {
             DeployRecordError::MalformedJson | DeployRecordError::InvalidField => ErrorKind::ReadFailed,
             DeployRecordError::WriteFailed => ErrorKind::WriteFailed,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeployRecordsError {
+    Sysroot(SysrootError),
+    DeployRecord(DeployRecordError),
+}
+
+impl From<SysrootError> for DeployRecordsError {
+    fn from(error: SysrootError) -> Self {
+        DeployRecordsError::Sysroot(error)
+    }
+}
+
+impl From<DeployRecordError> for DeployRecordsError {
+    fn from(error: DeployRecordError) -> Self {
+        DeployRecordsError::DeployRecord(error)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigDigestResolveError {
+    Records(DeployRecordsError),
+    NotFound(String),
+}
+
+impl From<DeployRecordsError> for ConfigDigestResolveError {
+    fn from(error: DeployRecordsError) -> Self {
+        ConfigDigestResolveError::Records(error)
     }
 }

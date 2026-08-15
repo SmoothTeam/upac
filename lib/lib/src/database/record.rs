@@ -9,11 +9,13 @@ use std::path::Path;
 
 use upac_macro::JsonCodec;
 
-use crate::database::error::DeployRecordError;
+use crate::database::error::{ConfigDigestResolveError, DeployRecordError, DeployRecordsError};
+use crate::deploy::Deploy;
+use crate::deploy::digest::current_prefix_digest;
 use crate::types::deployment::RECORD_FILENAME;
 
 #[derive(Debug, Clone, PartialEq, Eq, JsonCodec)]
-pub struct EtcHistoryEntry {
+pub struct ConfigHistoryEntry {
     pub config_digest: String,
     pub subject: String,
     pub message: Option<String>,
@@ -26,8 +28,8 @@ pub struct DeployRecord {
     pub message: Option<String>,
     pub seq: u64,
     pub timestamp: u64,
-    pub config_history: Vec<EtcHistoryEntry>,
-    pub working_etc: String,
+    pub config_history: Vec<ConfigHistoryEntry>,
+    pub working_config: String,
 }
 
 impl DeployRecord {
@@ -50,5 +52,58 @@ impl DeployRecord {
         rename(&tmp_path, deploy_dir.join(RECORD_FILENAME))?;
 
         Ok(())
+    }
+
+    pub fn read_all(deploy: &Deploy) -> Result<Vec<DeployRecord>, DeployRecordsError> {
+        let mut records = Vec::new();
+
+        for prefix_digest in deploy.deploys()? {
+            match Self::read(&deploy.deploy(&prefix_digest)) {
+                Ok(record) => records.push(record),
+                Err(DeployRecordError::NotFound) => continue,
+                Err(error) => return Err(error.into()),
+            }
+        }
+
+        Ok(records)
+    }
+
+    pub fn resolve_config_digest(
+        deploy: &Deploy, requested: Option<&str>,
+    ) -> Result<(String, String), ConfigDigestResolveError> {
+        match requested {
+            Some(config_digest) => Self::resolve_requested(deploy, config_digest),
+            None => Self::resolve_current(deploy).map_err(ConfigDigestResolveError::from),
+        }
+    }
+
+    fn resolve_requested(deploy: &Deploy, config_digest: &str) -> Result<(String, String), ConfigDigestResolveError> {
+        Self::read_all(deploy)?
+            .into_iter()
+            .find(|record| record.owns_config_digest(config_digest))
+            .map(|record| (config_digest.to_owned(), record.prefix_digest))
+            .ok_or_else(|| ConfigDigestResolveError::NotFound(config_digest.to_owned()))
+    }
+
+    fn owns_config_digest(&self, config_digest: &str) -> bool {
+        self.working_config == config_digest
+            || self
+                .config_history
+                .iter()
+                .any(|entry| entry.config_digest == config_digest)
+    }
+
+    pub fn resolve_own_config_digest(&self, requested: Option<&str>) -> Option<String> {
+        match requested {
+            Some(config_digest) => self.owns_config_digest(config_digest).then(|| config_digest.to_owned()),
+            None => Some(self.working_config.clone()),
+        }
+    }
+
+    fn resolve_current(deploy: &Deploy) -> Result<(String, String), DeployRecordsError> {
+        let prefix_digest = current_prefix_digest()?;
+        let record = Self::read(&deploy.deploy(&prefix_digest))?;
+
+        Ok((record.working_config, prefix_digest))
     }
 }

@@ -14,24 +14,24 @@ use crate::errors::{
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DiffFilesPrefixError {
+pub enum DiffPrefixError {
     Common(CommonError),
 }
 
-common_error_from!(DiffFilesPrefixError);
+common_error_from!(DiffPrefixError);
 
-database_error_from!(DiffFilesPrefixError);
+database_error_from!(DiffPrefixError);
 
-repo_error_from!(DiffFilesPrefixError);
+repo_error_from!(DiffPrefixError);
 
-sysroot_error_from!(DiffFilesPrefixError);
+sysroot_error_from!(DiffPrefixError);
 
-lock_error_from!(DiffFilesPrefixError);
+lock_error_from!(DiffPrefixError);
 
-impl From<DiffFilesPrefixError> for ErrorKind {
-    fn from(error: DiffFilesPrefixError) -> Self {
+impl From<DiffPrefixError> for ErrorKind {
+    fn from(error: DiffPrefixError) -> Self {
         match error {
-            DiffFilesPrefixError::Common(common_error) => common_error.into(),
+            DiffPrefixError::Common(common_error) => common_error.into(),
         }
     }
 }

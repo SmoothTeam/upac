@@ -12,17 +12,22 @@ pub(crate) const PRIMITIVES: &[&str] = &[
     "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize", "bool", "f32", "f64",
 ];
 
-pub(crate) const SHARED_TYPES: &[&str] = &["FileDiffKind", "PackageDiffKind"];
+pub(crate) const SHARED_TYPES: &[&str] = &["FileDiffKind", "PackageDiffKind", "DiffFileSource"];
 
 pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
     "CVersion",
     "CPackageMeta",
     "CUnpackedPackage",
     "CPackageInfo",
+    "CDiffFileEntryCommon",
     "CDiffPrefixFileEntry",
     "CDiffConfigFileEntry",
     "CDiffUntrackedFileEntry",
-    "CCommitEntry",
+    "CDiffPackageEntry",
+    "CConfigCommitEntry",
+    "CSearchFileEntry",
+    "CPrefixEntry",
+    "CHistoryEntry",
     "CRequestBase",
     "CDependency",
     "CTriggerEntry",

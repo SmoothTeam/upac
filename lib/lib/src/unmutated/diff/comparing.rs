@@ -12,7 +12,9 @@ use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry, PackageMeta, Version};
+use crate::types::{
+    DiffFileEntryCommon, DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry, PackageMeta, Version,
+};
 use crate::unmutated::diff::{DiffError, DiffSnapshot};
 
 type PackageIdentity = (String, String, Option<String>);
@@ -28,7 +30,7 @@ impl Stage<DiffError> for ComparingStage {
         let mut packages = Self::diff_packages(snapshot.from_packages, snapshot.to_packages);
         let mut unattached_files = Vec::new();
 
-        for (path, kind) in snapshot.changed_files {
+        for (path, kind, source) in snapshot.changed_files {
             let database = match kind {
                 FileDiffKind::Removed => &snapshot.from_database,
                 FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
@@ -46,13 +48,16 @@ impl Stage<DiffError> for ComparingStage {
                     });
 
                     entry.files.push(DiffPrefixFileEntry {
-                        path,
-                        kind,
+                        common: DiffFileEntryCommon { path, kind },
+                        source,
                         package_name: attribution.package_meta.name,
                         is_user: attribution.file_entry.is_user,
                     });
                 }
-                None => unattached_files.push(DiffUntrackedFileEntry { path, kind }),
+                None => unattached_files.push(DiffUntrackedFileEntry {
+                    common: DiffFileEntryCommon { path, kind },
+                    source,
+                }),
             }
         }
 
