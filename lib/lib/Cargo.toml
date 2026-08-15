@@ -17,32 +17,28 @@ name = "upac"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-abi = { workspace = true }
+libloading = { workspace = true }
 upac-macro = { workspace = true }
-upac-pki = { workspace = true }
+upac-abi   = { workspace = true }
+upac-pki   = { workspace = true }
+anyhow     = { workspace = true }
+serde      = { workspace = true }
+toml       = { workspace = true }
 
-twox-hash = "2.1.3"
-rsblkid = "0.4"
-rsmount = "0.2"
-
-nix = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
-libloading = "0.9"
-
-anyhow = "1"
-composefs = { version = "0.7.0", features = ["tempfile"] }
-composefs-boot = { version = "0.7.0" }
 composefs-oci = { version = "0.7.0", features = ["composefs-boot", "boot", "tar"] }
+nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
+composefs     = { version = "0.7.0", features = ["tempfile"] }
+redb          = { version = "4.1.0", features = ["uuid"] }
+tokio         = { version = "1", features = ["rt"] }
+uuid          = { version = "1", features = ["v4"] }
 
-redb = { version = "4.1.0", features = ["uuid"] }
-uuid = { version = "1", features = ["v4"] }
-
-tokio = { version = "1", features = ["rt"] }
-
-serde = { version = "1", features = ["derive"] }
-serde_json = "1.0.151"
-toml = "0.8"
-linux-kernel-cmdline = "0.1.1"
-regex = "1"
+composefs-boot        = { version = "0.7.0" }
+linux-kernel-cmdline  = "0.1.1"
+serde_json            = "1.0.151"
+twox-hash             = "2.1.3"
+rsblkid               = "0.4"
+rsmount               = "0.2"
+regex                 = "1"
 
 [build-dependencies]
-toml = "0.8"
+toml = { workspace = true }

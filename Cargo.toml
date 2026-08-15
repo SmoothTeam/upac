@@ -10,13 +10,20 @@ repository = "https://github.com/SmoothTeam/upac"
 authors = ["justpav05 <aksenovpaveldmitrievich@gmail.com>"]
 
 [workspace.dependencies]
-upac-macro = { path = "lib/macro" }
-upac-abi = { path = "lib/abi" }
-upac-pki = { path = "lib/pki" }
+gettext-rs = { version = "0.7", features = ["gettext-system"] }
+clap       = { version = "4.6.1", features = ["derive"] }
+serde      = { version = "1", features = ["derive"] }
+syn        = { version = "2", features = ["full"] }
 
-syn = { version = "2", features = ["full"] }
-quote = "1"
+upac-macro  = { path = "lib/macro" }
+colored     = "3.1.1"
+upac-abi    = { path = "lib/abi" }
+upac-pki    = { path = "lib/pki" }
+libloading  = "0.9"
 proc-macro2 = "1"
+toml        = "1.1.2"
+anyhow      = "1"
+quote       = "1"
 
 [profile.release]
 opt-level = 3

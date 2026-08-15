@@ -16,6 +16,6 @@ description = "Derive macros for C-ABI struct plumbing used internally by upac-l
 proc-macro = true
 
 [dependencies]
-syn = { workspace = true }
-quote = { workspace = true }
 proc-macro2 = { workspace = true }
+quote       = { workspace = true }
+syn         = { workspace = true }
