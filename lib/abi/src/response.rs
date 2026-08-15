@@ -142,6 +142,36 @@ impl CSearchFilesResponse {
 }
 
 #[repr(C)]
+pub struct CSearchInMetaResponse {
+    pub struct_size: usize,
+    pub metas: CVec<CPackageMeta>,
+}
+
+impl CSearchInMetaResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
+    pub unsafe fn free(&self) {
+        unsafe { free_cvec_owning(&self.metas, |meta| meta.free()) };
+    }
+}
+
+#[repr(C)]
+pub struct CSearchInPackageFilesResponse {
+    pub struct_size: usize,
+    pub files: CVec<CSearchFileEntry>,
+}
+
+impl CSearchInPackageFilesResponse {
+    /// # Safety
+    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
+    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
+    pub unsafe fn free(&self) {
+        unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
+    }
+}
+
+#[repr(C)]
 #[derive(CFree, CValidate)]
 pub struct CPrefixEntry {
     pub struct_size: usize,

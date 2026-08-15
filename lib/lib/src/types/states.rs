@@ -311,6 +311,40 @@ impl CommandState for SearchFilesStateId {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
+pub enum SearchInMetaStateId {
+    Searching = 0,
+    Done = 1,
+    Setup = 2,
+}
+
+impl CommandState for SearchInMetaStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::SearchInMeta;
+    const VALIDATION: Self = SearchInMetaStateId::Setup;
+
+    fn as_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
+pub enum SearchInPackageFilesStateId {
+    Searching = 0,
+    Done = 1,
+    Setup = 2,
+}
+
+impl CommandState for SearchInPackageFilesStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::SearchInPackageFiles;
+    const VALIDATION: Self = SearchInPackageFilesStateId::Setup;
+
+    fn as_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum CommitStateId {
     PreHooks = 0,
     Transaction = 1,

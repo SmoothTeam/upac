@@ -12,4 +12,6 @@ pub mod list_history;
 pub mod list_packages;
 pub mod list_prefix;
 pub mod search_files;
+pub mod search_in_meta;
+pub mod search_in_package_files;
 pub mod search_meta;

@@ -14,24 +14,24 @@ use crate::errors::{
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum GcError {
+pub enum SearchInMetaError {
     Common(CommonError),
 }
 
-common_error_from!(GcError);
+common_error_from!(SearchInMetaError);
 
-database_error_from!(GcError);
+database_error_from!(SearchInMetaError);
 
-repo_error_from!(GcError);
+repo_error_from!(SearchInMetaError);
 
-sysroot_error_from!(GcError);
+sysroot_error_from!(SearchInMetaError);
 
-lock_error_from!(GcError);
+lock_error_from!(SearchInMetaError);
 
-impl From<GcError> for ErrorKind {
-    fn from(error: GcError) -> Self {
+impl From<SearchInMetaError> for ErrorKind {
+    fn from(error: SearchInMetaError) -> Self {
         match error {
-            GcError::Common(common_error) => common_error.into(),
+            SearchInMetaError::Common(common_error) => common_error.into(),
         }
     }
 }

@@ -26,6 +26,8 @@ pub enum ErrorDomain {
     Diff,
     SearchMeta,
     SearchFiles,
+    SearchInMeta,
+    SearchInPackageFiles,
 }
 
 #[repr(u32)]
