@@ -72,48 +72,24 @@ pub struct CConfigCommitEntry {
 }
 
 #[repr(C)]
+#[derive(CFree)]
 pub struct CListConfigResponse {
     pub struct_size: usize,
     pub commits: CVec<CConfigCommitEntry>,
 }
 
-impl CListConfigResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.commits, |entry| entry.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CListPackagesResponse {
     pub struct_size: usize,
     pub metas: CVec<CPackageMeta>,
 }
 
-impl CListPackagesResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.metas, |meta| meta.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CSearchMetaResponse {
     pub struct_size: usize,
     pub metas: CVec<CPackageMeta>,
-}
-
-impl CSearchMetaResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.metas, |meta| meta.free()) };
-    }
 }
 
 #[repr(C)]
@@ -127,48 +103,24 @@ pub struct CSearchFileEntry {
 }
 
 #[repr(C)]
+#[derive(CFree)]
 pub struct CSearchFilesResponse {
     pub struct_size: usize,
     pub files: CVec<CSearchFileEntry>,
 }
 
-impl CSearchFilesResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CSearchInMetaResponse {
     pub struct_size: usize,
     pub metas: CVec<CPackageMeta>,
 }
 
-impl CSearchInMetaResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.metas, |meta| meta.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CSearchInPackageFilesResponse {
     pub struct_size: usize,
     pub files: CVec<CSearchFileEntry>,
-}
-
-impl CSearchInPackageFilesResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
-    }
 }
 
 #[repr(C)]
@@ -186,18 +138,10 @@ pub struct CPrefixEntry {
 }
 
 #[repr(C)]
+#[derive(CFree)]
 pub struct CListPrefixResponse {
     pub struct_size: usize,
     pub prefixes: CVec<CPrefixEntry>,
-}
-
-impl CListPrefixResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.prefixes, |entry| entry.free()) };
-    }
 }
 
 #[repr(C)]
@@ -216,85 +160,43 @@ pub struct CHistoryEntry {
 }
 
 #[repr(C)]
+#[derive(CFree)]
 pub struct CListHistoryResponse {
     pub struct_size: usize,
     pub history: CVec<CHistoryEntry>,
 }
 
-impl CListHistoryResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.history, |entry| entry.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CDiffPrefixResponse {
     pub struct_size: usize,
     pub files: CVec<CDiffPrefixFileEntry>,
 }
 
-impl CDiffPrefixResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CDiffConfigResponse {
     pub struct_size: usize,
     pub files: CVec<CDiffConfigFileEntry>,
 }
 
-impl CDiffConfigResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.files, |entry| entry.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CDiffPackagesResponse {
     pub struct_size: usize,
     pub diff_packages: CVec<CDiffPackageEntry>,
 }
 
-impl CDiffPackagesResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe { free_cvec_owning(&self.diff_packages, |entry| entry.free()) };
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CDiffResponse {
     pub struct_size: usize,
     pub diff_packages: CVec<CDiffPackageEntry>,
     pub unattached_files: CVec<CDiffUntrackedFileEntry>,
 }
 
-impl CDiffResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe {
-            free_cvec_owning(&self.unattached_files, |entry| entry.free());
-            free_cvec_owning(&self.diff_packages, |entry| entry.free());
-        }
-    }
-}
-
 #[repr(C)]
+#[derive(CFree)]
 pub struct CUnmutatedResponse {
     pub struct_size: usize,
 
@@ -302,18 +204,4 @@ pub struct CUnmutatedResponse {
     pub files: CVec<CDiffPrefixFileEntry>,
     pub commits: CVec<CConfigCommitEntry>,
     pub diff_packages: CVec<CDiffPackageEntry>,
-}
-
-impl CUnmutatedResponse {
-    /// # Safety
-    /// Must be called at most once. Assumes every buffer reachable from `self` was allocated by
-    /// this library (via `CVec::from_owned`/`CSlice::from_owned`), not hand-constructed by the caller.
-    pub unsafe fn free(&self) {
-        unsafe {
-            free_cvec_owning(&self.metas, |package_meta_c| package_meta_c.free());
-            free_cvec_owning(&self.files, |diff_file_entry_c| diff_file_entry_c.free());
-            free_cvec_owning(&self.commits, |commit_entry_c| commit_entry_c.free());
-            free_cvec_owning(&self.diff_packages, |diff_package_entry_c| diff_package_entry_c.free());
-        }
-    }
 }
