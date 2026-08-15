@@ -5,6 +5,7 @@
 
 pub mod commit;
 pub mod files;
+pub mod gc;
 pub mod installer;
 pub mod rollback;
 pub mod uninstaller;

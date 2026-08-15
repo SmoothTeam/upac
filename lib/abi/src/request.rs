@@ -106,6 +106,13 @@ pub struct CFilesRequest {
 
 #[repr(C)]
 #[derive(CValidate)]
+pub struct CGcRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
 pub struct CListPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,

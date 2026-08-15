@@ -97,6 +97,23 @@ impl CommandState for FilesStateId {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
+pub enum GcStateId {
+    Cleaning = 0,
+    Done = 1,
+    Setup = 2,
+}
+
+impl CommandState for GcStateId {
+    const DOMAIN: ErrorDomain = ErrorDomain::Gc;
+    const VALIDATION: Self = GcStateId::Setup;
+
+    fn as_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum ListPackagesStateId {
     Fetching = 0,
     Done = 1,

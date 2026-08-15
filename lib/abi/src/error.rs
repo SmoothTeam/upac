@@ -15,6 +15,7 @@ pub enum ErrorDomain {
     Commit,
     Files,
     Update,
+    Gc,
     ListPackages,
     ListConfig,
     ListPrefix,
