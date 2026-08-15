@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
-use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
+use upac_abi::{FileDiffKind, PackageDiffKind};
 
 use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
@@ -30,7 +30,7 @@ impl Stage<DiffError> for ComparingStage {
         let mut packages = Self::diff_packages(snapshot.from_packages, snapshot.to_packages);
         let mut unattached_files = Vec::new();
 
-        for (path, kind) in snapshot.changed_files {
+        for (path, kind, source) in snapshot.changed_files {
             let database = match kind {
                 FileDiffKind::Removed => &snapshot.from_database,
                 FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
@@ -49,14 +49,14 @@ impl Stage<DiffError> for ComparingStage {
 
                     entry.files.push(DiffPrefixFileEntry {
                         common: DiffFileEntryCommon { path, kind },
-                        source: DiffFileSource::Prefix,
+                        source,
                         package_name: attribution.package_meta.name,
                         is_user: attribution.file_entry.is_user,
                     });
                 }
                 None => unattached_files.push(DiffUntrackedFileEntry {
                     common: DiffFileEntryCommon { path, kind },
-                    source: DiffFileSource::Prefix,
+                    source,
                 }),
             }
         }

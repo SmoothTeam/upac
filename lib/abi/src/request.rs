@@ -181,6 +181,10 @@ pub struct CDiffRequest {
     pub from_prefix_digest: CSlice,
     #[optional]
     pub to_prefix_digest: CSlice,
+    #[optional]
+    pub from_config_digest: CSlice,
+    #[optional]
+    pub to_config_digest: CSlice,
 }
 
 #[repr(C)]

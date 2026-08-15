@@ -93,6 +93,13 @@ impl DeployRecord {
                 .any(|entry| entry.config_digest == config_digest)
     }
 
+    pub fn resolve_own_config_digest(&self, requested: Option<&str>) -> Option<String> {
+        match requested {
+            Some(config_digest) => self.owns_config_digest(config_digest).then(|| config_digest.to_owned()),
+            None => Some(self.working_config.clone()),
+        }
+    }
+
     fn resolve_current(deploy: &Deploy) -> Result<(String, String), DeployRecordsError> {
         let prefix_digest = current_prefix_digest()?;
         let record = Self::read(&deploy.deploy(&prefix_digest))?;
