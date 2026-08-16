@@ -4,43 +4,40 @@
 
 use anyhow::Result;
 
+use std::mem::size_of;
+
 use colored::Colorize;
 
-use crate::cancel_token_ptr;
-use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
+use upac_abi::request::CListHistoryRequest;
+
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{invoke_with_response, request_base};
 
 #[derive(clap::Args)]
 pub struct Args {}
 
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
-    let mut response = CUnmutatedResponse::empty();
+    let request = CListHistoryRequest {
+        struct_size: size_of::<CListHistoryRequest>(),
+        base: request_base(),
+    };
 
-    let request = CUnmutatedRequest::for_list_commits(
-        &ctx.config.paths.repo_path,
-        &ctx.config.paths.root_path,
-        &ctx.config.ostree.branch,
-        cancel_token_ptr(),
-    );
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_history)(request, out, error) })?;
 
-    let return_code = unsafe { (ctx.lib.commit.list)(request, &mut response) };
-    LibError::check(return_code)?;
-
-    let commits = unsafe { response.commits.as_slice() };
+    let commits = unsafe { response.history.as_slice() };
     for (index, commit) in commits.iter().enumerate() {
-        let checksum = unsafe { commit.checksum.as_str() };
-        let subject = unsafe { commit.subject.as_str() };
+        let digest = unsafe { commit.prefix_digest.as_str() }.unwrap_or("");
+        let subject = unsafe { commit.subject.as_str() }.unwrap_or("");
 
         println!("{}", subject.bold());
-        println!("{}", checksum.yellow());
+        println!("{}", digest.yellow());
 
         if index < commits.len() - 1 {
             println!();
         }
     }
 
-    unsafe { (ctx.lib.free_response)(&mut response) };
+    unsafe { response.free() };
 
     Ok(())
 }

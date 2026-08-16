@@ -5,12 +5,13 @@
 use anyhow::Result;
 
 use std::ffi::CString;
+use std::mem::size_of;
 
-use crate::cancel_token_ptr;
+use upac_abi::request::CSearchMetaRequest;
+
 use crate::commands::display::package::{PackageField, PackageFormatter};
-use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{invoke_with_response, request_base, slice_from_cstr};
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -33,27 +34,30 @@ pub struct Args {
     pub description: bool,
     #[arg(long)]
     pub checksum: bool,
+    #[arg(long)]
+    pub regex: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let query = CString::new(args.query.as_str())?;
-    let mut response = CUnmutatedResponse::empty();
 
-    let request = CUnmutatedRequest::for_search(&ctx.config.paths.root_path, &query, cancel_token_ptr());
+    let request = CSearchMetaRequest {
+        struct_size: size_of::<CSearchMetaRequest>(),
+        base: request_base(),
+        search: slice_from_cstr(&query),
+        is_regex: args.regex,
+    };
 
-    let return_code = unsafe { (ctx.lib.pkg.search)(request, &mut response) };
-    LibError::check(return_code)?;
-
-    let metas = unsafe { response.metas.as_slice() };
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_meta)(request, out, error) })?;
 
     let extra_fields = build_extra_fields(&args);
     PackageFormatter {
         extra_fields: &extra_fields,
-        metas,
+        metas: unsafe { response.metas.as_slice() },
     }
     .print();
 
-    unsafe { (ctx.lib.free_response)(&mut response) };
+    unsafe { response.free() };
 
     Ok(())
 }

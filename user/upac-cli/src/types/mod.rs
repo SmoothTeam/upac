@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::libcore::Lib;
 
+pub mod abi;
 pub mod errors;
 
 pub struct CommandContext {
