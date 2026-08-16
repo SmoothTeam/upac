@@ -8,21 +8,19 @@ use std::env::temp_dir;
 use std::ffi::CString;
 use std::sync::Arc;
 
-use crate::config::Config;
 use crate::libcore::Lib;
 
 pub mod errors;
 
 pub struct CommandContext {
-    pub config: Config,
     pub lib: Arc<Lib>,
     pub tmp_path: CString,
 }
 
 impl CommandContext {
-    pub fn new(config: Config, lib: Arc<Lib>) -> Result<CommandContext> {
+    pub fn new(lib: Arc<Lib>) -> Result<CommandContext> {
         let tmp_path = CString::new(temp_dir().to_string_lossy().as_ref())?;
 
-        Ok(CommandContext { config, lib, tmp_path })
+        Ok(CommandContext { lib, tmp_path })
     }
 }

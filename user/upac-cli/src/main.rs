@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // ── Imports ─────────────────────────────────────────────────────────────────
-use std::path::Path;
 use std::process::ExitCode;
 use std::ptr::addr_of_mut;
 use std::sync::Arc;
@@ -18,17 +17,19 @@ use clap::Parser;
 
 use upac_abi::hook::CancelToken;
 
+use crate::commands::commit::CommitArgs;
+use crate::commands::file::FileArgs;
 use crate::commands::package::PkgArgs;
-use crate::config::Config;
 use crate::libcore::Lib;
 use crate::types::CommandContext;
 
-mod config;
 mod libcore;
 mod types;
 
 mod commands {
+    pub mod commit;
     pub mod display;
+    pub mod file;
     pub mod package;
 }
 
@@ -43,6 +44,8 @@ pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
 #[command(author, version, about)]
 enum Command {
     Pkg(PkgArgs),
+    Commit(CommitArgs),
+    File(FileArgs),
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
@@ -62,8 +65,6 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<()> {
-    let config = Config::load(Path::new(config::DEFAULT_CONFIG_PATH))?;
-
     let lib = Arc::new(Lib::load()?);
 
     let lib_cancel = Arc::clone(&lib);
@@ -71,10 +72,12 @@ fn run() -> Result<()> {
         unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
     })?;
 
-    let command_context = CommandContext::new(config, lib)?;
+    let command_context = CommandContext::new(lib)?;
 
     match Command::parse() {
         Command::Pkg(args) => commands::package::run(args, command_context)?,
+        Command::Commit(args) => commands::commit::run(args, command_context)?,
+        Command::File(args) => commands::file::run(args, command_context)?,
     }
 
     Ok(())
