@@ -27,43 +27,43 @@ fn array_codec(ident: &Ident, ty: &Type, array: &TypeArray) -> (TokenStream2, To
 
 fn string_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
-        quote! { crate::database::codec::write_len_prefixed(buf, value.#ident.as_bytes()); },
-        quote! { let #ident = crate::database::codec::read_str(data, offset); },
+        quote! { crate::codec::write_len_prefixed(buf, value.#ident.as_bytes()); },
+        quote! { let #ident = crate::codec::read_str(data, offset); },
     )
 }
 
 fn u32_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
-        quote! { crate::database::codec::write_u32(buf, value.#ident); },
-        quote! { let #ident = crate::database::codec::read_u32(data, offset); },
+        quote! { crate::codec::write_u32(buf, value.#ident); },
+        quote! { let #ident = crate::codec::read_u32(data, offset); },
     )
 }
 
 fn u64_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
-        quote! { crate::database::codec::write_u64(buf, value.#ident); },
-        quote! { let #ident = crate::database::codec::read_u64(data, offset); },
+        quote! { crate::codec::write_u64(buf, value.#ident); },
+        quote! { let #ident = crate::codec::read_u64(data, offset); },
     )
 }
 
 fn bool_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
-        quote! { crate::database::codec::write_bool(buf, value.#ident); },
-        quote! { let #ident = crate::database::codec::read_bool(data, offset); },
+        quote! { crate::codec::write_bool(buf, value.#ident); },
+        quote! { let #ident = crate::codec::read_bool(data, offset); },
     )
 }
 
 fn option_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
-        quote! { crate::database::codec::write_opt_str(buf, value.#ident.as_deref()); },
-        quote! { let #ident = crate::database::codec::read_opt_str(data, offset); },
+        quote! { crate::codec::write_opt_str(buf, value.#ident.as_deref()); },
+        quote! { let #ident = crate::codec::read_opt_str(data, offset); },
     )
 }
 
 fn vec_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
-        quote! { crate::database::codec::write_vec_u32(buf, &value.#ident); },
-        quote! { let #ident = crate::database::codec::read_vec_u32(data, offset); },
+        quote! { crate::codec::write_vec_u32(buf, &value.#ident); },
+        quote! { let #ident = crate::codec::read_vec_u32(data, offset); },
     )
 }
 
@@ -107,11 +107,11 @@ fn field_codec(ident: &Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
 fn codec_impl(name: &Ident, encodes: &[TokenStream2], decodes: &[TokenStream2], names: &[Ident]) -> TokenStream2 {
     quote! {
         impl #name {
-            pub(crate) fn encode_into(buf: &mut Vec<u8>, value: &#name) {
+            pub fn encode_into(buf: &mut Vec<u8>, value: &#name) {
                 #(#encodes)*
             }
 
-            pub(crate) fn decode_from(data: &[u8], offset: &mut usize) -> #name {
+            pub fn decode_from(data: &[u8], offset: &mut usize) -> #name {
                 #(#decodes)*
 
                 #name {
