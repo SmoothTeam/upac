@@ -10,7 +10,7 @@ use upac_macro::CValidate;
 use crate::FileDiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
-use crate::package::{CPackageInfo, CUnpackedPackage};
+use crate::package::CPackageInfo;
 use crate::types::{CSlice, CVec, check_size};
 
 #[repr(C)]
@@ -36,7 +36,7 @@ pub struct CInstallRequest {
     #[optional]
     pub message: CSlice,
 
-    pub packages: CVec<CUnpackedPackage>,
+    pub packages: CVec<CSlice>,
 }
 
 #[repr(C)]
@@ -51,7 +51,7 @@ pub struct CUpdateRequest {
     #[optional]
     pub message: CSlice,
 
-    pub packages: CVec<CUnpackedPackage>,
+    pub packages: CVec<CSlice>,
 }
 
 #[repr(C)]

@@ -8,7 +8,7 @@ use std::ptr::null;
 
 use upac_abi::decoder::{CDependency, CTriggerEntry, CTriggerTable};
 use upac_abi::error::ErrorKind;
-use upac_abi::package::{CPackageInfo, CPackageMeta, CUnpackedPackage, CVersion};
+use upac_abi::package::{CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::types::{COwned, CSlice, CVec};
 
 fn valid_version() -> CVersion {
@@ -82,21 +82,6 @@ fn package_meta_validate_rejects_invalid_nested_version() {
 
     assert_eq!(unsafe { meta.validate() }, Err(ErrorKind::AbiMismatch));
     unsafe { meta.free() };
-}
-
-#[test]
-fn unpacked_package_validate_ok_for_well_formed() {
-    let package = CUnpackedPackage {
-        struct_size: size_of::<CUnpackedPackage>(),
-        meta: valid_package_meta(),
-        temp_path: CSlice::from_owned(b"/tmp/upac-test".to_vec()),
-    };
-
-    assert!(unsafe { package.validate() }.is_ok());
-    unsafe {
-        package.meta.free();
-        upac_abi::memory::free_cslice(&package.temp_path);
-    }
 }
 
 #[test]

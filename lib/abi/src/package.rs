@@ -44,14 +44,6 @@ pub struct CPackageMeta {
 
 #[repr(C)]
 #[derive(CValidate)]
-pub struct CUnpackedPackage {
-    pub struct_size: usize,
-    pub meta: CPackageMeta,
-    pub temp_path: CSlice,
-}
-
-#[repr(C)]
-#[derive(CValidate)]
 pub struct CPackageInfo {
     pub struct_size: usize,
     pub name: CSlice,
