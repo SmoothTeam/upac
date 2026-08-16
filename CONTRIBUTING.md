@@ -11,6 +11,10 @@ The design and architecture live in the per-chapter design notes under
 orchestrator/stage pipeline, the composefs layer, or the FFI boundary; they explain the *why* behind
 a lot of decisions that aren't obvious from the code alone.
 
+For current work status, check [`ROADMAP.md`](ROADMAP.md) (bigger phases) and [`TODO.md`](TODO.md)
+(near-term, concrete items) before picking something up — they're kept up to date, unlike design
+docs which describe intent rather than progress.
+
 ## Building
 
 See the [README](README.md#-building) for prerequisites and build commands.
