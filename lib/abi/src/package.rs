@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use upac_macro::{CFree, CValidate};
+use upac_macro::{CFree, CNew, CValidate};
 
 use crate::error::ErrorKind;
 use crate::memory::{free_cslice, free_cvec};
@@ -43,7 +43,7 @@ pub struct CPackageMeta {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CPackageInfo {
     pub struct_size: usize,
     pub name: CSlice,
