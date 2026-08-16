@@ -26,6 +26,7 @@ libloading = { workspace = true }
 anyhow     = { workspace = true }
 serde      = { workspace = true }
 toml       = { workspace = true }
+sha2       = { workspace = true }
 
 composefs-oci = { version = "0.7.0", features = ["composefs-boot", "boot", "tar"] }
 nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }

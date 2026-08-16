@@ -17,7 +17,6 @@ pub(crate) const SHARED_TYPES: &[&str] = &["FileDiffKind", "PackageDiffKind", "D
 pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
     "CVersion",
     "CPackageMeta",
-    "CUnpackedPackage",
     "CPackageInfo",
     "CDiffFileEntryCommon",
     "CDiffPrefixFileEntry",

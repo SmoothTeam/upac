@@ -5,7 +5,7 @@
 
 use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
-use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
+use upac_abi::package::{CPackageMeta, CVersion};
 use upac_abi::response::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
@@ -56,21 +56,6 @@ impl Default for Version {
 pub struct PackageTemp {
     pub meta: PackageMeta,
     pub temp_package_path: String,
-}
-
-impl TryFrom<&CUnpackedPackage> for PackageTemp {
-    type Error = ErrorKind;
-
-    fn try_from(package: &CUnpackedPackage) -> Result<Self, ErrorKind> {
-        unsafe { package.validate()? };
-
-        let temp_package_path: &str = (&package.temp_path).try_into()?;
-
-        Ok(PackageTemp {
-            meta: PackageMeta::try_from(&package.meta)?,
-            temp_package_path: temp_package_path.to_owned(),
-        })
-    }
 }
 
 #[derive(Debug, Clone, CTryToRust, RedbCodec, RustToC)]

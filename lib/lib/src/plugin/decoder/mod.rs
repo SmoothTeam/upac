@@ -21,6 +21,7 @@ use crate::plugin::decoder::error::DecoderError;
 pub mod error;
 pub mod manifest;
 pub mod triggers;
+pub mod unpack;
 
 unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, DecoderError> {
     unsafe { library.get::<T>(name.as_bytes()) }

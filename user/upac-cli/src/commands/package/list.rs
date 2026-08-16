@@ -5,10 +5,10 @@
 use anyhow::Result;
 
 use crate::cancel_token_ptr;
+use crate::commands::display::package::{PackageField, PackageFormatter};
 use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
 use crate::types::CommandContext;
 use crate::types::errors::LibError;
-use crate::types::package::{PackageField, PackageFormatter};
 
 #[derive(clap::Args)]
 pub struct Args {

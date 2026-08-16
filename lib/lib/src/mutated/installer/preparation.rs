@@ -5,16 +5,29 @@
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
+use upac_types::TmpPath;
+
+use crate::errors::CommonError;
 use crate::mutated::installer::InstallError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::plugin::decoder::unpack::PackageUnpacker;
 
 pub struct PreparationStage;
 
 impl Stage<InstallError> for PreparationStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), InstallError> {
-        todo!()
+        let package_paths = context.take::<Vec<String>>().ok_or(CommonError::MissingResult)?;
+        let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
+
+        let mut unpacker = PackageUnpacker::new().map_err(CommonError::Decoder)?;
+        let packages = unpacker
+            .unpack_all(&package_paths, tmp_path.as_ref(), cancel)
+            .map_err(CommonError::Decoder)?;
+        context.put(packages);
+
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

@@ -24,6 +24,7 @@ colored     = "3.1.1"
 libloading  = "0.9"
 proc-macro2 = "1"
 toml        = "1.1.2"
+sha2        = "0.11"
 anyhow      = "1"
 quote       = "1"
 
