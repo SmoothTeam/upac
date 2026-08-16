@@ -12,13 +12,15 @@ use nix::unistd::Uid;
 use upac_abi::error::CError;
 use upac_abi::hook::CancelToken;
 use upac_abi::request::{
-    CCommitRequest, CDiffPackagesRequest, CDiffPrefixRequest, CFilesRequest, CGcRequest, CInstallRequest,
-    CListConfigRequest, CListHistoryRequest, CListPackagesRequest, CListPrefixRequest, CRollbackRequest,
-    CSearchFilesRequest, CSearchMetaRequest, CUninstallRequest, CUpdateRequest,
+    CCommitRequest, CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CFilesRequest,
+    CGcRequest, CInstallRequest, CListConfigRequest, CListHistoryRequest, CListPackagesRequest, CListPrefixRequest,
+    CRollbackRequest, CSearchFilesRequest, CSearchInMetaRequest, CSearchInPackageFilesRequest, CSearchMetaRequest,
+    CUninstallRequest, CUpdateRequest,
 };
 use upac_abi::response::{
-    CDiffPackagesResponse, CDiffPrefixResponse, CListConfigResponse, CListHistoryResponse, CListPackagesResponse,
-    CListPrefixResponse, CSearchFilesResponse, CSearchMetaResponse,
+    CDiffConfigResponse, CDiffPackagesResponse, CDiffPrefixResponse, CDiffResponse, CListConfigResponse,
+    CListHistoryResponse, CListPackagesResponse, CListPrefixResponse, CSearchFilesResponse, CSearchInMetaResponse,
+    CSearchInPackageFilesResponse, CSearchMetaResponse,
 };
 
 use crate::types::errors::{AbiMismatch, LibError};
@@ -38,6 +40,11 @@ pub struct RoSymbols {
     pub list_prefix: unsafe extern "C" fn(CListPrefixRequest, *mut CListPrefixResponse, *mut CError) -> i32,
     pub diff_prefix: unsafe extern "C" fn(CDiffPrefixRequest, *mut CDiffPrefixResponse, *mut CError) -> i32,
     pub search_files: unsafe extern "C" fn(CSearchFilesRequest, *mut CSearchFilesResponse, *mut CError) -> i32,
+    pub diff_config: unsafe extern "C" fn(CDiffConfigRequest, *mut CDiffConfigResponse, *mut CError) -> i32,
+    pub diff: unsafe extern "C" fn(CDiffRequest, *mut CDiffResponse, *mut CError) -> i32,
+    pub search_in_meta: unsafe extern "C" fn(CSearchInMetaRequest, *mut CSearchInMetaResponse, *mut CError) -> i32,
+    pub search_in_package_files:
+        unsafe extern "C" fn(CSearchInPackageFilesRequest, *mut CSearchInPackageFilesResponse, *mut CError) -> i32,
 }
 
 impl LoadLibrarySymbols for RoSymbols {
@@ -51,6 +58,10 @@ impl LoadLibrarySymbols for RoSymbols {
             list_prefix: unsafe { Lib::load_symbol(lib, "list_prefix")? },
             diff_prefix: unsafe { Lib::load_symbol(lib, "diff_prefix")? },
             search_files: unsafe { Lib::load_symbol(lib, "search_files")? },
+            diff_config: unsafe { Lib::load_symbol(lib, "diff_config")? },
+            diff: unsafe { Lib::load_symbol(lib, "diff")? },
+            search_in_meta: unsafe { Lib::load_symbol(lib, "search_in_meta")? },
+            search_in_package_files: unsafe { Lib::load_symbol(lib, "search_in_package_files")? },
         })
     }
 }

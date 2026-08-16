@@ -28,6 +28,7 @@ mod types;
 
 mod commands {
     pub mod commit;
+    pub mod diff;
     pub mod display;
     pub mod file;
     pub mod gc;
@@ -48,6 +49,7 @@ enum Command {
     Commit(CommitArgs),
     File(FileArgs),
     Gc(commands::gc::Args),
+    Diff(commands::diff::Args),
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
@@ -81,6 +83,7 @@ fn run() -> Result<()> {
         Command::Commit(args) => commands::commit::run(args, command_context)?,
         Command::File(args) => commands::file::run(args, command_context)?,
         Command::Gc(args) => commands::gc::run(args, command_context)?,
+        Command::Diff(args) => commands::diff::run(args, command_context)?,
     }
 
     Ok(())

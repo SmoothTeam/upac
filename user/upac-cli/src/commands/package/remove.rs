@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Result;
-
 use std::ffi::CString;
 use std::io::{self, Write};
+
+use anyhow::Result;
+
+use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
@@ -20,7 +22,7 @@ use crate::types::abi::{
 type InstalledEntry = (String, String, Option<String>);
 type ResolvedEntry = (CString, CString, Option<CString>);
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     #[arg(required = true, num_args = 1..)]
     pub names: Vec<String>,

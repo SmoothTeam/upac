@@ -4,13 +4,15 @@
 
 use anyhow::Result;
 
+use clap::Args as ClapArgs;
+
 use upac_abi::request::CListPackagesRequest;
 
 use crate::commands::display::{PackageField, PackageFormatter};
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, request_base};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]
     pub version: bool,

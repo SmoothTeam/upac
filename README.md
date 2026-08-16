@@ -55,17 +55,22 @@ up pkg update -f <path>...   [-m <message>]                       # updates inst
 up pkg list                  [--version --arch --author --license --url --packager --size --description --checksum]  # lists installed packages, with optional extra columns
 up pkg diff                  [<from>] [<to>]                      # diffs installed packages between two prefixes (commit digests); defaults if omitted
 up pkg search <query>        [--version ... --checksum] [--regex] # searches package metadata (same field flags as pkg list)
+up pkg search <query> --package <name> --package-arch <arch> [--package-arch-sub <sub>] [--regex]  # same, scoped to one package's own metadata
 
 up file add <path>...    --package <name> --arch <arch> [--arch-sub <sub>] [-m <message>]  # tracks standalone file(s) against a package
-up file remove <path>... --package <name>                          # untracks standalone file(s) from a package
+up file remove <path>... --package <name> --arch <arch> [--arch-sub <sub>] [-m <message>]  # untracks standalone file(s) from a package
 up file diff              [<from>] [<to>]                          # diffs tracked files between two prefixes
-up file search <query>                                              # searches tracked files by path
+up file search <query>   [--regex]                                  # searches tracked files by path
+up file search <query> --package <name> --package-arch <arch> [--package-arch-sub <sub>] [--regex]  # same, scoped to one package's files
 
 up commit new <message>      # creates a new commit of the current deploy state
 up commit list               # lists config-commits for the current deploy (rollback targets)
 up commit prefixes           # lists deploy-level (prefix) commits
 up commit history            # lists deploy-level commits with their nested config-commits, marking the active one
+up commit diff [<from>] [<to>]  # diffs tracked files between two config-commits
 up commit rollback <commit>  # reverts the system state to a specified commit
+
+up diff [--from-prefix <d>] [--to-prefix <d>] [--from-config <d>] [--to-config <d>]  # combined package + untracked-file diff across two commits
 
 up gc                        # removes unreachable commits/deploys and reclaims storage
 ```
@@ -101,7 +106,7 @@ Adding support for a new package format means writing a new decoder `.so` — th
 
 ### CLI (`upac-cli`)
 
-A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate decoder at runtime. Subcommands are grouped under `pkg` (packages), `file` (standalone tracked files), and `commit` (deploy history/rollback).
+A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate decoder at runtime. Subcommands are grouped under `pkg` (packages), `file` (standalone tracked files), and `commit` (deploy history/rollback), plus two top-level commands that don't belong to any single family: `gc` and `diff` (combined package + untracked-file diff).
 
 ## 🔧 Building
 

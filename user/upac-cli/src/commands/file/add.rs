@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::ffi::CString;
+
 use anyhow::Result;
 
-use std::ffi::CString;
+use clap::Args as ClapArgs;
 
 use upac_abi::FileDiffKind;
 use upac_abi::request::CFilesRequest;
@@ -12,7 +14,7 @@ use upac_abi::request::CFilesRequest;
 use crate::types::CommandContext;
 use crate::types::abi::{borrowed_vec, invoke, optional_slice, package_info, request_base, slice_from_cstr};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     #[arg(required = true, num_args = 1..)]
     pub files: Vec<String>,

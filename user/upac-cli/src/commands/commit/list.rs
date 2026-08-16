@@ -4,6 +4,8 @@
 
 use anyhow::Result;
 
+use clap::Args as ClapArgs;
+
 use colored::Colorize;
 
 use upac_abi::request::CListConfigRequest;
@@ -11,7 +13,7 @@ use upac_abi::request::CListConfigRequest;
 use crate::types::CommandContext;
 use crate::types::abi::{empty_slice, invoke_with_response, request_base};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {}
 
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {

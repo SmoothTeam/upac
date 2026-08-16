@@ -2,17 +2,19 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Result;
-
 use std::ffi::CString;
 use std::fs::canonicalize;
+
+use anyhow::Result;
+
+use clap::Args as ClapArgs;
 
 use upac_abi::request::CUpdateRequest;
 
 use crate::types::CommandContext;
 use crate::types::abi::{borrowed_vec, invoke, optional_slice, request_base, slice_from_cstr};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     // Required flag, not a positional: keeps the positional slot free for a future
     // name-based network update (e.g. `up pkg update foo`), separate from this local-file path.

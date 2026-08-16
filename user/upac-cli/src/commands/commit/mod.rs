@@ -9,6 +9,7 @@ use clap::{Args, Subcommand};
 
 use crate::types::CommandContext;
 
+pub mod diff;
 pub mod history;
 pub mod list;
 pub mod new;
@@ -25,6 +26,7 @@ pub struct CommitArgs {
 // ── Subcommands ───────────────────────────────────────────────────────────────
 #[derive(Subcommand)]
 pub enum CommitCommand {
+    Diff(diff::Args),
     History(history::Args),
     List(list::Args),
     New(new::Args),
@@ -35,6 +37,7 @@ pub enum CommitCommand {
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 pub fn run(args: CommitArgs, context: CommandContext) -> Result<()> {
     match args.command {
+        CommitCommand::Diff(args) => diff::run(args, context),
         CommitCommand::History(args) => history::run(args, context),
         CommitCommand::List(args) => list::run(args, context),
         CommitCommand::New(args) => new::run(args, context),

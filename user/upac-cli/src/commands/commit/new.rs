@@ -2,16 +2,18 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::ffi::CString;
+
 use anyhow::Result;
 
-use std::ffi::CString;
+use clap::Args as ClapArgs;
 
 use upac_abi::request::CCommitRequest;
 
 use crate::types::CommandContext;
 use crate::types::abi::{empty_slice, invoke, request_base, slice_from_cstr};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     pub message: String,
 }

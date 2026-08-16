@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::ffi::CString;
+
 use anyhow::Result;
 
-use std::ffi::CString;
+use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
@@ -15,7 +17,7 @@ use crate::commands::display::VersionDisplay;
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, optional_slice, request_base};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     pub from: Option<String>,
     pub to: Option<String>,
