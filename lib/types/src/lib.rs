@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
-
 use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CUnpackedPackage, CVersion};
@@ -16,8 +14,7 @@ use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
 use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
-include!(concat!(env!("OUT_DIR"), "/layout.rs"));
-
+pub mod codec;
 pub mod states;
 
 #[cfg(test)]
