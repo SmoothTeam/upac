@@ -5,7 +5,8 @@
 use colored::Colorize;
 use strum::AsRefStr;
 
-use crate::ffi::packages::CPackageMeta;
+use upac_abi::package::{CPackageMeta, CVersion};
+use upac_abi::types::CVec;
 
 // ── Package field indices ────────────────────────────────────────────────────
 #[derive(Debug, Clone, Copy, AsRefStr)]
@@ -40,7 +41,7 @@ impl<'a> PackageFormatter<'a> {
     pub fn print(&self) {
         if self.extra_fields.is_empty() {
             for meta in self.metas {
-                println!("{}", unsafe { meta.name.as_str() }.bold());
+                println!("{}", unsafe { meta.name.as_str() }.unwrap_or_default().bold());
             }
         } else {
             self.print_table();
@@ -88,39 +89,57 @@ impl<'a> PackageFormatter<'a> {
     }
 }
 
-// ── Owned package types ──────────────────────────────────────────────────────
-pub struct PackageMeta {
-    pub name: String,
-    pub version: String,
-    pub arch: String,
-    pub author: String,
-    pub license: String,
-    pub url: String,
-    pub packager: String,
-    pub size: u64,
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 unsafe fn field_value(meta: &CPackageMeta, field: PackageField) -> String {
     unsafe {
         match field {
-            PackageField::Name => meta.name.as_str().to_owned(),
-            PackageField::Version => meta.version.display(),
+            PackageField::Name => meta.name.as_str().unwrap_or_default().to_owned(),
+            PackageField::Version => format_version(&meta.version),
             PackageField::Architecture => {
-                let arch = meta.arch.as_str();
-                if !meta.arch_sub.ptr.is_null() && meta.arch_sub.len > 0 {
-                    format!("{}/{}", arch, meta.arch_sub.as_str())
-                } else {
-                    arch.to_owned()
+                let arch = meta.arch.as_str().unwrap_or_default();
+                match Option::<&str>::try_from(&meta.arch_sub).unwrap_or_default() {
+                    Some(arch_sub) => format!("{arch}/{arch_sub}"),
+                    None => arch.to_owned(),
                 }
             }
-            PackageField::Author | PackageField::Packager => meta.maintainer.as_str().to_owned(),
-            PackageField::License => meta.license.as_str().to_owned(),
-            PackageField::Url => meta.url.as_str().to_owned(),
-            PackageField::Description => meta.description.as_str().to_owned(),
+            PackageField::Author | PackageField::Packager => meta.maintainer.as_str().unwrap_or_default().to_owned(),
+            PackageField::License => Option::<&str>::try_from(&meta.license)
+                .unwrap_or_default()
+                .unwrap_or_default()
+                .to_owned(),
+            PackageField::Url => Option::<&str>::try_from(&meta.url)
+                .unwrap_or_default()
+                .unwrap_or_default()
+                .to_owned(),
+            PackageField::Description => meta.description.as_str().unwrap_or_default().to_owned(),
             PackageField::Checksum => hex::encode(meta.sha256),
             PackageField::Size => format_size(meta.installed_size),
         }
+    }
+}
+
+unsafe fn format_version(version: &CVersion) -> String {
+    unsafe {
+        let parts = version.parts.as_slice();
+        let version_str = parts.iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");
+
+        let mut result = if version.epoch > 0 {
+            format!("{}:{}", version.epoch, version_str)
+        } else {
+            version_str
+        };
+
+        if version.release > 0 {
+            result.push('-');
+            result.push_str(&version.release.to_string());
+        }
+
+        if let Some(pre) = Option::<&str>::try_from(&version.pre).unwrap_or_default() {
+            result.push('~');
+            result.push_str(pre);
+        }
+
+        result
     }
 }
 

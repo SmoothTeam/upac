@@ -227,6 +227,12 @@ msgstr "File checksum failed"
 msgid "err_file_exists"
 msgstr "File already exists"
 
+msgid "err_already_exists"
+msgstr "Already exists"
+
+msgid "err_not_initialized"
+msgstr "Not initialized"
+
 msgid "err_unknown"
 msgstr "Unknown error"
 

@@ -3,42 +3,32 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // ── Imports ─────────────────────────────────────────────────────────────────
-use anyhow::Result;
-
-use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
-
-use clap::Parser;
-
-use colored::Colorize;
-
 use std::path::Path;
 use std::process::ExitCode;
 use std::ptr::addr_of_mut;
-
 use std::sync::Arc;
 
-use config::Config;
+use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
 
-use crate::corelib::Lib;
+use colored::Colorize;
 
-use crate::ffi::CancelToken;
+use anyhow::Result;
 
+use clap::Parser;
+
+use upac_abi::hook::CancelToken;
+
+use crate::commands::package::PkgArgs;
+use crate::config::Config;
+use crate::libcore::Lib;
 use crate::types::CommandContext;
 
-use commands::commit::CommitArgs;
-use commands::file::FileArgs;
-use commands::init::InitArgs;
-use commands::package::PkgArgs;
-
 mod config;
-pub mod corelib;
-pub mod ffi;
-pub mod types;
+mod libcore;
+mod types;
 
 mod commands {
-    pub mod commit;
-    pub mod file;
-    pub mod init;
+    pub mod display;
     pub mod package;
 }
 
@@ -52,10 +42,7 @@ pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
 #[derive(Parser)]
 #[command(author, version, about)]
 enum Command {
-    Commit(CommitArgs),
     Pkg(PkgArgs),
-    File(FileArgs),
-    Init(InitArgs),
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
@@ -84,13 +71,10 @@ fn run() -> Result<()> {
         unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
     })?;
 
-    let conmmand_context = CommandContext::new(config, lib)?;
+    let command_context = CommandContext::new(config, lib)?;
 
     match Command::parse() {
-        Command::Commit(args) => commands::commit::run(args, conmmand_context)?,
-        Command::Pkg(args) => commands::package::run(args, conmmand_context)?,
-        Command::File(args) => commands::file::run(args, conmmand_context)?,
-        Command::Init(args) => commands::init::run(args, conmmand_context)?,
+        Command::Pkg(args) => commands::package::run(args, command_context)?,
     }
 
     Ok(())

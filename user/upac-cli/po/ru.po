@@ -227,6 +227,12 @@ msgstr "Ошибка контрольной суммы файла"
 msgid "err_file_exists"
 msgstr "Файл уже существует"
 
+msgid "err_already_exists"
+msgstr "Уже существует"
+
+msgid "err_not_initialized"
+msgstr "Не инициализировано"
+
 msgid "err_unknown"
 msgstr "Неизвестная ошибка"
 
