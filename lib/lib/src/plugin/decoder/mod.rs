@@ -14,8 +14,9 @@ use upac_abi::decoder::{
 use upac_abi::hook::CancelToken;
 use upac_abi::types::{CBorrowed, CSlice};
 
+use upac_types::{Dependency, PackageMeta};
+
 use crate::plugin::decoder::error::DecoderError;
-use crate::types::{Dependency, PackageMeta};
 
 pub mod error;
 pub mod manifest;

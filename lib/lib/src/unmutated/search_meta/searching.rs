@@ -14,7 +14,7 @@ use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 use crate::search::Search;
-use crate::types::database::DATABASE_PATH;
+use crate::layout::database::DATABASE_PATH;
 use crate::unmutated::search_meta::SearchMetaError;
 
 pub struct SearchingStage;

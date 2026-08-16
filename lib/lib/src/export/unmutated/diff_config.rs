@@ -11,8 +11,9 @@ use upac_abi::request::CDiffConfigRequest;
 use upac_abi::response::{CDiffConfigFileEntry, CDiffConfigResponse};
 use upac_abi::types::{COwned, CVec};
 
+use upac_types::states::DiffConfigStateId;
+
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::DiffConfigStateId;
 use crate::unmutated::diff_config::DiffConfigData;
 
 #[unsafe(no_mangle)]

@@ -17,8 +17,8 @@ use self::preparing::PreparingStage;
 
 use crate::database::MemoryDatabase;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::DiffPrefixStateId;
-use crate::types::{DiffPrefixFileEntry, RequestedPrefixDigestRange};
+use upac_types::states::DiffPrefixStateId;
+use upac_types::{DiffPrefixFileEntry, RequestedPrefixDigestRange};
 
 mod comparing;
 mod error;

@@ -9,8 +9,9 @@ use crate::database::record::DeployRecord;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{ConfigCommitEntry, HistoryEntry};
 use crate::unmutated::list_history::ListHistoryError;
+
+use upac_types::{ConfigCommitEntry, HistoryEntry};
 
 pub struct FetchingStage;
 

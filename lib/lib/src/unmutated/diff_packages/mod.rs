@@ -15,8 +15,8 @@ use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::DiffPackagesStateId;
-use crate::types::{DiffPackageEntry, RequestedPrefixDigestRange};
+use upac_types::states::DiffPackagesStateId;
+use upac_types::{DiffPackageEntry, RequestedPrefixDigestRange};
 
 mod comparing;
 mod error;

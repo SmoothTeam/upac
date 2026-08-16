@@ -11,8 +11,9 @@ use upac_abi::request::CDiffRequest;
 use upac_abi::response::{CDiffPackageEntry, CDiffResponse, CDiffUntrackedFileEntry};
 use upac_abi::types::{COwned, CVec};
 
+use upac_types::states::DiffStateId;
+
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::DiffStateId;
 use crate::unmutated::diff::DiffData;
 
 #[unsafe(no_mangle)]

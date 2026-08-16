@@ -8,9 +8,10 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CCommitRequest;
 
+use upac_types::states::CommitStateId;
+
 use crate::export::{try_convert_abi, write_error};
 use crate::mutated::commit::CommitData;
-use crate::types::states::CommitStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn commit(request_c: CCommitRequest, err_out: *mut CError) -> i32 {

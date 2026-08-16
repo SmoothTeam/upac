@@ -12,7 +12,7 @@ use crate::deploy::digest::current_prefix_digest;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::database::DATABASE_PATH;
+use crate::layout::database::DATABASE_PATH;
 use crate::unmutated::list_packages::ListPackagesError;
 
 pub struct FetchingStage;

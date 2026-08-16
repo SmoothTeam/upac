@@ -12,8 +12,9 @@ use upac_abi::response::{CHistoryEntry, CListHistoryResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::ListHistoryStateId;
 use crate::unmutated::list_history::ListHistoryData;
+
+use upac_types::states::ListHistoryStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_history(

@@ -8,9 +8,10 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CGcRequest;
 
+use upac_types::states::GcStateId;
+
 use crate::export::{try_convert_abi, write_error};
 use crate::mutated::gc::GcData;
-use crate::types::states::GcStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn gc(request_c: CGcRequest, err_out: *mut CError) -> i32 {

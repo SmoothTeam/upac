@@ -20,8 +20,8 @@ use self::transaction::TransactionStage;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
-use crate::types::states::UpdateStateId;
-use crate::types::{PackageTemp, TmpPath};
+use upac_types::states::UpdateStateId;
+use upac_types::{PackageTemp, TmpPath};
 
 mod checkout;
 mod error;

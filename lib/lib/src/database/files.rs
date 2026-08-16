@@ -4,14 +4,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use redb::{ReadableDatabase, ReadableTable, TypeName, Value as RedbValue};
+
 use twox_hash::xxhash3_64::Hasher as XxHasher;
+
 use uuid::Uuid;
+
+use upac_types::FileEntry;
 
 use super::error::DatabaseError;
 use super::{FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadableSource};
 
-use crate::types::FileEntry;
-use crate::types::database::FILES_ENTRY_TYPE_NAME;
+use crate::layout::database::FILES_ENTRY_TYPE_NAME;
 
 pub trait FileStore {
     fn path_hash(path: &str) -> u64 {
@@ -50,7 +53,7 @@ impl<T: ReadableSource> FileStore for T {
                 break;
             }
 
-            out.push(value.value());
+            out.push(value.value().0);
         }
 
         Ok(out)
@@ -65,7 +68,7 @@ impl<T: ReadableSource> FileStore for T {
             let (key, value) = entry?;
             let (uuid, _hash) = key.value();
 
-            out.push((uuid, value.value()));
+            out.push((uuid, value.value().0));
         }
 
         Ok(out)
@@ -79,7 +82,7 @@ impl FileStoreMut for MemoryDatabase {
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
         let already_user_owned = match files.get((uuid, hash))? {
-            Some(existing) => existing.value().is_user,
+            Some(existing) => existing.value().0.is_user,
             None => false,
         };
 
@@ -87,7 +90,7 @@ impl FileStoreMut for MemoryDatabase {
             return Ok(());
         }
 
-        files.insert((uuid, hash), entry)?;
+        files.insert((uuid, hash), StoredFileEntry::from_ref(entry))?;
 
         drop(files);
         transaction.open_table(FILES_UUID_HASH_TABLE)?.insert(hash, uuid)?;
@@ -105,7 +108,7 @@ impl FileStoreMut for MemoryDatabase {
         let transaction = self.database.begin_write()?;
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
-        let entry = files.get((uuid, hash))?.ok_or(DatabaseError::FileNotFound)?.value();
+        let entry = files.get((uuid, hash))?.ok_or(DatabaseError::FileNotFound)?.value().0;
 
         if entry.is_user {
             return Err(DatabaseError::AccessDenied);
@@ -121,30 +124,44 @@ impl FileStoreMut for MemoryDatabase {
     }
 }
 
-impl RedbValue for FileEntry {
+// Wraps `FileEntry` (defined in the external `upac-types` crate) so `redb::Value` can be
+// implemented for it here without violating the orphan rule.
+#[derive(Debug)]
+#[repr(transparent)]
+pub(crate) struct StoredFileEntry(pub(crate) FileEntry);
+
+impl StoredFileEntry {
+    fn from_ref(entry: &FileEntry) -> &StoredFileEntry {
+        // SAFETY: `StoredFileEntry` is `#[repr(transparent)]` over `FileEntry`, so the two share
+        // identical layout and this reference cast is sound.
+        unsafe { &*(entry as *const FileEntry as *const StoredFileEntry) }
+    }
+}
+
+impl RedbValue for StoredFileEntry {
     type AsBytes<'a> = Vec<u8>;
-    type SelfType<'a> = FileEntry;
+    type SelfType<'a> = StoredFileEntry;
 
     fn fixed_width() -> Option<usize> {
         None
     }
 
-    fn from_bytes<'a>(data: &'a [u8]) -> FileEntry
+    fn from_bytes<'a>(data: &'a [u8]) -> StoredFileEntry
     where
         Self: 'a,
     {
         let mut offset = 0;
 
-        FileEntry::decode_from(data, &mut offset)
+        StoredFileEntry(FileEntry::decode_from(data, &mut offset))
     }
 
-    fn as_bytes<'a, 'b: 'a>(value: &'a FileEntry) -> Vec<u8>
+    fn as_bytes<'a, 'b: 'a>(value: &'a StoredFileEntry) -> Vec<u8>
     where
         Self: 'b,
     {
         let mut buf = Vec::new();
 
-        FileEntry::encode_into(&mut buf, value);
+        FileEntry::encode_into(&mut buf, &value.0);
         buf
     }
 

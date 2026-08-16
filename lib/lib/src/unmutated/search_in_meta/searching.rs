@@ -15,9 +15,10 @@ use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 use crate::search::Search;
-use crate::types::PackageEntry;
-use crate::types::database::DATABASE_PATH;
+use crate::layout::database::DATABASE_PATH;
 use crate::unmutated::search_in_meta::SearchInMetaError;
+
+use upac_types::PackageEntry;
 
 pub struct SearchingStage;
 

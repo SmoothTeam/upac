@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki"]
+members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types"]
 
 [workspace.package]
 version = "0.1.5"
@@ -16,6 +16,7 @@ serde      = { version = "1", features = ["derive"] }
 syn        = { version = "2", features = ["full"] }
 
 upac-macro = { path = "lib/macro" }
+upac-types = { path = "lib/types" }
 upac-abi   = { path = "lib/abi" }
 upac-pki   = { path = "lib/pki" }
 

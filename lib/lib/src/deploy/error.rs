@@ -6,8 +6,11 @@
 use std::io::Error as IoError;
 
 use nix::errno::Errno;
+
 use rsblkid::probe::{ProbeBuilderError, ProbeError};
+
 use rsmount::errors::MountInfoError;
+
 use upac_abi::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

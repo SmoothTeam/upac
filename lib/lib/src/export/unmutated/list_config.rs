@@ -12,8 +12,9 @@ use upac_abi::response::{CConfigCommitEntry, CListConfigResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::ListConfigStateId;
 use crate::unmutated::list_config::ListConfigData;
+
+use upac_types::states::ListConfigStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_config(

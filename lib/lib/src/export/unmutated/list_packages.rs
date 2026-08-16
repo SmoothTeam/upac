@@ -13,8 +13,9 @@ use upac_abi::response::CListPackagesResponse;
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::ListPackagesStateId;
 use crate::unmutated::list_packages::ListPackagesData;
+
+use upac_types::states::ListPackagesStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_packages(

@@ -13,8 +13,9 @@ use upac_abi::response::CSearchMetaResponse;
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::SearchMetaStateId;
 use crate::unmutated::search_meta::SearchMetaData;
+
+use upac_types::states::SearchMetaStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn search_meta(

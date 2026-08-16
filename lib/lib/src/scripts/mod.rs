@@ -12,7 +12,7 @@ use crate::scripts::error::HookError;
 use crate::scripts::load::load_hooks;
 use crate::scripts::native::NativeTrigger;
 use crate::scripts::primitive::Primitive;
-use crate::types::hooks::{HOOK_EXTENSION, HOOKS_DIR, ROOT_CERT_PATH, SIGNATURE_EXTENSION};
+use crate::layout::hooks::{HOOK_EXTENSION, HOOKS_DIR, ROOT_CERT_PATH, SIGNATURE_EXTENSION};
 
 pub mod error;
 pub mod file;

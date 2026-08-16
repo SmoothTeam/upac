@@ -7,6 +7,7 @@ use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 
 use toml::de::Error as TomlError;
+
 use upac_abi::error::ErrorKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

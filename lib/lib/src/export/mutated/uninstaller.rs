@@ -8,9 +8,10 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CUninstallRequest;
 
+use upac_types::states::UninstallStateId;
+
 use crate::export::{try_convert_abi, write_error};
 use crate::mutated::uninstaller::UninstallData;
-use crate::types::states::UninstallStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn uninstall(request_c: CUninstallRequest, err_out: *mut CError) -> i32 {

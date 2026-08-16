@@ -14,8 +14,9 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
-use crate::types::states::UninstallStateId;
-use crate::types::{PackageEntry, Targets, TmpPath};
+
+use upac_types::states::UninstallStateId;
+use upac_types::{PackageEntry, Targets, TmpPath};
 
 pub use self::error::UninstallError;
 

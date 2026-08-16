@@ -17,8 +17,8 @@ use self::preparing::PreparingStage;
 
 use crate::database::MemoryDatabase;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::DiffConfigStateId;
-use crate::types::{DiffConfigFileEntry, RequestedConfigDigestRange};
+use upac_types::states::DiffConfigStateId;
+use upac_types::{DiffConfigFileEntry, RequestedConfigDigestRange};
 
 mod comparing;
 mod error;

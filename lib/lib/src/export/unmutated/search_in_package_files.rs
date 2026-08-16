@@ -12,8 +12,9 @@ use upac_abi::response::{CSearchFileEntry, CSearchInPackageFilesResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::SearchInPackageFilesStateId;
 use crate::unmutated::search_in_package_files::SearchInPackageFilesData;
+
+use upac_types::states::SearchInPackageFilesStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn search_in_package_files(

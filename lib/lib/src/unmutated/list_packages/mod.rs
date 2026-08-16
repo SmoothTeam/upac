@@ -14,8 +14,8 @@ pub use self::error::ListPackagesError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::PackageMeta;
-use crate::types::states::ListPackagesStateId;
+use upac_types::PackageMeta;
+use upac_types::states::ListPackagesStateId;
 
 mod error;
 mod fetching;

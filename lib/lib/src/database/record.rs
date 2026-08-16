@@ -12,7 +12,7 @@ use upac_macro::JsonCodec;
 use crate::database::error::{ConfigDigestResolveError, DeployRecordError, DeployRecordsError};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
-use crate::types::deployment::RECORD_FILENAME;
+use crate::layout::deployment::RECORD_FILENAME;
 
 #[derive(Debug, Clone, PartialEq, Eq, JsonCodec)]
 pub struct ConfigHistoryEntry {

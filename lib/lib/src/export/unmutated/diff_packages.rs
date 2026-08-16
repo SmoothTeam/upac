@@ -12,8 +12,9 @@ use upac_abi::response::{CDiffPackageEntry, CDiffPackagesResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::DiffPackagesStateId;
 use crate::unmutated::diff_packages::DiffPackagesData;
+
+use upac_types::states::DiffPackagesStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn diff_packages(

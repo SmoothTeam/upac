@@ -10,8 +10,9 @@ use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{DiffFileEntryCommon, DiffPrefixFileEntry};
 use crate::unmutated::diff_prefix::{DiffPrefixError, DiffPrefixSnapshot};
+
+use upac_types::{DiffFileEntryCommon, DiffPrefixFileEntry};
 
 pub struct ComparingStage;
 

@@ -7,6 +7,7 @@ use std::io::Error as IoError;
 
 use composefs::generic_tree::ImageError;
 use composefs::repository::RepositoryOpenError;
+
 use upac_abi::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

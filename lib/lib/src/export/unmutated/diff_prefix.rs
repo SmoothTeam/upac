@@ -12,8 +12,9 @@ use upac_abi::response::{CDiffPrefixFileEntry, CDiffPrefixResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::DiffPrefixStateId;
 use crate::unmutated::diff_prefix::DiffPrefixData;
+
+use upac_types::states::DiffPrefixStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn diff_prefix(

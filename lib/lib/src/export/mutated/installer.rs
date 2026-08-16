@@ -8,9 +8,10 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CInstallRequest;
 
+use upac_types::states::InstallStateId;
+
 use crate::export::{try_convert_abi, write_error};
 use crate::mutated::installer::InstallData;
-use crate::types::states::InstallStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn install(request_c: CInstallRequest, err_out: *mut CError) -> i32 {

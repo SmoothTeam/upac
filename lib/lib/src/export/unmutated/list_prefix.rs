@@ -12,8 +12,9 @@ use upac_abi::response::{CListPrefixResponse, CPrefixEntry};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::ListPrefixStateId;
 use crate::unmutated::list_prefix::ListPrefixData;
+
+use upac_types::states::ListPrefixStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_prefix(

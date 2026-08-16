@@ -18,6 +18,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 upac-macro = { workspace = true }
+upac-types = { workspace = true }
 upac-abi   = { workspace = true }
 upac-pki   = { workspace = true }
 
