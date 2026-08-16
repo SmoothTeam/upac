@@ -8,7 +8,7 @@ use std::ffi::CString;
 
 use upac_abi::request::CSearchMetaRequest;
 
-use crate::commands::display::package::{PackageField, PackageFormatter};
+use crate::commands::display::{PackageField, PackageFormatter};
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, request_base, slice_from_cstr};
 

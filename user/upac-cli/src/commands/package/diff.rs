@@ -11,7 +11,7 @@ use colored::Colorize;
 use upac_abi::PackageDiffKind;
 use upac_abi::request::CDiffPackagesRequest;
 
-use crate::commands::display::package::format_version;
+use crate::commands::display::VersionDisplay;
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, optional_slice, request_base};
 
@@ -34,8 +34,8 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.diff_packages)(request, out, error) })?;
 
     for entry in unsafe { response.diff_packages.as_slice() } {
-        let name = unsafe { entry.name.as_str() }.unwrap_or("");
-        let version = unsafe { format_version(&entry.version) };
+        let name = <&str>::try_from(&entry.name).unwrap_or_default();
+        let version = VersionDisplay(&entry.version);
 
         let (marker, colored_name) = match entry.kind {
             PackageDiffKind::Added => ("+".green().bold(), name.green()),

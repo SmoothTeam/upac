@@ -6,7 +6,7 @@ use anyhow::Result;
 
 use upac_abi::request::CListPackagesRequest;
 
-use crate::commands::display::package::{PackageField, PackageFormatter};
+use crate::commands::display::{PackageField, PackageFormatter};
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, request_base};
 
