@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -11,8 +10,9 @@ use upac_abi::request::CDiffRequest;
 use upac_abi::response::{CDiffPackageEntry, CDiffResponse, CDiffUntrackedFileEntry};
 use upac_abi::types::{COwned, CVec};
 
+use upac_types::states::DiffStateId;
+
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::DiffStateId;
 use crate::unmutated::diff::DiffData;
 
 #[unsafe(no_mangle)]
@@ -25,18 +25,15 @@ pub unsafe extern "C" fn diff(request_c: CDiffRequest, response_out: *mut CDiffR
         Ok(Ok((diff_packages, unattached_files))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CDiffResponse {
-                        struct_size: size_of::<CDiffResponse>(),
-                        diff_packages: CVec::from_owned(
-                            diff_packages.into_iter().map(CDiffPackageEntry::from).collect(),
-                        ),
-                        unattached_files: CVec::from_owned(
+                    *response_out = CDiffResponse::new(
+                        CVec::from_owned(diff_packages.into_iter().map(CDiffPackageEntry::from).collect()),
+                        CVec::from_owned(
                             unattached_files
                                 .into_iter()
                                 .map(CDiffUntrackedFileEntry::from)
                                 .collect(),
                         ),
-                    };
+                    );
                 }
             }
             0

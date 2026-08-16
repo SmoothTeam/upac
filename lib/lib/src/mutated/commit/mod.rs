@@ -16,8 +16,8 @@ use self::transaction::TransactionStage;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
-use crate::types::TmpPath;
-use crate::types::states::CommitStateId;
+use upac_types::TmpPath;
+use upac_types::states::CommitStateId;
 
 mod error;
 mod transaction;

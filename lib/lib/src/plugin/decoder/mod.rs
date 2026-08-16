@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::{MaybeUninit, size_of};
+use std::mem::MaybeUninit;
 
 use libloading::Library;
 
@@ -14,12 +14,14 @@ use upac_abi::decoder::{
 use upac_abi::hook::CancelToken;
 use upac_abi::types::{CBorrowed, CSlice};
 
+use upac_types::{Dependency, PackageMeta};
+
 use crate::plugin::decoder::error::DecoderError;
-use crate::types::{Dependency, PackageMeta};
 
 pub mod error;
 pub mod manifest;
 pub mod triggers;
+pub mod unpack;
 
 unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, DecoderError> {
     unsafe { library.get::<T>(name.as_bytes()) }
@@ -65,13 +67,12 @@ impl Decoder {
     pub fn decode(
         &self, package_path: &str, output_dir: &str, checksum: [u8; 32], cancel: &CancelToken,
     ) -> Result<DecodedPackage, DecoderError> {
-        let request = CDecodeRequest {
-            struct_size: size_of::<CDecodeRequest>(),
-            package_path: CSlice::from_borrowed(package_path.as_bytes()),
-            output_dir: CSlice::from_borrowed(output_dir.as_bytes()),
+        let request = CDecodeRequest::new(
+            CSlice::from_borrowed(package_path.as_bytes()),
+            CSlice::from_borrowed(output_dir.as_bytes()),
             checksum,
-            cancel_token: cancel as *const CancelToken as *mut CancelToken,
-        };
+            cancel as *const CancelToken as *mut CancelToken,
+        );
 
         let mut response = MaybeUninit::<CDecodeResponse>::uninit();
 
@@ -98,12 +99,7 @@ impl Decoder {
         let capacity = unsafe { table.entries.as_slice() }.len();
         let mut ids = vec![0u16; capacity];
 
-        let mut matches = CTriggerMatches {
-            struct_size: size_of::<CTriggerMatches>(),
-            ids: ids.as_mut_ptr(),
-            capacity,
-            len: 0,
-        };
+        let mut matches = CTriggerMatches::new(ids.as_mut_ptr(), capacity, 0);
 
         let code = unsafe { (self.match_triggers)(table, &mut matches) };
         if code != 0 {

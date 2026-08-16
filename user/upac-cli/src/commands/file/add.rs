@@ -2,20 +2,19 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::ffi::CString;
+
 use anyhow::Result;
 
-use std::env::temp_dir;
-use std::ffi::CString;
-use std::ptr::null_mut;
+use clap::Args as ClapArgs;
 
-use crate::cancel_token_ptr;
-use crate::ffi::ctypes::{CDiffKind, CSlice};
-use crate::ffi::packages::CPackageInfo;
-use crate::ffi::request::CMutatedRequest;
+use upac_abi::FileDiffKind;
+use upac_abi::request::CFilesRequest;
+
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{borrowed_vec, invoke, optional_slice, package_info, request_base, slice_from_cstr};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     #[arg(required = true, num_args = 1..)]
     pub files: Vec<String>,
@@ -25,44 +24,37 @@ pub struct Args {
     pub arch: String,
     #[arg(long)]
     pub arch_sub: Option<String>,
+    #[arg(short, long)]
+    pub message: Option<String>,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
+    let symbols = ctx.lib.require_write()?;
+
     let package_name = CString::new(args.package)?;
     let package_arch = CString::new(args.arch)?;
     let package_arch_sub = args.arch_sub.map(CString::new).transpose()?;
-
-    let tmp_path = CString::new(
-        temp_dir()
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("{}", gettextrs::gettext("err_tmp_path_encoding")))?,
-    )?;
+    let subject = CString::new("file add")?;
+    let message = args.message.map(CString::new).transpose()?;
 
     let file_cstrings = args
         .files
         .iter()
         .map(|file_path| CString::new(file_path.as_str()))
         .collect::<Result<Vec<_>, _>>()?;
+    let file_slices: Vec<_> = file_cstrings.iter().map(slice_from_cstr).collect();
 
-    let file_slices: Vec<CSlice> = file_cstrings.iter().map(CSlice::from_cstring).collect();
+    let package = package_info(&package_name, &package_arch, package_arch_sub.as_ref());
 
-    let package_info = CPackageInfo::new(&package_name, &package_arch, package_arch_sub.as_ref());
-
-    let request = CMutatedRequest::for_files(
-        &file_slices,
-        CDiffKind::Added,
-        &package_info,
-        &ctx.config.paths.repo_path,
-        &ctx.config.paths.root_path,
-        &tmp_path,
-        &ctx.config.ostree.branch,
-        None,
-        null_mut(),
-        cancel_token_ptr(),
+    let request = CFilesRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&subject),
+        optional_slice(message.as_ref()),
+        borrowed_vec(&file_slices),
+        FileDiffKind::Added,
+        &package,
     );
 
-    let return_code = unsafe { (ctx.lib.file.files)(request) };
-    LibError::check(return_code)?;
-
-    Ok(())
+    invoke(|error| unsafe { (symbols.files)(request, error) })
 }

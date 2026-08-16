@@ -8,18 +8,21 @@ use std::path::{Path, PathBuf};
 
 use composefs::repository::Repository;
 use composefs::tree::FileSystem;
+
 use nix::mount::{MsFlags, mount, umount};
 use nix::sched::{CloneFlags, unshare};
+
 use rsblkid::device::TagName;
 use rsblkid::probe::Probe;
 use rsblkid::utils::evaluation::find_canonical_device_name_from_path;
+
 use rsmount::tables::MountInfo;
 
 use self::error::SysrootError;
 
 use crate::composefs::error::RepoError;
 use crate::composefs::repository::{self, ObjectID};
-use crate::types::deployment::{DEPLOYS_DIR, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
+use crate::layout::deployment::{DEPLOYS_DIR, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
 
 pub mod digest;
 pub mod error;

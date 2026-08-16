@@ -7,7 +7,6 @@ use std::process::Command;
 
 fn main() {
     // Packager sets LOCALEDIR at build time; dev default is /usr/share/locale.
-    // At runtime, TEXTDOMAINDIR env var overrides this (useful during development).
     let localedir = std::env::var("LOCALEDIR").unwrap_or_else(|_| "/usr/share/locale".to_owned());
     println!("cargo:rustc-env=LOCALEDIR={localedir}");
     println!("cargo:rerun-if-env-changed=LOCALEDIR");

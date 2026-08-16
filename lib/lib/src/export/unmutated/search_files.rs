@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -12,8 +11,9 @@ use upac_abi::response::{CSearchFileEntry, CSearchFilesResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::SearchFilesStateId;
 use crate::unmutated::search_files::SearchFilesData;
+
+use upac_types::states::SearchFilesStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn search_files(
@@ -29,10 +29,9 @@ pub unsafe extern "C" fn search_files(
         Ok(Ok((files,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CSearchFilesResponse {
-                        struct_size: size_of::<CSearchFilesResponse>(),
-                        files: CVec::from_owned(files.into_iter().map(CSearchFileEntry::from).collect()),
-                    };
+                    *response_out = CSearchFilesResponse::new(CVec::from_owned(
+                        files.into_iter().map(CSearchFileEntry::from).collect(),
+                    ));
                 }
             }
             0

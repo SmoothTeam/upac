@@ -11,8 +11,9 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{ConfigCommitEntry, RequestedPrefixDigest};
 use crate::unmutated::list_config::ListConfigError;
+
+use upac_types::{ConfigCommitEntry, RequestedPrefixDigest};
 
 pub struct FetchingStage;
 

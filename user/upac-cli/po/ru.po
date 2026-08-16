@@ -32,29 +32,8 @@ msgstr "сборщик"
 msgid "size"
 msgstr "размер"
 
-msgid "verifying"
-msgstr "Проверка"
-
-msgid "extracting"
-msgstr "Извлечение"
-
-msgid "reading_meta"
-msgstr "Чтение метаданных"
-
-msgid "ready"
-msgstr "Готово"
-
-msgid "failed"
-msgstr "Ошибка"
-
 msgid "abi_version_mismatch"
 msgstr "Несовпадение версии ABI"
-
-msgid "prepare_failed"
-msgstr "Ошибка подготовки"
-
-msgid "prepare_null_meta"
-msgstr "Бэкенд вернул успех, но метаданные пусты"
 
 msgid "err_unexpected"
 msgstr "Неожиданная ошибка"
@@ -68,6 +47,9 @@ msgstr "Файл не найден"
 msgid "err_permission_denied"
 msgstr "Доступ запрещён"
 
+msgid "err_requires_root"
+msgstr "Для этой команды нужны права root"
+
 msgid "err_invalid_path"
 msgstr "Неверный путь"
 
@@ -80,20 +62,8 @@ msgstr "Нет свободного места"
 msgid "err_abi_mismatch"
 msgstr "Несовпадение ABI"
 
-msgid "err_thread"
-msgstr "Ошибка потока"
-
-msgid "err_locked"
-msgstr "Другой процесс уже запущен"
-
-msgid "err_alloc"
-msgstr "Ошибка выделения памяти"
-
 msgid "err_cancelled"
 msgstr "Отменено"
-
-msgid "err_max_retries"
-msgstr "Превышено число попыток"
 
 msgid "err_read"
 msgstr "Ошибка чтения"
@@ -101,134 +71,17 @@ msgstr "Ошибка чтения"
 msgid "err_write"
 msgstr "Ошибка записи"
 
-msgid "err_diff"
-msgstr "Ошибка сравнения"
-
-msgid "err_list"
-msgstr "Ошибка получения списка"
-
-msgid "err_missing_field"
-msgstr "Отсутствует поле"
-
-msgid "err_missing_section"
-msgstr "Отсутствует секция"
-
 msgid "err_invalid_entry"
 msgstr "Некорректная запись"
-
-msgid "err_parse"
-msgstr "Ошибка разбора"
-
-msgid "err_write_db"
-msgstr "Ошибка записи базы данных"
-
-msgid "err_malformed_meta"
-msgstr "Повреждённые метаданные"
-
-msgid "err_malformed_files"
-msgstr "Повреждённые файлы"
-
-msgid "err_malformed_idx"
-msgstr "Повреждённая запись индекса"
-
-msgid "err_already_installed"
-msgstr "Пакет уже установлен"
-
-msgid "err_temp_not_found"
-msgstr "Временный путь пакета не найден"
-
-msgid "err_checksum"
-msgstr "Ошибка вычисления контрольной суммы"
-
-msgid "err_checkout"
-msgstr "Ошибка извлечения"
-
-msgid "err_install_cancelled"
-msgstr "Установка отменена"
-
-msgid "err_check_space"
-msgstr "Ошибка проверки места на диске"
-
-msgid "err_make"
-msgstr "Ошибка сборки"
-
-msgid "err_write_config"
-msgstr "Ошибка записи конфигурационных файлов"
 
 msgid "err_pkg_not_found"
 msgstr "Пакет не найден"
 
-msgid "err_uninstall"
-msgstr "Ошибка удаления"
+msgid "err_already_exists"
+msgstr "Уже существует"
 
-msgid "err_file_map"
-msgstr "Карта файлов повреждена"
-
-msgid "err_staging"
-msgstr "Промежуточная область не очищена"
-
-msgid "err_open_repo"
-msgstr "Не удалось открыть репозиторий"
-
-msgid "err_transaction"
-msgstr "Ошибка транзакции"
-
-msgid "err_commit"
-msgstr "Ошибка коммита"
-
-msgid "err_rollback"
-msgstr "Ошибка отката"
-
-msgid "err_no_prev_commit"
-msgstr "Нет предыдущего коммита"
-
-msgid "err_staging_checkout"
-msgstr "Ошибка извлечения промежуточной области"
-
-msgid "err_atomic_swap"
-msgstr "Ошибка атомарной замены"
-
-msgid "err_commit_not_found"
-msgstr "Коммит не найден"
-
-msgid "err_cleanup"
-msgstr "Ошибка очистки"
-
-msgid "err_repo_write"
-msgstr "Ошибка записи репозитория"
-
-msgid "err_mtree"
-msgstr "Ошибка вставки в mtree"
-
-msgid "err_already_init"
-msgstr "Уже инициализировано"
-
-msgid "err_create_dir"
-msgstr "Не удалось создать директорию"
-
-msgid "err_not_dir"
-msgstr "Не является директорией"
-
-msgid "err_init"
-msgstr "Ошибка инициализации"
-
-msgid "err_dir_not_empty"
-msgstr "Директория не пуста"
-
-msgid "err_init_prefix"
-msgstr "Префикс инициализации не найден"
-
-msgid "err_init_prefix_extra"
-msgstr "Дополнительный префикс инициализации не найден"
-
-msgid "err_file_checksum"
-msgstr "Ошибка контрольной суммы файла"
-
-msgid "err_file_exists"
-msgstr "Файл уже существует"
-
-msgid "err_unknown"
-msgstr "Неизвестная ошибка"
+msgid "err_not_initialized"
+msgstr "Не инициализировано"
 
 msgid "error"
 msgstr "Ошибка"

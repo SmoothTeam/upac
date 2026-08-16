@@ -2,19 +2,27 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Result;
-
 use std::ffi::CString;
 
-use crate::cancel_token_ptr;
-use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
-use crate::types::CommandContext;
-use crate::types::errors::LibError;
-use crate::types::package::{PackageField, PackageFormatter};
+use anyhow::Result;
 
-#[derive(clap::Args)]
+use clap::Args as ClapArgs;
+
+use upac_abi::request::{CSearchInMetaRequest, CSearchMetaRequest};
+
+use crate::commands::display::{PackageField, PackageFormatter};
+use crate::types::CommandContext;
+use crate::types::abi::{invoke_with_response, package_info, request_base, slice_from_cstr};
+
+#[derive(ClapArgs)]
 pub struct Args {
     pub query: String,
+    #[arg(long)]
+    pub package: Option<String>,
+    #[arg(long)]
+    pub package_arch: Option<String>,
+    #[arg(long)]
+    pub package_arch_sub: Option<String>,
     #[arg(long)]
     pub version: bool,
     #[arg(long)]
@@ -33,27 +41,50 @@ pub struct Args {
     pub description: bool,
     #[arg(long)]
     pub checksum: bool,
+    #[arg(long)]
+    pub regex: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let query = CString::new(args.query.as_str())?;
-    let mut response = CUnmutatedResponse::empty();
-
-    let request = CUnmutatedRequest::for_search(&ctx.config.paths.root_path, &query, cancel_token_ptr());
-
-    let return_code = unsafe { (ctx.lib.pkg.search)(request, &mut response) };
-    LibError::check(return_code)?;
-
-    let metas = unsafe { response.metas.as_slice() };
-
     let extra_fields = build_extra_fields(&args);
-    PackageFormatter {
-        extra_fields: &extra_fields,
-        metas,
-    }
-    .print();
 
-    unsafe { (ctx.lib.free_response)(&mut response) };
+    match args.package.as_deref() {
+        Some(package) => {
+            let Some(arch) = args.package_arch.as_deref() else {
+                anyhow::bail!(gettextrs::gettext("err_invalid_entry"));
+            };
+
+            let package_name = CString::new(package)?;
+            let package_arch = CString::new(arch)?;
+            let package_arch_sub = args.package_arch_sub.as_deref().map(CString::new).transpose()?;
+            let package = package_info(&package_name, &package_arch, package_arch_sub.as_ref());
+
+            let request = CSearchInMetaRequest::new(request_base(), package, slice_from_cstr(&query), args.regex);
+            let response =
+                invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_in_meta)(request, out, error) })?;
+
+            PackageFormatter {
+                extra_fields: &extra_fields,
+                metas: unsafe { response.metas.as_slice() },
+            }
+            .print();
+
+            unsafe { response.free() };
+        }
+        None => {
+            let request = CSearchMetaRequest::new(request_base(), slice_from_cstr(&query), args.regex);
+            let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_meta)(request, out, error) })?;
+
+            PackageFormatter {
+                extra_fields: &extra_fields,
+                metas: unsafe { response.metas.as_slice() },
+            }
+            .print();
+
+            unsafe { response.free() };
+        }
+    }
 
     Ok(())
 }

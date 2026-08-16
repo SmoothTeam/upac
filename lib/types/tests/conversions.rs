@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use upac::types::{PackageMeta, Version};
 use upac_abi::package::{CPackageMeta, CVersion};
+use upac_types::{PackageMeta, Version};
 
 fn sample_version() -> Version {
     Version {

@@ -2,126 +2,50 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::ffi::CString;
+use std::fs::canonicalize;
+
 use anyhow::Result;
 
-use std::ffi::{CString, c_void};
-use std::fs::File;
-use std::io::Read;
-use std::ptr::null_mut;
+use clap::Args as ClapArgs;
 
-use indicatif::ProgressBar;
+use upac_abi::request::CUpdateRequest;
 
-use sha2::{Digest, Sha256};
-
-use crate::cancel_token_ptr;
-use crate::corelib::backend::Backend;
-use crate::corelib::registry::BackendRegistry;
-use crate::ffi::ctypes::CSlice;
-use crate::ffi::packages::{CPackage, CPackageMeta};
-use crate::ffi::request::{CMutatedRequest, CPrepareRequest};
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{borrowed_vec, invoke, optional_slice, request_base, slice_from_cstr};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
-    #[arg(required = true, num_args = 1..)]
+    // Required flag, not a positional: keeps the positional slot free for a future
+    // name-based network update (e.g. `up pkg update foo`), separate from this local-file path.
+    #[arg(short, long = "file", required = true, num_args = 1..)]
     pub files: Vec<String>,
-    #[arg(long)]
-    pub backend: Option<String>,
-    #[arg(long, num_args = 0..)]
-    pub checksums: Vec<String>,
-}
-
-struct PreparedPackage {
-    backend: Backend,
-    meta_ptr: *mut CPackageMeta,
-    temp_path: CSlice,
-}
-
-impl PreparedPackage {
-    fn as_c_package(&self) -> CPackage {
-        CPackage::new(self.meta_ptr, self.temp_path)
-    }
-}
-
-impl Drop for PreparedPackage {
-    fn drop(&mut self) {
-        unsafe { (self.backend.free_meta)(self.meta_ptr) };
-        unsafe { (self.backend.cleanup)(self.temp_path) };
-    }
+    #[arg(short, long)]
+    pub message: Option<String>,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let registry = BackendRegistry::scan(&ctx.config.paths.backends_dir)?;
-    let mut prepared: Vec<PreparedPackage> = Vec::with_capacity(args.files.len());
+    let symbols = ctx.lib.require_write()?;
 
-    for (index, file_path) in args.files.iter().enumerate() {
-        let backend_config = if let Some(ref backend_flag) = args.backend {
-            registry.by_flag(backend_flag)
-        } else {
-            registry.by_extension(file_path)
-        }
-        .ok_or_else(|| anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_no_backend")))?;
+    let subject = CString::new("update")?;
+    let message = args.message.map(CString::new).transpose()?;
 
-        let backend = registry.load(backend_config)?;
-
-        let checksum_string = match args.checksums.get(index) {
-            Some(provided) => provided.clone(),
-            None => sha256_of_file(file_path)?,
-        };
-        let checksum = CString::new(checksum_string)?;
-        let package_path = CString::new(file_path.as_str())?;
-
-        let progress_bar = ProgressBar::new_spinner();
-
-        let prepare_request = CPrepareRequest::new(
-            &package_path,
-            &ctx.tmp_path,
-            &checksum,
-            Some(Backend::on_hook),
-            &progress_bar as *const ProgressBar as *mut c_void,
-            cancel_token_ptr(),
-        );
-
-        let (meta_ptr, temp_path) = backend.prepare(&prepare_request)?;
-        progress_bar.finish_and_clear();
-
-        prepared.push(PreparedPackage {
-            backend,
-            meta_ptr,
-            temp_path,
-        });
+    let mut paths = Vec::with_capacity(args.files.len());
+    for file_path in &args.files {
+        let absolute = canonicalize(file_path)
+            .map_err(|_| anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_not_found")))?;
+        paths.push(CString::new(absolute.to_string_lossy().as_ref())?);
     }
 
-    let packages_c: Vec<CPackage> = prepared.iter().map(PreparedPackage::as_c_package).collect();
+    let path_slices: Vec<_> = paths.iter().map(slice_from_cstr).collect();
 
-    let request = CMutatedRequest::for_install(
-        &packages_c,
-        &ctx.config.paths.repo_path,
-        &ctx.config.paths.root_path,
-        &ctx.tmp_path,
-        &ctx.config.ostree.branch,
-        None,
-        null_mut(),
-        cancel_token_ptr(),
+    let request = CUpdateRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&subject),
+        optional_slice(message.as_ref()),
+        borrowed_vec(&path_slices),
     );
 
-    let return_code = unsafe { (ctx.lib.pkg.update)(request) };
-    Ok(LibError::check(return_code)?)
-}
-
-fn sha256_of_file(path: &str) -> Result<String> {
-    let mut file = File::open(path)?;
-    let mut hasher = Sha256::new();
-    let mut buffer = [0u8; 65536];
-
-    loop {
-        let bytes_read = file.read(&mut buffer)?;
-        if bytes_read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..bytes_read]);
-    }
-
-    Ok(hex::encode(hasher.finalize()))
+    invoke(|error| unsafe { (symbols.update)(request, error) })
 }

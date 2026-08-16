@@ -2,36 +2,31 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::ffi::CString;
+
 use anyhow::Result;
 
-use std::ffi::CString;
-use std::ptr::null_mut;
+use clap::Args as ClapArgs;
 
-use crate::cancel_token_ptr;
-use crate::ffi::request::CMutatedRequest;
+use upac_abi::request::CRollbackRequest;
+
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{invoke, request_base, slice_from_cstr};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     pub commit: String,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
+    let symbols = ctx.lib.require_write()?;
     let config_digest = CString::new(args.commit)?;
 
-    let request = CMutatedRequest::for_rollback(
-        &config_digest,
-        &ctx.config.paths.repo_path,
-        &ctx.config.paths.root_path,
-        &ctx.config.ostree.branch,
-        None,
-        null_mut(),
-        cancel_token_ptr(),
+    let request = CRollbackRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&config_digest),
     );
 
-    let return_code = unsafe { (ctx.lib.commit.rollback)(request) };
-    LibError::check(return_code)?;
-
-    Ok(())
+    invoke(|error| unsafe { (symbols.rollback)(request, error) })
 }

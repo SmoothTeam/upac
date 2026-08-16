@@ -8,9 +8,10 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CRollbackRequest;
 
+use upac_types::states::RollbackStateId;
+
 use crate::export::{try_convert_abi, write_error};
 use crate::mutated::rollback::RollbackData;
-use crate::types::states::RollbackStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rollback(request_c: CRollbackRequest, err_out: *mut CError) -> i32 {

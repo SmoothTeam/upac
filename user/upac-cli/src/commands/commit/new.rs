@@ -2,36 +2,32 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::ffi::CString;
+
 use anyhow::Result;
 
-use std::ffi::CString;
-use std::ptr::null_mut;
+use clap::Args as ClapArgs;
 
-use crate::cancel_token_ptr;
-use crate::ffi::request::CMutatedRequest;
+use upac_abi::request::CCommitRequest;
+
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{empty_slice, invoke, request_base, slice_from_cstr};
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     pub message: String,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let message = CString::new(args.message)?;
+    let symbols = ctx.lib.require_write()?;
+    let subject = CString::new(args.message)?;
 
-    let request = CMutatedRequest::for_commit(
-        &message,
-        &ctx.config.paths.repo_path,
-        &ctx.config.paths.root_path,
-        &ctx.config.ostree.branch,
-        None,
-        null_mut(),
-        cancel_token_ptr(),
+    let request = CCommitRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&subject),
+        empty_slice(),
     );
 
-    let return_code = unsafe { (ctx.lib.commit.new)(request) };
-    LibError::check(return_code)?;
-
-    Ok(())
+    invoke(|error| unsafe { (symbols.commit)(request, error) })
 }

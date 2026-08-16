@@ -7,6 +7,7 @@
 //! enum's) fields at compile time to generate boilerplate that would
 //! otherwise need `inline for (std.meta.fields)`-style manual maintenance:
 //!   CFree          - unsafe free() releasing every owned C-ABI buffer
+//!   CNew           - new(...) constructor, one param per field, struct_size computed
 //!   RustToC        - Rust domain type -> its C-ABI mirror (outbound)
 //!   CTryToRust     - C-ABI struct -> Rust domain type, fallible (inbound)
 //!   CToRust        - C-ABI struct -> Rust domain type, infallible (inbound)
@@ -22,6 +23,7 @@
 use proc_macro::TokenStream;
 
 mod c_free;
+mod c_new;
 mod c_to_rust;
 mod c_try_to_rust;
 mod c_validate;
@@ -34,6 +36,11 @@ mod rust_to_c;
 #[proc_macro_derive(CFree)]
 pub fn derive_cfree(input: TokenStream) -> TokenStream {
     c_free::expand(input)
+}
+
+#[proc_macro_derive(CNew)]
+pub fn derive_c_new(input: TokenStream) -> TokenStream {
+    c_new::expand(input)
 }
 
 #[proc_macro_derive(RustToC)]

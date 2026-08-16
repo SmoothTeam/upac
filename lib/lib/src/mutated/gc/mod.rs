@@ -14,7 +14,7 @@ pub use self::error::GcError;
 use self::cleaning::CleaningStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
-use crate::types::states::GcStateId;
+use upac_types::states::GcStateId;
 
 mod cleaning;
 mod error;

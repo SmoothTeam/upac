@@ -12,10 +12,11 @@ use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{
+use crate::unmutated::diff::{DiffError, DiffSnapshot};
+
+use upac_types::{
     DiffFileEntryCommon, DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry, PackageMeta, Version,
 };
-use crate::unmutated::diff::{DiffError, DiffSnapshot};
 
 type PackageIdentity = (String, String, Option<String>);
 

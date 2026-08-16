@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -12,8 +11,9 @@ use upac_abi::response::{CHistoryEntry, CListHistoryResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::ListHistoryStateId;
 use crate::unmutated::list_history::ListHistoryData;
+
+use upac_types::states::ListHistoryStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_history(
@@ -29,10 +29,9 @@ pub unsafe extern "C" fn list_history(
         Ok(Ok((history,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CListHistoryResponse {
-                        struct_size: size_of::<CListHistoryResponse>(),
-                        history: CVec::from_owned(history.into_iter().map(CHistoryEntry::from).collect()),
-                    };
+                    *response_out = CListHistoryResponse::new(CVec::from_owned(
+                        history.into_iter().map(CHistoryEntry::from).collect(),
+                    ));
                 }
             }
             0

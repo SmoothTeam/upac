@@ -11,8 +11,9 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::{DiffPackageEntry, DiffPackagesSnapshot};
 use crate::unmutated::diff_packages::DiffPackagesError;
+
+use upac_types::{DiffPackageEntry, DiffPackagesSnapshot};
 
 pub struct ComparingStage;
 

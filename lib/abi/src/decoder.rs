@@ -5,7 +5,7 @@
 
 use std::slice::from_raw_parts;
 
-use upac_macro::CValidate;
+use upac_macro::{CNew, CValidate};
 
 use crate::error::ErrorKind;
 use crate::hook::CancelToken;
@@ -26,6 +26,7 @@ pub type FreeDecodeResponseFn = unsafe extern "C" fn(response: *mut CDecodeRespo
 pub type MatchTriggersFn = unsafe extern "C" fn(table: *const CTriggerTable, matches: *mut CTriggerMatches) -> i32;
 
 #[repr(C)]
+#[derive(CNew)]
 pub struct CDecodeRequest {
     pub struct_size: usize,
 
@@ -82,6 +83,7 @@ pub struct CTriggerTable {
 }
 
 #[repr(C)]
+#[derive(CNew)]
 pub struct CTriggerMatches {
     pub struct_size: usize,
 

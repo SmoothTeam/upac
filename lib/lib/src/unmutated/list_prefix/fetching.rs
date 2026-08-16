@@ -9,8 +9,9 @@ use crate::database::record::DeployRecord;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
-use crate::types::PrefixEntry;
 use crate::unmutated::list_prefix::ListPrefixError;
+
+use upac_types::PrefixEntry;
 
 pub struct FetchingStage;
 

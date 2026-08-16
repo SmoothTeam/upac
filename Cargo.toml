@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki"]
+members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types"]
 
 [workspace.package]
 version = "0.1.5"
@@ -10,13 +10,23 @@ repository = "https://github.com/SmoothTeam/upac"
 authors = ["justpav05 <aksenovpaveldmitrievich@gmail.com>"]
 
 [workspace.dependencies]
-upac-macro = { path = "lib/macro" }
-upac-abi = { path = "lib/abi" }
-upac-pki = { path = "lib/pki" }
+gettext-rs = { version = "0.7", features = ["gettext-system"] }
+clap       = { version = "4.6.1", features = ["derive"] }
+serde      = { version = "1", features = ["derive"] }
+syn        = { version = "2", features = ["full"] }
 
-syn = { version = "2", features = ["full"] }
-quote = "1"
+upac-macro = { path = "lib/macro" }
+upac-types = { path = "lib/types" }
+upac-abi   = { path = "lib/abi" }
+upac-pki   = { path = "lib/pki" }
+
+colored     = "3.1.1"
+libloading  = "0.9"
 proc-macro2 = "1"
+toml        = "1.1.2"
+sha2        = "0.11"
+anyhow      = "1"
+quote       = "1"
 
 [profile.release]
 opt-level = 3

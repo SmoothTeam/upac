@@ -20,8 +20,8 @@ use self::transaction::TransactionStage;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
-use crate::types::states::InstallStateId;
-use crate::types::{PackageTemp, TmpPath};
+use upac_types::TmpPath;
+use upac_types::states::InstallStateId;
 
 mod checkout;
 mod error;
@@ -31,7 +31,7 @@ mod swap;
 mod transaction;
 
 pub struct InstallData<'a> {
-    pub packages: Vec<PackageTemp>,
+    pub packages: Vec<&'a str>,
 
     pub tmp_path: &'a str,
 
@@ -70,7 +70,12 @@ impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
 
 pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
     let mut context = Context::new();
-    context.put(data.packages);
+    context.put(
+        data.packages
+            .iter()
+            .map(|path| (*path).to_owned())
+            .collect::<Vec<String>>(),
+    );
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 

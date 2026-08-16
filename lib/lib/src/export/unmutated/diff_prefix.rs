@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -12,8 +11,9 @@ use upac_abi::response::{CDiffPrefixFileEntry, CDiffPrefixResponse};
 use upac_abi::types::{COwned, CVec};
 
 use crate::export::{try_convert_abi, write_error};
-use crate::types::states::DiffPrefixStateId;
 use crate::unmutated::diff_prefix::DiffPrefixData;
+
+use upac_types::states::DiffPrefixStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn diff_prefix(
@@ -29,10 +29,9 @@ pub unsafe extern "C" fn diff_prefix(
         Ok(Ok((files,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CDiffPrefixResponse {
-                        struct_size: size_of::<CDiffPrefixResponse>(),
-                        files: CVec::from_owned(files.into_iter().map(CDiffPrefixFileEntry::from).collect()),
-                    };
+                    *response_out = CDiffPrefixResponse::new(CVec::from_owned(
+                        files.into_iter().map(CDiffPrefixFileEntry::from).collect(),
+                    ));
                 }
             }
             0

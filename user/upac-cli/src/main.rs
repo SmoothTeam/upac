@@ -3,41 +3,35 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // ── Imports ─────────────────────────────────────────────────────────────────
-use anyhow::Result;
+use std::process::ExitCode;
+use std::ptr::addr_of_mut;
+use std::sync::Arc;
 
 use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
 
-use clap::Parser;
-
 use colored::Colorize;
 
-use std::path::Path;
-use std::ptr::addr_of_mut;
+use anyhow::Result;
 
-use std::sync::Arc;
+use clap::Parser;
 
-use config::Config;
+use upac_abi::hook::CancelToken;
 
-use crate::corelib::Lib;
-
-use crate::ffi::CancelToken;
-
+use crate::commands::commit::CommitArgs;
+use crate::commands::file::FileArgs;
+use crate::commands::package::PkgArgs;
+use crate::libcore::Lib;
 use crate::types::CommandContext;
 
-use commands::commit::CommitArgs;
-use commands::file::FileArgs;
-use commands::init::InitArgs;
-use commands::package::PkgArgs;
-
-mod config;
-pub mod corelib;
-pub mod ffi;
-pub mod types;
+mod libcore;
+mod types;
 
 mod commands {
     pub mod commit;
+    pub mod diff;
+    pub mod display;
     pub mod file;
-    pub mod init;
+    pub mod gc;
     pub mod package;
 }
 
@@ -51,31 +45,30 @@ pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
 #[derive(Parser)]
 #[command(author, version, about)]
 enum Command {
-    Commit(CommitArgs),
     Pkg(PkgArgs),
+    Commit(CommitArgs),
     File(FileArgs),
-    Init(InitArgs),
+    Gc(commands::gc::Args),
+    Diff(commands::diff::Args),
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
-fn main() {
+fn main() -> ExitCode {
     setlocale(LocaleCategory::LcAll, "");
 
     bindtextdomain("upac", env!("LOCALEDIR")).expect("bindtextdomain failed");
     textdomain("upac").expect("textdomain failed");
 
-    let result = run();
-    match result {
-        Ok(()) => {}
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("{} {err}", format!("{}:", gettextrs::gettext("error")).red().bold());
+            ExitCode::FAILURE
         }
     }
 }
 
 fn run() -> Result<()> {
-    let config = Config::load(Path::new(config::DEFAULT_CONFIG_PATH))?;
-
     let lib = Arc::new(Lib::load()?);
 
     let lib_cancel = Arc::clone(&lib);
@@ -83,13 +76,14 @@ fn run() -> Result<()> {
         unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
     })?;
 
-    let conmmand_context = CommandContext::new(config, lib)?;
+    let command_context = CommandContext::new(lib)?;
 
     match Command::parse() {
-        Command::Commit(args) => commands::commit::run(args, conmmand_context)?,
-        Command::Pkg(args) => commands::package::run(args, conmmand_context)?,
-        Command::File(args) => commands::file::run(args, conmmand_context)?,
-        Command::Init(args) => commands::init::run(args, conmmand_context)?,
+        Command::Pkg(args) => commands::package::run(args, command_context)?,
+        Command::Commit(args) => commands::commit::run(args, command_context)?,
+        Command::File(args) => commands::file::run(args, command_context)?,
+        Command::Gc(args) => commands::gc::run(args, command_context)?,
+        Command::Diff(args) => commands::diff::run(args, command_context)?,
     }
 
     Ok(())

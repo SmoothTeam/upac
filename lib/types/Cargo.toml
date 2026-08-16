@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+[package]
+name = "upac-types"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
+license = "LGPL-3.0-or-later"
+description = "Rust-native domain types shared between upac-lib and its direct Rust consumers, independent of the C ABI"
+
+[dependencies]
+upac-macro = { workspace = true }
+upac-abi   = { workspace = true }

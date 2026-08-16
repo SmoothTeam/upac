@@ -16,7 +16,9 @@ name = "up-si"
 path = "src/main.rs"
 
 [dependencies]
-upac-pki = { workspace = true }
+upac-pki   = { workspace = true }
 
-clap = { version = "4.6.1", features = ["derive"] }
-anyhow = "1"
+gettext-rs = { workspace = true }
+colored    = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true }

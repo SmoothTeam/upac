@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use upac_abi::error::{CommandState, ErrorDomain};
+
 use upac_macro::FromStageIndex;
 
 macro_rules! impl_command_state {

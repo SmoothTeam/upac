@@ -6,7 +6,7 @@ General information: [![Version](https://img.shields.io/badge/version-0.1.5-gree
 
 Licensing: [![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-blue.svg)](LICENSES/LGPL-3.0-or-later.txt) [![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-blue.svg)](LICENSES/GPL-3.0-only.txt)
 
-> **⚠️ Branch in progress.** This branch (`lib-rs`) is a from-scratch rewrite of upac's core library in Rust, built around [composefs](https://github.com/containers/composefs) instead of OSTree. The FFI/orchestration engine is done; the actual command bodies, the hook system, and packaging are still being implemented — expect gaps and `todo!()`s.
+> **⚠️ Branch in progress.** This branch (`lib-rs`) is a from-scratch rewrite of upac's core library in Rust, built around [composefs](https://github.com/containers/composefs) instead of OSTree. The FFI/orchestration engine is done; the actual command bodies, the hook system, and packaging are still being implemented — expect gaps and `todo!()`s. See [`ROADMAP.md`](ROADMAP.md) for the current phases and [`TODO.md`](TODO.md) for concrete near-term items.
 
 A modular package management library for Linux systems with composefs-based atomic deploys.
 
@@ -49,21 +49,30 @@ For russian:
 ## 🚀 Usage
 
 ```sh
-up pkg install <path>    # installs a package into the system using the matching decoder, with checksum verification
-up pkg remove <name>     # removes an installed package by name (alias: uninstall)
-up pkg update <name>     # updates an installed package to a new version
-up pkg list              # lists installed packages
-up pkg diff              # diffs installed package versions against a commit or another package set
-up pkg search            # searches package metadata
+up pkg install -f <path>...  [-m <message>]                       # installs package(s) from local file(s), with checksum verification (-f is local-only; a future network form will resolve by name instead)
+up pkg remove <name>...      [--arch <arch>] [--arch-sub <sub>] [-m <message>]  # removes installed package(s) by name, optionally disambiguated by arch (alias: uninstall)
+up pkg update -f <path>...   [-m <message>]                       # updates installed package(s) from local file(s) (same -f convention as install, for the same reason)
+up pkg list                  [--version --arch --author --license --url --packager --size --description --checksum]  # lists installed packages, with optional extra columns
+up pkg diff                  [<from>] [<to>]                      # diffs installed packages between two prefixes (commit digests); defaults if omitted
+up pkg search <query>        [--version ... --checksum] [--regex] # searches package metadata (same field flags as pkg list)
+up pkg search <query> --package <name> --package-arch <arch> [--package-arch-sub <sub>] [--regex]  # same, scoped to one package's own metadata
 
-up file add <path>       # tracks a standalone file outside of a package
-up file remove <path>    # untracks a standalone file
-up file diff             # diffs tracked files against a commit
-up file search           # searches tracked files by path
+up file add <path>...    --package <name> --arch <arch> [--arch-sub <sub>] [-m <message>]  # tracks standalone file(s) against a package
+up file remove <path>... --package <name> --arch <arch> [--arch-sub <sub>] [-m <message>]  # untracks standalone file(s) from a package
+up file diff              [<from>] [<to>]                          # diffs tracked files between two prefixes
+up file search <query>   [--regex]                                  # searches tracked files by path
+up file search <query> --package <name> --package-arch <arch> [--package-arch-sub <sub>] [--regex]  # same, scoped to one package's files
 
-up commit new            # creates a new commit of the current deploy state
-up commit list           # lists commit history
-up commit rollback <id>  # reverts the system state to a specified commit ID
+up commit new <message>      # creates a new commit of the current deploy state
+up commit list               # lists config-commits for the current deploy (rollback targets)
+up commit prefixes           # lists deploy-level (prefix) commits
+up commit history            # lists deploy-level commits with their nested config-commits, marking the active one
+up commit diff [<from>] [<to>]  # diffs tracked files between two config-commits
+up commit rollback <commit>  # reverts the system state to a specified commit
+
+up diff [--from-prefix <d>] [--to-prefix <d>] [--from-config <d>] [--to-config <d>]  # combined package + untracked-file diff across two commits
+
+up gc                        # removes unreachable commits/deploys and reclaims storage
 ```
 
 ## 🧩 Components
@@ -97,7 +106,7 @@ Adding support for a new package format means writing a new decoder `.so` — th
 
 ### CLI (`upac-cli`)
 
-A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate decoder at runtime. Subcommands are grouped under `pkg` (packages), `file` (standalone tracked files), and `commit` (deploy history/rollback).
+A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate decoder at runtime. Subcommands are grouped under `pkg` (packages), `file` (standalone tracked files), and `commit` (deploy history/rollback), plus two top-level commands that don't belong to any single family: `gc` and `diff` (combined package + untracked-file diff).
 
 ## 🔧 Building
 

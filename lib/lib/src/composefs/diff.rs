@@ -7,6 +7,7 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 
 use composefs::tree::{Directory, FileSystem, Inode, Leaf, LeafContent, RegularFile};
+
 use upac_abi::FileDiffKind;
 
 use crate::composefs::repository::ObjectID;

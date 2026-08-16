@@ -14,8 +14,8 @@ pub use self::error::ListHistoryError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::HistoryEntry;
-use crate::types::states::ListHistoryStateId;
+use upac_types::HistoryEntry;
+use upac_types::states::ListHistoryStateId;
 
 mod error;
 mod fetching;

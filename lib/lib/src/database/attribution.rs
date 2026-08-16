@@ -7,7 +7,7 @@ use super::error::DatabaseError;
 use super::files::FileStore;
 use super::meta::MetaStore;
 
-use crate::types::{FileEntry, PackageMeta};
+use upac_types::{FileEntry, PackageMeta};
 
 pub struct FileAttribution {
     pub package_meta: PackageMeta,

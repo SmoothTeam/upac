@@ -20,8 +20,8 @@ use self::transaction::TransactionStage;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
-use crate::types::states::UpdateStateId;
-use crate::types::{PackageTemp, TmpPath};
+use upac_types::TmpPath;
+use upac_types::states::UpdateStateId;
 
 mod checkout;
 mod error;
@@ -31,7 +31,7 @@ mod swap;
 mod transaction;
 
 pub struct UpdateData<'a> {
-    pub packages: Vec<PackageTemp>,
+    pub packages: Vec<&'a str>,
 
     pub tmp_path: &'a str,
 
@@ -70,7 +70,12 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
 
 pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
     let mut context = Context::new();
-    context.put(data.packages);
+    context.put(
+        data.packages
+            .iter()
+            .map(|path| (*path).to_owned())
+            .collect::<Vec<String>>(),
+    );
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 

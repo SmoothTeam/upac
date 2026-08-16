@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 JustPav -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>upac</vendor>
+  <vendor_url>https://github.com/SmoothTeam/upac</vendor_url>
+  <icon_name>upac</icon_name>
+
+  <action id="io.github.smoothteam.upac.install">
+    <description>Install a package</description>
+    <message>Authentication is required to install a package with upac</message>
+    <icon_name>upac</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/up</annotate>
+  </action>
+</policyconfig>

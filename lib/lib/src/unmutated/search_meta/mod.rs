@@ -15,8 +15,8 @@ use self::searching::SearchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::search::Search;
-use crate::types::PackageMeta;
-use crate::types::states::SearchMetaStateId;
+use upac_types::PackageMeta;
+use upac_types::states::SearchMetaStateId;
 
 mod error;
 mod searching;

@@ -17,8 +17,8 @@ use self::preparing::PreparingStage;
 
 use crate::database::MemoryDatabase;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::DiffStateId;
-use crate::types::{
+use upac_types::states::DiffStateId;
+use upac_types::{
     DiffPackageEntry, DiffUntrackedFileEntry, PackageMeta, RequestedConfigDigestRange, RequestedPrefixDigestRange,
 };
 

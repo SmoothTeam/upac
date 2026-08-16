@@ -4,15 +4,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use redb::{ReadableDatabase, ReadableTable, TypeName, Value as RedbValue};
+
 use twox_hash::xxhash3_64::Hasher as XxHasher;
+
 use uuid::Uuid;
 
-use super::codec::{write_len_prefixed, write_opt_str};
+use upac_types::PackageMeta;
+use upac_types::codec::{write_len_prefixed, write_opt_str};
+
 use super::error::DatabaseError;
 use super::{MemoryDatabase, PACKAGES_HASH_TABLE, PACKAGES_UUID_TABLE, ReadableSource};
 
-use crate::types::PackageMeta;
-use crate::types::database::PACKAGES_META_TYPE_NAME;
+use crate::layout::database::PACKAGES_META_TYPE_NAME;
 
 pub trait MetaStore {
     fn identity_hash(name: &str, arch: &str, arch_sub: Option<&str>) -> u64 {
@@ -58,7 +61,7 @@ impl<T: ReadableSource> MetaStore for T {
         let transaction = self.source().begin_read()?;
         let packages = transaction.open_table(PACKAGES_UUID_TABLE)?;
 
-        Ok(packages.get(uuid)?.map(|guard| guard.value()))
+        Ok(packages.get(uuid)?.map(|guard| guard.value().0))
     }
 
     fn list_packages_metas(&self) -> Result<Vec<PackageMeta>, DatabaseError> {
@@ -68,7 +71,7 @@ impl<T: ReadableSource> MetaStore for T {
 
         for entry in packages.iter()? {
             let (_uuid, meta) = entry?;
-            out.push(meta.value());
+            out.push(meta.value().0);
         }
 
         Ok(out)
@@ -80,7 +83,9 @@ impl MetaStoreMut for MemoryDatabase {
         let uuid = Uuid::new_v4();
         let transaction = self.database.begin_write()?;
 
-        transaction.open_table(PACKAGES_UUID_TABLE)?.insert(uuid, meta)?;
+        transaction
+            .open_table(PACKAGES_UUID_TABLE)?
+            .insert(uuid, StoredPackageMeta::from_ref(meta))?;
 
         let hash = Self::identity_hash(&meta.name, &meta.arch, meta.arch_sub.as_deref());
         transaction.open_table(PACKAGES_HASH_TABLE)?.insert(hash, uuid)?;
@@ -96,7 +101,9 @@ impl MetaStoreMut for MemoryDatabase {
         let uuid = Self::lookup_uuid(&by_name, &meta.name, &meta.arch, meta.arch_sub.as_deref())?
             .ok_or(DatabaseError::PackageNotFound)?;
 
-        transaction.open_table(PACKAGES_UUID_TABLE)?.insert(uuid, meta)?;
+        transaction
+            .open_table(PACKAGES_UUID_TABLE)?
+            .insert(uuid, StoredPackageMeta::from_ref(meta))?;
 
         drop(by_name);
         transaction.commit()?;
@@ -114,7 +121,7 @@ impl MetaStoreMut for MemoryDatabase {
         by_name.remove(Self::identity_hash(name, arch, arch_sub))?;
 
         let mut packages = transaction.open_table(PACKAGES_UUID_TABLE)?;
-        let removed = packages.remove(uuid)?.ok_or(DatabaseError::PackageNotFound)?.value();
+        let removed = packages.remove(uuid)?.ok_or(DatabaseError::PackageNotFound)?.value().0;
 
         drop(by_name);
         drop(packages);
@@ -124,30 +131,44 @@ impl MetaStoreMut for MemoryDatabase {
     }
 }
 
-impl RedbValue for PackageMeta {
+// Wraps `PackageMeta` (defined in the external `upac-types` crate) so `redb::Value` can be
+// implemented for it here without violating the orphan rule.
+#[derive(Debug)]
+#[repr(transparent)]
+pub(crate) struct StoredPackageMeta(pub(crate) PackageMeta);
+
+impl StoredPackageMeta {
+    fn from_ref(meta: &PackageMeta) -> &StoredPackageMeta {
+        // SAFETY: `StoredPackageMeta` is `#[repr(transparent)]` over `PackageMeta`, so the two share
+        // identical layout and this reference cast is sound.
+        unsafe { &*(meta as *const PackageMeta as *const StoredPackageMeta) }
+    }
+}
+
+impl RedbValue for StoredPackageMeta {
     type AsBytes<'a> = Vec<u8>;
-    type SelfType<'a> = PackageMeta;
+    type SelfType<'a> = StoredPackageMeta;
 
     fn fixed_width() -> Option<usize> {
         None
     }
 
-    fn from_bytes<'a>(data: &'a [u8]) -> PackageMeta
+    fn from_bytes<'a>(data: &'a [u8]) -> StoredPackageMeta
     where
         Self: 'a,
     {
         let mut offset = 0;
 
-        PackageMeta::decode_from(data, &mut offset)
+        StoredPackageMeta(PackageMeta::decode_from(data, &mut offset))
     }
 
-    fn as_bytes<'a, 'b: 'a>(value: &'a PackageMeta) -> Vec<u8>
+    fn as_bytes<'a, 'b: 'a>(value: &'a StoredPackageMeta) -> Vec<u8>
     where
         Self: 'b,
     {
         let mut buf = Vec::new();
 
-        PackageMeta::encode_into(&mut buf, value);
+        PackageMeta::encode_into(&mut buf, &value.0);
         buf
     }
 

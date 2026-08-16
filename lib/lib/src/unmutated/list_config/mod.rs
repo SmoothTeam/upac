@@ -14,8 +14,8 @@ pub use self::error::ListConfigError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::states::ListConfigStateId;
-use crate::types::{ConfigCommitEntry, RequestedPrefixDigest};
+use upac_types::states::ListConfigStateId;
+use upac_types::{ConfigCommitEntry, RequestedPrefixDigest};
 
 mod error;
 mod fetching;

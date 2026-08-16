@@ -7,6 +7,7 @@ use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 
 use toml::de::Error as TomlError;
+
 use upac_abi::error::ErrorKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +20,7 @@ pub enum DecoderError {
     Io(IoErrorKind),
     Manifest,
     DuplicateFormat(String),
+    UnknownFormat(String),
 }
 
 impl From<ErrorKind> for DecoderError {
@@ -50,6 +52,7 @@ impl From<DecoderError> for ErrorKind {
             DecoderError::Io(_) => ErrorKind::ReadFailed,
             DecoderError::Manifest => ErrorKind::InvalidEntry,
             DecoderError::DuplicateFormat(_) => ErrorKind::InvalidEntry,
+            DecoderError::UnknownFormat(_) => ErrorKind::NotFound,
         }
     }
 }

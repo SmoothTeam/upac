@@ -4,43 +4,37 @@
 
 use anyhow::Result;
 
+use clap::Args as ClapArgs;
+
 use colored::Colorize;
 
-use crate::cancel_token_ptr;
-use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
-use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use upac_abi::request::CListConfigRequest;
 
-#[derive(clap::Args)]
+use crate::types::CommandContext;
+use crate::types::abi::{empty_slice, invoke_with_response, request_base};
+
+#[derive(ClapArgs)]
 pub struct Args {}
 
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
-    let mut response = CUnmutatedResponse::empty();
+    let request = CListConfigRequest::new(request_base(), empty_slice());
 
-    let request = CUnmutatedRequest::for_list_commits(
-        &ctx.config.paths.repo_path,
-        &ctx.config.paths.root_path,
-        &ctx.config.ostree.branch,
-        cancel_token_ptr(),
-    );
-
-    let return_code = unsafe { (ctx.lib.commit.list)(request, &mut response) };
-    LibError::check(return_code)?;
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_config)(request, out, error) })?;
 
     let commits = unsafe { response.commits.as_slice() };
     for (index, commit) in commits.iter().enumerate() {
-        let checksum = unsafe { commit.checksum.as_str() };
-        let subject = unsafe { commit.subject.as_str() };
+        let digest = <&str>::try_from(&commit.config_digest).unwrap_or_default();
+        let subject = <&str>::try_from(&commit.subject).unwrap_or_default();
 
         println!("{}", subject.bold());
-        println!("{}", checksum.yellow());
+        println!("{}", digest.yellow());
 
         if index < commits.len() - 1 {
             println!();
         }
     }
 
-    unsafe { (ctx.lib.free_response)(&mut response) };
+    unsafe { response.free() };
 
     Ok(())
 }

@@ -5,16 +5,16 @@
 
 use std::os::raw::c_void;
 
-use upac_macro::CValidate;
+use upac_macro::{CNew, CValidate};
 
 use crate::FileDiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
-use crate::package::{CPackageInfo, CUnpackedPackage};
+use crate::package::CPackageInfo;
 use crate::types::{CSlice, CVec, check_size};
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CRequestBase {
     pub struct_size: usize,
 
@@ -25,7 +25,7 @@ pub struct CRequestBase {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CInstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -36,11 +36,11 @@ pub struct CInstallRequest {
     #[optional]
     pub message: CSlice,
 
-    pub packages: CVec<CUnpackedPackage>,
+    pub packages: CVec<CSlice>,
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CUpdateRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -51,11 +51,11 @@ pub struct CUpdateRequest {
     #[optional]
     pub message: CSlice,
 
-    pub packages: CVec<CUnpackedPackage>,
+    pub packages: CVec<CSlice>,
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CUninstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -68,7 +68,7 @@ pub struct CUninstallRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CRollbackRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -78,7 +78,7 @@ pub struct CRollbackRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CCommitRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -90,7 +90,7 @@ pub struct CCommitRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -105,21 +105,21 @@ pub struct CFilesRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CGcRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CListPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CListConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -129,21 +129,21 @@ pub struct CListConfigRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CListPrefixRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CListHistoryRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CDiffPrefixRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -155,7 +155,7 @@ pub struct CDiffPrefixRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CDiffConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -167,7 +167,7 @@ pub struct CDiffConfigRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CDiffPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -179,7 +179,7 @@ pub struct CDiffPackagesRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CDiffRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -195,7 +195,7 @@ pub struct CDiffRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CSearchMetaRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -205,7 +205,7 @@ pub struct CSearchMetaRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CSearchFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -215,7 +215,7 @@ pub struct CSearchFilesRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CSearchInMetaRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -226,7 +226,7 @@ pub struct CSearchInMetaRequest {
 }
 
 #[repr(C)]
-#[derive(CValidate)]
+#[derive(CNew, CValidate)]
 pub struct CSearchInPackageFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,

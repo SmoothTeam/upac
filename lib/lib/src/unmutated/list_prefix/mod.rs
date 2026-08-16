@@ -14,8 +14,8 @@ pub use self::error::ListPrefixError;
 use self::fetching::FetchingStage;
 
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
-use crate::types::PrefixEntry;
-use crate::types::states::ListPrefixStateId;
+use upac_types::PrefixEntry;
+use upac_types::states::ListPrefixStateId;
 
 mod error;
 mod fetching;

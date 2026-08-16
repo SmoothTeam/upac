@@ -8,9 +8,10 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CUpdateRequest;
 
+use upac_types::states::UpdateStateId;
+
 use crate::export::{try_convert_abi, write_error};
 use crate::mutated::update::UpdateData;
-use crate::types::states::UpdateStateId;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn update(request_c: CUpdateRequest, err_out: *mut CError) -> i32 {
