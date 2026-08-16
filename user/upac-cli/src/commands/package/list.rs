@@ -4,11 +4,13 @@
 
 use anyhow::Result;
 
-use crate::cancel_token_ptr;
+use std::mem::size_of;
+
+use upac_abi::request::CListPackagesRequest;
+
 use crate::commands::display::package::{PackageField, PackageFormatter};
-use crate::ffi::request::{CUnmutatedRequest, CUnmutatedResponse};
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{invoke_with_response, request_base};
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -33,23 +35,21 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let mut response = CUnmutatedResponse::empty();
+    let request = CListPackagesRequest {
+        struct_size: size_of::<CListPackagesRequest>(),
+        base: request_base(),
+    };
 
-    let request = CUnmutatedRequest::for_list_metas(&ctx.config.paths.root_path, cancel_token_ptr());
-
-    let return_code = unsafe { (ctx.lib.pkg.list)(request, &mut response) };
-    LibError::check(return_code)?;
-
-    let metas = unsafe { response.metas.as_slice() };
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_packages)(request, out, error) })?;
 
     let extra_fields = build_extra_fields(&args);
     PackageFormatter {
         extra_fields: &extra_fields,
-        metas,
+        metas: unsafe { response.metas.as_slice() },
     }
     .print();
 
-    unsafe { (ctx.lib.free_response)(&mut response) };
+    unsafe { response.free() };
 
     Ok(())
 }

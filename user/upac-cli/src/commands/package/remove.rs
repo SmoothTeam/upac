@@ -6,15 +6,17 @@ use anyhow::Result;
 
 use std::ffi::CString;
 use std::io::{self, Write};
-use std::ptr::null_mut;
+use std::mem::size_of;
 
 use colored::Colorize;
 
-use crate::cancel_token_ptr;
-use crate::ffi::packages::CPackageInfo;
-use crate::ffi::request::{CMutatedRequest, CUnmutatedRequest, CUnmutatedResponse};
+use upac_abi::request::{CListPackagesRequest, CUninstallRequest};
+use upac_abi::types::CSlice;
+
 use crate::types::CommandContext;
-use crate::types::errors::LibError;
+use crate::types::abi::{
+    borrowed_vec, invoke, invoke_with_response, optional_slice, package_info, request_base, slice_from_cstr,
+};
 
 type InstalledEntry = (String, String, Option<String>);
 type ResolvedEntry = (CString, CString, Option<CString>);
@@ -27,6 +29,8 @@ pub struct Args {
     pub arch: Option<String>,
     #[arg(long)]
     pub arch_sub: Option<String>,
+    #[arg(short, long)]
+    pub message: Option<String>,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -74,32 +78,35 @@ struct RemoveMachine {
 
 impl RemoveMachine {
     fn state_listing(&mut self) -> Result<State> {
-        let mut response = CUnmutatedResponse::empty();
+        let request = CListPackagesRequest {
+            struct_size: size_of::<CListPackagesRequest>(),
+            base: request_base(),
+        };
 
-        let request = CUnmutatedRequest::for_list_metas(&self.ctx.config.paths.root_path, cancel_token_ptr());
-
-        let return_code = unsafe { (self.ctx.lib.pkg.list)(request, &mut response) };
-        LibError::check(return_code)?;
+        let response =
+            invoke_with_response(|out, error| unsafe { (self.ctx.lib.ro.list_packages)(request, out, error) })?;
 
         self.installed = unsafe { response.metas.as_slice() }
             .iter()
             .map(|package_meta| {
-                (
-                    unsafe { package_meta.name.as_str() }.to_owned(),
-                    unsafe { package_meta.arch.as_str() }.to_owned(),
-                    (!package_meta.arch_sub.ptr.is_null() && package_meta.arch_sub.len > 0)
-                        .then(|| unsafe { package_meta.arch_sub.as_str() }.to_owned()),
-                )
+                Ok((
+                    cslice_owned(&package_meta.name)?,
+                    cslice_owned(&package_meta.arch)?,
+                    optional_cslice_owned(&package_meta.arch_sub)?,
+                ))
             })
-            .collect();
+            .collect::<Result<_>>()?;
 
-        unsafe { (self.ctx.lib.free_response)(&mut response) };
+        unsafe { response.free() };
 
         Ok(State::ResolvingFromInstalled)
     }
 
     fn state_resolving_direct(&mut self) -> Result<State> {
-        let arch = self.args.arch.as_deref().unwrap();
+        let Some(arch) = self.args.arch.as_deref() else {
+            anyhow::bail!(gettextrs::gettext("err_invalid_entry"));
+        };
+
         self.resolved = self
             .args
             .names
@@ -133,24 +140,27 @@ impl RemoveMachine {
     }
 
     fn state_removing(&mut self) -> Result<State> {
-        let packages_info: Vec<CPackageInfo> = self
+        let symbols = self.ctx.lib.require_write()?;
+
+        let subject = CString::new("remove")?;
+        let message = self.args.message.as_deref().map(CString::new).transpose()?;
+
+        let packages: Vec<_> = self
             .resolved
             .iter()
-            .map(|(name, arch, arch_sub)| CPackageInfo::new(name, arch, arch_sub.as_ref()))
+            .map(|(name, arch, arch_sub)| package_info(name, arch, arch_sub.as_ref()))
             .collect();
 
-        let request = CMutatedRequest::for_uninstall(
-            &packages_info,
-            &self.ctx.config.paths.repo_path,
-            &self.ctx.config.paths.root_path,
-            &self.ctx.config.ostree.branch,
-            None,
-            null_mut(),
-            cancel_token_ptr(),
-        );
+        let request = CUninstallRequest {
+            struct_size: size_of::<CUninstallRequest>(),
+            base: request_base(),
+            tmp_path: slice_from_cstr(&self.ctx.tmp_path),
+            subject: slice_from_cstr(&subject),
+            message: optional_slice(message.as_ref()),
+            packages: borrowed_vec(&packages),
+        };
 
-        let return_code = unsafe { (self.ctx.lib.pkg.uninstall)(request) };
-        LibError::check(return_code)?;
+        invoke(|error| unsafe { (symbols.uninstall)(request, error) })?;
 
         Ok(State::Done)
     }
@@ -194,4 +204,17 @@ fn find_installed(installed: &[InstalledEntry], name: &str) -> Result<(String, O
     };
 
     Ok((entry.1.clone(), entry.2.clone()))
+}
+
+fn cslice_owned(slice: &CSlice) -> Result<String> {
+    Ok(unsafe { slice.as_str() }
+        .map_err(|_| anyhow::anyhow!(gettextrs::gettext("err_invalid_entry")))?
+        .to_owned())
+}
+
+fn optional_cslice_owned(slice: &CSlice) -> Result<Option<String>> {
+    if slice.ptr.is_null() || slice.len == 0 {
+        return Ok(None);
+    }
+    Ok(Some(cslice_owned(slice)?))
 }

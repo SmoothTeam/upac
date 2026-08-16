@@ -47,6 +47,9 @@ msgstr "File not found"
 msgid "err_permission_denied"
 msgstr "Permission denied"
 
+msgid "err_requires_root"
+msgstr "This command requires root"
+
 msgid "err_invalid_path"
 msgstr "Invalid path"
 

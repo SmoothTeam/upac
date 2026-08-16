@@ -6,7 +6,6 @@ use colored::Colorize;
 use strum::AsRefStr;
 
 use upac_abi::package::{CPackageMeta, CVersion};
-use upac_abi::types::CVec;
 
 // ── Package field indices ────────────────────────────────────────────────────
 #[derive(Debug, Clone, Copy, AsRefStr)]
@@ -41,7 +40,7 @@ impl<'a> PackageFormatter<'a> {
     pub fn print(&self) {
         if self.extra_fields.is_empty() {
             for meta in self.metas {
-                println!("{}", unsafe { meta.name.as_str() }.unwrap_or_default().bold());
+                println!("{}", unsafe { meta.name.as_str() }.unwrap_or("").bold());
             }
         } else {
             self.print_table();
@@ -93,16 +92,16 @@ impl<'a> PackageFormatter<'a> {
 unsafe fn field_value(meta: &CPackageMeta, field: PackageField) -> String {
     unsafe {
         match field {
-            PackageField::Name => meta.name.as_str().unwrap_or_default().to_owned(),
+            PackageField::Name => meta.name.as_str().unwrap_or("").to_owned(),
             PackageField::Version => format_version(&meta.version),
             PackageField::Architecture => {
-                let arch = meta.arch.as_str().unwrap_or_default();
+                let arch = meta.arch.as_str().unwrap_or("");
                 match Option::<&str>::try_from(&meta.arch_sub).unwrap_or_default() {
                     Some(arch_sub) => format!("{arch}/{arch_sub}"),
                     None => arch.to_owned(),
                 }
             }
-            PackageField::Author | PackageField::Packager => meta.maintainer.as_str().unwrap_or_default().to_owned(),
+            PackageField::Author | PackageField::Packager => meta.maintainer.as_str().unwrap_or("").to_owned(),
             PackageField::License => Option::<&str>::try_from(&meta.license)
                 .unwrap_or_default()
                 .unwrap_or_default()
@@ -111,14 +110,14 @@ unsafe fn field_value(meta: &CPackageMeta, field: PackageField) -> String {
                 .unwrap_or_default()
                 .unwrap_or_default()
                 .to_owned(),
-            PackageField::Description => meta.description.as_str().unwrap_or_default().to_owned(),
+            PackageField::Description => meta.description.as_str().unwrap_or("").to_owned(),
             PackageField::Checksum => hex::encode(meta.sha256),
             PackageField::Size => format_size(meta.installed_size),
         }
     }
 }
 
-unsafe fn format_version(version: &CVersion) -> String {
+pub(crate) unsafe fn format_version(version: &CVersion) -> String {
     unsafe {
         let parts = version.parts.as_slice();
         let version_str = parts.iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");

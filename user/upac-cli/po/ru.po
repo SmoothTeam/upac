@@ -47,6 +47,9 @@ msgstr "Файл не найден"
 msgid "err_permission_denied"
 msgstr "Доступ запрещён"
 
+msgid "err_requires_root"
+msgstr "Для этой команды нужны права root"
+
 msgid "err_invalid_path"
 msgstr "Неверный путь"
 
