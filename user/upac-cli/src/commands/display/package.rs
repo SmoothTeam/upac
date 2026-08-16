@@ -2,10 +2,36 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::fmt::{Display, Formatter, Result as FmtResult};
+
 use colored::Colorize;
 use strum::AsRefStr;
 
 use upac_abi::package::{CPackageMeta, CVersion};
+
+macro_rules! str_field {
+    ($field:expr) => {
+        <&str>::try_from(&$field).unwrap_or_default()
+    };
+}
+
+macro_rules! optional_str_field {
+    ($field:expr) => {
+        Option::<&str>::try_from(&$field).unwrap_or_default()
+    };
+}
+
+macro_rules! required_str {
+    ($field:expr) => {
+        str_field!($field).to_owned()
+    };
+}
+
+macro_rules! optional_str {
+    ($field:expr) => {
+        optional_str_field!($field).unwrap_or_default().to_owned()
+    };
+}
 
 // ── Package field indices ────────────────────────────────────────────────────
 #[derive(Debug, Clone, Copy, AsRefStr)]
@@ -40,7 +66,7 @@ impl<'a> PackageFormatter<'a> {
     pub fn print(&self) {
         if self.extra_fields.is_empty() {
             for meta in self.metas {
-                println!("{}", unsafe { meta.name.as_str() }.unwrap_or("").bold());
+                println!("{}", required_str!(meta.name).bold());
             }
         } else {
             self.print_table();
@@ -57,7 +83,7 @@ impl<'a> PackageFormatter<'a> {
         let rows: Vec<Vec<String>> = self
             .metas
             .iter()
-            .map(|meta| all_fields.iter().map(|f| unsafe { field_value(meta, *f) }).collect())
+            .map(|meta| all_fields.iter().map(|f| Self::field_value(meta, *f)).collect())
             .collect();
 
         let widths: Vec<usize> = (0..all_fields.len())
@@ -86,67 +112,64 @@ impl<'a> PackageFormatter<'a> {
             println!("{}", line);
         }
     }
-}
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-unsafe fn field_value(meta: &CPackageMeta, field: PackageField) -> String {
-    unsafe {
+    fn field_value(meta: &CPackageMeta, field: PackageField) -> String {
         match field {
-            PackageField::Name => meta.name.as_str().unwrap_or("").to_owned(),
-            PackageField::Version => format_version(&meta.version),
+            PackageField::Name => required_str!(meta.name),
+            PackageField::Version => VersionDisplay(&meta.version).to_string(),
             PackageField::Architecture => {
-                let arch = meta.arch.as_str().unwrap_or("");
-                match Option::<&str>::try_from(&meta.arch_sub).unwrap_or_default() {
+                let arch = str_field!(meta.arch);
+                match optional_str_field!(meta.arch_sub) {
                     Some(arch_sub) => format!("{arch}/{arch_sub}"),
                     None => arch.to_owned(),
                 }
             }
-            PackageField::Author | PackageField::Packager => meta.maintainer.as_str().unwrap_or("").to_owned(),
-            PackageField::License => Option::<&str>::try_from(&meta.license)
-                .unwrap_or_default()
-                .unwrap_or_default()
-                .to_owned(),
-            PackageField::Url => Option::<&str>::try_from(&meta.url)
-                .unwrap_or_default()
-                .unwrap_or_default()
-                .to_owned(),
-            PackageField::Description => meta.description.as_str().unwrap_or("").to_owned(),
+            PackageField::Author | PackageField::Packager => required_str!(meta.maintainer),
+            PackageField::License => optional_str!(meta.license),
+            PackageField::Url => optional_str!(meta.url),
+            PackageField::Description => required_str!(meta.description),
             PackageField::Checksum => hex::encode(meta.sha256),
-            PackageField::Size => format_size(meta.installed_size),
+            PackageField::Size => SizeDisplay(meta.installed_size).to_string(),
         }
     }
 }
 
-pub(crate) unsafe fn format_version(version: &CVersion) -> String {
-    unsafe {
-        let parts = version.parts.as_slice();
+// ── Display wrappers ─────────────────────────────────────────────────────────
+pub(crate) struct VersionDisplay<'a>(pub &'a CVersion);
+
+impl Display for VersionDisplay<'_> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        let version = self.0;
+        let parts = unsafe { version.parts.as_slice() };
         let version_str = parts.iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");
 
-        let mut result = if version.epoch > 0 {
-            format!("{}:{}", version.epoch, version_str)
+        if version.epoch > 0 {
+            write!(formatter, "{}:{}", version.epoch, version_str)?;
         } else {
-            version_str
-        };
+            write!(formatter, "{version_str}")?;
+        }
 
         if version.release > 0 {
-            result.push('-');
-            result.push_str(&version.release.to_string());
+            write!(formatter, "-{}", version.release)?;
         }
 
-        if let Some(pre) = Option::<&str>::try_from(&version.pre).unwrap_or_default() {
-            result.push('~');
-            result.push_str(pre);
+        if let Some(pre) = optional_str_field!(version.pre) {
+            write!(formatter, "~{pre}")?;
         }
 
-        result
+        Ok(())
     }
 }
 
-fn format_size(bytes: u64) -> String {
-    match bytes {
-        byte if byte < 1024 => format!("{byte} B"),
-        byte if byte < 1024 * 1024 => format!("{} KB", byte / 1024),
-        byte if byte < 1024 * 1024 * 1024 => format!("{:.1} MB", byte as f64 / (1024.0 * 1024.0)),
-        byte => format!("{:.1} GB", byte as f64 / (1024.0 * 1024.0 * 1024.0)),
+struct SizeDisplay(u64);
+
+impl Display for SizeDisplay {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        match self.0 {
+            byte if byte < 1024 => write!(formatter, "{byte} B"),
+            byte if byte < 1024 * 1024 => write!(formatter, "{} KB", byte / 1024),
+            byte if byte < 1024 * 1024 * 1024 => write!(formatter, "{:.1} MB", byte as f64 / (1024.0 * 1024.0)),
+            byte => write!(formatter, "{:.1} GB", byte as f64 / (1024.0 * 1024.0 * 1024.0)),
+        }
     }
 }
