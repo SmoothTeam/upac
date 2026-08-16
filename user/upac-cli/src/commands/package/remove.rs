@@ -6,7 +6,6 @@ use anyhow::Result;
 
 use std::ffi::CString;
 use std::io::{self, Write};
-use std::mem::size_of;
 
 use colored::Colorize;
 
@@ -78,10 +77,7 @@ struct RemoveMachine {
 
 impl RemoveMachine {
     fn state_listing(&mut self) -> Result<State> {
-        let request = CListPackagesRequest {
-            struct_size: size_of::<CListPackagesRequest>(),
-            base: request_base(),
-        };
+        let request = CListPackagesRequest::new(request_base());
 
         let response =
             invoke_with_response(|out, error| unsafe { (self.ctx.lib.ro.list_packages)(request, out, error) })?;
@@ -151,14 +147,13 @@ impl RemoveMachine {
             .map(|(name, arch, arch_sub)| package_info(name, arch, arch_sub.as_ref()))
             .collect();
 
-        let request = CUninstallRequest {
-            struct_size: size_of::<CUninstallRequest>(),
-            base: request_base(),
-            tmp_path: slice_from_cstr(&self.ctx.tmp_path),
-            subject: slice_from_cstr(&subject),
-            message: optional_slice(message.as_ref()),
-            packages: borrowed_vec(&packages),
-        };
+        let request = CUninstallRequest::new(
+            request_base(),
+            slice_from_cstr(&self.ctx.tmp_path),
+            slice_from_cstr(&subject),
+            optional_slice(message.as_ref()),
+            borrowed_vec(&packages),
+        );
 
         invoke(|error| unsafe { (symbols.uninstall)(request, error) })?;
 

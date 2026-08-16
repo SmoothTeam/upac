@@ -5,7 +5,6 @@
 use anyhow::Result;
 
 use std::ffi::CString;
-use std::mem::size_of;
 
 use upac_abi::request::CSearchMetaRequest;
 
@@ -41,12 +40,7 @@ pub struct Args {
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let query = CString::new(args.query.as_str())?;
 
-    let request = CSearchMetaRequest {
-        struct_size: size_of::<CSearchMetaRequest>(),
-        base: request_base(),
-        search: slice_from_cstr(&query),
-        is_regex: args.regex,
-    };
+    let request = CSearchMetaRequest::new(request_base(), slice_from_cstr(&query), args.regex);
 
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_meta)(request, out, error) })?;
 

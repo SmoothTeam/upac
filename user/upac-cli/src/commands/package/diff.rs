@@ -5,7 +5,6 @@
 use anyhow::Result;
 
 use std::ffi::CString;
-use std::mem::size_of;
 
 use colored::Colorize;
 
@@ -26,12 +25,11 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let from_prefix = args.from.as_deref().map(CString::new).transpose()?;
     let to_prefix = args.to.as_deref().map(CString::new).transpose()?;
 
-    let request = CDiffPackagesRequest {
-        struct_size: size_of::<CDiffPackagesRequest>(),
-        base: request_base(),
-        from_prefix_digest: optional_slice(from_prefix.as_ref()),
-        to_prefix_digest: optional_slice(to_prefix.as_ref()),
-    };
+    let request = CDiffPackagesRequest::new(
+        request_base(),
+        optional_slice(from_prefix.as_ref()),
+        optional_slice(to_prefix.as_ref()),
+    );
 
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.diff_packages)(request, out, error) })?;
 

@@ -5,7 +5,6 @@
 use anyhow::Result;
 
 use std::ffi::CString;
-use std::mem::size_of;
 
 use upac_abi::request::CRollbackRequest;
 
@@ -21,12 +20,11 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
     let config_digest = CString::new(args.commit)?;
 
-    let request = CRollbackRequest {
-        struct_size: size_of::<CRollbackRequest>(),
-        base: request_base(),
-        tmp_path: slice_from_cstr(&ctx.tmp_path),
-        config_digest: slice_from_cstr(&config_digest),
-    };
+    let request = CRollbackRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&config_digest),
+    );
 
     invoke(|error| unsafe { (symbols.rollback)(request, error) })
 }

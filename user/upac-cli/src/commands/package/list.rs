@@ -4,8 +4,6 @@
 
 use anyhow::Result;
 
-use std::mem::size_of;
-
 use upac_abi::request::CListPackagesRequest;
 
 use crate::commands::display::package::{PackageField, PackageFormatter};
@@ -35,10 +33,7 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let request = CListPackagesRequest {
-        struct_size: size_of::<CListPackagesRequest>(),
-        base: request_base(),
-    };
+    let request = CListPackagesRequest::new(request_base());
 
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_packages)(request, out, error) })?;
 

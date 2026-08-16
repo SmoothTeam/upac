@@ -42,13 +42,13 @@ pub struct RoSymbols {
 impl LoadLibrarySymbols for RoSymbols {
     fn load(lib: &Library) -> Result<Self> {
         Ok(Self {
-            list_packages: unsafe { load_symbol(lib, "list_packages")? },
-            search_meta: unsafe { load_symbol(lib, "search_meta")? },
-            diff_packages: unsafe { load_symbol(lib, "diff_packages")? },
-            list_config: unsafe { load_symbol(lib, "list_config")? },
-            list_history: unsafe { load_symbol(lib, "list_history")? },
-            diff_prefix: unsafe { load_symbol(lib, "diff_prefix")? },
-            search_files: unsafe { load_symbol(lib, "search_files")? },
+            list_packages: unsafe { Lib::load_symbol(lib, "list_packages")? },
+            search_meta: unsafe { Lib::load_symbol(lib, "search_meta")? },
+            diff_packages: unsafe { Lib::load_symbol(lib, "diff_packages")? },
+            list_config: unsafe { Lib::load_symbol(lib, "list_config")? },
+            list_history: unsafe { Lib::load_symbol(lib, "list_history")? },
+            diff_prefix: unsafe { Lib::load_symbol(lib, "diff_prefix")? },
+            search_files: unsafe { Lib::load_symbol(lib, "search_files")? },
         })
     }
 }
@@ -67,13 +67,13 @@ pub struct RwSymbols {
 impl LoadLibrarySymbols for RwSymbols {
     fn load(lib: &Library) -> Result<Self> {
         Ok(Self {
-            install: unsafe { load_symbol(lib, "install")? },
-            update: unsafe { load_symbol(lib, "update")? },
-            uninstall: unsafe { load_symbol(lib, "uninstall")? },
-            commit: unsafe { load_symbol(lib, "commit")? },
-            rollback: unsafe { load_symbol(lib, "rollback")? },
-            files: unsafe { load_symbol(lib, "files")? },
-            gc: unsafe { load_symbol(lib, "gc")? },
+            install: unsafe { Lib::load_symbol(lib, "install")? },
+            update: unsafe { Lib::load_symbol(lib, "update")? },
+            uninstall: unsafe { Lib::load_symbol(lib, "uninstall")? },
+            commit: unsafe { Lib::load_symbol(lib, "commit")? },
+            rollback: unsafe { Lib::load_symbol(lib, "rollback")? },
+            files: unsafe { Lib::load_symbol(lib, "files")? },
+            gc: unsafe { Lib::load_symbol(lib, "gc")? },
         })
     }
 }
@@ -96,8 +96,8 @@ impl Lib {
             ro: RoSymbols::load(&loaded_library)?,
             rw: RwSymbols::load(&loaded_library)?,
 
-            cancel: unsafe { load_symbol(&loaded_library, "cancel")? },
-            version_abi: unsafe { load_symbol(&loaded_library, "version_abi")? },
+            cancel: unsafe { Lib::load_symbol(&loaded_library, "cancel")? },
+            version_abi: unsafe { Lib::load_symbol(&loaded_library, "version_abi")? },
 
             _lib: loaded_library,
         };
@@ -125,16 +125,16 @@ impl Lib {
 
         Ok(&self.rw)
     }
-}
 
-/// # Safety
-/// `T` must exactly match the signature of the C symbol `name` resolves to, and the returned value
-/// must not outlive `lib`.
-unsafe fn load_symbol<T: Copy>(lib: &Library, name: &str) -> Result<T> {
-    unsafe {
-        lib.get(name.as_bytes())
-            .map(|symbol| *symbol)
-            .map_err(|err| anyhow::anyhow!("Symbol {name} not found: {err}"))
+    /// # Safety
+    /// `T` must exactly match the signature of the C symbol `name` resolves to, and the returned value
+    /// must not outlive `lib`.
+    unsafe fn load_symbol<T: Copy>(lib: &Library, name: &str) -> Result<T> {
+        unsafe {
+            lib.get(name.as_bytes())
+                .map(|symbol| *symbol)
+                .map_err(|err| anyhow::anyhow!("Symbol {name} not found: {err}"))
+        }
     }
 }
 

@@ -4,8 +4,6 @@
 
 use anyhow::Result;
 
-use std::mem::size_of;
-
 use colored::Colorize;
 
 use upac_abi::request::CListHistoryRequest;
@@ -17,10 +15,7 @@ use crate::types::abi::{invoke_with_response, request_base};
 pub struct Args {}
 
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
-    let request = CListHistoryRequest {
-        struct_size: size_of::<CListHistoryRequest>(),
-        base: request_base(),
-    };
+    let request = CListHistoryRequest::new(request_base());
 
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_history)(request, out, error) })?;
 

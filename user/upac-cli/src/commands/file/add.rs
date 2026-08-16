@@ -5,7 +5,6 @@
 use anyhow::Result;
 
 use std::ffi::CString;
-use std::mem::size_of;
 
 use upac_abi::FileDiffKind;
 use upac_abi::request::CFilesRequest;
@@ -45,16 +44,15 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let package = package_info(&package_name, &package_arch, package_arch_sub.as_ref());
 
-    let request = CFilesRequest {
-        struct_size: size_of::<CFilesRequest>(),
-        base: request_base(),
-        tmp_path: slice_from_cstr(&ctx.tmp_path),
-        subject: slice_from_cstr(&subject),
-        message: optional_slice(message.as_ref()),
-        files: borrowed_vec(&file_slices),
-        file_kind: FileDiffKind::Added,
-        file_package: &package,
-    };
+    let request = CFilesRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&subject),
+        optional_slice(message.as_ref()),
+        borrowed_vec(&file_slices),
+        FileDiffKind::Added,
+        &package,
+    );
 
     invoke(|error| unsafe { (symbols.files)(request, error) })
 }

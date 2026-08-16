@@ -5,7 +5,6 @@
 use anyhow::Result;
 
 use std::ffi::CString;
-use std::mem::size_of;
 
 use upac_abi::request::CCommitRequest;
 
@@ -21,13 +20,12 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
     let subject = CString::new(args.message)?;
 
-    let request = CCommitRequest {
-        struct_size: size_of::<CCommitRequest>(),
-        base: request_base(),
-        tmp_path: slice_from_cstr(&ctx.tmp_path),
-        subject: slice_from_cstr(&subject),
-        message: empty_slice(),
-    };
+    let request = CCommitRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&subject),
+        empty_slice(),
+    );
 
     invoke(|error| unsafe { (symbols.commit)(request, error) })
 }

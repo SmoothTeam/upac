@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::ffi::CString;
-use std::mem::{MaybeUninit, size_of};
+use std::mem::MaybeUninit;
 use std::ptr::{null, null_mut};
 
 use anyhow::Result;
@@ -17,12 +17,7 @@ use crate::cancel_token_ptr;
 use crate::types::errors::LibError;
 
 pub fn request_base() -> CRequestBase {
-    CRequestBase {
-        struct_size: size_of::<CRequestBase>(),
-        on_hook: None,
-        hook_ctx: null_mut(),
-        cancel_token: cancel_token_ptr(),
-    }
+    CRequestBase::new(None, null_mut(), cancel_token_ptr())
 }
 
 pub fn slice_from_cstr(value: &CString) -> CSlice {
@@ -44,12 +39,7 @@ pub fn optional_slice(value: Option<&CString>) -> CSlice {
 }
 
 pub fn package_info(name: &CString, arch: &CString, arch_sub: Option<&CString>) -> CPackageInfo {
-    CPackageInfo {
-        struct_size: size_of::<CPackageInfo>(),
-        name: slice_from_cstr(name),
-        arch: slice_from_cstr(arch),
-        arch_sub: optional_slice(arch_sub),
-    }
+    CPackageInfo::new(slice_from_cstr(name), slice_from_cstr(arch), optional_slice(arch_sub))
 }
 
 pub fn borrowed_vec<T>(items: &[T]) -> CVec<T> {

@@ -6,7 +6,6 @@ use anyhow::Result;
 
 use std::ffi::CString;
 use std::fs::canonicalize;
-use std::mem::size_of;
 
 use upac_abi::request::CInstallRequest;
 
@@ -36,14 +35,13 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let path_slices: Vec<_> = paths.iter().map(slice_from_cstr).collect();
 
-    let request = CInstallRequest {
-        struct_size: size_of::<CInstallRequest>(),
-        base: request_base(),
-        tmp_path: slice_from_cstr(&ctx.tmp_path),
-        subject: slice_from_cstr(&subject),
-        message: optional_slice(message.as_ref()),
-        packages: borrowed_vec(&path_slices),
-    };
+    let request = CInstallRequest::new(
+        request_base(),
+        slice_from_cstr(&ctx.tmp_path),
+        slice_from_cstr(&subject),
+        optional_slice(message.as_ref()),
+        borrowed_vec(&path_slices),
+    );
 
     invoke(|error| unsafe { (symbols.install)(request, error) })
 }
