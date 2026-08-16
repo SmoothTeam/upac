@@ -13,12 +13,12 @@ use upac_abi::error::CError;
 use upac_abi::hook::CancelToken;
 use upac_abi::request::{
     CCommitRequest, CDiffPackagesRequest, CDiffPrefixRequest, CFilesRequest, CGcRequest, CInstallRequest,
-    CListConfigRequest, CListHistoryRequest, CListPackagesRequest, CRollbackRequest, CSearchFilesRequest,
-    CSearchMetaRequest, CUninstallRequest, CUpdateRequest,
+    CListConfigRequest, CListHistoryRequest, CListPackagesRequest, CListPrefixRequest, CRollbackRequest,
+    CSearchFilesRequest, CSearchMetaRequest, CUninstallRequest, CUpdateRequest,
 };
 use upac_abi::response::{
     CDiffPackagesResponse, CDiffPrefixResponse, CListConfigResponse, CListHistoryResponse, CListPackagesResponse,
-    CSearchFilesResponse, CSearchMetaResponse,
+    CListPrefixResponse, CSearchFilesResponse, CSearchMetaResponse,
 };
 
 use crate::types::errors::{AbiMismatch, LibError};
@@ -35,6 +35,7 @@ pub struct RoSymbols {
     pub diff_packages: unsafe extern "C" fn(CDiffPackagesRequest, *mut CDiffPackagesResponse, *mut CError) -> i32,
     pub list_config: unsafe extern "C" fn(CListConfigRequest, *mut CListConfigResponse, *mut CError) -> i32,
     pub list_history: unsafe extern "C" fn(CListHistoryRequest, *mut CListHistoryResponse, *mut CError) -> i32,
+    pub list_prefix: unsafe extern "C" fn(CListPrefixRequest, *mut CListPrefixResponse, *mut CError) -> i32,
     pub diff_prefix: unsafe extern "C" fn(CDiffPrefixRequest, *mut CDiffPrefixResponse, *mut CError) -> i32,
     pub search_files: unsafe extern "C" fn(CSearchFilesRequest, *mut CSearchFilesResponse, *mut CError) -> i32,
 }
@@ -47,6 +48,7 @@ impl LoadLibrarySymbols for RoSymbols {
             diff_packages: unsafe { Lib::load_symbol(lib, "diff_packages")? },
             list_config: unsafe { Lib::load_symbol(lib, "list_config")? },
             list_history: unsafe { Lib::load_symbol(lib, "list_history")? },
+            list_prefix: unsafe { Lib::load_symbol(lib, "list_prefix")? },
             diff_prefix: unsafe { Lib::load_symbol(lib, "diff_prefix")? },
             search_files: unsafe { Lib::load_symbol(lib, "search_files")? },
         })

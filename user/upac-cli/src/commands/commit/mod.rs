@@ -9,8 +9,10 @@ use clap::{Args, Subcommand};
 
 use crate::types::CommandContext;
 
+pub mod history;
 pub mod list;
 pub mod new;
+pub mod prefixes;
 pub mod rollback;
 
 // ── Args ─────────────────────────────────────────────────────────────────────
@@ -23,16 +25,20 @@ pub struct CommitArgs {
 // ── Subcommands ───────────────────────────────────────────────────────────────
 #[derive(Subcommand)]
 pub enum CommitCommand {
+    History(history::Args),
     List(list::Args),
     New(new::Args),
+    Prefixes(prefixes::Args),
     Rollback(rollback::Args),
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 pub fn run(args: CommitArgs, context: CommandContext) -> Result<()> {
     match args.command {
+        CommitCommand::History(args) => history::run(args, context),
         CommitCommand::List(args) => list::run(args, context),
         CommitCommand::New(args) => new::run(args, context),
+        CommitCommand::Prefixes(args) => prefixes::run(args, context),
         CommitCommand::Rollback(args) => rollback::run(args, context),
     }
 }

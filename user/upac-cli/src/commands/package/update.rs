@@ -14,7 +14,9 @@ use crate::types::abi::{borrowed_vec, invoke, optional_slice, request_base, slic
 
 #[derive(clap::Args)]
 pub struct Args {
-    #[arg(required = true, num_args = 1..)]
+    // Required flag, not a positional: keeps the positional slot free for a future
+    // name-based network update (e.g. `up pkg update foo`), separate from this local-file path.
+    #[arg(short, long = "file", required = true, num_args = 1..)]
     pub files: Vec<String>,
     #[arg(short, long)]
     pub message: Option<String>,

@@ -49,21 +49,25 @@ For russian:
 ## 🚀 Usage
 
 ```sh
-up pkg install <path>    # installs a package into the system using the matching decoder, with checksum verification
-up pkg remove <name>     # removes an installed package by name (alias: uninstall)
-up pkg update <name>     # updates an installed package to a new version
-up pkg list              # lists installed packages
-up pkg diff              # diffs installed package versions against a commit or another package set
-up pkg search            # searches package metadata
+up pkg install -f <path>...  [-m <message>]                       # installs package(s) from local file(s), with checksum verification (-f is local-only; a future network form will resolve by name instead)
+up pkg remove <name>...      [--arch <arch>] [--arch-sub <sub>] [-m <message>]  # removes installed package(s) by name, optionally disambiguated by arch (alias: uninstall)
+up pkg update -f <path>...   [-m <message>]                       # updates installed package(s) from local file(s) (same -f convention as install, for the same reason)
+up pkg list                  [--version --arch --author --license --url --packager --size --description --checksum]  # lists installed packages, with optional extra columns
+up pkg diff                  [<from>] [<to>]                      # diffs installed packages between two prefixes (commit digests); defaults if omitted
+up pkg search <query>        [--version ... --checksum] [--regex] # searches package metadata (same field flags as pkg list)
 
-up file add <path>       # tracks a standalone file outside of a package
-up file remove <path>    # untracks a standalone file
-up file diff             # diffs tracked files against a commit
-up file search           # searches tracked files by path
+up file add <path>...    --package <name> --arch <arch> [--arch-sub <sub>] [-m <message>]  # tracks standalone file(s) against a package
+up file remove <path>... --package <name>                          # untracks standalone file(s) from a package
+up file diff              [<from>] [<to>]                          # diffs tracked files between two prefixes
+up file search <query>                                              # searches tracked files by path
 
-up commit new            # creates a new commit of the current deploy state
-up commit list           # lists commit history
-up commit rollback <id>  # reverts the system state to a specified commit ID
+up commit new <message>      # creates a new commit of the current deploy state
+up commit list               # lists config-commits for the current deploy (rollback targets)
+up commit prefixes           # lists deploy-level (prefix) commits
+up commit history            # lists deploy-level commits with their nested config-commits, marking the active one
+up commit rollback <commit>  # reverts the system state to a specified commit
+
+up gc                        # removes unreachable commits/deploys and reclaims storage
 ```
 
 ## 🧩 Components

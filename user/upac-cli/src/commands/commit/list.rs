@@ -6,23 +6,23 @@ use anyhow::Result;
 
 use colored::Colorize;
 
-use upac_abi::request::CListHistoryRequest;
+use upac_abi::request::CListConfigRequest;
 
 use crate::types::CommandContext;
-use crate::types::abi::{invoke_with_response, request_base};
+use crate::types::abi::{empty_slice, invoke_with_response, request_base};
 
 #[derive(clap::Args)]
 pub struct Args {}
 
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
-    let request = CListHistoryRequest::new(request_base());
+    let request = CListConfigRequest::new(request_base(), empty_slice());
 
-    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_history)(request, out, error) })?;
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_config)(request, out, error) })?;
 
-    let commits = unsafe { response.history.as_slice() };
+    let commits = unsafe { response.commits.as_slice() };
     for (index, commit) in commits.iter().enumerate() {
-        let digest = unsafe { commit.prefix_digest.as_str() }.unwrap_or("");
-        let subject = unsafe { commit.subject.as_str() }.unwrap_or("");
+        let digest = <&str>::try_from(&commit.config_digest).unwrap_or_default();
+        let subject = <&str>::try_from(&commit.subject).unwrap_or_default();
 
         println!("{}", subject.bold());
         println!("{}", digest.yellow());

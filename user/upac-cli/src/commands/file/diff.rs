@@ -4,7 +4,15 @@
 
 use anyhow::Result;
 
+use std::ffi::CString;
+
+use colored::Colorize;
+
+use upac_abi::FileDiffKind;
+use upac_abi::request::CDiffPrefixRequest;
+
 use crate::types::CommandContext;
+use crate::types::abi::{invoke_with_response, optional_slice, request_base};
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -12,6 +20,36 @@ pub struct Args {
     pub to: Option<String>,
 }
 
-pub fn run(_args: Args, _context: CommandContext) -> Result<()> {
-    todo!()
+pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
+    let from_prefix = args.from.as_deref().map(CString::new).transpose()?;
+    let to_prefix = args.to.as_deref().map(CString::new).transpose()?;
+
+    let request = CDiffPrefixRequest::new(
+        request_base(),
+        optional_slice(from_prefix.as_ref()),
+        optional_slice(to_prefix.as_ref()),
+    );
+
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.diff_prefix)(request, out, error) })?;
+
+    for entry in unsafe { response.files.as_slice() } {
+        let path = <&str>::try_from(&entry.common.path).unwrap_or_default();
+        let package_name = <&str>::try_from(&entry.package_name).unwrap_or_default();
+
+        let (marker, colored_path) = match entry.common.kind {
+            FileDiffKind::Added => ("+".green().bold(), path.green()),
+            FileDiffKind::Removed => ("-".red().bold(), path.red()),
+            FileDiffKind::Modified => ("~".yellow().bold(), path.yellow()),
+        };
+
+        if package_name.is_empty() {
+            println!("{} {}", marker, colored_path.bold());
+        } else {
+            println!("{} {} ({})", marker, colored_path.bold(), package_name);
+        }
+    }
+
+    unsafe { response.free() };
+
+    Ok(())
 }

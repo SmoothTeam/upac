@@ -30,6 +30,7 @@ mod commands {
     pub mod commit;
     pub mod display;
     pub mod file;
+    pub mod gc;
     pub mod package;
 }
 
@@ -46,6 +47,7 @@ enum Command {
     Pkg(PkgArgs),
     Commit(CommitArgs),
     File(FileArgs),
+    Gc(commands::gc::Args),
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
@@ -78,6 +80,7 @@ fn run() -> Result<()> {
         Command::Pkg(args) => commands::package::run(args, command_context)?,
         Command::Commit(args) => commands::commit::run(args, command_context)?,
         Command::File(args) => commands::file::run(args, command_context)?,
+        Command::Gc(args) => commands::gc::run(args, command_context)?,
     }
 
     Ok(())
