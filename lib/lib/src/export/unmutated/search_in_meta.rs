@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -31,10 +30,9 @@ pub unsafe extern "C" fn search_in_meta(
         Ok(Ok((metas,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CSearchInMetaResponse {
-                        struct_size: size_of::<CSearchInMetaResponse>(),
-                        metas: CVec::from_owned(metas.into_iter().map(CPackageMeta::from).collect()),
-                    };
+                    *response_out = CSearchInMetaResponse::new(CVec::from_owned(
+                        metas.into_iter().map(CPackageMeta::from).collect(),
+                    ));
                 }
             }
             0

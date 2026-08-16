@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -30,10 +29,9 @@ pub unsafe extern "C" fn diff_config(
         Ok(Ok((files,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CDiffConfigResponse {
-                        struct_size: size_of::<CDiffConfigResponse>(),
-                        files: CVec::from_owned(files.into_iter().map(CDiffConfigFileEntry::from).collect()),
-                    };
+                    *response_out = CDiffConfigResponse::new(CVec::from_owned(
+                        files.into_iter().map(CDiffConfigFileEntry::from).collect(),
+                    ));
                 }
             }
             0

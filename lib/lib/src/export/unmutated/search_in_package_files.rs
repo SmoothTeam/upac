@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -34,10 +33,9 @@ pub unsafe extern "C" fn search_in_package_files(
         Ok(Ok((files,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CSearchInPackageFilesResponse {
-                        struct_size: size_of::<CSearchInPackageFilesResponse>(),
-                        files: CVec::from_owned(files.into_iter().map(CSearchFileEntry::from).collect()),
-                    };
+                    *response_out = CSearchInPackageFilesResponse::new(CVec::from_owned(
+                        files.into_iter().map(CSearchFileEntry::from).collect(),
+                    ));
                 }
             }
             0

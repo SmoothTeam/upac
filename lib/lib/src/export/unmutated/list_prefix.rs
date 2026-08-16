@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -30,10 +29,9 @@ pub unsafe extern "C" fn list_prefix(
         Ok(Ok((prefixes,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CListPrefixResponse {
-                        struct_size: size_of::<CListPrefixResponse>(),
-                        prefixes: CVec::from_owned(prefixes.into_iter().map(CPrefixEntry::from).collect()),
-                    };
+                    *response_out = CListPrefixResponse::new(CVec::from_owned(
+                        prefixes.into_iter().map(CPrefixEntry::from).collect(),
+                    ));
                 }
             }
             0

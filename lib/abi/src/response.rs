@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use upac_macro::{CFree, CValidate};
+use upac_macro::{CFree, CNew, CValidate};
 
 use crate::error::ErrorKind;
 use crate::memory::{free_cslice, free_cvec_owning};
@@ -72,21 +72,21 @@ pub struct CConfigCommitEntry {
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CListConfigResponse {
     pub struct_size: usize,
     pub commits: CVec<CConfigCommitEntry>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CListPackagesResponse {
     pub struct_size: usize,
     pub metas: CVec<CPackageMeta>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CSearchMetaResponse {
     pub struct_size: usize,
     pub metas: CVec<CPackageMeta>,
@@ -103,21 +103,21 @@ pub struct CSearchFileEntry {
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CSearchFilesResponse {
     pub struct_size: usize,
     pub files: CVec<CSearchFileEntry>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CSearchInMetaResponse {
     pub struct_size: usize,
     pub metas: CVec<CPackageMeta>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CSearchInPackageFilesResponse {
     pub struct_size: usize,
     pub files: CVec<CSearchFileEntry>,
@@ -138,7 +138,7 @@ pub struct CPrefixEntry {
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CListPrefixResponse {
     pub struct_size: usize,
     pub prefixes: CVec<CPrefixEntry>,
@@ -160,35 +160,35 @@ pub struct CHistoryEntry {
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CListHistoryResponse {
     pub struct_size: usize,
     pub history: CVec<CHistoryEntry>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CDiffPrefixResponse {
     pub struct_size: usize,
     pub files: CVec<CDiffPrefixFileEntry>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CDiffConfigResponse {
     pub struct_size: usize,
     pub files: CVec<CDiffConfigFileEntry>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CDiffPackagesResponse {
     pub struct_size: usize,
     pub diff_packages: CVec<CDiffPackageEntry>,
 }
 
 #[repr(C)]
-#[derive(CFree)]
+#[derive(CFree, CNew)]
 pub struct CDiffResponse {
     pub struct_size: usize,
     pub diff_packages: CVec<CDiffPackageEntry>,

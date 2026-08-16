@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::mem::size_of;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
@@ -30,10 +29,9 @@ pub unsafe extern "C" fn list_config(
         Ok(Ok((commits,))) => {
             if !response_out.is_null() {
                 unsafe {
-                    *response_out = CListConfigResponse {
-                        struct_size: size_of::<CListConfigResponse>(),
-                        commits: CVec::from_owned(commits.into_iter().map(CConfigCommitEntry::from).collect()),
-                    };
+                    *response_out = CListConfigResponse::new(CVec::from_owned(
+                        commits.into_iter().map(CConfigCommitEntry::from).collect(),
+                    ));
                 }
             }
             0
