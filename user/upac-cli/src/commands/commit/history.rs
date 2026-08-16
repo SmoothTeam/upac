@@ -35,7 +35,11 @@ pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
         for config in unsafe { entry.config_history.as_slice() } {
             let config_digest = <&str>::try_from(&config.config_digest).unwrap_or_default();
             let config_subject = <&str>::try_from(&config.subject).unwrap_or_default();
-            let marker = if working_config == Some(config_digest) { "*" } else { " " };
+            let marker = if working_config == Some(config_digest) {
+                "*"
+            } else {
+                " "
+            };
 
             println!("  {marker} {config_subject} {}", config_digest.yellow());
         }
