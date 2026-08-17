@@ -9,6 +9,8 @@ use upac_abi::error::ErrorKind;
 pub enum BootError {
     NoBootResource,
     AmbiguousBootResource,
+    BootEntryNotFound,
+    AccessDenied,
     Unexpected,
 }
 
@@ -18,11 +20,22 @@ impl From<anyhow::Error> for BootError {
     }
 }
 
+impl From<efivar::Error> for BootError {
+    fn from(error: efivar::Error) -> Self {
+        match error {
+            efivar::Error::PermissionDenied { .. } => BootError::AccessDenied,
+            _ => BootError::Unexpected,
+        }
+    }
+}
+
 impl From<BootError> for ErrorKind {
     fn from(error: BootError) -> Self {
         match error {
             BootError::NoBootResource => ErrorKind::NotFound,
             BootError::AmbiguousBootResource => ErrorKind::InvalidEntry,
+            BootError::BootEntryNotFound => ErrorKind::NotFound,
+            BootError::AccessDenied => ErrorKind::PermissionDenied,
             BootError::Unexpected => ErrorKind::Unexpected,
         }
     }
