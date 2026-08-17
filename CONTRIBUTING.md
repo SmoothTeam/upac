@@ -54,12 +54,14 @@ For files where a comment header doesn't make sense (e.g. Markdown, TOML), add a
   pick from in a `From` impl), the target `Result`'s `Err` isn't a plain error type (e.g. a
   `(StateId, Error)` tuple), you're chaining through two `From` hops with no direct one, or you need
   to attach context (a message, an original input string) that `From` can't carry.
-- Imports (`use`) always at the top of the file — no inline or fully-qualified paths. Exception:
-  when a name genuinely collides — e.g. every CLI subcommand module exports its own local `Args`
-  struct (`root_generate::Args`, `sign::Args`, ...) — importing all of them isn't possible, so the
-  call site (`#[derive(clap::Args)]`, `commands::sign::Args` in the `Command` enum) uses the full
-  path instead. This is the only case that qualifies; don't reach for it to avoid an otherwise
-  ordinary import.
+- Imports (`use`) always at the top of the file — no inline or fully-qualified paths. Within a
+  command file that defines its own `pub struct Args`, `clap::Args` (the derive macro) collides
+  with it by name — resolve that with `use clap::Args as ClapArgs;` + `#[derive(ClapArgs)]`, not
+  an inline `#[derive(clap::Args)]`. The one real exception left: `main.rs`'s `Command` enum
+  references multiple different modules' `Args` structs by the same name (`generate_root::Args`,
+  `sign_hook::Args`, ...) — importing all of them under one local name isn't possible, so those
+  call sites use the full path (`commands::sign_hook::Args`) instead. Don't reach for a
+  fully-qualified path to avoid an otherwise ordinary import outside that one case.
 - No comments unless they explain a non-obvious *why* (a hidden constraint, a workaround, something
   that would surprise a reader). Don't restate what the code already says.
 - Long, descriptive names over abbreviations, in both variables and functions.

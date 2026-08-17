@@ -7,12 +7,14 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
+use clap::Args as ClapArgs;
+
 use upac_pki::generate::{Identity, PemIdentity, SigningIdentity};
 use upac_pki::signature::HookSignature;
 
 use crate::errors::LocalizedPkiError;
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]
     pub hook: PathBuf,

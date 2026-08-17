@@ -7,11 +7,13 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
+use clap::Args as ClapArgs;
+
 use upac_pki::generate::{Identity, PemIdentity, RootIdentity, generate_signing_cert};
 
 use crate::errors::LocalizedPkiError;
 
-#[derive(clap::Args)]
+#[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]
     pub common_name: String,
