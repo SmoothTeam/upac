@@ -12,7 +12,7 @@ use upac_abi::FileDiffKind;
 use upac_abi::request::CFilesRequest;
 
 use crate::types::CommandContext;
-use crate::types::abi::{borrowed_vec, invoke, optional_slice, package_info, request_base, slice_from_cstr};
+use crate::types::abi::{BootKind, borrowed_vec, invoke, optional_slice, package_info, request_base, slice_from_cstr};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -26,6 +26,8 @@ pub struct Args {
     pub arch_sub: Option<String>,
     #[arg(short, long)]
     pub message: Option<String>,
+    #[arg(long, value_enum, default_value_t = BootKind::Auto)]
+    pub boot: BootKind,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -54,6 +56,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         borrowed_vec(&file_slices),
         FileDiffKind::Removed,
         &package,
+        args.boot.into(),
     );
 
     invoke(|error| unsafe { (symbols.files)(request, error) })

@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::BootKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CInstallRequest;
@@ -32,6 +33,7 @@ mod transaction;
 
 pub struct InstallData<'a> {
     pub packages: Vec<&'a str>,
+    pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
 
@@ -54,6 +56,7 @@ impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
 
         Ok(InstallData {
             packages: Vec::try_from(&request.packages)?,
+            boot_kind: request.boot_kind,
 
             tmp_path: (&request.tmp_path).try_into()?,
 

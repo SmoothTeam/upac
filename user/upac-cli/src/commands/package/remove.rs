@@ -16,7 +16,7 @@ use upac_abi::types::CSlice;
 
 use crate::types::CommandContext;
 use crate::types::abi::{
-    borrowed_vec, invoke, invoke_with_response, optional_slice, package_info, request_base, slice_from_cstr,
+    BootKind, borrowed_vec, invoke, invoke_with_response, optional_slice, package_info, request_base, slice_from_cstr,
 };
 
 type InstalledEntry = (String, String, Option<String>);
@@ -32,6 +32,8 @@ pub struct Args {
     pub arch_sub: Option<String>,
     #[arg(short, long)]
     pub message: Option<String>,
+    #[arg(long, value_enum, default_value_t = BootKind::Auto)]
+    pub boot: BootKind,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -155,6 +157,7 @@ impl RemoveMachine {
             slice_from_cstr(&subject),
             optional_slice(message.as_ref()),
             borrowed_vec(&packages),
+            self.args.boot.into(),
         );
 
         invoke(|error| unsafe { (symbols.uninstall)(request, error) })?;

@@ -11,11 +11,13 @@ use clap::Args as ClapArgs;
 use upac_abi::request::CRollbackRequest;
 
 use crate::types::CommandContext;
-use crate::types::abi::{invoke, request_base, slice_from_cstr};
+use crate::types::abi::{BootKind, invoke, request_base, slice_from_cstr};
 
 #[derive(ClapArgs)]
 pub struct Args {
     pub commit: String,
+    #[arg(long, value_enum, default_value_t = BootKind::Auto)]
+    pub boot: BootKind,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -26,6 +28,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         request_base(),
         slice_from_cstr(&ctx.tmp_path),
         slice_from_cstr(&config_digest),
+        args.boot.into(),
     );
 
     invoke(|error| unsafe { (symbols.rollback)(request, error) })

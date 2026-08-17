@@ -54,6 +54,10 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
 
     quote! {
         impl #name {
+            // Every C-ABI request/response struct field (minus struct_size) becomes a
+            // constructor parameter by design — this isn't the "should refactor into a builder"
+            // code smell clippy's default threshold is meant to catch.
+            #[allow(clippy::too_many_arguments)]
             pub fn new(#(#params),*) -> Self {
                 Self {
                     struct_size: ::std::mem::size_of::<#name>(),
