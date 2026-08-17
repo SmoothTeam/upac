@@ -5,6 +5,14 @@
 
 use std::io::Error as IoError;
 
+use redb::CommitError as RedbCommitError;
+use redb::DatabaseError as RedbDatabaseError;
+use redb::StorageError as RedbStorageError;
+use redb::TableError as RedbTableError;
+use redb::TransactionError as RedbTransactionError;
+
+use serde_json::Error as SerdeJsonError;
+
 use upac_abi::error::ErrorKind;
 
 use crate::deploy::error::SysrootError;
@@ -23,13 +31,13 @@ pub enum DatabaseError {
     ReadError,
 }
 
-impl From<redb::StorageError> for DatabaseError {
-    fn from(error: redb::StorageError) -> Self {
+impl From<RedbStorageError> for DatabaseError {
+    fn from(error: RedbStorageError) -> Self {
         match error {
-            redb::StorageError::Corrupted(_) => DatabaseError::ReadError,
-            redb::StorageError::DatabaseClosed => DatabaseError::DatabaseNotInitialized,
-            redb::StorageError::LockPoisoned(_) => DatabaseError::WriteError,
-            redb::StorageError::ValueTooLarge(_) | redb::StorageError::Io(_) | redb::StorageError::PreviousIo => {
+            RedbStorageError::Corrupted(_) => DatabaseError::ReadError,
+            RedbStorageError::DatabaseClosed => DatabaseError::DatabaseNotInitialized,
+            RedbStorageError::LockPoisoned(_) => DatabaseError::WriteError,
+            RedbStorageError::ValueTooLarge(_) | RedbStorageError::Io(_) | RedbStorageError::PreviousIo => {
                 DatabaseError::WriteError
             }
             _ => DatabaseError::ReadError,
@@ -37,39 +45,39 @@ impl From<redb::StorageError> for DatabaseError {
     }
 }
 
-impl From<redb::TableError> for DatabaseError {
-    fn from(error: redb::TableError) -> Self {
+impl From<RedbTableError> for DatabaseError {
+    fn from(error: RedbTableError) -> Self {
         match error {
-            redb::TableError::TableDoesNotExist(_) => DatabaseError::DatabaseNotInitialized,
-            redb::TableError::Storage(storage_error) => storage_error.into(),
+            RedbTableError::TableDoesNotExist(_) => DatabaseError::DatabaseNotInitialized,
+            RedbTableError::Storage(storage_error) => storage_error.into(),
             _ => DatabaseError::WriteError,
         }
     }
 }
 
-impl From<redb::TransactionError> for DatabaseError {
-    fn from(error: redb::TransactionError) -> Self {
+impl From<RedbTransactionError> for DatabaseError {
+    fn from(error: RedbTransactionError) -> Self {
         match error {
-            redb::TransactionError::Storage(storage_error) => storage_error.into(),
+            RedbTransactionError::Storage(storage_error) => storage_error.into(),
             _ => DatabaseError::WriteError,
         }
     }
 }
 
-impl From<redb::CommitError> for DatabaseError {
-    fn from(error: redb::CommitError) -> Self {
+impl From<RedbCommitError> for DatabaseError {
+    fn from(error: RedbCommitError) -> Self {
         match error {
-            redb::CommitError::Storage(storage_error) => storage_error.into(),
+            RedbCommitError::Storage(storage_error) => storage_error.into(),
             _ => DatabaseError::WriteError,
         }
     }
 }
 
-impl From<redb::DatabaseError> for DatabaseError {
-    fn from(error: redb::DatabaseError) -> Self {
+impl From<RedbDatabaseError> for DatabaseError {
+    fn from(error: RedbDatabaseError) -> Self {
         match error {
-            redb::DatabaseError::DatabaseAlreadyOpen => DatabaseError::AccessDenied,
-            redb::DatabaseError::Storage(storage_error) => storage_error.into(),
+            RedbDatabaseError::DatabaseAlreadyOpen => DatabaseError::AccessDenied,
+            RedbDatabaseError::Storage(storage_error) => storage_error.into(),
             _ => DatabaseError::ReadError,
         }
     }
@@ -120,8 +128,8 @@ impl From<IoError> for DeployRecordError {
     }
 }
 
-impl From<serde_json::Error> for DeployRecordError {
-    fn from(_: serde_json::Error) -> Self {
+impl From<SerdeJsonError> for DeployRecordError {
+    fn from(_: SerdeJsonError) -> Self {
         DeployRecordError::MalformedJson
     }
 }

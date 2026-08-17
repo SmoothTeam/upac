@@ -5,6 +5,12 @@
 
 use std::any::Any;
 
+use anyhow::Error as AnyhowError;
+
+use efivar::Error as EfivarError;
+
+use uuid::Error as UuidError;
+
 use upac_abi::error::ErrorKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,14 +23,14 @@ pub enum BootError {
     Unexpected,
 }
 
-impl From<anyhow::Error> for BootError {
-    fn from(_: anyhow::Error) -> Self {
+impl From<AnyhowError> for BootError {
+    fn from(_: AnyhowError) -> Self {
         BootError::Unexpected
     }
 }
 
-impl From<uuid::Error> for BootError {
-    fn from(_: uuid::Error) -> Self {
+impl From<UuidError> for BootError {
+    fn from(_: UuidError) -> Self {
         BootError::Unexpected
     }
 }
@@ -35,10 +41,10 @@ impl From<Box<dyn Any + Send + 'static>> for BootError {
     }
 }
 
-impl From<efivar::Error> for BootError {
-    fn from(error: efivar::Error) -> Self {
+impl From<EfivarError> for BootError {
+    fn from(error: EfivarError) -> Self {
         match error {
-            efivar::Error::PermissionDenied { .. } => BootError::AccessDenied,
+            EfivarError::PermissionDenied { .. } => BootError::AccessDenied,
             _ => BootError::Unexpected,
         }
     }

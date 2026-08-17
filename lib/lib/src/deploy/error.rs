@@ -5,6 +5,8 @@
 
 use std::io::Error as IoError;
 
+use anyhow::Error as AnyhowError;
+
 use nix::errno::Errno;
 
 use rsblkid::probe::{ProbeBuilderError, ProbeError};
@@ -57,8 +59,8 @@ impl From<Errno> for SysrootError {
     }
 }
 
-impl From<anyhow::Error> for SysrootError {
-    fn from(_: anyhow::Error) -> Self {
+impl From<AnyhowError> for SysrootError {
+    fn from(_: AnyhowError) -> Self {
         SysrootError::CurrentPrefixDigestNotFound
     }
 }
