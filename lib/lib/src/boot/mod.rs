@@ -20,8 +20,8 @@ pub mod reboot_on_bls;
 pub mod reboot_on_uki;
 
 pub trait OneShotReboot {
-    fn set_one_shot(&self, entry_name: &str) -> Result<(), BootError>;
-    fn confirm_boot(&self, entry_name: &str) -> Result<(), BootError>;
+    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), BootError>;
+    fn confirm_boot(&mut self, entry_name: &str) -> Result<(), BootError>;
 }
 
 pub fn write_boot_entry(
