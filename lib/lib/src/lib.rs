@@ -8,6 +8,7 @@ mod mutated;
 mod search;
 mod unmutated;
 
+pub mod boot;
 pub mod composefs;
 pub mod database;
 pub mod deploy;

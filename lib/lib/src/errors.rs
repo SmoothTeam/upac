@@ -7,6 +7,7 @@ use std::io::ErrorKind as IoErrorKind;
 
 use upac_abi::error::ErrorKind;
 
+use crate::boot::error::BootError;
 use crate::composefs::error::RepoError;
 use crate::database::error::{DatabaseError, DeployRecordError};
 use crate::deploy::error::SysrootError;
@@ -68,6 +69,17 @@ macro_rules! lock_error_from {
     };
 }
 pub(crate) use lock_error_from;
+
+macro_rules! boot_error_from {
+    ($name:ident) => {
+        impl From<BootError> for $name {
+            fn from(error: BootError) -> Self {
+                $name::Common(CommonError::Boot(error))
+            }
+        }
+    };
+}
+pub(crate) use boot_error_from;
 
 macro_rules! deploy_record_error_from {
     ($name:ident) => {
@@ -136,6 +148,7 @@ pub enum CommonError {
     Sysroot(SysrootError),
     Lock(LockError),
     DeployRecord(DeployRecordError),
+    Boot(BootError),
 }
 
 impl From<CommonError> for ErrorKind {
@@ -156,6 +169,7 @@ impl From<CommonError> for ErrorKind {
             CommonError::Sysroot(sysroot_error) => sysroot_error.into(),
             CommonError::Lock(lock_error) => lock_error.into(),
             CommonError::DeployRecord(deploy_record_error) => deploy_record_error.into(),
+            CommonError::Boot(boot_error) => boot_error.into(),
         }
     }
 }
@@ -199,5 +213,11 @@ impl From<LockError> for CommonError {
 impl From<DeployRecordError> for CommonError {
     fn from(error: DeployRecordError) -> Self {
         CommonError::DeployRecord(error)
+    }
+}
+
+impl From<BootError> for CommonError {
+    fn from(error: BootError) -> Self {
+        CommonError::Boot(error)
     }
 }
