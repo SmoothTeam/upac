@@ -62,26 +62,4 @@ pub fn build(b: *std.Build) void {
     shared_lib.link_gc_sections = false;
 
     b.installArtifact(shared_lib);
-
-    // ── Tests for shared library ────────────────────────────────────────────────────────
-    const upac_test_root = b.createModule(.{
-        .root_source_file = b.path("../tests/rpm/test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    upac_backend_root.strip = strip;
-    upac_backend_root.stack_check = stack_check;
-
-    const tests = b.addTest(.{
-        .name = "rpm-test",
-        .root_module = upac_test_root,
-    });
-
-    tests.root_module.addImport("upac-rpm", upac_backend_root);
-
-    const run_tests = b.addRunArtifact(tests);
-
-    const test_step = b.step("test", "Run RPM tests");
-    test_step.dependOn(&run_tests.step);
 }

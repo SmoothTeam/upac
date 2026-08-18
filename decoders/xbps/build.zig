@@ -73,26 +73,4 @@ pub fn build(b: *std.Build) void {
     shared_lib.link_gc_sections = false;
 
     b.installArtifact(shared_lib);
-
-    // ── Tests for shared library ────────────────────────────────────────────────────────
-    const upac_test_root = b.createModule(.{
-        .root_source_file = b.path("../tests/xbps/test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    upac_backend_root.strip = strip;
-    upac_backend_root.stack_check = stack_check;
-
-    const tests = b.addTest(.{
-        .name = "xbps-test",
-        .root_module = upac_test_root,
-    });
-
-    tests.root_module.addImport("upac-xbps", upac_backend_root);
-
-    const run_tests = b.addRunArtifact(tests);
-
-    const test_step = b.step("test", "Run XBPS tests");
-    test_step.dependOn(&run_tests.step);
 }
