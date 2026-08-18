@@ -94,9 +94,11 @@ impl_command_state!(GcStateId, Gc);
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum MimeStateId {
-    Syncing = 0,
-    Done = 1,
-    Setup = 2,
+    Preparing = 0,
+    Rendering = 1,
+    Writing = 2,
+    Done = 3,
+    Setup = 4,
 }
 
 impl_command_state!(MimeStateId, Mime);

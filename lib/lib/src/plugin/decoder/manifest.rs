@@ -5,6 +5,9 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::str::FromStr;
+
+use mime::Mime;
 
 use serde::Deserialize;
 
@@ -15,6 +18,7 @@ pub struct DecoderManifest {
     pub format: String,
     pub extensions: Vec<String>,
     pub library: String,
+    pub mime: String,
 }
 
 pub fn load_decoder_manifests(
@@ -31,6 +35,8 @@ pub fn load_decoder_manifests(
 
         let raw = fs::read_to_string(&path)?;
         let manifest: DecoderManifest = toml::from_str(&raw)?;
+
+        Mime::from_str(&manifest.mime)?;
 
         if manifests.contains_key(&manifest.format) {
             return Err(DecoderError::DuplicateFormat(manifest.format));

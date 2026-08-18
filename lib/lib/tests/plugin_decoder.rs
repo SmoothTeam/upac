@@ -98,12 +98,12 @@ fn load_decoder_manifests_collects_distinct_formats() {
     let dir = scratch_dir("distinct-formats");
     write(
         dir.join("deb.decoder"),
-        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb.so\"\n",
+        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
     write(
         dir.join("rpm.decoder"),
-        "format = \"rpm\"\nextensions = [\"rpm\"]\nlibrary = \"libupac-rpm.so\"\n",
+        "format = \"rpm\"\nextensions = [\"rpm\"]\nlibrary = \"libupac-rpm.so\"\nmime = \"application/x-rpm\"\n",
     )
     .unwrap();
 
@@ -119,7 +119,7 @@ fn load_decoder_manifests_ignores_non_matching_extension() {
     let dir = scratch_dir("ignore-extension");
     write(
         dir.join("deb.decoder"),
-        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb.so\"\n",
+        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
     write(dir.join("README.md"), b"not a manifest").unwrap();
@@ -134,12 +134,12 @@ fn load_decoder_manifests_fails_on_duplicate_format() {
     let dir = scratch_dir("duplicate-format");
     write(
         dir.join("a.decoder"),
-        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb-a.so\"\n",
+        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb-a.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
     write(
         dir.join("b.decoder"),
-        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb-b.so\"\n",
+        "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb-b.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
 

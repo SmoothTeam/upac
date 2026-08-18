@@ -82,6 +82,9 @@ manifest_extension = "toml"
 # one file); mime_xml_path/desktop_file_path are the specific files this
 # command writes. The *_bin names are looked up on $PATH; missing binaries are
 # a soft failure (see doc §7 mime module notes), not a hard error.
+# shared_mime_info_xmlns is the fixed XML namespace every shared-mime-info
+# package XML file must declare on its root <mime-info> element — not our
+# ABI, an external spec constant.
 [mime]
 mime_xml_path = "/usr/share/mime/packages/upac-mime.xml"
 mime_db_dir = "/usr/share/mime"
@@ -89,6 +92,7 @@ desktop_file_path = "/usr/share/applications/io.github.smoothteam.upac.desktop"
 applications_dir = "/usr/share/applications"
 update_mime_database_bin = "update-mime-database"
 update_desktop_database_bin = "update-desktop-database"
+shared_mime_info_xmlns = "http://www.freedesktop.org/standards/shared-mime-info"
 
 # Names of EFI variables used for one-shot/persistent boot selection (§5.2), plus the vendor GUID
 # for the systemd-boot loader interface variables (LoaderEntryOneShot/LoaderEntryDefault, per

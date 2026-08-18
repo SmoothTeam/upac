@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::fs::{File, rename};
+use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
@@ -12,6 +12,7 @@ use upac_macro::JsonCodec;
 use crate::database::error::{ConfigDigestResolveError, DeployRecordError, DeployRecordsError};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
+use crate::fs::atomic_write;
 use crate::layout::deployment::RECORD_FILENAME;
 
 #[derive(Debug, Clone, PartialEq, Eq, JsonCodec)]
@@ -43,13 +44,8 @@ impl DeployRecord {
     }
 
     pub fn write(&self, deploy_dir: &Path) -> Result<(), DeployRecordError> {
-        let tmp_path = deploy_dir.join(format!(".{RECORD_FILENAME}.tmp"));
-
-        let mut tmp_file = File::create(&tmp_path)?;
-        serde_json::to_writer_pretty(&mut tmp_file, &self.to_json())?;
-        tmp_file.sync_all()?;
-
-        rename(&tmp_path, deploy_dir.join(RECORD_FILENAME))?;
+        let content = serde_json::to_vec_pretty(&self.to_json())?;
+        atomic_write(&deploy_dir.join(RECORD_FILENAME), &content)?;
 
         Ok(())
     }
