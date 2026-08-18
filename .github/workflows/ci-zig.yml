@@ -1,9 +1,11 @@
 name: Zig CI
 on:
   push:
-    branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -14,13 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: ["lib", "alpm", "rpm", "deb", "xbps"]
+        component: ["alpm", "rpm", "deb", "xbps"]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libarchive-dev libostree-dev
-          libglib2.0-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y libarchive-dev pkg-config
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
@@ -28,13 +29,13 @@ jobs:
           version: 0.16.0
 
       - name: Check formatting (${{ matrix.component }})
-        working-directory: ${{ matrix.component }}
+        working-directory: decoders/${{ matrix.component }}
         run: zig fmt --check .
 
       - name: Build (${{ matrix.component }})
-        working-directory: ${{ matrix.component }}
+        working-directory: decoders/${{ matrix.component }}
         run: zig build
 
       - name: Run tests (${{ matrix.component }})
-        working-directory: ${{ matrix.component }}
+        working-directory: decoders/${{ matrix.component }}
         run: zig build test
