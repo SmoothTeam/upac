@@ -63,7 +63,7 @@ signature_extension = "sig"
 # extensions/archive variants of that format it can actually open (extensions
 # = [...] — e.g. alpm packages ship as pkg.tar/pkg.tar.gz/pkg.tar.xz/etc, all
 # one format but several file variants), the library to dlopen for it
-# (library = "..."), and the mime type that format registers as (mime_type =
+# (library = "..."), and the mime type that format registers as (mime =
 # "...", also singular — this is what binds the decoder backend to desktop
 # integration, see `up mime sync` / [mime] below). This is not the directory
 # the decoder .so files themselves live in — lib never scans or probes a .so
@@ -75,8 +75,8 @@ decoders_dir = "/etc/upac.d/decoders"
 manifest_extension = "toml"
 
 # Paths `up mime sync` reads from/writes to when regenerating desktop
-# integration from the currently installed decoder manifests' mime_type
-# fields (see [decoders] above). mime_db_dir/applications_dir are the parent
+# integration from the currently installed decoder manifests' mime fields
+# (see [decoders] above). mime_db_dir/applications_dir are the parent
 # directories update-mime-database/update-desktop-database themselves take as
 # their argument (they rebuild the whole cache under that directory, not just
 # one file); mime_xml_path/desktop_file_path are the specific files this
