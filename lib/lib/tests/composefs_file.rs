@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use std::fs::{File, create_dir_all, remove_dir_all, write};
+use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 
 use composefs::generic_tree::Stat;
@@ -239,4 +240,38 @@ fn replace_file_overwrites_previous_content() {
         .unwrap();
 
     assert_eq!(handle.read_file(&repository, &tree).unwrap(), b"second");
+}
+
+#[test]
+fn import_directory_inserts_files_dirs_and_symlinks() {
+    let source_dir = scratch_dir("import-source");
+    create_dir_all(source_dir.join("sub")).unwrap();
+    write(source_dir.join("sub/file.txt"), b"content").unwrap();
+    symlink("file.txt", source_dir.join("sub/link")).unwrap();
+
+    let repository = open_repository("import-repo");
+    let mut tree = empty_tree();
+    let mut ctx = ImportContext::default();
+    let handle = FileHandle::new("target");
+    handle.insert_in_tree(&mut tree, Stat::uninitialized()).unwrap();
+
+    let mut imported = handle
+        .import_directory(&repository, &mut tree, &source_dir, &mut ctx)
+        .unwrap();
+    imported.sort();
+
+    assert_eq!(imported, vec![PathBuf::from("sub/file.txt"), PathBuf::from("sub/link")]);
+    assert!(FileHandle::new("target/sub").stat_in_tree(&tree).is_ok());
+    assert_eq!(
+        FileHandle::new("target/sub/file.txt")
+            .read_file(&repository, &tree)
+            .unwrap(),
+        b"content"
+    );
+    assert_eq!(
+        FileHandle::new("target/sub/link")
+            .symlink_target_in_tree(&tree)
+            .unwrap(),
+        "file.txt"
+    );
 }

@@ -8,6 +8,7 @@ use std::io::Read;
 use std::path::Path;
 
 use composefs::erofs::reader::erofs_to_filesystem;
+use composefs::erofs::writer::{ValidatedFileSystem, mkfs_erofs};
 use composefs::fsverity::Sha256HashValue;
 use composefs::repository::Repository;
 use composefs::tree::FileSystem;
@@ -29,4 +30,11 @@ pub(crate) fn open_tree(repository: &Repository<ObjectID>, name: &str) -> Result
     File::from(image).read_to_end(&mut data)?;
 
     Ok(erofs_to_filesystem(&data)?)
+}
+
+pub fn commit_tree(repository: &Repository<ObjectID>, tree: FileSystem<ObjectID>) -> Result<ObjectID, RepoError> {
+    let validated = ValidatedFileSystem::new(tree)?;
+    let data = mkfs_erofs(&validated);
+
+    Ok(repository.write_image(None, &data)?)
 }

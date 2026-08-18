@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::BootKind;
 use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
@@ -32,6 +33,7 @@ pub struct FilesData<'a> {
     pub files: Vec<&'a str>,
     pub file_kind: FileDiffKind,
     pub file_package: &'a CPackageInfo,
+    pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
 
@@ -57,6 +59,7 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
             files: Vec::try_from(&request.files)?,
             file_kind: request.file_kind,
             file_package,
+            boot_kind: request.boot_kind,
 
             tmp_path: (&request.tmp_path).try_into()?,
 

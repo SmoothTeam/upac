@@ -1,0 +1,116 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+use std::collections::HashMap;
+use std::io::Result as IoResult;
+
+use quick_xml::Writer as XmlWriter;
+use quick_xml::events::{BytesDecl, BytesText, Event};
+
+use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use crate::errors::CommonError;
+use crate::layout::mime;
+use crate::mutated::mime::{DesktopContent, MimeError, RenderedMime};
+use crate::orchestrator::Context;
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::plugin::decoder::manifest::DecoderManifest;
+
+pub struct RenderingStage;
+
+impl Stage<MimeError> for RenderingStage {
+    fn run(
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), MimeError> {
+        let manifests = context
+            .take::<HashMap<String, DecoderManifest>>()
+            .ok_or(CommonError::MissingResult)?;
+        let desktop_content = context.take::<DesktopContent>().ok_or(CommonError::MissingResult)?;
+
+        let mime_xml = Self::render_mime_xml(&manifests)?;
+        let mime_type_line = Self::render_mime_type_line(&manifests);
+        let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content.0, &mime_type_line)?;
+
+        context.put(RenderedMime {
+            mime_xml,
+            desktop_content,
+        });
+
+        Ok((progress, Box::new(NoRollback)))
+    }
+}
+
+impl RenderingStage {
+    fn render_mime_xml(manifests: &HashMap<String, DecoderManifest>) -> Result<String, MimeError> {
+        let mut writer = XmlWriter::new_with_indent(Vec::new(), b' ', 2);
+
+        writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None)))?;
+
+        writer
+            .create_element("mime-info")
+            .with_attribute(("xmlns", mime::SHARED_MIME_INFO_XMLNS))
+            .write_inner_content(|writer| {
+                for manifest in manifests.values() {
+                    Self::write_mime_type_element(writer, manifest)?;
+                }
+
+                Ok(())
+            })?;
+
+        let mut body = String::from_utf8_lossy(&writer.into_inner()).into_owned();
+        body.push('\n');
+
+        Ok(body)
+    }
+
+    fn write_mime_type_element(writer: &mut XmlWriter<Vec<u8>>, manifest: &DecoderManifest) -> IoResult<()> {
+        writer
+            .create_element("mime-type")
+            .with_attribute(("type", manifest.mime.as_str()))
+            .write_inner_content(|writer| {
+                writer
+                    .create_element("comment")
+                    .write_text_content(BytesText::new(&manifest.format))?;
+
+                for extension in &manifest.extensions {
+                    writer
+                        .create_element("glob")
+                        .with_attribute(("pattern", format!("*.{extension}").as_str()))
+                        .write_empty()?;
+                }
+
+                Ok(())
+            })?;
+
+        Ok(())
+    }
+
+    fn render_mime_type_line(manifests: &HashMap<String, DecoderManifest>) -> String {
+        manifests
+            .values()
+            .map(|manifest| format!("{};", manifest.mime))
+            .collect()
+    }
+
+    fn rewrite_desktop_mime_type(content: &str, mime_type_line: &str) -> Result<String, MimeError> {
+        let mut found = false;
+        let mut lines = Vec::with_capacity(content.lines().count());
+
+        for line in content.lines() {
+            if line.starts_with("MimeType=") {
+                lines.push(format!("MimeType={mime_type_line}"));
+                found = true;
+            } else {
+                lines.push(line.to_owned());
+            }
+        }
+
+        if !found {
+            return Err(MimeError::DesktopFileMalformed);
+        }
+
+        Ok(format!("{}\n", lines.join("\n")))
+    }
+}

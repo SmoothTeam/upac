@@ -62,6 +62,17 @@ For files where a comment header doesn't make sense (e.g. Markdown, TOML), add a
   `sign_hook::Args`, ...) — importing all of them under one local name isn't possible, so those
   call sites use the full path (`commands::sign_hook::Args`) instead. Don't reach for a
   fully-qualified path to avoid an otherwise ordinary import outside that one case.
+- Same rule for error types used in `impl From<...>`: import the source error type at the top via
+  `use some_crate::Error as SomeCrateError;` (or the type's real name if it isn't already called
+  `Error`) and reference the alias in the impl — never write `impl From<some_crate::Error>` with
+  the path inline. This applies even when nothing else in the file collides with the bare name;
+  the alias makes it obvious which crate's error is being converted without hunting through the
+  file. The one exception: a `macro_rules!` macro whose body references another crate's type via a
+  crate-qualified path (e.g. `regex::Error` inside `regex_error_from!` in `errors.rs`) — such a
+  path resolves through the extern prelude at every call site with zero extra imports needed;
+  replacing it with a locally-aliased bare name would instead force every file that invokes the
+  macro to add its own redundant `use` just to satisfy it. Don't do that swap inside a
+  multi-call-site macro body.
 - No comments unless they explain a non-obvious *why* (a hidden constraint, a workaround, something
   that would surprise a reader). Don't restate what the code already says.
 - Long, descriptive names over abbreviations, in both variables and functions.

@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::BootKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
@@ -57,6 +58,7 @@ impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
 
 pub struct UninstallData<'a> {
     pub packages: Vec<UninstallPackage<'a>>,
+    pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
 
@@ -79,6 +81,7 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
 
         Ok(UninstallData {
             packages: Vec::try_from(&request.packages)?,
+            boot_kind: request.boot_kind,
 
             tmp_path: (&request.tmp_path).try_into()?,
 

@@ -3,9 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::fs::File;
+use std::fs::{File, Metadata, read_dir, read_link};
 use std::io::Read;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use composefs::MAX_INLINE_CONTENT;
@@ -167,5 +169,46 @@ impl FileHandle {
             RegularFile::Inline(content) => Ok(content.to_vec()),
             RegularFile::External(object_id, _size) => Ok(repository.read_object(object_id)?),
         }
+    }
+
+    pub fn import_directory(
+        &self, repository: &Repository<ObjectID>, tree: &mut FileSystem<ObjectID>, source_dir: &Path,
+        ctx: &mut ImportContext,
+    ) -> Result<Vec<PathBuf>, RepoError> {
+        let mut imported = Vec::new();
+
+        for entry in read_dir(source_dir)? {
+            let entry = entry?;
+            let source_path = entry.path();
+            let metadata = entry.metadata()?;
+            let stat = stat_from_metadata(&metadata);
+            let name = PathBuf::from(entry.file_name());
+            let target = FileHandle::new(self.path.join(&name));
+
+            if metadata.is_dir() {
+                target.insert_in_tree(tree, stat)?;
+                let nested = target.import_directory(repository, tree, &source_path, ctx)?;
+                imported.extend(nested.into_iter().map(|relative| name.join(relative)));
+            } else if metadata.is_symlink() {
+                target.symlink_in_tree(tree, read_link(&source_path)?, stat)?;
+                imported.push(name);
+            } else {
+                target.insert_file(repository, tree, &File::open(&source_path)?, stat, ctx)?;
+                imported.push(name);
+            }
+        }
+
+        Ok(imported)
+    }
+}
+
+fn stat_from_metadata(metadata: &Metadata) -> Stat {
+    Stat {
+        st_mode: metadata.mode(),
+        st_uid: metadata.uid(),
+        st_gid: metadata.gid(),
+        st_mtim_sec: metadata.mtime(),
+        st_mtim_nsec: metadata.mtime_nsec() as u32,
+        xattrs: BTreeMap::new(),
     }
 }

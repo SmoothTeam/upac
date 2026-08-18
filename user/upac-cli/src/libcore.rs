@@ -14,8 +14,8 @@ use upac_abi::hook::CancelToken;
 use upac_abi::request::{
     CCommitRequest, CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CFilesRequest,
     CGcRequest, CInstallRequest, CListConfigRequest, CListHistoryRequest, CListPackagesRequest, CListPrefixRequest,
-    CRollbackRequest, CSearchFilesRequest, CSearchInMetaRequest, CSearchInPackageFilesRequest, CSearchMetaRequest,
-    CUninstallRequest, CUpdateRequest,
+    CMimeSyncRequest, CRollbackRequest, CSearchFilesRequest, CSearchInMetaRequest, CSearchInPackageFilesRequest,
+    CSearchMetaRequest, CUninstallRequest, CUpdateRequest,
 };
 use upac_abi::response::{
     CDiffConfigResponse, CDiffPackagesResponse, CDiffPrefixResponse, CDiffResponse, CListConfigResponse,
@@ -74,6 +74,7 @@ pub struct RwSymbols {
     pub commit: unsafe extern "C" fn(CCommitRequest, *mut CError) -> i32,
     pub rollback: unsafe extern "C" fn(CRollbackRequest, *mut CError) -> i32,
     pub files: unsafe extern "C" fn(CFilesRequest, *mut CError) -> i32,
+    pub mime: unsafe extern "C" fn(CMimeSyncRequest, *mut CError) -> i32,
     pub gc: unsafe extern "C" fn(CGcRequest, *mut CError) -> i32,
 }
 
@@ -86,6 +87,7 @@ impl LoadLibrarySymbols for RwSymbols {
             commit: unsafe { Lib::load_symbol(lib, "commit")? },
             rollback: unsafe { Lib::load_symbol(lib, "rollback")? },
             files: unsafe { Lib::load_symbol(lib, "files")? },
+            mime: unsafe { Lib::load_symbol(lib, "mime")? },
             gc: unsafe { Lib::load_symbol(lib, "gc")? },
         })
     }
@@ -129,8 +131,8 @@ impl Lib {
     }
 
     /// Gates access to the mutating symbol table behind an effective-root check — call sites for
-    /// install/update/uninstall/commit/rollback/files/gc go through here instead of reading `self.rw`
-    /// directly, so the check can't be forgotten at a new call site.
+    /// install/update/uninstall/commit/rollback/files/gc/mime go through here instead of reading
+    /// `self.rw` directly, so the check can't be forgotten at a new call site.
     pub fn require_write(&self) -> Result<&RwSymbols> {
         if !Uid::effective().is_root() {
             anyhow::bail!(gettextrs::gettext("err_requires_root"));

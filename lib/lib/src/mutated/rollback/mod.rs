@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::BootKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CRollbackRequest;
@@ -28,6 +29,7 @@ mod swap;
 
 pub struct RollbackData<'a> {
     pub config_digest: &'a str,
+    pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
 
@@ -47,6 +49,7 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
 
         Ok(RollbackData {
             config_digest: (&request.config_digest).try_into()?,
+            boot_kind: request.boot_kind,
 
             tmp_path: (&request.tmp_path).try_into()?,
 

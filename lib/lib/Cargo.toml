@@ -42,6 +42,9 @@ twox-hash             = "2.1.3"
 rsblkid               = "0.4"
 rsmount               = "0.2"
 regex                 = "1"
+efivar                = "2.0.0"
+quick-xml             = "0.41.0"
+mime                  = "0.3.17"
 
 [build-dependencies]
 toml = { workspace = true }

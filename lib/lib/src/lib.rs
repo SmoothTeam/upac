@@ -8,10 +8,12 @@ mod mutated;
 mod search;
 mod unmutated;
 
+pub mod boot;
 pub mod composefs;
 pub mod database;
 pub mod deploy;
 pub mod errors;
+pub mod fs;
 pub mod layout;
 pub mod lock;
 pub mod orchestrator;

@@ -4,14 +4,14 @@
 
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::io::Error;
+use std::io::Error as IoError;
 use std::path::PathBuf;
 
 use crate::gen_tree::splice::{MARKER_END, MARKER_START};
 
 #[derive(Debug)]
 pub enum XtaskError {
-    Io(Error),
+    Io(IoError),
     MissingCommand,
     UnknownCommand(String),
     UnknownArgument(String),
@@ -26,8 +26,8 @@ pub enum XtaskError {
     Splice { path: PathBuf, source: Box<XtaskError> },
 }
 
-impl From<Error> for XtaskError {
-    fn from(error: Error) -> Self {
+impl From<IoError> for XtaskError {
+    fn from(error: IoError) -> Self {
         XtaskError::Io(error)
     }
 }

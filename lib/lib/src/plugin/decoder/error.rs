@@ -6,6 +6,7 @@
 use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 
+use mime::FromStrError as MimeParseError;
 use toml::de::Error as TomlError;
 
 use upac_abi::error::ErrorKind;
@@ -21,6 +22,7 @@ pub enum DecoderError {
     Manifest,
     DuplicateFormat(String),
     UnknownFormat(String),
+    InvalidMimeType,
 }
 
 impl From<ErrorKind> for DecoderError {
@@ -41,6 +43,12 @@ impl From<TomlError> for DecoderError {
     }
 }
 
+impl From<MimeParseError> for DecoderError {
+    fn from(_: MimeParseError) -> Self {
+        DecoderError::InvalidMimeType
+    }
+}
+
 impl From<DecoderError> for ErrorKind {
     fn from(error: DecoderError) -> Self {
         match error {
@@ -53,6 +61,7 @@ impl From<DecoderError> for ErrorKind {
             DecoderError::Manifest => ErrorKind::InvalidEntry,
             DecoderError::DuplicateFormat(_) => ErrorKind::InvalidEntry,
             DecoderError::UnknownFormat(_) => ErrorKind::NotFound,
+            DecoderError::InvalidMimeType => ErrorKind::InvalidEntry,
         }
     }
 }

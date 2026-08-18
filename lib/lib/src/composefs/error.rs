@@ -5,6 +5,8 @@
 
 use std::io::Error as IoError;
 
+use anyhow::Error as AnyhowError;
+
 use composefs::generic_tree::ImageError;
 use composefs::repository::RepositoryOpenError;
 
@@ -65,8 +67,8 @@ impl From<ImageError> for RepoError {
     }
 }
 
-impl From<anyhow::Error> for RepoError {
-    fn from(_: anyhow::Error) -> Self {
+impl From<AnyhowError> for RepoError {
+    fn from(_: AnyhowError) -> Self {
         RepoError::Unexpected
     }
 }

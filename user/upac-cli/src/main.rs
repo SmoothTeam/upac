@@ -32,6 +32,7 @@ mod commands {
     pub mod display;
     pub mod file;
     pub mod gc;
+    pub mod mime;
     pub mod package;
 }
 
@@ -50,6 +51,7 @@ enum Command {
     File(FileArgs),
     Gc(commands::gc::Args),
     Diff(commands::diff::Args),
+    Mime(commands::mime::MimeArgs),
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
@@ -84,6 +86,7 @@ fn run() -> Result<()> {
         Command::File(args) => commands::file::run(args, command_context)?,
         Command::Gc(args) => commands::gc::run(args, command_context)?,
         Command::Diff(args) => commands::diff::run(args, command_context)?,
+        Command::Mime(args) => commands::mime::run(args, command_context)?,
     }
 
     Ok(())

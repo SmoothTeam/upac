@@ -1,0 +1,74 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 JustPav
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+use std::fs::{File, create_dir_all, remove_dir_all, write};
+use std::io::Read;
+use std::path::PathBuf;
+
+use composefs::erofs::reader::erofs_to_filesystem;
+use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
+use composefs::generic_tree::Stat;
+use composefs::repository::{ImportContext, Repository, RepositoryConfig};
+use composefs::tree::FileSystem;
+use nix::fcntl::AT_FDCWD;
+use upac::composefs::diff::TreeDiff;
+use upac::composefs::file::FileHandle;
+use upac::composefs::repository::{ObjectID, commit_tree};
+
+fn scratch_dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("upac-test-composefs-repository-{}-{name}", std::process::id()));
+    let _ = remove_dir_all(&dir);
+    create_dir_all(&dir).unwrap();
+
+    dir
+}
+
+fn empty_tree() -> FileSystem<ObjectID> {
+    FileSystem::new(Stat::uninitialized())
+}
+
+fn open_repository(name: &str) -> Repository<ObjectID> {
+    let dir = scratch_dir(name);
+    let (repository, _created) =
+        Repository::init_path(AT_FDCWD, &dir, RepositoryConfig::default().set_insecure()).unwrap();
+
+    repository
+}
+
+fn open_image_tree(repository: &Repository<ObjectID>, digest: &Sha256HashValue) -> FileSystem<ObjectID> {
+    let (image, _enable_verity) = repository.open_image(&digest.to_hex()).unwrap();
+
+    let mut data = Vec::new();
+    File::from(image).read_to_end(&mut data).unwrap();
+
+    erofs_to_filesystem(&data).unwrap()
+}
+
+#[test]
+fn commit_tree_round_trips_through_the_repository() {
+    let repository = open_repository("commit-round-trip");
+    let mut tree = empty_tree();
+    let mut ctx = ImportContext::default();
+
+    let source_dir = scratch_dir("commit-round-trip-src");
+    let source_path = source_dir.join("source");
+    write(&source_path, b"hello").unwrap();
+
+    FileHandle::new("file.txt")
+        .insert_file(
+            &repository,
+            &mut tree,
+            &File::open(&source_path).unwrap(),
+            Stat::uninitialized(),
+            &mut ctx,
+        )
+        .unwrap();
+
+    let before = tree.clone();
+    let digest = commit_tree(&repository, tree).unwrap();
+    let after = open_image_tree(&repository, &digest);
+
+    assert!(TreeDiff::run(&before, &after).is_empty());
+}
