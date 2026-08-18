@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 JustPav
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+# Declarative decoder manifest (doc §5.8/§6). Not installed by `zig build` —
+# there is no packaging pipeline (PKGBUILD/spec/etc) in this repo yet; this
+# file is the canonical source a future package build copies to
+# /etc/upac.d/decoders/upac-rpm.toml.
+format = "rpm"
+extensions = ["rpm"]
+library = "/usr/lib/upac/decoders/libupac-rpm.so"
+
+# Registered in shared-mime-info (freedesktop.org.xml).
+mime = "application/x-rpm"

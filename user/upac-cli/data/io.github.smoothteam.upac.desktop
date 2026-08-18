@@ -10,5 +10,5 @@ Icon=upac
 Exec=pkexec /usr/bin/up pkg install --file %f
 Terminal=false
 NoDisplay=true
-MimeType=application/x-rpm;application/vnd.debian.binary-package;application/x-alpm-package;application/x-xbps-package;
+MimeType=
 Categories=System;PackageManager;
