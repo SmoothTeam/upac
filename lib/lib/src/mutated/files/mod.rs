@@ -30,14 +30,20 @@ mod swap;
 mod transaction;
 
 pub struct FilesData<'a> {
+    #[expect(dead_code)]
     pub files: Vec<&'a str>,
+    #[expect(dead_code)]
     pub file_kind: FileDiffKind,
+    #[expect(dead_code)]
     pub file_package: &'a CPackageInfo,
+    #[expect(dead_code)]
     pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
 
+    #[expect(dead_code)]
     pub subject: &'a str,
+    #[expect(dead_code)]
     pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,

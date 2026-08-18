@@ -33,11 +33,14 @@ mod transaction;
 
 pub struct InstallData<'a> {
     pub packages: Vec<&'a str>,
+    #[expect(dead_code)]
     pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
 
+    #[expect(dead_code)]
     pub subject: &'a str,
+    #[expect(dead_code)]
     pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+cargo fmt --all
+
+git diff --name-only --diff-filter=ACMR -- '*.rs' | while IFS= read -r file; do
+    git add -- "$file"
+done

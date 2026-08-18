@@ -1,0 +1,6 @@
+#!/bin/sh
+msg_file="$1"
+sed -E \
+    -e "s/^[Ff][Ii][Xx]:[[:space:]]*([a-zA-Z])/fix: \l\1/" \
+    -e "s/^[Nn][Ee][Ww]:[[:space:]]*([a-zA-Z])/new: \l\1/" \
+    "$msg_file" > "${msg_file}.tmp" && mv "${msg_file}.tmp" "$msg_file"

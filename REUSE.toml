@@ -11,6 +11,11 @@ SPDX-FileCopyrightText = "JustPav"
 SPDX-License-Identifier = "GPL-3.0-only"
 
 [[annotations]]
+path = ".githooks/**"
+SPDX-FileCopyrightText = "JustPav"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
 path = ".cargo/**"
 SPDX-FileCopyrightText = "JustPav"
 SPDX-License-Identifier = "CC-BY-SA-4.0"

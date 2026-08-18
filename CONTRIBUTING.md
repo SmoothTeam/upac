@@ -19,6 +19,23 @@ docs which describe intent rather than progress.
 
 See the [README](README.md#-building) for prerequisites and build commands.
 
+## Git hooks
+
+Tracked hooks live in [`.githooks/`](.githooks/):
+
+- `pre-commit` runs `cargo fmt --all` across the whole workspace before each commit and re-stages
+  whatever it reformats, so formatting never drifts and `cargo fmt --all -- --check` in CI never
+  fails on something that should've been caught locally.
+- `commit-msg` lowercases the first letter after a `fix:`/`new:` prefix, matching this repo's
+  commit message convention.
+
+Git doesn't run tracked hooks automatically (by design — cloning a repo shouldn't execute
+arbitrary code), so opt in once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
 ## Repo tree in the docs
 
 The directory tree embedded in each design chapter (between `<!-- tree:start -->`/`<!-- tree:end
