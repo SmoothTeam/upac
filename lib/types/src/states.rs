@@ -93,6 +93,16 @@ impl_command_state!(GcStateId, Gc);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
+pub enum MimeStateId {
+    Syncing = 0,
+    Done = 1,
+    Setup = 2,
+}
+
+impl_command_state!(MimeStateId, Mime);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum ListPackagesStateId {
     Fetching = 0,
     Done = 1,
