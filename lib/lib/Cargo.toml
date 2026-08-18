@@ -45,6 +45,7 @@ regex                 = "1"
 efivar                = "2.0.0"
 quick-xml             = "0.41.0"
 mime                  = "0.3.17"
+hex                   = "0.4"
 
 [build-dependencies]
 toml = { workspace = true }
