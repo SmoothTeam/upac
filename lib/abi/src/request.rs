@@ -119,6 +119,13 @@ pub struct CGcRequest {
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
+pub struct CMimeSyncRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
 pub struct CListPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
