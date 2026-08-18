@@ -12,7 +12,7 @@ use upac_macro::JsonCodec;
 use crate::database::error::{ConfigDigestResolveError, DeployRecordError, DeployRecordsError};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
-use crate::fs::atomic_write;
+use crate::fs::WrittenFile;
 use crate::layout::deployment::RECORD_FILENAME;
 
 #[derive(Debug, Clone, PartialEq, Eq, JsonCodec)]
@@ -43,11 +43,10 @@ impl DeployRecord {
         Self::from_json(&value)
     }
 
-    pub fn write(&self, deploy_dir: &Path) -> Result<(), DeployRecordError> {
+    pub fn write(&self, deploy_dir: &Path) -> Result<WrittenFile, DeployRecordError> {
         let content = serde_json::to_vec_pretty(&self.to_json())?;
-        atomic_write(&deploy_dir.join(RECORD_FILENAME), &content)?;
 
-        Ok(())
+        Ok(WrittenFile::write(&deploy_dir.join(RECORD_FILENAME), &content)?)
     }
 
     pub fn read_all(deploy: &Deploy) -> Result<Vec<DeployRecord>, DeployRecordsError> {
