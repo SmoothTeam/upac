@@ -72,6 +72,8 @@ up commit rollback <commit>  # reverts the system state to a specified commit
 
 up diff [--from-prefix <d>] [--to-prefix <d>] [--from-config <d>] [--to-config <d>]  # combined package + untracked-file diff across two commits
 
+up mime sync                 # regenerates desktop/mime-type integration (upac-mime.xml + .desktop MimeType=) from installed decoder manifests
+
 up gc                        # removes unreachable commits/deploys and reclaims storage
 ```
 
@@ -106,7 +108,7 @@ Adding support for a new package format means writing a new decoder `.so` — th
 
 ### CLI (`upac-cli`)
 
-A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate decoder at runtime. Subcommands are grouped under `pkg` (packages), `file` (standalone tracked files), and `commit` (deploy history/rollback), plus two top-level commands that don't belong to any single family: `gc` and `diff` (combined package + untracked-file diff).
+A command-line frontend written in Rust that dynamically loads `libupac.so` and the appropriate decoder at runtime. Subcommands are grouped under `pkg` (packages), `file` (standalone tracked files), `commit` (deploy history/rollback), and `mime` (desktop/mime-type integration), plus two top-level commands that don't belong to any single family: `gc` and `diff` (combined package + untracked-file diff).
 
 ## 🔧 Building
 

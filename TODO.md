@@ -8,7 +8,11 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   but there's no actual icon asset (SVG/PNG) yet, and no install step wiring it into
   `/usr/share/icons/hicolor/...`. Needs real artwork before packaging.
 
-- Work out a scheme for explicitly binding the mime type to the backend and updating the cli mime type dynamically.
+- Decoder manifests don't exist yet for the 4 Zig decoders (`decoders/{alpm,deb,rpm,xbps}/`) — no
+  `*.toml` manifest file, no install step, so `DecoderManifest`'s now-required `mime` field (see
+  upac-lib below) has nothing to read from a real distro decoder yet. `up mime sync` works
+  correctly against zero manifests (writes an empty-but-valid `upac-mime.xml`), so this isn't
+  blocking, just unexercised end-to-end.
 
 ## upac-lib
 
