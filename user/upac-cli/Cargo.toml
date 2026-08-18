@@ -4,9 +4,9 @@
 
 [package]
 name = "upac-cli"
+license = "GPL-3.0-only"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "Package manager for installing any type of package in Linux, as well as registering binary file rollbacks based on composefs, written in Rust"

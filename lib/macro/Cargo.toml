@@ -9,7 +9,7 @@ version.workspace = true
 edition.workspace = true
 repository.workspace = true
 authors.workspace = true
-license = "LGPL-3.0-or-later"
+license.workspace = true
 description = "Derive macros for C-ABI struct plumbing used internally by upac-lib and upac-abi"
 
 [lib]
