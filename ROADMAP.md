@@ -47,7 +47,14 @@ detail here — see `decoders/*/` and the README's Decoders section for the curr
 
 - **Separate library for initial disk layout** — partitioning/formatting a blank disk for a
   first-time install is a distinct concern from `upac-lib` (which manages an already-installed
-  system's deploys/packages) and needs its own crate, not bolted onto `upac-lib`.
+  system's deploys/packages) and needs its own crate, not bolted onto `upac-lib`. Same lib+CLI
+  split as `upac-lib`/`upac-cli`, but the install lib defaults to static linking (it runs once,
+  outside any already-deployed system, so there's no shared `.so` to dlopen against yet) — the CLI
+  driving it is otherwise a regular thin frontend, same shape as `upac-cli`. Deliberately not
+  started before the main mutated pipeline's `TransactionStage`/`CheckoutStage`/`SwapStage` bodies
+  are real — the installer needs the same "build tree → commit image → write boot entry →
+  one-shot select" logic those stages will implement, and building it first risks duplicating
+  work that'll need reworking once `Deploy`'s real write-side semantics land.
 - **Static linking tests** — verify the CLI/decoders/whatever else is meant to be statically
   linked actually builds and runs that way; not yet covered by any test in the workspace.
 - Scope beyond these two points not yet defined — expand this section as decisions get made.
