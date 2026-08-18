@@ -5,7 +5,7 @@ members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" ,
 [workspace.package]
 version = "0.1.5"
 edition = "2024"
-license = "GPL-3.0-only"
+license = "LGPL-3.0-or-later"
 repository = "https://github.com/SmoothTeam/upac"
 authors = ["justpav05 <aksenovpaveldmitrievich@gmail.com>"]
 
