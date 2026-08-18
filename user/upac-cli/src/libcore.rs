@@ -131,7 +131,7 @@ impl Lib {
     }
 
     /// Gates access to the mutating symbol table behind an effective-root check — call sites for
-    /// install/update/uninstall/commit/rollback/files/gc/mime_sync go through here instead of reading
+    /// install/update/uninstall/commit/rollback/files/gc/mime go through here instead of reading
     /// `self.rw` directly, so the check can't be forgotten at a new call site.
     pub fn require_write(&self) -> Result<&RwSymbols> {
         if !Uid::effective().is_root() {
