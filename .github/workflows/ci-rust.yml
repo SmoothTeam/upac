@@ -2,6 +2,7 @@ name: Rust CI
 on:
   push:
   pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
