@@ -62,15 +62,33 @@ signature_extension = "sig"
 # singular — one decoder never covers more than one format), the file
 # extensions/archive variants of that format it can actually open (extensions
 # = [...] — e.g. alpm packages ship as pkg.tar/pkg.tar.gz/pkg.tar.xz/etc, all
-# one format but several file variants), and the library to dlopen for it
-# (library = "..."). This is not the directory the decoder .so files
-# themselves live in — lib never scans or probes a .so directly, it resolves
-# the library name/path straight from the matching manifest's `library` field
-# on first use. manifest_extension (without the leading dot) names the
-# manifest file itself.
+# one format but several file variants), the library to dlopen for it
+# (library = "..."), and the mime type that format registers as (mime_type =
+# "...", also singular — this is what binds the decoder backend to desktop
+# integration, see `up mime sync` / [mime] below). This is not the directory
+# the decoder .so files themselves live in — lib never scans or probes a .so
+# directly, it resolves the library name/path straight from the matching
+# manifest's `library` field on first use. manifest_extension (without the
+# leading dot) names the manifest file itself.
 [decoders]
 decoders_dir = "/etc/upac.d/decoders"
 manifest_extension = "toml"
+
+# Paths `up mime sync` reads from/writes to when regenerating desktop
+# integration from the currently installed decoder manifests' mime_type
+# fields (see [decoders] above). mime_db_dir/applications_dir are the parent
+# directories update-mime-database/update-desktop-database themselves take as
+# their argument (they rebuild the whole cache under that directory, not just
+# one file); mime_xml_path/desktop_file_path are the specific files this
+# command writes. The *_bin names are looked up on $PATH; missing binaries are
+# a soft failure (see doc §7 mime module notes), not a hard error.
+[mime]
+mime_xml_path = "/usr/share/mime/packages/upac-mime.xml"
+mime_db_dir = "/usr/share/mime"
+desktop_file_path = "/usr/share/applications/io.github.smoothteam.upac.desktop"
+applications_dir = "/usr/share/applications"
+update_mime_database_bin = "update-mime-database"
+update_desktop_database_bin = "update-desktop-database"
 
 # Names of EFI variables used for one-shot/persistent boot selection (§5.2), plus the vendor GUID
 # for the systemd-boot loader interface variables (LoaderEntryOneShot/LoaderEntryDefault, per
