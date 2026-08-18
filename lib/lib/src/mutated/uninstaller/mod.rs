@@ -58,11 +58,14 @@ impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
 
 pub struct UninstallData<'a> {
     pub packages: Vec<UninstallPackage<'a>>,
+    #[expect(dead_code)]
     pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
 
+    #[expect(dead_code)]
     pub subject: &'a str,
+    #[expect(dead_code)]
     pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,

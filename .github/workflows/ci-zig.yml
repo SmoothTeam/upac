@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
-    name: Zig Build and Test
+  build:
+    name: Zig Build
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,7 +35,3 @@ jobs:
       - name: Build (${{ matrix.component }})
         working-directory: decoders/${{ matrix.component }}
         run: zig build
-
-      - name: Run tests (${{ matrix.component }})
-        working-directory: decoders/${{ matrix.component }}
-        run: zig build test

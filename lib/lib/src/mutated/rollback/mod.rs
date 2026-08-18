@@ -28,7 +28,9 @@ mod merge;
 mod swap;
 
 pub struct RollbackData<'a> {
+    #[expect(dead_code)]
     pub config_digest: &'a str,
+    #[expect(dead_code)]
     pub boot_kind: BootKind,
 
     pub tmp_path: &'a str,
