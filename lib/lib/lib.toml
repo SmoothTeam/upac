@@ -74,6 +74,20 @@ signature_extension = "sig"
 decoders_dir = "/etc/upac.d/decoders"
 manifest_extension = "toml"
 
+# Directory holding declarative boot-plugin manifests, same shape as
+# [decoders] above: small TOML files, one per plugin, naming the plugin
+# (name = "...") and the library to dlopen for it (library = "..."). A boot
+# plugin implements one-shot reboot selection (§5.2) for one specific
+# bootloader/firmware mechanism (UKI-direct, systemd-boot, grub, ...) —
+# resolved either by an explicit --boot <name> override, or, with none given,
+# by probing every installed plugin and using whichever one claims to manage
+# the current system's boot (a hard error if zero or more than one do).
+# manifest_extension (without the leading dot) names the manifest file
+# itself.
+[boot_plugins]
+boot_plugins_dir = "/etc/upac.d/boot-plugins"
+manifest_extension = "toml"
+
 # Paths `up mime sync` reads from/writes to when regenerating desktop
 # integration from the currently installed decoder manifests' mime fields
 # (see [decoders] above). mime_db_dir/applications_dir are the parent
