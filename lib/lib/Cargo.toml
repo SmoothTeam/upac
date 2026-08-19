@@ -29,14 +29,14 @@ toml       = { workspace = true }
 sha2       = { workspace = true }
 efivar     = { workspace = true }
 
-composefs-oci = { version = "0.7.0", features = ["composefs-boot", "boot", "tar"] }
+composefs-oci = { version = "0.9.0", features = ["composefs-boot", "boot", "tar"] }
 nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
-composefs     = { version = "0.7.0", features = ["tempfile"] }
+composefs     = { version = "0.9.0", features = ["tempfile"] }
 redb          = { version = "4.1.0", features = ["uuid"] }
 tokio         = { version = "1", features = ["rt"] }
 uuid          = { version = "1", features = ["v4"] }
 
-composefs-boot        = { version = "0.7.0" }
+composefs-boot        = { version = "0.9.0" }
 linux-kernel-cmdline  = "0.1.1"
 serde_json            = "1.0.151"
 twox-hash             = "2.1.3"
