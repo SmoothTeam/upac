@@ -20,6 +20,7 @@ use self::error::XtaskError;
 
 mod error;
 mod gen_tree;
+mod lint_style;
 
 fn main() -> ExitCode {
     match run() {
@@ -42,6 +43,7 @@ fn run() -> Result<ExitCode, XtaskError> {
 
             gen_tree::run(parsed)
         }
+        "lint-style" => lint_style::run(),
         other => Err(XtaskError::UnknownCommand(other.to_owned())),
     }
 }
