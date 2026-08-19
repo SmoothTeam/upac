@@ -5,15 +5,16 @@
 
 use upac_macro::CNew;
 
+use crate::error::ErrorKind;
 use crate::types::CSlice;
 
 pub type AbiVersionFn = unsafe extern "C" fn() -> u32;
 
 pub type ProbeFn = unsafe extern "C" fn() -> i32;
 
-pub type SetOneShotFn = unsafe extern "C" fn(request: *const CBootPluginRequest) -> i32;
+pub type SetOneShotFn = unsafe extern "C" fn(request: *const CBootPluginRequest, err_out: *mut ErrorKind) -> i32;
 
-pub type ConfirmBootFn = unsafe extern "C" fn(request: *const CBootPluginRequest) -> i32;
+pub type ConfirmBootFn = unsafe extern "C" fn(request: *const CBootPluginRequest, err_out: *mut ErrorKind) -> i32;
 
 pub trait Booter: Sized {
     type Error;

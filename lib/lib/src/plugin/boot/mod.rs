@@ -3,10 +3,13 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::mem::MaybeUninit;
+
 use libloading::Library;
 
 use upac_abi::BOOT_ABI_VERSION;
 use upac_abi::boot::{AbiVersionFn, CBootPluginRequest, ConfirmBootFn, ProbeFn, SetOneShotFn};
+use upac_abi::error::ErrorKind;
 use upac_abi::types::{CBorrowed, CSlice};
 
 use crate::plugin::boot::error::BootPluginError;
@@ -60,10 +63,11 @@ impl BootPlugin {
 
     pub fn set_one_shot(&self, entry_name: &str) -> Result<(), BootPluginError> {
         let request = CBootPluginRequest::new(CSlice::from_borrowed(entry_name.as_bytes()));
+        let mut error = MaybeUninit::<ErrorKind>::uninit();
 
-        let code = unsafe { (self.set_one_shot)(&request) };
+        let code = unsafe { (self.set_one_shot)(&request, error.as_mut_ptr()) };
         if code != 0 {
-            return Err(BootPluginError::Failed(code));
+            return Err(BootPluginError::Reported(unsafe { error.assume_init() }));
         }
 
         Ok(())
@@ -71,10 +75,11 @@ impl BootPlugin {
 
     pub fn confirm_boot(&self, entry_name: &str) -> Result<(), BootPluginError> {
         let request = CBootPluginRequest::new(CSlice::from_borrowed(entry_name.as_bytes()));
+        let mut error = MaybeUninit::<ErrorKind>::uninit();
 
-        let code = unsafe { (self.confirm_boot)(&request) };
+        let code = unsafe { (self.confirm_boot)(&request, error.as_mut_ptr()) };
         if code != 0 {
-            return Err(BootPluginError::Failed(code));
+            return Err(BootPluginError::Reported(unsafe { error.assume_init() }));
         }
 
         Ok(())
