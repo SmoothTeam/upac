@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -53,8 +54,10 @@ pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
     let mut any_stale = false;
     for path in targets {
         let original = fs::read_to_string(&path)?;
-        let updated = splice(&original, &tree_text)
-            .map_err(|error| XtaskError::Splice { path: path.clone(), source: Box::new(error) })?;
+        let updated = splice(&original, &tree_text).map_err(|error| XtaskError::Splice {
+            path: path.clone(),
+            source: Box::new(error),
+        })?;
 
         if original == updated {
             continue;
@@ -87,5 +90,8 @@ pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
 fn repo_root() -> Result<PathBuf, XtaskError> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    manifest_dir.parent().map(Path::to_path_buf).ok_or(XtaskError::RepoRootNotFound)
+    manifest_dir
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or(XtaskError::RepoRootNotFound)
 }
