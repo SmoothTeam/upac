@@ -5,12 +5,12 @@
 
 [package]
 name = "upac-lib"
+description = "Core library implementing upac's package management logic (composefs-based atomic deploys) and exposing it via a C ABI"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Core library implementing upac's package management logic (composefs-based atomic deploys) and exposing it via a C ABI"
 
 [lib]
 name = "upac"

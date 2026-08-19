@@ -4,12 +4,12 @@
 
 [package]
 name = "upac-cli"
-license = "GPL-3.0-only"
+description = "Package manager for installing any type of package in Linux, as well as registering binary file rollbacks based on composefs, written in Rust"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Package manager for installing any type of package in Linux, as well as registering binary file rollbacks based on composefs, written in Rust"
+license = "GPL-3.0-only"
 
 [[bin]]
 name = "up"
