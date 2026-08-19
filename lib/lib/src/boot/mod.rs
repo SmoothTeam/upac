@@ -16,13 +16,6 @@ use self::error::BootError;
 use crate::composefs::repository::ObjectID;
 
 pub mod error;
-pub mod reboot_on_bls;
-pub mod reboot_on_uki;
-
-pub trait OneShotReboot {
-    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), BootError>;
-    fn confirm_boot(&mut self, entry_name: &str) -> Result<(), BootError>;
-}
 
 pub fn write_boot_entry(
     repository: &Repository<ObjectID>, tree: &FileSystem<ObjectID>, digest: ObjectID, boot_partition: &Path,

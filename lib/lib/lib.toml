@@ -107,14 +107,6 @@ applications_dir = "/usr/share/applications"
 update_mime_database_bin = "update-mime-database"
 update_desktop_database_bin = "update-desktop-database"
 shared_mime_info_xmlns = "http://www.freedesktop.org/standards/shared-mime-info"
-
-# Names of EFI variables used for one-shot/persistent boot selection (§5.2), plus the vendor GUID
-# for the systemd-boot loader interface variables (LoaderEntryOneShot/LoaderEntryDefault, per
-# systemd's own BOOT_LOADER_INTERFACE.md). boot_next_var is a UEFI global-namespace variable, no
-# vendor GUID needed. None of this is our ABI — external protocol constants, kept here rather than
-# hardcoded so a spec revision doesn't need a rebuild-triggering source edit.
-[boot]
-sd_boot_loader_guid = "4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
 boot_next_var = "BootNext"
 loader_entry_one_shot_var = "LoaderEntryOneShot"
 loader_entry_default_var = "LoaderEntryDefault"
