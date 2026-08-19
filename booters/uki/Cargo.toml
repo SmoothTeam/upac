@@ -18,3 +18,6 @@ crate-type = ["cdylib", "rlib"]
 efivar = "2.0.0"
 upac-abi = { workspace = true }
 uuid = "1.24.1"
+
+[build-dependencies]
+toml = { workspace = true }
