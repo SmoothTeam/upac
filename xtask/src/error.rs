@@ -18,6 +18,8 @@ pub enum XtaskError {
     UnknownArgument(String),
     MissingDepthValue,
     InvalidDepth(String),
+    MissingArchValue,
+    InvalidArch(String),
     RepoRootNotFound,
     NoMarkedFiles(PathBuf),
     MissingStartMarker,
@@ -47,6 +49,14 @@ impl Display for XtaskError {
             XtaskError::UnknownArgument(argument) => write!(f, "unknown argument: {argument}"),
             XtaskError::MissingDepthValue => write!(f, "--depth needs an integer argument"),
             XtaskError::InvalidDepth(value) => write!(f, "--depth needs an integer argument, got {value:?}"),
+            XtaskError::MissingArchValue => write!(
+                f,
+                "--arch needs a value (one of x86-64-v1, x86-64-v2, x86-64-v3, x86-64-v4)"
+            ),
+            XtaskError::InvalidArch(value) => write!(
+                f,
+                "unknown --arch value {value:?} (expected one of x86-64-v1, x86-64-v2, x86-64-v3, x86-64-v4)"
+            ),
             XtaskError::RepoRootNotFound => write!(f, "xtask must live directly under the repo root"),
             XtaskError::NoMarkedFiles(root) => write!(
                 f,

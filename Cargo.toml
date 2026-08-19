@@ -35,3 +35,15 @@ lto = "fat"
 codegen-units = 1
 strip = true
 panic = "abort"
+
+[profile.release-x86-64-v1]
+inherits = "release"
+
+[profile.release-x86-64-v2]
+inherits = "release"
+
+[profile.release-x86-64-v3]
+inherits = "release"
+
+[profile.release-x86-64-v4]
+inherits = "release"

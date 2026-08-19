@@ -19,6 +19,7 @@ use std::process::ExitCode;
 
 use self::error::XtaskError;
 
+mod build;
 mod error;
 mod gen_tree;
 mod lint_style;
@@ -45,6 +46,12 @@ fn run() -> Result<ExitCode, XtaskError> {
             gen_tree::run(parsed)
         }
         "lint-style" => lint_style::run(),
+        "build" => {
+            let rest: Vec<String> = args.collect();
+            let parsed = build::Args::parse(&rest)?;
+
+            build::run(parsed)
+        }
         other => Err(XtaskError::UnknownCommand(other.to_owned())),
     }
 }
