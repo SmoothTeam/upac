@@ -15,6 +15,15 @@ pub type SetOneShotFn = unsafe extern "C" fn(request: *const CBootPluginRequest)
 
 pub type ConfirmBootFn = unsafe extern "C" fn(request: *const CBootPluginRequest) -> i32;
 
+pub trait Booter: Sized {
+    type Error;
+
+    fn new() -> Result<Self, Self::Error>;
+    fn probes() -> bool;
+    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), Self::Error>;
+    fn confirm_boot(&mut self, entry_name: &str) -> Result<(), Self::Error>;
+}
+
 #[repr(C)]
 #[derive(CNew)]
 pub struct CBootPluginRequest {
