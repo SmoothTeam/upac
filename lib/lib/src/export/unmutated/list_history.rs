@@ -15,6 +15,10 @@ use crate::unmutated::list_history::ListHistoryData;
 
 use upac_types::states::ListHistoryStateId;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `response_out` and `err_out`, if non-null, must each point to writable storage of the
+/// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_history(
     request_c: CListHistoryRequest, response_out: *mut CListHistoryResponse, err_out: *mut CError,

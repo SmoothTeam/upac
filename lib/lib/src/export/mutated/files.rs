@@ -13,6 +13,9 @@ use upac_types::states::FilesStateId;
 use crate::export::{try_convert_abi, write_error};
 use crate::mutated::files::FilesData;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn files(request_c: CFilesRequest, err_out: *mut CError) -> i32 {
     let files_data = try_convert_abi!(FilesData::try_from(&request_c), err_out, FilesStateId);

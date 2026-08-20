@@ -18,6 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 upac-abi = { workspace = true }
+upac-lib = { workspace = true, optional = true }
 
 gettext-rs = { workspace = true }
 libloading = { workspace = true }
@@ -35,3 +36,6 @@ nix   = { version = "0.31.3", features = ["user"] }
 indicatif = { version = "0.18.4" }
 chrono    = { version = "0.4" }
 hex       = { version = "0.4" }
+
+[features]
+static-link = ["dep:upac-lib"]

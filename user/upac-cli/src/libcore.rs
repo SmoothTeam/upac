@@ -6,8 +6,6 @@
 // ── Imports ─────────────────────────────────────────────────────────────────
 use anyhow::Result;
 
-use libloading::Library;
-
 use nix::unistd::Uid;
 
 use upac_abi::error::CError;
@@ -26,28 +24,92 @@ use upac_abi::response::{
 
 use crate::types::errors::{AbiMismatch, LibError};
 
-// ── Symbol loading ────────────────────────────────────────────────────────────
+#[cfg(not(feature = "static-link"))]
+use libloading::Library;
+
+#[cfg(feature = "static-link")]
+use upac::export::mutated::{
+    commit::commit, files::files, gc::gc, installer::install, mime::mime, rollback::rollback, uninstaller::uninstall,
+    update::update,
+};
+#[cfg(feature = "static-link")]
+use upac::export::unmutated::{
+    diff::diff, diff_config::diff_config, diff_packages::diff_packages, diff_prefix::diff_prefix,
+    list_config::list_config, list_history::list_history, list_packages::list_packages, list_prefix::list_prefix,
+    search_files::search_files, search_in_meta::search_in_meta, search_in_package_files::search_in_package_files,
+    search_meta::search_meta,
+};
+#[cfg(feature = "static-link")]
+use upac::export::{cancel, version_abi};
+
+// ── Static-link symbol construction ────────────────────────────────────────
+#[cfg(feature = "static-link")]
+impl RoSymbols {
+    fn from_static() -> Self {
+        Self {
+            list_packages,
+            search_meta,
+            diff_packages,
+            list_config,
+            list_history,
+            list_prefix,
+            diff_prefix,
+            search_files,
+            diff_config,
+            diff,
+            search_in_meta,
+            search_in_package_files,
+        }
+    }
+}
+
+#[cfg(feature = "static-link")]
+impl RwSymbols {
+    fn from_static() -> Self {
+        Self {
+            install,
+            update,
+            uninstall,
+            commit,
+            rollback,
+            files,
+            mime,
+            gc,
+        }
+    }
+}
+
+#[cfg(feature = "static-link")]
+impl Lib {
+    pub fn load() -> Result<Self> {
+        let lib = Self {
+            ro: RoSymbols::from_static(),
+            rw: RwSymbols::from_static(),
+            cancel,
+            version_abi,
+        };
+
+        let abi_version = unsafe { (lib.version_abi)() };
+        if abi_version != upac_abi::ABI_VERSION {
+            let err = AbiMismatch {
+                got: abi_version,
+                expected: upac_abi::ABI_VERSION,
+            };
+
+            return Err(err.into());
+        }
+
+        Ok(lib)
+    }
+}
+
+// ── Dynamic-link symbol loading ────────────────────────────────────────────
+#[cfg(not(feature = "static-link"))]
 pub trait LoadLibrarySymbols: Sized {
     fn load(lib: &Library) -> Result<Self>;
 }
 
-// ── Read-only symbols ─────────────────────────────────────────────────────────
-pub struct RoSymbols {
-    pub list_packages: unsafe extern "C" fn(CListPackagesRequest, *mut CListPackagesResponse, *mut CError) -> i32,
-    pub search_meta: unsafe extern "C" fn(CSearchMetaRequest, *mut CSearchMetaResponse, *mut CError) -> i32,
-    pub diff_packages: unsafe extern "C" fn(CDiffPackagesRequest, *mut CDiffPackagesResponse, *mut CError) -> i32,
-    pub list_config: unsafe extern "C" fn(CListConfigRequest, *mut CListConfigResponse, *mut CError) -> i32,
-    pub list_history: unsafe extern "C" fn(CListHistoryRequest, *mut CListHistoryResponse, *mut CError) -> i32,
-    pub list_prefix: unsafe extern "C" fn(CListPrefixRequest, *mut CListPrefixResponse, *mut CError) -> i32,
-    pub diff_prefix: unsafe extern "C" fn(CDiffPrefixRequest, *mut CDiffPrefixResponse, *mut CError) -> i32,
-    pub search_files: unsafe extern "C" fn(CSearchFilesRequest, *mut CSearchFilesResponse, *mut CError) -> i32,
-    pub diff_config: unsafe extern "C" fn(CDiffConfigRequest, *mut CDiffConfigResponse, *mut CError) -> i32,
-    pub diff: unsafe extern "C" fn(CDiffRequest, *mut CDiffResponse, *mut CError) -> i32,
-    pub search_in_meta: unsafe extern "C" fn(CSearchInMetaRequest, *mut CSearchInMetaResponse, *mut CError) -> i32,
-    pub search_in_package_files:
-        unsafe extern "C" fn(CSearchInPackageFilesRequest, *mut CSearchInPackageFilesResponse, *mut CError) -> i32,
-}
-
+#[cfg(not(feature = "static-link"))]
 impl LoadLibrarySymbols for RoSymbols {
     fn load(lib: &Library) -> Result<Self> {
         Ok(Self {
@@ -67,18 +129,7 @@ impl LoadLibrarySymbols for RoSymbols {
     }
 }
 
-// ── Mutating symbols ──────────────────────────────────────────────────────────
-pub struct RwSymbols {
-    pub install: unsafe extern "C" fn(CInstallRequest, *mut CError) -> i32,
-    pub update: unsafe extern "C" fn(CUpdateRequest, *mut CError) -> i32,
-    pub uninstall: unsafe extern "C" fn(CUninstallRequest, *mut CError) -> i32,
-    pub commit: unsafe extern "C" fn(CCommitRequest, *mut CError) -> i32,
-    pub rollback: unsafe extern "C" fn(CRollbackRequest, *mut CError) -> i32,
-    pub files: unsafe extern "C" fn(CFilesRequest, *mut CError) -> i32,
-    pub mime: unsafe extern "C" fn(CMimeSyncRequest, *mut CError) -> i32,
-    pub gc: unsafe extern "C" fn(CGcRequest, *mut CError) -> i32,
-}
-
+#[cfg(not(feature = "static-link"))]
 impl LoadLibrarySymbols for RwSymbols {
     fn load(lib: &Library) -> Result<Self> {
         Ok(Self {
@@ -94,16 +145,7 @@ impl LoadLibrarySymbols for RwSymbols {
     }
 }
 
-// ── Wrapper around libupac.so ────────────────────────────────────────────────
-pub struct Lib {
-    pub ro: RoSymbols,
-    pub rw: RwSymbols,
-
-    pub cancel: unsafe extern "C" fn(*mut CancelToken),
-    pub version_abi: unsafe extern "C" fn() -> u32,
-    _lib: Library,
-}
-
+#[cfg(not(feature = "static-link"))]
 impl Lib {
     pub fn load() -> Result<Self> {
         let loaded_library = unsafe { Library::new("libupac.so") }?;
@@ -131,17 +173,6 @@ impl Lib {
         Ok(lib)
     }
 
-    /// Gates access to the mutating symbol table behind an effective-root check — call sites for
-    /// install/update/uninstall/commit/rollback/files/gc/mime go through here instead of reading
-    /// `self.rw` directly, so the check can't be forgotten at a new call site.
-    pub fn require_write(&self) -> Result<&RwSymbols> {
-        if !Uid::effective().is_root() {
-            anyhow::bail!(gettextrs::gettext("err_requires_root"));
-        }
-
-        Ok(&self.rw)
-    }
-
     /// # Safety
     /// `T` must exactly match the signature of the C symbol `name` resolves to, and the returned value
     /// must not outlive `lib`.
@@ -151,6 +182,59 @@ impl Lib {
                 .map(|symbol| *symbol)
                 .map_err(|err| anyhow::anyhow!("Symbol {name} not found: {err}"))
         }
+    }
+}
+
+// ── Read-only symbols ─────────────────────────────────────────────────────────
+pub struct RoSymbols {
+    pub list_packages: unsafe extern "C" fn(CListPackagesRequest, *mut CListPackagesResponse, *mut CError) -> i32,
+    pub search_meta: unsafe extern "C" fn(CSearchMetaRequest, *mut CSearchMetaResponse, *mut CError) -> i32,
+    pub diff_packages: unsafe extern "C" fn(CDiffPackagesRequest, *mut CDiffPackagesResponse, *mut CError) -> i32,
+    pub list_config: unsafe extern "C" fn(CListConfigRequest, *mut CListConfigResponse, *mut CError) -> i32,
+    pub list_history: unsafe extern "C" fn(CListHistoryRequest, *mut CListHistoryResponse, *mut CError) -> i32,
+    pub list_prefix: unsafe extern "C" fn(CListPrefixRequest, *mut CListPrefixResponse, *mut CError) -> i32,
+    pub diff_prefix: unsafe extern "C" fn(CDiffPrefixRequest, *mut CDiffPrefixResponse, *mut CError) -> i32,
+    pub search_files: unsafe extern "C" fn(CSearchFilesRequest, *mut CSearchFilesResponse, *mut CError) -> i32,
+    pub diff_config: unsafe extern "C" fn(CDiffConfigRequest, *mut CDiffConfigResponse, *mut CError) -> i32,
+    pub diff: unsafe extern "C" fn(CDiffRequest, *mut CDiffResponse, *mut CError) -> i32,
+    pub search_in_meta: unsafe extern "C" fn(CSearchInMetaRequest, *mut CSearchInMetaResponse, *mut CError) -> i32,
+    pub search_in_package_files:
+        unsafe extern "C" fn(CSearchInPackageFilesRequest, *mut CSearchInPackageFilesResponse, *mut CError) -> i32,
+}
+
+// ── Mutating symbols ──────────────────────────────────────────────────────────
+pub struct RwSymbols {
+    pub install: unsafe extern "C" fn(CInstallRequest, *mut CError) -> i32,
+    pub update: unsafe extern "C" fn(CUpdateRequest, *mut CError) -> i32,
+    pub uninstall: unsafe extern "C" fn(CUninstallRequest, *mut CError) -> i32,
+    pub commit: unsafe extern "C" fn(CCommitRequest, *mut CError) -> i32,
+    pub rollback: unsafe extern "C" fn(CRollbackRequest, *mut CError) -> i32,
+    pub files: unsafe extern "C" fn(CFilesRequest, *mut CError) -> i32,
+    pub mime: unsafe extern "C" fn(CMimeSyncRequest, *mut CError) -> i32,
+    pub gc: unsafe extern "C" fn(CGcRequest, *mut CError) -> i32,
+}
+
+// ── Wrapper around either libupac.so or the statically linked upac-lib ──────
+pub struct Lib {
+    pub ro: RoSymbols,
+    pub rw: RwSymbols,
+
+    pub cancel: unsafe extern "C" fn(*mut CancelToken),
+    pub version_abi: unsafe extern "C" fn() -> u32,
+    #[cfg(not(feature = "static-link"))]
+    _lib: Library,
+}
+
+impl Lib {
+    /// Gates access to the mutating symbol table behind an effective-root check — call sites for
+    /// install/update/uninstall/commit/rollback/files/gc/mime go through here instead of reading
+    /// `self.rw` directly, so the check can't be forgotten at a new call site.
+    pub fn require_write(&self) -> Result<&RwSymbols> {
+        if !Uid::effective().is_root() {
+            anyhow::bail!(gettextrs::gettext("err_requires_root"));
+        }
+
+        Ok(&self.rw)
     }
 }
 

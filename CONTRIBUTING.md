@@ -110,6 +110,7 @@ For files where a comment header doesn't make sense (e.g. Markdown, TOML), add a
   then, after a blank line, single-line/bare-version entries. Internal `upac-*` crates get their
   own subgroup at the very top, ahead of everything else — even other `{ workspace = true }`
   entries.
+- Within any of those groups, non-optional entries come before `optional = true` ones.
 
 ### TOML configs and constants
 

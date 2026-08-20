@@ -15,6 +15,10 @@ use upac_types::states::DiffStateId;
 use crate::export::{try_convert_abi, write_error};
 use crate::unmutated::diff::DiffData;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `response_out` and `err_out`, if non-null, must each point to writable storage of the
+/// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn diff(request_c: CDiffRequest, response_out: *mut CDiffResponse, err_out: *mut CError) -> i32 {
     let diff_data = try_convert_abi!(DiffData::try_from(&request_c), err_out, DiffStateId);

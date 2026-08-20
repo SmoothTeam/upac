@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-mod export;
 mod mutated;
 mod search;
 mod unmutated;
@@ -13,6 +12,7 @@ pub mod composefs;
 pub mod database;
 pub mod deploy;
 pub mod errors;
+pub mod export;
 pub mod fs;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));

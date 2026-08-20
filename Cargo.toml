@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind"]
 
 [workspace.package]
@@ -19,6 +19,7 @@ upac-macro        = { path = "lib/macro" }
 upac-types        = { path = "lib/types" }
 upac-abi          = { path = "lib/abi" }
 upac-pki          = { path = "lib/pki" }
+upac-lib          = { path = "lib/lib" }
 upac-uki          = { path = "booters/uki" }
 upac-systemd-boot = { path = "booters/systemd-boot" }
 

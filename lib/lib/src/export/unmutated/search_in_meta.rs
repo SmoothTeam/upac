@@ -16,6 +16,10 @@ use crate::unmutated::search_in_meta::SearchInMetaData;
 
 use upac_types::states::SearchInMetaStateId;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `response_out` and `err_out`, if non-null, must each point to writable storage of the
+/// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn search_in_meta(
     request_c: CSearchInMetaRequest, response_out: *mut CSearchInMetaResponse, err_out: *mut CError,
