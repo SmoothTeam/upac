@@ -131,6 +131,14 @@ For files where a comment header doesn't make sense (e.g. Markdown, TOML), add a
 - In a file that exports `extern "C"` symbols: the exported `extern "C" fn`s go at the top of the
   file (right after imports and any `include!`-generated constants), other `pub fn`s next, private
   `fn`s last — the C-ABI surface is what a reader of that file needs to find first.
+- Within the `use` block: `pub use` (if any) first, then plain unconditional `use` (grouped
+  std/external/`crate::` as usual), then every `#[cfg(...)]`-gated `use` last, each as its own
+  block separated by blank lines — a reader should see what's always compiled before what's
+  conditional.
+- For every other item in the file (not `use`), the split is the other way round: right after the
+  `mod` declarations, every `#[cfg(...)]`-gated item (including `#[cfg(not(...))]` variants) comes
+  first, grouped together; the unconditional functions/structs/impls that follow the normal
+  top-level ordering above come after that.
 
 ### Macros
 
