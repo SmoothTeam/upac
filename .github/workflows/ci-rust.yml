@@ -35,6 +35,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Lint style
+        run: cargo xtask lint-style
+
       - name: Build
         run: cargo build --workspace
 
