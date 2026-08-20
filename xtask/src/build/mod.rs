@@ -6,26 +6,23 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
+use clap::{Args as ClapArgs, ValueEnum};
+
 use crate::error::XtaskError;
 
+#[derive(Clone, Copy, ValueEnum)]
 enum Arch {
+    #[value(name = "x86-64-v1")]
     X86_64V1,
+    #[value(name = "x86-64-v2")]
     X86_64V2,
+    #[value(name = "x86-64-v3")]
     X86_64V3,
+    #[value(name = "x86-64-v4")]
     X86_64V4,
 }
 
 impl Arch {
-    fn parse(value: &str) -> Result<Self, XtaskError> {
-        match value {
-            "x86-64-v1" => Ok(Arch::X86_64V1),
-            "x86-64-v2" => Ok(Arch::X86_64V2),
-            "x86-64-v3" => Ok(Arch::X86_64V3),
-            "x86-64-v4" => Ok(Arch::X86_64V4),
-            other => Err(XtaskError::InvalidArch(other.to_owned())),
-        }
-    }
-
     fn target_cpu(&self) -> &'static str {
         match self {
             Arch::X86_64V1 => "x86-64",
@@ -45,91 +42,70 @@ impl Arch {
     }
 }
 
+#[derive(Clone, Copy, ValueEnum)]
 enum LinkMode {
+    #[value(name = "dynamic")]
     Dynamic,
+    #[value(name = "lib-static")]
     LibStatic,
+    #[value(name = "full-static")]
     FullStatic,
 }
 
-impl LinkMode {
-    fn parse(value: &str) -> Result<Self, XtaskError> {
-        match value {
-            "dynamic" => Ok(LinkMode::Dynamic),
-            "lib-static" => Ok(LinkMode::LibStatic),
-            "full-static" => Ok(LinkMode::FullStatic),
-            other => Err(XtaskError::InvalidLinkMode(other.to_owned())),
-        }
-    }
-}
-
+#[derive(Clone, Copy, ValueEnum)]
 enum Component {
+    #[value(name = "uki")]
     Uki,
+    #[value(name = "systemd-boot")]
     SystemdBoot,
+    #[value(name = "grub")]
+    Grub,
 }
 
 impl Component {
-    fn parse(value: &str) -> Result<Self, XtaskError> {
-        match value {
-            "uki" => Ok(Component::Uki),
-            "systemd-boot" => Ok(Component::SystemdBoot),
-            other => Err(XtaskError::InvalidComponent(other.to_owned())),
-        }
-    }
-
     fn feature(&self) -> &'static str {
         match self {
             Component::Uki => "upac-lib/static-uki",
             Component::SystemdBoot => "upac-lib/static-systemd-boot",
+            Component::Grub => "upac-lib/static-grub",
+        }
+    }
+
+    fn package_name(&self) -> &'static str {
+        match self {
+            Component::Uki => "upac-uki",
+            Component::SystemdBoot => "upac-systemd-boot",
+            Component::Grub => "upac-grub",
         }
     }
 }
 
+#[derive(ClapArgs)]
 pub struct Args {
+    /// Target microarchitecture level to compile for
+    #[arg(long)]
     arch: Arch,
+    /// How to link upac-cli against upac-lib and its boot-plugin components
+    #[arg(long, default_value = "dynamic")]
     link: LinkMode,
+    /// Boot-plugin components to statically embed (requires --link lib-static or full-static)
+    #[arg(long, value_delimiter = ',')]
     components: Vec<Component>,
 }
 
 impl Args {
-    pub fn parse(raw: &[String]) -> Result<Self, XtaskError> {
-        let mut arch = None;
-        let mut link = LinkMode::Dynamic;
-        let mut components = Vec::new();
-
-        let mut iter = raw.iter();
-        while let Some(arg) = iter.next() {
-            match arg.as_str() {
-                "--arch" => {
-                    let value = iter.next().ok_or(XtaskError::MissingArchValue)?;
-                    arch = Some(Arch::parse(value)?);
-                }
-                "--link" => {
-                    let value = iter.next().ok_or(XtaskError::MissingLinkValue)?;
-                    link = LinkMode::parse(value)?;
-                }
-                "--components" => {
-                    let value = iter.next().ok_or(XtaskError::MissingLinkValue)?;
-                    for name in value.split(',') {
-                        components.push(Component::parse(name)?);
-                    }
-                }
-                other => return Err(XtaskError::UnknownArgument(other.to_owned())),
-            }
-        }
-
-        if !components.is_empty() && matches!(link, LinkMode::Dynamic) {
+    fn validate(&self) -> Result<(), XtaskError> {
+        if !self.components.is_empty() && matches!(self.link, LinkMode::Dynamic) {
             return Err(XtaskError::ComponentsRequireStaticLink);
         }
 
-        Ok(Self {
-            arch: arch.ok_or(XtaskError::MissingArchValue)?,
-            link,
-            components,
-        })
+        Ok(())
     }
 }
 
 pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
+    args.validate()?;
+
     let repo_root = repo_root()?;
 
     let mut command = Command::new("cargo");
@@ -148,8 +124,8 @@ pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
         if !features.is_empty() {
             command.args(["--features", &features.join(",")]);
         }
-        if !args.components.is_empty() {
-            command.args(["--exclude", "upac-uki", "--exclude", "upac-systemd-boot"]);
+        for component in &args.components {
+            command.args(["--exclude", component.package_name()]);
         }
     }
 

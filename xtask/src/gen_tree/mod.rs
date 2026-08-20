@@ -7,6 +7,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use clap::Args as ClapArgs;
+
 use self::splice::{find_marked_files, splice};
 use self::tree::TreeRenderer;
 
@@ -16,30 +18,14 @@ pub(crate) mod splice;
 mod tree;
 mod walk;
 
+#[derive(ClapArgs)]
 pub struct Args {
+    /// Don't write anything; exit non-zero if any tracked file would change
+    #[arg(long = "check")]
     pub check_only: bool,
+    /// How many directory levels deep to render
+    #[arg(long, default_value_t = 2)]
     pub depth: usize,
-}
-
-impl Args {
-    pub fn parse(raw: &[String]) -> Result<Self, XtaskError> {
-        let mut check_only = false;
-        let mut depth = 2;
-
-        let mut iter = raw.iter();
-        while let Some(arg) = iter.next() {
-            match arg.as_str() {
-                "--check" => check_only = true,
-                "--depth" => {
-                    let value = iter.next().ok_or(XtaskError::MissingDepthValue)?;
-                    depth = value.parse().map_err(|_| XtaskError::InvalidDepth(value.clone()))?;
-                }
-                other => return Err(XtaskError::UnknownArgument(other.to_owned())),
-            }
-        }
-
-        Ok(Self { check_only, depth })
-    }
 }
 
 pub fn run(args: Args) -> Result<ExitCode, XtaskError> {

@@ -22,20 +22,20 @@ pub(super) fn check(path: &Path, contents: &str) -> Vec<Violation> {
 
     let mut violations = Vec::new();
 
-    if let Some(first) = fields.first() {
-        if first.name != "name" {
-            violations.push(violation(path, first.line, "`name` must be the first field in [package]"));
-        }
+    if let Some(first) = fields.first()
+        && first.name != "name"
+    {
+        violations.push(violation(path, first.line, "`name` must be the first field in [package]"));
     }
 
-    if let Some(description) = fields.iter().find(|field| field.name == "description") {
-        if fields.get(1).map(|field| field.name.as_str()) != Some("description") {
-            violations.push(violation(
-                path,
-                description.line,
-                "`description` must come right after `name`, before the `.workspace = true` fields",
-            ));
-        }
+    if let Some(description) = fields.iter().find(|field| field.name == "description")
+        && fields.get(1).map(|field| field.name.as_str()) != Some("description")
+    {
+        violations.push(violation(
+            path,
+            description.line,
+            "`description` must come right after `name`, before the `.workspace = true` fields",
+        ));
     }
 
     let mut seen_non_workspace = false;
