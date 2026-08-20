@@ -20,3 +20,17 @@ boot_next_var = "BootNext"
 loader_info_var = "LoaderInfo"
 loader_entry_one_shot_var = "LoaderEntryOneShot"
 loader_entry_default_var = "LoaderEntryDefault"
+
+# grub has no EFI-variable-based one-shot mechanism — it's file-based (grubenv), driven through
+# grub's own grub-reboot/grub-set-default tools rather than a hand-rolled binary-format writer.
+# Both the grubenv location and the tool names differ across distro packaging: Debian/Ubuntu/Arch
+# ship grub-reboot/grub-set-default writing /boot/grub/grubenv, while Fedora/RHEL keep the
+# "grub-*" names reserved for legacy GRUB Legacy and ship grub2-reboot/grub2-set-default writing
+# /boot/grub2/grubenv instead. *_primary/*_fallback are tried in that order.
+[grub]
+grubenv_primary = "/boot/grub/grubenv"
+grubenv_fallback = "/boot/grub2/grubenv"
+reboot_bin_primary = "grub-reboot"
+reboot_bin_fallback = "grub2-reboot"
+set_default_bin_primary = "grub-set-default"
+set_default_bin_fallback = "grub2-set-default"

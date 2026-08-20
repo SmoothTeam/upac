@@ -17,6 +17,9 @@ use crate::plugin::boot::error::BootPluginError;
 #[cfg(not(feature = "static-boot-plugins"))]
 use crate::plugin::boot::manifest::load_boot_plugin_manifests;
 
+#[cfg(feature = "static-grub")]
+use upac_grub::{confirm_boot as grub_confirm_boot, probe as grub_probe, set_one_shot as grub_set_one_shot};
+
 #[cfg(feature = "static-systemd-boot")]
 use upac_systemd_boot::{
     confirm_boot as systemd_boot_confirm_boot, probe as systemd_boot_probe, set_one_shot as systemd_boot_set_one_shot,
@@ -111,6 +114,12 @@ fn static_plugins() -> Vec<(&'static str, BootPlugin)> {
     plugins.push((
         "systemd-boot",
         BootPlugin::from_static(systemd_boot_probe, systemd_boot_set_one_shot, systemd_boot_confirm_boot),
+    ));
+
+    #[cfg(feature = "static-grub")]
+    plugins.push((
+        "grub",
+        BootPlugin::from_static(grub_probe, grub_set_one_shot, grub_confirm_boot),
     ));
 
     plugins

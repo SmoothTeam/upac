@@ -50,9 +50,9 @@ jobs:
           - link: dynamic
             args: ""
           - link: lib-static
-            args: "--components uki,systemd-boot"
+            args: "--components uki,systemd-boot,grub"
           - link: full-static
-            args: "--components uki,systemd-boot"
+            args: "--components uki,systemd-boot,grub"
     steps:
       - uses: actions/checkout@v4
 

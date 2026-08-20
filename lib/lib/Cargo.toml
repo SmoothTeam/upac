@@ -23,6 +23,7 @@ upac-abi          = { workspace = true }
 upac-pki          = { workspace = true }
 upac-uki          = { path = "../../booters/uki", optional = true, default-features = false }
 upac-systemd-boot = { path = "../../booters/systemd-boot", optional = true, default-features = false }
+upac-grub         = { path = "../../booters/grub", optional = true, default-features = false }
 
 libloading = { workspace = true }
 anyhow     = { workspace = true }
@@ -55,3 +56,4 @@ toml = { workspace = true }
 static-boot-plugins = []
 static-uki          = ["dep:upac-uki", "static-boot-plugins"]
 static-systemd-boot = ["dep:upac-systemd-boot", "static-boot-plugins"]
+static-grub         = ["dep:upac-grub", "static-boot-plugins"]
