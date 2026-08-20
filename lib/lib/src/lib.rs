@@ -14,7 +14,9 @@ pub mod database;
 pub mod deploy;
 pub mod errors;
 pub mod fs;
-pub mod layout;
+pub mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
 pub mod lock;
 pub mod orchestrator;
 pub mod plugin;

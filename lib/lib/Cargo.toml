@@ -17,10 +17,12 @@ name = "upac"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-macro = { workspace = true }
-upac-types = { workspace = true }
-upac-abi   = { workspace = true }
-upac-pki   = { workspace = true }
+upac-macro        = { workspace = true }
+upac-types        = { workspace = true }
+upac-abi          = { workspace = true }
+upac-pki          = { workspace = true }
+upac-uki          = { workspace = true, optional = true }
+upac-systemd-boot = { workspace = true, optional = true }
 
 libloading = { workspace = true }
 anyhow     = { workspace = true }
@@ -48,3 +50,8 @@ hex                   = "0.4"
 
 [build-dependencies]
 toml = { workspace = true }
+
+[features]
+static-boot-plugins = []
+static-uki          = ["dep:upac-uki", "static-boot-plugins"]
+static-systemd-boot = ["dep:upac-systemd-boot", "static-boot-plugins"]
