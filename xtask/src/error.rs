@@ -20,6 +20,10 @@ pub enum XtaskError {
     InvalidDepth(String),
     MissingArchValue,
     InvalidArch(String),
+    MissingLinkValue,
+    InvalidLinkMode(String),
+    InvalidComponent(String),
+    ComponentsRequireStaticLink,
     RepoRootNotFound,
     NoMarkedFiles(PathBuf),
     MissingStartMarker,
@@ -57,6 +61,15 @@ impl Display for XtaskError {
                 f,
                 "unknown --arch value {value:?} (expected one of x86-64-v1, x86-64-v2, x86-64-v3, x86-64-v4)"
             ),
+            XtaskError::MissingLinkValue => write!(f, "--link needs a value (one of dynamic, static)"),
+            XtaskError::InvalidLinkMode(value) => {
+                write!(f, "unknown --link value {value:?} (expected one of dynamic, static)")
+            }
+            XtaskError::InvalidComponent(value) => write!(
+                f,
+                "unknown --components value {value:?} (expected one of uki, systemd-boot)"
+            ),
+            XtaskError::ComponentsRequireStaticLink => write!(f, "--components requires --link static"),
             XtaskError::RepoRootNotFound => write!(f, "xtask must live directly under the repo root"),
             XtaskError::NoMarkedFiles(root) => write!(
                 f,

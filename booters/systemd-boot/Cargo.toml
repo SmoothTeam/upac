@@ -22,3 +22,7 @@ uuid   = "1.24.1"
 
 [build-dependencies]
 toml = { workspace = true }
+
+[features]
+default = ["cdylib"]
+cdylib = []

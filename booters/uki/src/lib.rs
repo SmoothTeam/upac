@@ -20,14 +20,14 @@ include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
 /// # Safety
 /// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::boot::AbiVersionFn`.
-#[unsafe(no_mangle)]
+#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn abi_version() -> u32 {
     BOOT_ABI_VERSION
 }
 
 /// # Safety
 /// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::boot::ProbeFn`.
-#[unsafe(no_mangle)]
+#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn probe() -> i32 {
     i32::from(Uki::probes())
 }
@@ -35,7 +35,7 @@ pub unsafe extern "C" fn probe() -> i32 {
 /// # Safety
 /// `request`, if non-null, must point to a valid, initialized `CBootPluginRequest` for the
 /// duration of the call. `err_out`, if non-null, must point to writable `ErrorKind` storage.
-#[unsafe(no_mangle)]
+#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginRequest, err_out: *mut ErrorKind) -> i32 {
     if request.is_null() {
         write_error(err_out, UkiError::InvalidRequest);
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginRequest, err_ou
 /// # Safety
 /// `request`, if non-null, must point to a valid, initialized `CBootPluginRequest` for the
 /// duration of the call. `err_out`, if non-null, must point to writable `ErrorKind` storage.
-#[unsafe(no_mangle)]
+#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn confirm_boot(request: *const CBootPluginRequest, err_out: *mut ErrorKind) -> i32 {
     if request.is_null() {
         write_error(err_out, UkiError::InvalidRequest);

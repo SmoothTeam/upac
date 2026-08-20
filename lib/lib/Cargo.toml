@@ -21,8 +21,8 @@ upac-macro        = { workspace = true }
 upac-types        = { workspace = true }
 upac-abi          = { workspace = true }
 upac-pki          = { workspace = true }
-upac-uki          = { workspace = true, optional = true }
-upac-systemd-boot = { workspace = true, optional = true }
+upac-uki          = { path = "../../booters/uki", optional = true, default-features = false }
+upac-systemd-boot = { path = "../../booters/systemd-boot", optional = true, default-features = false }
 
 libloading = { workspace = true }
 anyhow     = { workspace = true }
