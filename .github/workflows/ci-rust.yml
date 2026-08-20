@@ -40,3 +40,27 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --lib --tests
+
+  link-modes:
+    name: Link modes
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - link: dynamic
+            args: ""
+          - link: lib-static
+            args: "--components uki,systemd-boot"
+          - link: full-static
+            args: "--components uki,systemd-boot"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libblkid-dev libmount-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build (${{ matrix.link }})
+        run: cargo xtask build --arch x86-64-v1 --link ${{ matrix.link }} ${{ matrix.args }}

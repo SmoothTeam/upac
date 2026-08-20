@@ -9,6 +9,15 @@ license = "LGPL-3.0-or-later"
 repository = "https://github.com/SmoothTeam/upac"
 authors = ["justpav05 <aksenovpaveldmitrievich@gmail.com>"]
 
+[workspace.lints.rust]
+explicit_outlives_requirements = "warn"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+cloned_instead_of_copied = "warn"
+dbg_macro = "warn"
+str_to_string = "warn"
+
 [workspace.dependencies]
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 clap       = { version = "4.6.1", features = ["derive"] }

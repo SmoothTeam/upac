@@ -47,14 +47,16 @@ impl Arch {
 
 enum LinkMode {
     Dynamic,
-    Static,
+    LibStatic,
+    FullStatic,
 }
 
 impl LinkMode {
     fn parse(value: &str) -> Result<Self, XtaskError> {
         match value {
             "dynamic" => Ok(LinkMode::Dynamic),
-            "static" => Ok(LinkMode::Static),
+            "lib-static" => Ok(LinkMode::LibStatic),
+            "full-static" => Ok(LinkMode::FullStatic),
             other => Err(XtaskError::InvalidLinkMode(other.to_owned())),
         }
     }
@@ -136,13 +138,19 @@ pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
         .args(["build", "--workspace", "--profile", args.arch.profile_name()])
         .env("RUSTFLAGS", format!("-C target-cpu={}", args.arch.target_cpu()));
 
-    if let LinkMode::Static = args.link {
-        let mut features = vec!["upac-cli/static-link".to_owned()];
+    if !matches!(args.link, LinkMode::Dynamic) {
+        let mut features = Vec::new();
+        if let LinkMode::FullStatic = args.link {
+            features.push("upac-cli/static-link".to_owned());
+        }
         features.extend(args.components.iter().map(|component| component.feature().to_owned()));
 
-        command
-            .args(["--features", &features.join(",")])
-            .args(["--exclude", "upac-uki", "--exclude", "upac-systemd-boot"]);
+        if !features.is_empty() {
+            command.args(["--features", &features.join(",")]);
+        }
+        if !args.components.is_empty() {
+            command.args(["--exclude", "upac-uki", "--exclude", "upac-systemd-boot"]);
+        }
     }
 
     let status = command.status()?;

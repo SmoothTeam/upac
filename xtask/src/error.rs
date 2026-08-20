@@ -61,15 +61,21 @@ impl Display for XtaskError {
                 f,
                 "unknown --arch value {value:?} (expected one of x86-64-v1, x86-64-v2, x86-64-v3, x86-64-v4)"
             ),
-            XtaskError::MissingLinkValue => write!(f, "--link needs a value (one of dynamic, static)"),
-            XtaskError::InvalidLinkMode(value) => {
-                write!(f, "unknown --link value {value:?} (expected one of dynamic, static)")
-            }
+            XtaskError::MissingLinkValue => write!(
+                f,
+                "--link needs a value (one of dynamic, lib-static, full-static)"
+            ),
+            XtaskError::InvalidLinkMode(value) => write!(
+                f,
+                "unknown --link value {value:?} (expected one of dynamic, lib-static, full-static)"
+            ),
             XtaskError::InvalidComponent(value) => write!(
                 f,
                 "unknown --components value {value:?} (expected one of uki, systemd-boot)"
             ),
-            XtaskError::ComponentsRequireStaticLink => write!(f, "--components requires --link static"),
+            XtaskError::ComponentsRequireStaticLink => {
+                write!(f, "--components requires --link lib-static or --link full-static")
+            }
             XtaskError::RepoRootNotFound => write!(f, "xtask must live directly under the repo root"),
             XtaskError::NoMarkedFiles(root) => write!(
                 f,
