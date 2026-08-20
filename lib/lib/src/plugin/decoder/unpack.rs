@@ -4,26 +4,37 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use std::collections::HashMap;
-use std::fs::{File, create_dir_all, remove_dir_all};
-use std::io::Read;
-use std::path::Path;
-
-use sha2::{Digest, Sha256};
 
 use upac_abi::hook::CancelToken;
 
 use upac_types::PackageTemp;
 
 use crate::layout::decoders;
-use crate::plugin::decoder::Decoder;
 use crate::plugin::decoder::error::DecoderError;
 use crate::plugin::decoder::manifest::{DecoderManifest, load_decoder_manifests};
 
+#[cfg(feature = "dynamic-plugins")]
+use std::fs::{File, create_dir_all, remove_dir_all};
+#[cfg(feature = "dynamic-plugins")]
+use std::io::Read;
+#[cfg(feature = "dynamic-plugins")]
+use std::path::Path;
+
+#[cfg(feature = "dynamic-plugins")]
+use sha2::{Digest, Sha256};
+
+#[cfg(feature = "dynamic-plugins")]
+use crate::plugin::decoder::Decoder;
+
 pub struct PackageUnpacker {
+    #[cfg(feature = "dynamic-plugins")]
     manifests: HashMap<String, DecoderManifest>,
+
+    #[cfg(feature = "dynamic-plugins")]
     decoders: HashMap<String, Decoder>,
 }
 
+#[cfg(feature = "dynamic-plugins")]
 impl PackageUnpacker {
     pub fn new() -> Result<Self, DecoderError> {
         let manifests = load_decoder_manifests(decoders::DECODERS_DIR, decoders::MANIFEST_EXTENSION)?;
@@ -68,7 +79,10 @@ impl PackageUnpacker {
         let output_dir = format!("{tmp_path}/pkg-{index}");
         create_dir_all(&output_dir)?;
 
-        let decoder = self.decoder_for(&format)?;
+        let decoder = self.decoder_for(&format).inspect_err(|_| {
+            let _ = remove_dir_all(&output_dir);
+        })?;
+
         let decoded = decoder
             .decode(package_path, &output_dir, checksum, cancel)
             .inspect_err(|_| {
@@ -108,6 +122,26 @@ impl PackageUnpacker {
     }
 }
 
+#[cfg(not(feature = "dynamic-plugins"))]
+impl PackageUnpacker {
+    /// Always fails: this build contains no decoder loading path.
+    pub fn new() -> Result<Self, DecoderError> {
+        let _ = (decoders::DECODERS_DIR, decoders::MANIFEST_EXTENSION);
+        let _: Option<fn(&str, &str) -> _> =
+            None::<fn(&str, &str) -> Result<HashMap<String, DecoderManifest>, DecoderError>>;
+        let _ = load_decoder_manifests;
+
+        Err(DecoderError::NoDecoders)
+    }
+
+    pub fn unpack_all(
+        &mut self, _package_paths: &[String], _tmp_path: &str, _cancel: &CancelToken,
+    ) -> Result<Vec<PackageTemp>, DecoderError> {
+        Err(DecoderError::NoDecoders)
+    }
+}
+
+#[cfg(feature = "dynamic-plugins")]
 fn checksum_of_file(path: &str) -> Result<[u8; 32], DecoderError> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();

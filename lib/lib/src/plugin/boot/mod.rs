@@ -5,45 +5,60 @@
 
 use std::mem::MaybeUninit;
 
-use libloading::Library;
-
-use upac_abi::BOOT_ABI_VERSION;
-use upac_abi::boot::{AbiVersionFn, CBootPluginRequest, ConfirmBootFn, ProbeFn, SetOneShotFn};
+use upac_abi::boot::{CBootPluginRequest, ConfirmBootFn, ProbeFn, SetOneShotFn};
 use upac_abi::error::ErrorKind;
 use upac_abi::types::{CBorrowed, CSlice};
 
 use crate::plugin::boot::error::BootPluginError;
 
-#[cfg(not(feature = "static-boot-plugins"))]
+#[cfg(feature = "dynamic-plugins")]
+use libloading::Library;
+
+#[cfg(feature = "dynamic-plugins")]
+use upac_abi::BOOT_ABI_VERSION;
+
+#[cfg(feature = "dynamic-plugins")]
+use upac_abi::boot::AbiVersionFn;
+
+#[cfg(feature = "dynamic-plugins")]
 use crate::plugin::boot::manifest::load_boot_plugin_manifests;
 
-#[cfg(feature = "static-grub")]
-use upac_grub::{confirm_boot as grub_confirm_boot, probe as grub_probe, set_one_shot as grub_set_one_shot};
+#[cfg(feature = "builtin-grub")]
+use upac_boot_grub::{confirm_boot as grub_confirm_boot, probe as grub_probe, set_one_shot as grub_set_one_shot};
 
-#[cfg(feature = "static-systemd-boot")]
-use upac_systemd_boot::{
+#[cfg(feature = "builtin-systemd-boot")]
+use upac_boot_systemd_boot::{
     confirm_boot as systemd_boot_confirm_boot, probe as systemd_boot_probe, set_one_shot as systemd_boot_set_one_shot,
 };
 
-#[cfg(feature = "static-uki")]
-use upac_uki::{confirm_boot as uki_confirm_boot, probe as uki_probe, set_one_shot as uki_set_one_shot};
+#[cfg(feature = "builtin-uki")]
+use upac_boot_uki::{confirm_boot as uki_confirm_boot, probe as uki_probe, set_one_shot as uki_set_one_shot};
 
 pub mod error;
+
+#[cfg(feature = "dynamic-plugins")]
 pub mod manifest;
 
-#[cfg(feature = "static-boot-plugins")]
+#[cfg(feature = "builtin-booters")]
 impl BootPlugin {
     fn from_static(probe: ProbeFn, set_one_shot: SetOneShotFn, confirm_boot: ConfirmBootFn) -> Self {
         BootPlugin {
             probe,
             set_one_shot,
             confirm_boot,
+
+            #[cfg(feature = "dynamic-plugins")]
             _library: None,
         }
     }
 }
 
-#[cfg(not(feature = "static-boot-plugins"))]
+/// Resolves a boot plugin by loading shared objects described by on-disk manifests.
+///
+/// Built with `dynamic-plugins`: plugins are discovered at runtime from
+/// `boot_plugins_dir`. Any plugin compiled in via `builtin-*` is still reachable
+/// through [`static_plugins`], but on-disk manifests take part in the same search.
+#[cfg(feature = "dynamic-plugins")]
 pub fn resolve_boot_plugin(
     boot_plugins_dir: &str, manifest_extension: &str, requested: Option<&str>,
 ) -> Result<BootPlugin, BootPluginError> {
@@ -76,47 +91,68 @@ pub fn resolve_boot_plugin(
     }
 }
 
-#[cfg(feature = "static-boot-plugins")]
+/// Resolves a boot plugin from the set compiled into this build.
+///
+/// Built without `dynamic-plugins`: this binary contains no code path that loads
+/// executable objects from disk. `boot_plugins_dir` and `manifest_extension` are
+/// accepted to keep the signature stable across build configurations, and ignored.
+///
+/// With no `builtin-*` feature enabled the candidate set is empty and every call
+/// returns [`BootPluginError::NoClaimant`].
+#[cfg(not(feature = "dynamic-plugins"))]
 pub fn resolve_boot_plugin(
     _boot_plugins_dir: &str, _manifest_extension: &str, requested: Option<&str>,
 ) -> Result<BootPlugin, BootPluginError> {
-    let plugins = static_plugins();
+    #[cfg(not(feature = "builtin-booters"))]
+    {
+        let _ = requested;
+        return Err(BootPluginError::NoClaimant);
+    }
 
-    match requested {
-        Some(name) => plugins
-            .into_iter()
-            .find(|(plugin_name, _)| *plugin_name == name)
-            .map(|(_, plugin)| plugin)
-            .ok_or_else(|| BootPluginError::UnknownName(name.to_owned())),
-        None => {
-            let mut claimants = plugins.into_iter().filter(|(_, plugin)| plugin.probes());
+    #[cfg(feature = "builtin-booters")]
+    {
+        let plugins = static_plugins();
 
-            match (claimants.next(), claimants.next()) {
-                (Some((_, plugin)), None) => Ok(plugin),
-                (None, _) => Err(BootPluginError::NoClaimant),
-                (Some(_), Some(_)) => Err(BootPluginError::AmbiguousClaim),
+        match requested {
+            Some(name) => plugins
+                .into_iter()
+                .find(|(plugin_name, _)| *plugin_name == name)
+                .map(|(_, plugin)| plugin)
+                .ok_or_else(|| BootPluginError::UnknownName(name.to_owned())),
+            None => {
+                let mut claimants = plugins.into_iter().filter(|(_, plugin)| plugin.probes());
+
+                match (claimants.next(), claimants.next()) {
+                    (Some((_, plugin)), None) => Ok(plugin),
+                    (None, _) => Err(BootPluginError::NoClaimant),
+                    (Some(_), Some(_)) => Err(BootPluginError::AmbiguousClaim),
+                }
             }
         }
     }
 }
 
-#[cfg(feature = "static-boot-plugins")]
+/// The boot plugins linked into this build, in probe order.
+///
+/// No ABI version check is performed here: these are compiled from the same source
+/// tree by the same compiler, so [`BOOT_ABI_VERSION`] matches by construction.
+#[cfg(feature = "builtin-booters")]
 fn static_plugins() -> Vec<(&'static str, BootPlugin)> {
     let mut plugins = Vec::new();
 
-    #[cfg(feature = "static-uki")]
+    #[cfg(feature = "builtin-uki")]
     plugins.push((
         "uki",
         BootPlugin::from_static(uki_probe, uki_set_one_shot, uki_confirm_boot),
     ));
 
-    #[cfg(feature = "static-systemd-boot")]
+    #[cfg(feature = "builtin-systemd-boot")]
     plugins.push((
         "systemd-boot",
         BootPlugin::from_static(systemd_boot_probe, systemd_boot_set_one_shot, systemd_boot_confirm_boot),
     ));
 
-    #[cfg(feature = "static-grub")]
+    #[cfg(feature = "builtin-grub")]
     plugins.push((
         "grub",
         BootPlugin::from_static(grub_probe, grub_set_one_shot, grub_confirm_boot),
@@ -125,6 +161,7 @@ fn static_plugins() -> Vec<(&'static str, BootPlugin)> {
     plugins
 }
 
+#[cfg(feature = "dynamic-plugins")]
 unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, BootPluginError> {
     unsafe { library.get::<T>(name.as_bytes()) }
         .map(|symbol| *symbol)
@@ -136,9 +173,11 @@ pub struct BootPlugin {
     set_one_shot: SetOneShotFn,
     confirm_boot: ConfirmBootFn,
 
+    #[cfg(feature = "dynamic-plugins")]
     _library: Option<Library>,
 }
 
+#[cfg(feature = "dynamic-plugins")]
 impl BootPlugin {
     pub fn load(library_name: &str) -> Result<Self, BootPluginError> {
         let library = unsafe { Library::new(library_name) }.map_err(|_| BootPluginError::Load)?;
@@ -163,7 +202,9 @@ impl BootPlugin {
             _library: Some(library),
         })
     }
+}
 
+impl BootPlugin {
     pub fn probes(&self) -> bool {
         unsafe { (self.probe)() == 1 }
     }

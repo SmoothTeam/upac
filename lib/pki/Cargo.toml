@@ -9,8 +9,10 @@ description = "Ed25519/X.509 signing and verification for upac hook files"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
-authors.workspace = true
 license.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 rcgen = { version = "0.14.8", features = ["x509-parser", "pem"] }

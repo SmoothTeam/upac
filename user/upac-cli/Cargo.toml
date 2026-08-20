@@ -9,19 +9,21 @@ description = "Package manager for installing any type of package in Linux, as w
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
-authors.workspace = true
 license = "GPL-3.0-only"
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "up"
 path = "src/main.rs"
 
 [dependencies]
-upac-abi = { workspace = true }
 upac-lib = { workspace = true, optional = true }
+upac-abi = { workspace = true }
 
+libloading = { workspace = true, optional = true }
 gettext-rs = { workspace = true }
-libloading = { workspace = true }
 colored    = { workspace = true }
 anyhow     = { workspace = true }
 serde      = { workspace = true }
@@ -38,4 +40,12 @@ chrono    = { version = "0.4" }
 hex       = { version = "0.4" }
 
 [features]
-static-link = ["dep:upac-lib"]
+default = ["dynamic-plugins"]
+
+dynamic-plugins = ["dep:libloading", "upac-lib?/dynamic-plugins"]
+static-link     = ["dep:upac-lib"]
+
+builtin-uki          = ["static-link", "upac-lib/builtin-uki"]
+builtin-systemd-boot = ["static-link", "upac-lib/builtin-systemd-boot"]
+builtin-grub         = ["static-link", "upac-lib/builtin-grub"]
+builtin-all          = ["static-link", "upac-lib/builtin-all"]

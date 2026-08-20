@@ -23,6 +23,7 @@ pub enum DecoderError {
     DuplicateFormat(String),
     UnknownFormat(String),
     InvalidMimeType,
+    NoDecoders,
 }
 
 impl From<ErrorKind> for DecoderError {
@@ -62,6 +63,7 @@ impl From<DecoderError> for ErrorKind {
             DecoderError::DuplicateFormat(_) => ErrorKind::InvalidEntry,
             DecoderError::UnknownFormat(_) => ErrorKind::NotFound,
             DecoderError::InvalidMimeType => ErrorKind::InvalidEntry,
+            DecoderError::NoDecoders => ErrorKind::NotFound,
         }
     }
 }
