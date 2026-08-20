@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -16,6 +16,7 @@ use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::swap::SwapStage;
 
+use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
@@ -27,8 +28,10 @@ mod error;
 mod merge;
 mod swap;
 
+pub(crate) struct RequestedConfigDigest(pub String);
+pub(crate) struct TargetPrefixDigest(#[expect(dead_code)] pub String);
+
 pub struct RollbackData<'a> {
-    #[expect(dead_code)]
     pub config_digest: &'a str,
     #[expect(dead_code)]
     pub boot_kind: BootKind,
@@ -64,7 +67,12 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
 }
 
 pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
+    let deploy =
+        Deploy::new(DeployMode::ReadOnly).map_err(|error| (RollbackStateId::Setup, RollbackError::from(error)))?;
+
     let mut context = Context::new();
+    context.put(deploy);
+    context.put(RequestedConfigDigest(data.config_digest.to_owned()));
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 

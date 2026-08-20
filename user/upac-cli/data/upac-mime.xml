@@ -1,31 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- SPDX-FileCopyrightText: 2026 JustPav -->
+<!-- SPDX-FileCopyrightText: 2026 SmoothTeam -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!--
+  Deliberately empty. upac itself ships no decoders — mime associations only
+  exist for formats a decoder is actually installed for. This file is
+  overwritten in place by `up mime sync`, which regenerates it from the
+  currently installed decoder manifests (/etc/upac.d/decoders/*.toml).
+-->
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-  <mime-type type="application/x-alpm-package">
-    <comment>Arch Linux package</comment>
-    <sub-class-of type="application/x-compressed-tar"/>
-    <glob pattern="*.pkg.tar.zst"/>
-    <glob pattern="*.pkg.tar.xz"/>
-    <glob pattern="*.pkg.tar.gz"/>
-  </mime-type>
-  <mime-type type="application/x-xbps-package">
-    <comment>Void Linux package</comment>
-    <glob pattern="*.xbps"/>
-  </mime-type>
-  <!--
-    application/x-rpm and application/vnd.debian.binary-package are already registered by
-    freedesktop.org.xml on virtually every distro; redefined here too as a fallback so upac's
-    .desktop association still works on a minimal system without the full shared-mime-info
-    database installed. shared-mime-info merges definitions of the same type across packages,
-    so this doesn't conflict with the system ones.
-  -->
-  <mime-type type="application/x-rpm">
-    <comment>RPM package</comment>
-    <glob pattern="*.rpm"/>
-  </mime-type>
-  <mime-type type="application/vnd.debian.binary-package">
-    <comment>Debian package</comment>
-    <glob pattern="*.deb"/>
-  </mime-type>
 </mime-info>

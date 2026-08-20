@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -11,11 +11,16 @@ use upac_abi::response::CUnmutatedResponse;
 pub mod mutated;
 pub mod unmutated;
 
+/// # Safety
+/// Touches no pointers — `unsafe extern "C"` only to match the ABI calling convention.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn version_abi() -> u32 {
     ABI_VERSION
 }
 
+/// # Safety
+/// `token`, if non-null, must point to a valid, initialized `CancelToken` for the duration of the
+/// call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cancel(token: *mut CancelToken) {
     if token.is_null() {
@@ -24,6 +29,9 @@ pub unsafe extern "C" fn cancel(token: *mut CancelToken) {
     unsafe { (*token).cancel() };
 }
 
+/// # Safety
+/// `response`, if non-null, must point to a valid `CUnmutatedResponse` produced by this library
+/// that has not already been freed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn free_response(response: *mut CUnmutatedResponse) {
     if response.is_null() {

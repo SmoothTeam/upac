@@ -101,6 +101,93 @@ For files where a comment header doesn't make sense (e.g. Markdown, TOML), add a
   directory listing; nesting would only add import/path churn without a real benefit at the
   current command count.
 
+### Cargo.toml conventions
+
+- `[package]`: `name` is always the very first field. `description` (when the crate has one)
+  goes right after `name`, not down with the rest of the block — then every `.workspace = true`
+  field, then any crate-specific field (license override, etc.).
+- `[dependencies]`: bracketed entries with multiple keys first, ordered by descending key count;
+  then, after a blank line, single-line/bare-version entries. Internal `upac-*` crates get their
+  own subgroup at the very top, ahead of everything else — even other `{ workspace = true }`
+  entries.
+- Within any of those groups, non-optional entries come before `optional = true` ones.
+
+### TOML configs and constants
+
+- Flat `key = value` TOML configs (`rustfmt.toml` and similar — not `Cargo.toml`): bool fields,
+  then string fields, then number fields, each group separated by a blank line.
+- No `const X: &Type = value;` for a fixed value (a path, a protocol string, a GUID, ...) directly
+  in a `.rs` file — ever. It goes in a `.toml` file (`lib.toml`, or a crate-local equivalent like
+  `booter.toml`) with a comment explaining what the value is and why it's fixed, read in via a
+  `build.rs` codegen step. The only thing allowed to live as a literal in Rust source is a genuine
+  cross-language C-ABI contract expressed as a real type (an enum discriminant, a `#[repr(C)]`
+  field) — never a bare string/scalar constant standing in for one.
+
+### File and item ordering
+
+- Top-level ordering inside a Rust file: `use` → `macro_rules!` blocks → type aliases (simple ones
+  first, then function-pointer types, with a blank line between each fn-pointer type) → enums →
+  (`trait` → `struct` → `impl`), repeating the trait/struct/impl group per logical unit in the
+  file.
+- In a file that exports `extern "C"` symbols: the exported `extern "C" fn`s go at the top of the
+  file (right after imports and any `include!`-generated constants), other `pub fn`s next, private
+  `fn`s last — the C-ABI surface is what a reader of that file needs to find first.
+- Within the `use` block: `pub use` (if any) first, then plain unconditional `use` (grouped
+  std/external/`crate::` as usual), then every `#[cfg(...)]`-gated `use` last, each as its own
+  block separated by blank lines — a reader should see what's always compiled before what's
+  conditional.
+- For every other item in the file (not `use`), the split is the other way round: right after the
+  `mod` declarations, every `#[cfg(...)]`-gated item (including `#[cfg(not(...))]` variants) comes
+  first, grouped together; the unconditional functions/structs/impls that follow the normal
+  top-level ordering above come after that.
+
+### Macros
+
+- `macro_rules!` only for a concrete, present need — never a macro whose only job is calling other
+  macros, and never one written for uniformity that only holds while the code it abstracts over is
+  still unfinished (`todo!()`).
+- Each `macro_rules!` block is immediately followed by its own visibility line (e.g.
+  `pub(crate) use macro_name;`) — don't write the macro, move on, and group all the visibility
+  lines together separately later.
+
+### Naming
+
+- Dispatcher-style functions (e.g. `field_path_validate`): the verb always goes last, with
+  modifiers (`path`, `ptr`, ...) before it.
+
+### Types over free functions
+
+- Prefer methods/associated consts on a type over free functions/module-level consts whenever
+  there's a natural owning type for them — e.g. `Uki::probes()`/`Self::BOOT_NEXT_VAR`, not a bare
+  `probes()`/`BOOT_NEXT_VAR` floating in the module. Free functions are still fine when there's
+  genuinely no owning type (a generic FFI-symbol-loading helper shared across unrelated callers).
+- Prefer a newtype + `impl Display` over a free `format_x(&T) -> String` function or a raw unsafe
+  accessor; reuse an existing safe `TryFrom` impl instead of calling the unsafe conversion
+  directly.
+- When moving a type into its own crate breaks a foreign-trait impl (orphan rule), wrap it in a
+  `#[repr(transparent)]` newtype and cast via `from_ref()` — don't clone to route around it.
+
+### Extracting helpers
+
+- Ask before extracting a one-off call into its own function — don't do it silently. A helper
+  earns its existence only once it does real work for 2+ call sites; a thin pass-through gets
+  duplicated instead of extracted.
+
+### Re-exports
+
+- Never `pub use self::module::Item` at a crate or module root — always reach a type through its
+  full module path.
+
+### Cross-crate constants
+
+- When two or more otherwise-independent crates need the exact same constant, share the *data* —
+  one `.toml` file each crate's own `build.rs` reads independently — rather than introducing a
+  compiled shared crate as a dependency between them. Keeps the crates independent while still
+  giving the value a single source of truth.
+- A `lib.toml`-style `build.rs` + TOML pair only earns a dedicated `layout` module wrapper when
+  there's more than one section to namespace; for a single-section config, plain
+  `include!(concat!(env!("OUT_DIR"), "/layout.rs"))` at the crate root is simpler.
+
 ## Tests
 
 - Anything with a real `pub` surface gets a `tests/` integration test file in that crate.

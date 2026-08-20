@@ -1,5 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 JustPav
+SPDX-FileCopyrightText: 2026 SmoothTeam
 
 SPDX-License-Identifier: CC-BY-SA-4.0
 -->

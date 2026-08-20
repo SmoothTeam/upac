@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -15,6 +15,10 @@ use crate::unmutated::search_files::SearchFilesData;
 
 use upac_types::states::SearchFilesStateId;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `response_out` and `err_out`, if non-null, must each point to writable storage of the
+/// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn search_files(
     request_c: CSearchFilesRequest, response_out: *mut CSearchFilesResponse, err_out: *mut CError,

@@ -9,14 +9,6 @@ release/
 Cargo.lock
 .rustc_info.json
 
-# Package building
-build
-
-# Builded packages
-pkg/
-ostree/
-libarchive/
-
 Agents
 AGENTS.md
 .claude

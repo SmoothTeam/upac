@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -9,7 +9,7 @@ use std::path::Path;
 
 use composefs::erofs::reader::erofs_to_filesystem;
 use composefs::erofs::writer::{ValidatedFileSystem, mkfs_erofs};
-use composefs::fsverity::Sha256HashValue;
+use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
 use composefs::repository::Repository;
 use composefs::tree::FileSystem;
 
@@ -37,4 +37,8 @@ pub fn commit_tree(repository: &Repository<ObjectID>, tree: FileSystem<ObjectID>
     let data = mkfs_erofs(&validated);
 
     Ok(repository.write_image(None, &data)?)
+}
+
+pub fn object_id_from_hex(hex: &str) -> Result<ObjectID, RepoError> {
+    Ok(ObjectID::from_hex(hex.as_bytes())?)
 }

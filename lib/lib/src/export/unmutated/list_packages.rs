@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -16,6 +16,10 @@ use crate::unmutated::list_packages::ListPackagesData;
 
 use upac_types::states::ListPackagesStateId;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `response_out` and `err_out`, if non-null, must each point to writable storage of the
+/// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_packages(
     request_c: CListPackagesRequest, response_out: *mut CListPackagesResponse, err_out: *mut CError,

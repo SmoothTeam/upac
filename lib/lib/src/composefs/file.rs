@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -167,7 +167,10 @@ impl FileHandle {
 
         match regular {
             RegularFile::Inline(content) => Ok(content.to_vec()),
-            RegularFile::External(object_id, _size) => Ok(repository.read_object(object_id)?),
+            RegularFile::External(object_id, _size) | RegularFile::ExternalNoVerity(object_id, _size) => {
+                Ok(repository.read_object(object_id)?)
+            }
+            RegularFile::Sparse(size) => Ok(vec![0u8; *size as usize]),
         }
     }
 

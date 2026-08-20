@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
 #
 # SPDX-License-Identifier: GPL-3.0-only
 
@@ -7,6 +8,7 @@ name: REUSE
 on:
   push:
   pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}

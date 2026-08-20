@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -9,6 +9,8 @@ use anyhow::Error as AnyhowError;
 
 use composefs::generic_tree::ImageError;
 use composefs::repository::RepositoryOpenError;
+
+use hex::FromHexError;
 
 use upac_abi::error::ErrorKind;
 
@@ -22,11 +24,18 @@ pub enum RepoError {
     NotFound,
     AccessDenied,
     InvalidPath,
+    InvalidDigest,
     NotADirectory,
     IsADirectory,
     NotRegularFile,
     NotASymlink,
     Unexpected,
+}
+
+impl From<FromHexError> for RepoError {
+    fn from(_: FromHexError) -> Self {
+        RepoError::InvalidDigest
+    }
 }
 
 impl From<IoError> for RepoError {
@@ -83,7 +92,7 @@ impl From<RepoError> for ErrorKind {
             }
             RepoError::NotFound => ErrorKind::NotFound,
             RepoError::AccessDenied => ErrorKind::PermissionDenied,
-            RepoError::InvalidPath => ErrorKind::InvalidPath,
+            RepoError::InvalidPath | RepoError::InvalidDigest => ErrorKind::InvalidPath,
             RepoError::NotADirectory | RepoError::IsADirectory | RepoError::NotRegularFile | RepoError::NotASymlink => {
                 ErrorKind::InvalidEntry
             }

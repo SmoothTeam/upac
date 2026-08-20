@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -12,6 +12,7 @@ use crate::composefs::error::RepoError;
 use crate::database::error::{DatabaseError, DeployRecordError};
 use crate::deploy::error::SysrootError;
 use crate::lock::LockError;
+use crate::plugin::boot::error::BootPluginError;
 use crate::plugin::decoder::error::DecoderError;
 use crate::scripts::error::HookError;
 
@@ -149,6 +150,7 @@ pub enum CommonError {
     Lock(LockError),
     DeployRecord(DeployRecordError),
     Boot(BootError),
+    BootPlugin(BootPluginError),
 }
 
 impl From<CommonError> for ErrorKind {
@@ -170,6 +172,7 @@ impl From<CommonError> for ErrorKind {
             CommonError::Lock(lock_error) => lock_error.into(),
             CommonError::DeployRecord(deploy_record_error) => deploy_record_error.into(),
             CommonError::Boot(boot_error) => boot_error.into(),
+            CommonError::BootPlugin(boot_plugin_error) => boot_plugin_error.into(),
         }
     }
 }
@@ -183,6 +186,12 @@ impl From<HookError> for CommonError {
 impl From<DecoderError> for CommonError {
     fn from(error: DecoderError) -> Self {
         CommonError::Decoder(error)
+    }
+}
+
+impl From<BootPluginError> for CommonError {
+    fn from(error: BootPluginError) -> Self {
+        CommonError::BootPlugin(error)
     }
 }
 

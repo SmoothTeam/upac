@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use self::error::ErrorKind;
 
+pub mod boot;
 pub mod decoder;
 pub mod error;
 pub mod hook;
@@ -15,6 +16,7 @@ pub mod response;
 pub mod types;
 
 pub const ABI_VERSION: u32 = 2;
+pub const BOOT_ABI_VERSION: u32 = 1;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

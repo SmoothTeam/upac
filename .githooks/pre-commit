@@ -3,8 +3,12 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+staged_rs_files="$(git diff --cached --name-only --diff-filter=ACMR -- '*.rs')"
+
 cargo fmt --all
 
-git diff --name-only --diff-filter=ACMR -- '*.rs' | while IFS= read -r file; do
-    git add -- "$file"
-done
+if [ -n "$staged_rs_files" ]; then
+    echo "$staged_rs_files" | while IFS= read -r file; do
+        git add -- "$file"
+    done
+fi

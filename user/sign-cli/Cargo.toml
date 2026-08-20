@@ -1,15 +1,16 @@
 # SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
 #
 # SPDX-License-Identifier: GPL-3.0-only
 
 [package]
 name = "upac-sign-cli"
-license = "GPL-3.0-only"
+description = "CLI tool for signing upac hook files (and other artifacts) with Ed25519 certificates"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "CLI tool for signing upac hook files (and other artifacts) with Ed25519 certificates"
+license = "GPL-3.0-only"
 
 [[bin]]
 name = "up-si"

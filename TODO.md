@@ -8,11 +8,17 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   but there's no actual icon asset (SVG/PNG) yet, and no install step wiring it into
   `/usr/share/icons/hicolor/...`. Needs real artwork before packaging.
 
-- Decoder manifests don't exist yet for the 4 Zig decoders (`decoders/{alpm,deb,rpm,xbps}/`) — no
-  `*.toml` manifest file, no install step, so `DecoderManifest`'s now-required `mime` field (see
-  upac-lib below) has nothing to read from a real distro decoder yet. `up mime sync` works
-  correctly against zero manifests (writes an empty-but-valid `upac-mime.xml`), so this isn't
-  blocking, just unexercised end-to-end.
+- Decoder manifest TOML files now exist for all 4 Zig decoders
+  (`decoders/{alpm,deb,rpm,xbps}/upac-*.toml`), but there's still no packaging pipeline
+  (PKGBUILD/spec/etc) or `build.zig` install step to actually copy them to
+  `/etc/upac.d/decoders/` — they're canonical source only, unexercised end-to-end until packaging
+  exists. mime types for alpm/xbps (`application/x-alpm-package`/`application/x-xbps-package`) are
+  unofficial vendor-prefixed — shared-mime-info has no registered type for either format, only for
+  deb/rpm. `user/upac-cli/data/{upac-mime.xml,*.desktop}` were deliberately emptied of the mime
+  types they used to hardcode: upac itself ships no decoders, so the shipped bootstrap files claim
+  no format support out of the box — `up mime sync` is what populates them, meant to run once
+  decoders are actually installed (e.g. from a decoder package's postinstall hook, not written
+  yet).
 
 ## upac-lib
 

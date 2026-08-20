@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+# Declarative decoder manifest (doc §5.8/§6). Not installed by `zig build` —
+# there is no packaging pipeline (PKGBUILD/spec/etc) in this repo yet; this
+# file is the canonical source a future package build copies to
+# /etc/upac.d/decoders/upac-alpm.toml.
+format = "alpm"
+extensions = ["pkg.tar", "pkg.tar.gz", "pkg.tar.xz", "pkg.tar.zst"]
+library = "/usr/lib/upac/decoders/libupac-alpm.so"
+
+# No mime type for alpm packages is registered in shared-mime-info (verified
+# against freedesktop.org.xml) — this is the same unofficial vendor-prefixed
+# convention used elsewhere for formats without a registered type.
+mime = "application/x-alpm-package"

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -15,6 +15,10 @@ use crate::unmutated::list_config::ListConfigData;
 
 use upac_types::states::ListConfigStateId;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `response_out` and `err_out`, if non-null, must each point to writable storage of the
+/// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_config(
     request_c: CListConfigRequest, response_out: *mut CListConfigResponse, err_out: *mut CError,

@@ -30,7 +30,7 @@ It covers the disk layout, the deploy/rollback model, the `/etc` merge, GC, the 
 
 ## 📖 Design
 
-Full architecture and design decisions live in the project design notes:
+Full architecture and design decisions are in the project design notes:
 
 For english (canonical):
 1. [`Introduction and definitions`](<doc/eng/Upac chapter 0.md>);

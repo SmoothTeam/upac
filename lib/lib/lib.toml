@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 JustPav
-# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -74,6 +74,20 @@ signature_extension = "sig"
 decoders_dir = "/etc/upac.d/decoders"
 manifest_extension = "toml"
 
+# Directory holding declarative boot-plugin manifests, same shape as
+# [decoders] above: small TOML files, one per plugin, naming the plugin
+# (name = "...") and the library to dlopen for it (library = "..."). A boot
+# plugin implements one-shot reboot selection (§5.2) for one specific
+# bootloader/firmware mechanism (UKI-direct, systemd-boot, grub, ...) —
+# resolved either by an explicit --boot <name> override, or, with none given,
+# by probing every installed plugin and using whichever one claims to manage
+# the current system's boot (a hard error if zero or more than one do).
+# manifest_extension (without the leading dot) names the manifest file
+# itself.
+[boot_plugins]
+boot_plugins_dir = "/etc/upac.d/boot-plugins"
+manifest_extension = "toml"
+
 # Paths `up mime sync` reads from/writes to when regenerating desktop
 # integration from the currently installed decoder manifests' mime fields
 # (see [decoders] above). mime_db_dir/applications_dir are the parent
@@ -93,14 +107,6 @@ applications_dir = "/usr/share/applications"
 update_mime_database_bin = "update-mime-database"
 update_desktop_database_bin = "update-desktop-database"
 shared_mime_info_xmlns = "http://www.freedesktop.org/standards/shared-mime-info"
-
-# Names of EFI variables used for one-shot/persistent boot selection (§5.2), plus the vendor GUID
-# for the systemd-boot loader interface variables (LoaderEntryOneShot/LoaderEntryDefault, per
-# systemd's own BOOT_LOADER_INTERFACE.md). boot_next_var is a UEFI global-namespace variable, no
-# vendor GUID needed. None of this is our ABI — external protocol constants, kept here rather than
-# hardcoded so a spec revision doesn't need a rebuild-triggering source edit.
-[boot]
-sd_boot_loader_guid = "4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
 boot_next_var = "BootNext"
 loader_entry_one_shot_var = "LoaderEntryOneShot"
 loader_entry_default_var = "LoaderEntryDefault"

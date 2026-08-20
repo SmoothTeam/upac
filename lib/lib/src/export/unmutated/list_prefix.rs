@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 JustPav
-// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -15,6 +15,10 @@ use crate::unmutated::list_prefix::ListPrefixData;
 
 use upac_types::states::ListPrefixStateId;
 
+/// # Safety
+/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
+/// call. `response_out` and `err_out`, if non-null, must each point to writable storage of the
+/// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn list_prefix(
     request_c: CListPrefixRequest, response_out: *mut CListPrefixResponse, err_out: *mut CError,

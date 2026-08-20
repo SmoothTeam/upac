@@ -1,10 +1,13 @@
 // SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+use clap::Args as ClapArgs;
 
 use self::splice::{find_marked_files, splice};
 use self::tree::TreeRenderer;
@@ -15,30 +18,14 @@ pub(crate) mod splice;
 mod tree;
 mod walk;
 
+#[derive(ClapArgs)]
 pub struct Args {
+    /// Don't write anything; exit non-zero if any tracked file would change
+    #[arg(long = "check")]
     pub check_only: bool,
+    /// How many directory levels deep to render
+    #[arg(long, default_value_t = 2)]
     pub depth: usize,
-}
-
-impl Args {
-    pub fn parse(raw: &[String]) -> Result<Self, XtaskError> {
-        let mut check_only = false;
-        let mut depth = 2;
-
-        let mut iter = raw.iter();
-        while let Some(arg) = iter.next() {
-            match arg.as_str() {
-                "--check" => check_only = true,
-                "--depth" => {
-                    let value = iter.next().ok_or(XtaskError::MissingDepthValue)?;
-                    depth = value.parse().map_err(|_| XtaskError::InvalidDepth(value.clone()))?;
-                }
-                other => return Err(XtaskError::UnknownArgument(other.to_owned())),
-            }
-        }
-
-        Ok(Self { check_only, depth })
-    }
 }
 
 pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
@@ -53,8 +40,10 @@ pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
     let mut any_stale = false;
     for path in targets {
         let original = fs::read_to_string(&path)?;
-        let updated = splice(&original, &tree_text)
-            .map_err(|error| XtaskError::Splice { path: path.clone(), source: Box::new(error) })?;
+        let updated = splice(&original, &tree_text).map_err(|error| XtaskError::Splice {
+            path: path.clone(),
+            source: Box::new(error),
+        })?;
 
         if original == updated {
             continue;
@@ -87,5 +76,8 @@ pub fn run(args: Args) -> Result<ExitCode, XtaskError> {
 fn repo_root() -> Result<PathBuf, XtaskError> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    manifest_dir.parent().map(Path::to_path_buf).ok_or(XtaskError::RepoRootNotFound)
+    manifest_dir
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or(XtaskError::RepoRootNotFound)
 }

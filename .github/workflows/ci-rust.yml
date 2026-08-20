@@ -2,6 +2,7 @@ name: Rust CI
 on:
   push:
   pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
@@ -34,8 +35,35 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Lint style
+        run: cargo xtask lint-style
+
       - name: Build
         run: cargo build --workspace
 
       - name: Test
         run: cargo test --workspace --lib --tests
+
+  link-modes:
+    name: Link modes
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - link: dynamic
+            args: ""
+          - link: lib-static
+            args: "--components uki,systemd-boot,grub"
+          - link: full-static
+            args: "--components uki,systemd-boot,grub"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libblkid-dev libmount-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build (${{ matrix.link }})
+        run: cargo xtask build --arch x86-64-v1 --link ${{ matrix.link }} ${{ matrix.args }}

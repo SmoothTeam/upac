@@ -1,6 +1,6 @@
 [workspace]
-resolver = "2"
-members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types"]
+resolver = "3"
+members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind"]
 
 [workspace.package]
 version = "0.1.5"
@@ -9,16 +9,26 @@ license = "LGPL-3.0-or-later"
 repository = "https://github.com/SmoothTeam/upac"
 authors = ["justpav05 <aksenovpaveldmitrievich@gmail.com>"]
 
+[workspace.lints.rust]
+explicit_outlives_requirements = "warn"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+cloned_instead_of_copied = "warn"
+dbg_macro = "warn"
+str_to_string = "warn"
+
 [workspace.dependencies]
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 clap       = { version = "4.6.1", features = ["derive"] }
 serde      = { version = "1", features = ["derive"] }
 syn        = { version = "2", features = ["full"] }
 
-upac-macro = { path = "lib/macro" }
-upac-types = { path = "lib/types" }
-upac-abi   = { path = "lib/abi" }
-upac-pki   = { path = "lib/pki" }
+upac-macro        = { path = "lib/macro" }
+upac-types        = { path = "lib/types" }
+upac-abi          = { path = "lib/abi" }
+upac-pki          = { path = "lib/pki" }
+upac-lib          = { path = "lib/lib" }
 
 colored     = "3.1.1"
 libloading  = "0.9"
@@ -27,6 +37,7 @@ toml        = "1.1.2"
 sha2        = "0.11"
 anyhow      = "1"
 quote       = "1"
+efivar      = "2.0.0"
 
 [profile.release]
 opt-level = 3
@@ -34,3 +45,15 @@ lto = "fat"
 codegen-units = 1
 strip = true
 panic = "abort"
+
+[profile.release-x86-64-v1]
+inherits = "release"
+
+[profile.release-x86-64-v2]
+inherits = "release"
+
+[profile.release-x86-64-v3]
+inherits = "release"
+
+[profile.release-x86-64-v4]
+inherits = "release"
