@@ -6,7 +6,7 @@ General information: [![Version](https://img.shields.io/badge/version-0.1.5-gree
 
 Licensing: [![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-light_green.svg)](LICENSES/LGPL-3.0-or-later.txt) [![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-light_green.svg)](LICENSES/GPL-3.0-only.txt) [![documentation: CC-BY-SA-4.0](https://img.shields.io/badge/documentation-CC--BY--SA--4.0-light_green.svg)](LICENSES/CC-BY-SA-4.0.txt)
 
-A modular package management library for Linux systems with composefs-based atomic deploys.
+A modular package management for Linux systems with composefs-based atomic deploys.
 
 > **⚠️ Active development is on [`lib-rs`](https://github.com/SmoothTeam/upac/tree/lib-rs).**
 > That branch is a from-scratch rewrite of upac's core library in Rust, built around
