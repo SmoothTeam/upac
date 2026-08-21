@@ -74,9 +74,10 @@ up commit list               # lists config-commits for the current deploy (roll
 up commit prefixes           # lists deploy-level (prefix) commits
 up commit history            # lists deploy-level commits with their nested config-commits, marking the active one
 up commit diff [<from>] [<to>]  # diffs tracked files between two config-commits
-up commit rollback <commit>  # reverts the system state to a specified commit
 
 up diff [--from-prefix <d>] [--to-prefix <d>] [--from-config <d>] [--to-config <d>]  # combined package + untracked-file diff across two commits
+
+up rollback <commit>         # reverts the system state to a specified commit — not just commit state, can also target an earlier /usr prefix
 
 up mime sync                 # regenerates desktop/mime-type integration (upac-mime.xml + .desktop MimeType=) from installed decoder manifests
 
@@ -129,6 +130,37 @@ A command-line frontend written in Rust that dynamically loads `libupac.so` and 
 ```sh
 cargo build --workspace
 ```
+
+### Static linking
+
+By default `up` dlopens `libupac.so` at startup, and `upac-lib` in turn dlopens boot-plugin
+`.so`s (`booters/{uki,systemd-boot,grub}`) described by on-disk manifests — this is the
+`dynamic-plugins` feature, on by default on both `upac-cli` and `upac-lib`.
+
+Each crate also has a `static-link`/`builtin-*` axis for producing self-contained binaries with
+no dlopen at all:
+
+```sh
+# libupac.so with uki+systemd-boot+grub compiled in, `up` still dlopens it
+cargo build --workspace --no-default-features --features upac-cli/dynamic-plugins,upac-lib/builtin-all
+
+# one self-contained `up` binary, no dlopen anywhere
+cargo build --workspace --no-default-features --features upac-cli/builtin-all
+```
+
+`dynamic-plugins` and `static-link` are mutually exclusive within a crate (both active means two
+conflicting `impl` definitions, a compile error) — Cargo can't express that as a hard constraint,
+so verify the whole feature graph with [`cargo-hack`](https://github.com/taiki-e/cargo-hack)
+(`cargo install cargo-hack`) instead of guessing combinations by hand:
+
+```sh
+cargo hack build -p upac-cli -p upac-lib --feature-powerset \
+    --mutually-exclusive-features dynamic-plugins,static-link \
+    --at-least-one-of dynamic-plugins,static-link
+```
+
+Decoder static linking (the Zig side) isn't implemented yet — `builtin-decoders` exists as a
+placeholder feature on `upac-lib` only.
 
 ### Build a decoder
 

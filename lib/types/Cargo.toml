@@ -9,8 +9,10 @@ description = "Rust-native domain types shared between upac-lib and its direct R
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
-authors.workspace = true
 license.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 upac-macro = { workspace = true }

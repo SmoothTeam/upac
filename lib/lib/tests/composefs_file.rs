@@ -155,7 +155,7 @@ fn list_in_tree_enumerates_children() {
         .map(|(name, _)| name.to_string_lossy().into_owned())
         .collect();
 
-    assert_eq!(names, vec!["a".to_string(), "b".to_string()]);
+    assert_eq!(names, vec!["a".to_owned(), "b".to_owned()]);
 }
 
 #[test]

@@ -35,6 +35,7 @@ mod commands {
     pub mod gc;
     pub mod mime;
     pub mod package;
+    pub mod rollback;
 }
 
 static mut CANCEL_TOKEN: CancelToken = CancelToken::new();
@@ -53,6 +54,7 @@ enum Command {
     Gc(commands::gc::Args),
     Diff(commands::diff::Args),
     Mime(commands::mime::MimeArgs),
+    Rollback(commands::rollback::Args),
 }
 
 // ── Entry points ───────────────────────────────────────────────────────────────
@@ -88,6 +90,7 @@ fn run() -> Result<()> {
         Command::Gc(args) => commands::gc::run(args, command_context)?,
         Command::Diff(args) => commands::diff::run(args, command_context)?,
         Command::Mime(args) => commands::mime::run(args, command_context)?,
+        Command::Rollback(args) => commands::rollback::run(args, command_context)?,
     }
 
     Ok(())

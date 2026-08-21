@@ -9,7 +9,6 @@ use clap::{Parser, Subcommand};
 
 use self::error::XtaskError;
 
-mod build;
 mod error;
 mod gen_tree;
 mod lint_style;
@@ -27,8 +26,6 @@ enum Command {
     GenTree(gen_tree::Args),
     /// Check mechanical style-rule violations across the repo
     LintStyle,
-    /// Build the workspace for a given microarchitecture + link mode
-    Build(build::Args),
 }
 
 fn main() -> ExitCode {
@@ -47,6 +44,5 @@ fn dispatch(command: Command) -> Result<ExitCode, XtaskError> {
     match command {
         Command::GenTree(args) => gen_tree::run(args),
         Command::LintStyle => lint_style::run(),
-        Command::Build(args) => build::run(args),
     }
 }

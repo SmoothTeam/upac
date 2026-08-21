@@ -17,7 +17,7 @@ tested. What remains:
   bookkeeping) is done (`PackageUnpacker` in `lib/lib/src/plugin/decoder/unpack.rs`), wired into
   both install's and update's `PreparationStage`.
 
-## 2. upac-cli ABI resync (in progress)
+## 2. upac-cli ABI resync (done)
 
 `upac-cli` was rewritten from the old OSTree-era hand-rolled FFI layer to a thin dlopen frontend
 driving `upac-abi`'s C-ABI types directly, with zero business logic of its own (decoding, path
@@ -25,9 +25,10 @@ resolution, etc. all live in `upac-lib`). Status:
 
 - Foundation (`libcore.rs`'s `Lib`/`RoSymbols`/`RwSymbols` split, `require_write()` root gate,
   `types/abi.rs` request-building helpers) is done.
-- Read-only commands (`pkg list/search/diff`) and most mutating commands (`pkg install/update/
-  remove`, `commit new/rollback`) are implemented against the current ABI.
-- `commit list`, `file remove/diff/search` still need work — see `TODO.md`.
+- Full command surface is implemented against the current ABI: all read-only commands (`pkg
+  list/search/diff`, `commit list`) and all mutating commands (`pkg install/update/remove`,
+  `commit new/rollback`, `file add/remove/diff/search`, `gc`, `mime sync`) have real bodies, no
+  `todo!()` stubs left in `upac-cli`.
 - `#[derive(CNew)]` (in `upac-macro`) replaced manual `struct_size: size_of::<...>()` boilerplate
   across every C-ABI struct construction site in both `upac-lib` and `upac-cli`.
 
@@ -55,6 +56,7 @@ detail here — see `decoders/*/` and the README's Decoders section for the curr
   are real — the installer needs the same "build tree → commit image → write boot entry →
   one-shot select" logic those stages will implement, and building it first risks duplicating
   work that'll need reworking once `Deploy`'s real write-side semantics land.
-- **Static linking tests** — verify the CLI/decoders/whatever else is meant to be statically
-  linked actually builds and runs that way; not yet covered by any test in the workspace.
-- Scope beyond these two points not yet defined — expand this section as decisions get made.
+- **Static linking of the Zig decoders** — separate mechanism from the Rust boot plugins' Cargo
+  feature approach (see `TODO.md`); no equivalent exists on the Zig side yet, needs its own
+  design pass.
+- Scope beyond these points not yet defined — expand this section as decisions get made.

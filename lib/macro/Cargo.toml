@@ -9,8 +9,10 @@ description = "Derive macros for C-ABI struct plumbing used internally by upac-l
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
-authors.workspace = true
 license.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 proc-macro = true

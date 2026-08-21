@@ -8,10 +8,13 @@ name = "upac-systemd-boot"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
-authors.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [lib]
+name = "upac_boot_systemd_boot"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

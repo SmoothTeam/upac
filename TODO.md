@@ -25,8 +25,13 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 - The entire mutated-command pipeline body (composefs mount/merge/checkout/swap) is still
   `todo!()` across every mutating command — see `ROADMAP.md`. Some write-side building blocks now
   exist ahead of the stage bodies themselves: `FileHandle::import_directory`/
-  `composefs::repository::commit_tree` (composefs image write side), `boot::write_boot_entry` +
-  `boot::OneShotReboot`/`Uki`/`Bls` (ESP entry + one-shot NVRAM selection), and an explicit
-  `boot_kind: BootKind` field threaded through the C-ABI/CLI (`--boot auto|uki|bls`) — none of it
-  consumed yet, since `CheckoutStage`/`SwapStage`/`PrepareBoot`/`BootOption` are still `todo!()`.
+  `composefs::repository::commit_tree` (composefs image write side), `boot::write_boot_entry`
+  (ESP entry write, boot-kind-agnostic), and a full boot-plugin subsystem for one-shot NVRAM/
+  bootloader-config selection (`upac_abi::boot::Booter` trait + C-ABI contract,
+  `plugin::boot::resolve_boot_plugin` loader/resolver, three working plugin crates under
+  `booters/`: `uki`, `systemd-boot`, `grub` — `refind` still a stub, deferred pending research
+  into whether it has any real one-shot mechanism at all). None of this is consumed by a stage
+  body yet, since `CheckoutStage`/`SwapStage`/`PrepareBoot`/`BootOption` are still `todo!()`.
   `config_merge` (§5.1, 3-way `/etc` merge) has no code and no bricks yet — next big piece.
+- Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature
+  approach) — not started, see `ROADMAP.md` §1.
