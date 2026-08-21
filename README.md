@@ -74,9 +74,10 @@ up commit list               # lists config-commits for the current deploy (roll
 up commit prefixes           # lists deploy-level (prefix) commits
 up commit history            # lists deploy-level commits with their nested config-commits, marking the active one
 up commit diff [<from>] [<to>]  # diffs tracked files between two config-commits
-up commit rollback <commit>  # reverts the system state to a specified commit
 
 up diff [--from-prefix <d>] [--to-prefix <d>] [--from-config <d>] [--to-config <d>]  # combined package + untracked-file diff across two commits
+
+up rollback <commit>         # reverts the system state to a specified commit — not just commit state, can also target an earlier /usr prefix
 
 up mime sync                 # regenerates desktop/mime-type integration (upac-mime.xml + .desktop MimeType=) from installed decoder manifests
 

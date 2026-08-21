@@ -15,7 +15,6 @@ pub mod history;
 pub mod list;
 pub mod new;
 pub mod prefixes;
-pub mod rollback;
 
 // ── Args ─────────────────────────────────────────────────────────────────────
 #[derive(Args)]
@@ -32,7 +31,6 @@ pub enum CommitCommand {
     List(list::Args),
     New(new::Args),
     Prefixes(prefixes::Args),
-    Rollback(rollback::Args),
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -43,6 +41,5 @@ pub fn run(args: CommitArgs, context: CommandContext) -> Result<()> {
         CommitCommand::List(args) => list::run(args, context),
         CommitCommand::New(args) => new::run(args, context),
         CommitCommand::Prefixes(args) => prefixes::run(args, context),
-        CommitCommand::Rollback(args) => rollback::run(args, context),
     }
 }
