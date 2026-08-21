@@ -134,7 +134,7 @@ cargo build --workspace
 ### Static linking
 
 By default `up` dlopens `libupac.so` at startup, and `upac-lib` in turn dlopens boot-plugin
-`.so`s (`booters/{uki,systemd-boot,grub}`) described by on-disk manifests — this is the
+`.so`s (`booters/{uki,systemd-boot,grub,refind}`) described by on-disk manifests — this is the
 `dynamic-plugins` feature, on by default on both `upac-cli` and `upac-lib`.
 
 Each crate also has a `static-link`/`builtin-*` axis for producing self-contained binaries with

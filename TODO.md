@@ -28,9 +28,8 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   `composefs::repository::commit_tree` (composefs image write side), `boot::write_boot_entry`
   (ESP entry write, boot-kind-agnostic), and a full boot-plugin subsystem for one-shot NVRAM/
   bootloader-config selection (`upac_abi::boot::Booter` trait + C-ABI contract,
-  `plugin::boot::resolve_boot_plugin` loader/resolver, three working plugin crates under
-  `booters/`: `uki`, `systemd-boot`, `grub` — `refind` still a stub, deferred pending research
-  into whether it has any real one-shot mechanism at all). None of this is consumed by a stage
+  `plugin::boot::resolve_boot_plugin` loader/resolver, four working plugin crates under
+  `booters/`: `uki`, `systemd-boot`, `grub`, `refind`). None of this is consumed by a stage
   body yet, since `CheckoutStage`/`SwapStage`/`PrepareBoot`/`BootOption` are still `todo!()`.
   `config_merge` (§5.1, 3-way `/etc` merge) has no code and no bricks yet — next big piece.
 - Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature

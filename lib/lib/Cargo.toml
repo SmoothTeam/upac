@@ -26,6 +26,7 @@ upac-pki          = { workspace = true }
 upac-uki          = { path = "../../booters/uki", optional = true, default-features = false }
 upac-systemd-boot = { path = "../../booters/systemd-boot", optional = true, default-features = false }
 upac-grub         = { path = "../../booters/grub", optional = true, default-features = false }
+upac-refind       = { path = "../../booters/refind", optional = true, default-features = false }
 
 libloading = { workspace = true, optional = true }
 anyhow     = { workspace = true }
@@ -65,7 +66,8 @@ builtin-decoders = []
 builtin-uki          = ["dep:upac-uki", "builtin-booters"]
 builtin-systemd-boot = ["dep:upac-systemd-boot", "builtin-booters"]
 builtin-grub         = ["dep:upac-grub", "builtin-booters"]
+builtin-refind       = ["dep:upac-refind", "builtin-booters"]
 
 builtin-all = [
-    "builtin-uki", "builtin-systemd-boot", "builtin-grub",
+    "builtin-uki", "builtin-systemd-boot", "builtin-grub", "builtin-refind",
 ]

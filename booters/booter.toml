@@ -34,3 +34,13 @@ reboot_bin_primary = "grub-reboot"
 reboot_bin_fallback = "grub2-reboot"
 set_default_bin_primary = "grub-set-default"
 set_default_bin_fallback = "grub2-set-default"
+
+# rEFInd has no separate one-shot/persistent pair of variables like systemd-boot's
+# LoaderEntryOneShot/LoaderEntryDefault — it has exactly one, PreviousBoot, which it writes itself
+# just before launching any OS and reads back as the default on its next launch. Selecting an
+# entry through PreviousBoot only takes effect if refind.conf's `default_selection` starts with
+# `+` ("remember last boot"); that's a user/deployment-side rEFInd config choice this plugin has
+# no way to inspect or control. GUID/name per rEFInd's own documented EFI variable, not guessed.
+[refind]
+previous_boot_var = "PreviousBoot"
+previous_boot_guid = "36d08fa7-cf0b-42f5-8f14-68df73ed3740"
