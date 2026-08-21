@@ -111,7 +111,7 @@ fn load_decoder_manifests_collects_distinct_formats() {
 
     assert_eq!(manifests.len(), 2);
     assert_eq!(manifests["deb"].library, "libupac-deb.so");
-    assert_eq!(manifests["rpm"].extensions, vec!["rpm".to_string()]);
+    assert_eq!(manifests["rpm"].extensions, vec!["rpm".to_owned()]);
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn load_decoder_manifests_fails_on_duplicate_format() {
 
     let result = load_decoder_manifests(dir.to_str().unwrap(), "decoder");
 
-    assert_eq!(result.unwrap_err(), DecoderError::DuplicateFormat("deb".to_string()));
+    assert_eq!(result.unwrap_err(), DecoderError::DuplicateFormat("deb".to_owned()));
 }
 
 #[test]

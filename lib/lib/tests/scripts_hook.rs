@@ -51,7 +51,7 @@ fn hook_file_parse_succeeds_for_trigger_map() {
     let hook_file = HookFile::parse("[triggers]\ndeb = [\"postinst\"]\n").unwrap();
 
     assert_eq!(hook_file.native_trigger(), None);
-    assert_eq!(hook_file.triggers.get("deb").unwrap(), &vec!["postinst".to_string()]);
+    assert_eq!(hook_file.triggers.get("deb").unwrap(), &vec!["postinst".to_owned()]);
 }
 
 #[test]
