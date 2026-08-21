@@ -37,8 +37,12 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   none of them yet call the write-side bricks (`FileHandle::import_directory`/
   `composefs::repository::commit_tree`, `boot::write_boot_entry`, `resolve_boot_plugin`) or
   `config::merge::merge_config` (§5.1, built as a pure algorithm brick — base/new/live
-  classification + conflict `.upac-new` sidecars — but nothing acquires its three input trees yet:
-  `live` needs importing the on-disk `etc-upper/upper` overlay with whiteout handling, not built;
-  `new` needs `TransactionStage`, itself still `todo!()`).
+  classification + conflict `.upac-new` sidecars). Acquiring `merge_config`'s `live` input tree now
+  has its own brick too — `composefs::overlay::apply_overlay_upper` imports the on-disk
+  `etc-upper/upper` OverlayFS overlay onto an already-populated tree, correctly handling whiteouts
+  (deletions) and opaque directories (full subtree replacement) — but nothing calls it from a real
+  mutating command yet, and `new` still needs `TransactionStage`, itself still `todo!()`. One test
+  (`opaque_directory_drops_base_subtree_entirely`) is `#[ignore]`d — setting the
+  `trusted.overlay.opaque` xattr needs `CAP_SYS_ADMIN`/root, unavailable in normal test runs.
 - Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature
   approach) — not started, see `ROADMAP.md` §1.
