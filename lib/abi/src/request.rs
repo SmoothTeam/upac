@@ -7,7 +7,6 @@ use std::os::raw::c_void;
 
 use upac_macro::{CNew, CValidate};
 
-use crate::BootKind;
 use crate::FileDiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
@@ -38,7 +37,8 @@ pub struct CInstallRequest {
     pub message: CSlice,
 
     pub packages: CVec<CSlice>,
-    pub boot_kind: BootKind,
+    #[optional]
+    pub boot_plugin: CSlice,
 }
 
 #[repr(C)]
@@ -54,7 +54,8 @@ pub struct CUpdateRequest {
     pub message: CSlice,
 
     pub packages: CVec<CSlice>,
-    pub boot_kind: BootKind,
+    #[optional]
+    pub boot_plugin: CSlice,
 }
 
 #[repr(C)]
@@ -68,7 +69,8 @@ pub struct CUninstallRequest {
     #[optional]
     pub message: CSlice,
     pub packages: CVec<CPackageInfo>,
-    pub boot_kind: BootKind,
+    #[optional]
+    pub boot_plugin: CSlice,
 }
 
 #[repr(C)]
@@ -79,7 +81,8 @@ pub struct CRollbackRequest {
 
     pub tmp_path: CSlice,
     pub config_digest: CSlice,
-    pub boot_kind: BootKind,
+    #[optional]
+    pub boot_plugin: CSlice,
 }
 
 #[repr(C)]
@@ -107,7 +110,8 @@ pub struct CFilesRequest {
     pub files: CVec<CSlice>,
     pub file_kind: FileDiffKind,
     pub file_package: *const CPackageInfo,
-    pub boot_kind: BootKind,
+    #[optional]
+    pub boot_plugin: CSlice,
 }
 
 #[repr(C)]

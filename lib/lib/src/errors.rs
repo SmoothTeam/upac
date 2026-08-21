@@ -82,6 +82,17 @@ macro_rules! boot_error_from {
 }
 pub(crate) use boot_error_from;
 
+macro_rules! boot_plugin_error_from {
+    ($name:ident) => {
+        impl From<BootPluginError> for $name {
+            fn from(error: BootPluginError) -> Self {
+                $name::Common(CommonError::BootPlugin(error))
+            }
+        }
+    };
+}
+pub(crate) use boot_plugin_error_from;
+
 macro_rules! deploy_record_error_from {
     ($name:ident) => {
         impl From<DeployRecordError> for $name {

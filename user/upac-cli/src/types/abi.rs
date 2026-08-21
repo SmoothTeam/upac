@@ -47,23 +47,6 @@ pub fn borrowed_vec<T>(items: &[T]) -> CVec<T> {
     CVec::from_borrowed(items)
 }
 
-#[derive(clap::ValueEnum, Clone, Copy)]
-pub enum BootKind {
-    Auto,
-    Uki,
-    Bls,
-}
-
-impl From<BootKind> for upac_abi::BootKind {
-    fn from(value: BootKind) -> Self {
-        match value {
-            BootKind::Auto => upac_abi::BootKind::Auto,
-            BootKind::Uki => upac_abi::BootKind::Uki,
-            BootKind::Bls => upac_abi::BootKind::Bls,
-        }
-    }
-}
-
 pub fn invoke(call: impl FnOnce(*mut CError) -> i32) -> Result<()> {
     let mut error = MaybeUninit::uninit();
     let code = call(error.as_mut_ptr());

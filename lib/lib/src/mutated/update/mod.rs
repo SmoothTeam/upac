@@ -5,7 +5,6 @@
 
 use std::os::raw::c_void;
 
-use upac_abi::BootKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CUpdateRequest;
@@ -34,7 +33,7 @@ mod transaction;
 pub struct UpdateData<'a> {
     pub packages: Vec<&'a str>,
     #[expect(dead_code)]
-    pub boot_kind: BootKind,
+    pub boot_plugin: Option<&'a str>,
 
     pub tmp_path: &'a str,
 
@@ -59,7 +58,7 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
 
         Ok(UpdateData {
             packages: Vec::try_from(&request.packages)?,
-            boot_kind: request.boot_kind,
+            boot_plugin: (&request.boot_plugin).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
 

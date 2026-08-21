@@ -11,6 +11,7 @@ use upac_abi::error::ErrorKind;
 pub enum BootError {
     NoBootResource,
     AmbiguousBootResource,
+    UnsupportedBootResource,
     Unexpected,
 }
 
@@ -25,6 +26,7 @@ impl From<BootError> for ErrorKind {
         match error {
             BootError::NoBootResource => ErrorKind::NotFound,
             BootError::AmbiguousBootResource => ErrorKind::InvalidEntry,
+            BootError::UnsupportedBootResource => ErrorKind::InvalidEntry,
             BootError::Unexpected => ErrorKind::Unexpected,
         }
     }

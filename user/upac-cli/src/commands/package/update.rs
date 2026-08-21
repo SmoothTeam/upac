@@ -13,7 +13,7 @@ use clap::Args as ClapArgs;
 use upac_abi::request::CUpdateRequest;
 
 use crate::types::CommandContext;
-use crate::types::abi::{BootKind, borrowed_vec, invoke, optional_slice, request_base, slice_from_cstr};
+use crate::types::abi::{borrowed_vec, invoke, optional_slice, request_base, slice_from_cstr};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -23,8 +23,8 @@ pub struct Args {
     pub files: Vec<String>,
     #[arg(short, long)]
     pub message: Option<String>,
-    #[arg(long, value_enum, default_value_t = BootKind::Auto)]
-    pub boot: BootKind,
+    #[arg(long)]
+    pub boot: Option<String>,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -32,6 +32,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let subject = CString::new("update")?;
     let message = args.message.map(CString::new).transpose()?;
+    let boot_plugin = args.boot.map(CString::new).transpose()?;
 
     let mut paths = Vec::with_capacity(args.files.len());
     for file_path in &args.files {
@@ -48,7 +49,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         slice_from_cstr(&subject),
         optional_slice(message.as_ref()),
         borrowed_vec(&path_slices),
-        args.boot.into(),
+        optional_slice(boot_plugin.as_ref()),
     );
 
     invoke(|error| unsafe { (symbols.update)(request, error) })
