@@ -22,16 +22,23 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 
 ## upac-lib
 
-- The entire mutated-command pipeline body (composefs mount/merge/checkout/swap) is still
-  `todo!()` across every mutating command — see `ROADMAP.md`. Some write-side building blocks now
-  exist ahead of the stage bodies themselves: `FileHandle::import_directory`/
-  `composefs::repository::commit_tree` (composefs image write side), `boot::write_boot_entry`
-  (ESP entry write, boot-kind-agnostic), and a full boot-plugin subsystem for one-shot NVRAM/
-  bootloader-config selection (`upac_abi::boot::Booter` trait + C-ABI contract,
-  `plugin::boot::resolve_boot_plugin` loader/resolver, three working plugin crates under
-  `booters/`: `uki`, `systemd-boot`, `grub` — `refind` still a stub, deferred pending research
-  into whether it has any real one-shot mechanism at all). None of this is consumed by a stage
-  body yet, since `CheckoutStage`/`SwapStage`/`PrepareBoot`/`BootOption` are still `todo!()`.
-  `config_merge` (§5.1, 3-way `/etc` merge) has no code and no bricks yet — next big piece.
+- `rollback` is the first mutating command with a fully real pipeline body:
+  `MergeStage`/`CheckoutStage`/`SwapStage` all done (resolves the target prefix digest, writes the
+  ESP boot entry via `boot::write_boot_entry` — now self-naming the entry from the image's own
+  boot resource type instead of taking a caller-supplied name — and selects it for one-shot boot
+  through the boot-plugin subsystem's `plugin::boot::resolve_boot_plugin`). New bricks along the
+  way: `deploy::esp::find_esp_mount` (ESP mount-point discovery) and
+  `composefs::repository::object_id_from_hex` (digest string → `ObjectID`). The closed
+  `upac_abi::BootKind` enum (`Auto`/`Uki`/`Bls`) is gone — every mutating C-ABI request now takes
+  an open `boot_plugin: CSlice` (plugin name, empty = autodetect) instead, and `--boot` on the CLI
+  is a plain string.
+- `install`/`update`/`files` still have `todo!()` `TransactionStage`/`MergeStage`/`CheckoutStage`/
+  `SwapStage` bodies, and `uninstaller`'s `PrepareBootStage`/`BootOptionStage` are `todo!()` too —
+  none of them yet call the write-side bricks (`FileHandle::import_directory`/
+  `composefs::repository::commit_tree`, `boot::write_boot_entry`, `resolve_boot_plugin`) or
+  `config::merge::merge_config` (§5.1, built as a pure algorithm brick — base/new/live
+  classification + conflict `.upac-new` sidecars — but nothing acquires its three input trees yet:
+  `live` needs importing the on-disk `etc-upper/upper` overlay with whiteout handling, not built;
+  `new` needs `TransactionStage`, itself still `todo!()`).
 - Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature
   approach) — not started, see `ROADMAP.md` §1.

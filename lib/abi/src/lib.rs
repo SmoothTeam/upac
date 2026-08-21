@@ -86,25 +86,3 @@ impl DiffFileSource {
         }
     }
 }
-
-// Explicit override for which one-shot boot mechanism a mutating command's Checkout/Swap (or
-// Uninstall's PrepareBoot/BootOption) stage should use, instead of relying on that stage's own
-// autodetection. Auto is the default (no CLI flag given).
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BootKind {
-    Auto = 0,
-    Uki = 1,
-    Bls = 2,
-}
-
-impl BootKind {
-    pub fn from_u8(version: u8) -> Result<BootKind, ErrorKind> {
-        match version {
-            0 => Ok(BootKind::Auto),
-            1 => Ok(BootKind::Uki),
-            2 => Ok(BootKind::Bls),
-            _ => Err(ErrorKind::InvalidEntry),
-        }
-    }
-}

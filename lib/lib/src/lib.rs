@@ -9,6 +9,7 @@ mod unmutated;
 
 pub mod boot;
 pub mod composefs;
+pub mod config;
 pub mod database;
 pub mod deploy;
 pub mod errors;

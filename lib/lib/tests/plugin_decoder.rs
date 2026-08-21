@@ -4,21 +4,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use std::collections::HashMap;
-use std::fs::{create_dir_all, remove_dir_all, write};
-use std::path::PathBuf;
+use std::fs::write;
 
+use tempfile::{Builder, TempDir};
 use upac::plugin::decoder::error::DecoderError;
 use upac::plugin::decoder::manifest::load_decoder_manifests;
 use upac::plugin::decoder::triggers::build_trigger_table;
 use upac::scripts::error::HookError;
 use upac::scripts::file::HookFile;
 
-fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-plugin-decoder-{}-{name}", std::process::id()));
-    let _ = remove_dir_all(&dir);
-    create_dir_all(&dir).unwrap();
-
-    dir
+fn scratch_dir(name: &str) -> TempDir {
+    Builder::new().prefix(name).tempdir().unwrap()
 }
 
 fn hook_file(priority: i32, triggers: &[(&str, &[&str])]) -> HookFile {
@@ -97,17 +93,17 @@ fn build_trigger_table_keeps_distinct_names_independent() {
 fn load_decoder_manifests_collects_distinct_formats() {
     let dir = scratch_dir("distinct-formats");
     write(
-        dir.join("deb.decoder"),
+        dir.path().join("deb.decoder"),
         "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
     write(
-        dir.join("rpm.decoder"),
+        dir.path().join("rpm.decoder"),
         "format = \"rpm\"\nextensions = [\"rpm\"]\nlibrary = \"libupac-rpm.so\"\nmime = \"application/x-rpm\"\n",
     )
     .unwrap();
 
-    let manifests = load_decoder_manifests(dir.to_str().unwrap(), "decoder").unwrap();
+    let manifests = load_decoder_manifests(dir.path().to_str().unwrap(), "decoder").unwrap();
 
     assert_eq!(manifests.len(), 2);
     assert_eq!(manifests["deb"].library, "libupac-deb.so");
@@ -118,13 +114,13 @@ fn load_decoder_manifests_collects_distinct_formats() {
 fn load_decoder_manifests_ignores_non_matching_extension() {
     let dir = scratch_dir("ignore-extension");
     write(
-        dir.join("deb.decoder"),
+        dir.path().join("deb.decoder"),
         "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
-    write(dir.join("README.md"), b"not a manifest").unwrap();
+    write(dir.path().join("README.md"), b"not a manifest").unwrap();
 
-    let manifests = load_decoder_manifests(dir.to_str().unwrap(), "decoder").unwrap();
+    let manifests = load_decoder_manifests(dir.path().to_str().unwrap(), "decoder").unwrap();
 
     assert_eq!(manifests.len(), 1);
 }
@@ -133,17 +129,17 @@ fn load_decoder_manifests_ignores_non_matching_extension() {
 fn load_decoder_manifests_fails_on_duplicate_format() {
     let dir = scratch_dir("duplicate-format");
     write(
-        dir.join("a.decoder"),
+        dir.path().join("a.decoder"),
         "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb-a.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
     write(
-        dir.join("b.decoder"),
+        dir.path().join("b.decoder"),
         "format = \"deb\"\nextensions = [\"deb\"]\nlibrary = \"libupac-deb-b.so\"\nmime = \"application/vnd.debian.binary-package\"\n",
     )
     .unwrap();
 
-    let result = load_decoder_manifests(dir.to_str().unwrap(), "decoder");
+    let result = load_decoder_manifests(dir.path().to_str().unwrap(), "decoder");
 
     assert_eq!(result.unwrap_err(), DecoderError::DuplicateFormat("deb".to_owned()));
 }
@@ -151,9 +147,9 @@ fn load_decoder_manifests_fails_on_duplicate_format() {
 #[test]
 fn load_decoder_manifests_fails_on_malformed_toml() {
     let dir = scratch_dir("malformed-toml");
-    write(dir.join("broken.decoder"), "not valid toml [[[").unwrap();
+    write(dir.path().join("broken.decoder"), "not valid toml [[[").unwrap();
 
-    let result = load_decoder_manifests(dir.to_str().unwrap(), "decoder");
+    let result = load_decoder_manifests(dir.path().to_str().unwrap(), "decoder");
 
     assert_eq!(result.unwrap_err(), DecoderError::Manifest);
 }

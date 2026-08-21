@@ -72,6 +72,21 @@ impl FileHandle {
         Ok(())
     }
 
+    pub fn copy_from_tree(
+        &self, dest_tree: &mut FileSystem<ObjectID>, source_tree: &FileSystem<ObjectID>, source_path: &Path,
+    ) -> Result<(), RepoError> {
+        let (source_parent, source_filename) = source_tree.root.split(source_path.as_os_str())?;
+        let leaf_id = source_parent.leaf_id(source_filename)?;
+        let leaf = source_tree.leaf(leaf_id).clone();
+
+        let new_leaf_id = dest_tree.push_leaf(leaf.stat, leaf.content);
+
+        let (parent, filename) = dest_tree.root.split_mut(self.path.as_os_str())?;
+        parent.insert(filename, Inode::leaf(new_leaf_id));
+
+        Ok(())
+    }
+
     pub fn rename_in_tree(
         &mut self, tree: &mut FileSystem<ObjectID>, new_path: impl Into<PathBuf>,
     ) -> Result<(), RepoError> {

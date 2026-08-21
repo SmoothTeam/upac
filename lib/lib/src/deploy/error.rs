@@ -26,6 +26,7 @@ pub enum SysrootError {
     ProbeUnavailable,
     FilesystemTypeNotFound,
     CurrentPrefixDigestNotFound,
+    EspNotFound,
     System(Errno),
 }
 
@@ -77,6 +78,7 @@ impl From<SysrootError> for ErrorKind {
             SysrootError::ProbeUnavailable => ErrorKind::Unexpected,
             SysrootError::FilesystemTypeNotFound => ErrorKind::NotFound,
             SysrootError::CurrentPrefixDigestNotFound => ErrorKind::NotFound,
+            SysrootError::EspNotFound => ErrorKind::NotFound,
             SysrootError::System(_) => ErrorKind::Unexpected,
         }
     }

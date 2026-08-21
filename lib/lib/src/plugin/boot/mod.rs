@@ -34,6 +34,11 @@ use upac_boot_systemd_boot::{
 #[cfg(feature = "builtin-uki")]
 use upac_boot_uki::{confirm_boot as uki_confirm_boot, probe as uki_probe, set_one_shot as uki_set_one_shot};
 
+#[cfg(feature = "builtin-refind")]
+use upac_boot_refind::{
+    confirm_boot as refind_confirm_boot, probe as refind_probe, set_one_shot as refind_set_one_shot,
+};
+
 pub mod error;
 
 #[cfg(feature = "dynamic-plugins")]
@@ -137,6 +142,10 @@ pub fn resolve_boot_plugin(
 /// No ABI version check is performed here: these are compiled from the same source
 /// tree by the same compiler, so [`BOOT_ABI_VERSION`] matches by construction.
 #[cfg(feature = "builtin-booters")]
+#[allow(
+    clippy::vec_init_then_push,
+    reason = "each push is independently cfg-gated, vec![] can't express that"
+)]
 fn static_plugins() -> Vec<(&'static str, BootPlugin)> {
     let mut plugins = Vec::new();
 
@@ -156,6 +165,12 @@ fn static_plugins() -> Vec<(&'static str, BootPlugin)> {
     plugins.push((
         "grub",
         BootPlugin::from_static(grub_probe, grub_set_one_shot, grub_confirm_boot),
+    ));
+
+    #[cfg(feature = "builtin-refind")]
+    plugins.push((
+        "refind",
+        BootPlugin::from_static(refind_probe, refind_set_one_shot, refind_confirm_boot),
     ));
 
     plugins

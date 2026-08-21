@@ -16,6 +16,8 @@ use upac_abi::boot::Booter;
 
 use crate::boot::{BOOT_NEXT_VAR, EFI_SYSFS_PATH, LOADER_INFO_VAR, SD_BOOT_LOADER_GUID};
 use crate::error::UkiError;
+use crate::grub::{GRUBENV_FALLBACK, GRUBENV_PRIMARY};
+use crate::refind::{PREVIOUS_BOOT_GUID, PREVIOUS_BOOT_VAR};
 
 pub struct Uki {
     manager: Box<dyn VarManager>,
@@ -34,17 +36,16 @@ impl Booter for Uki {
         if !Path::new(EFI_SYSFS_PATH).exists() {
             return false;
         }
+        if Path::new(GRUBENV_PRIMARY).exists() || Path::new(GRUBENV_FALLBACK).exists() {
+            return false;
+        }
 
         let Ok(manager) = catch_unwind(AssertUnwindSafe(efivar::system)) else {
             return false;
         };
-        let Ok(guid) = Uuid::from_str(SD_BOOT_LOADER_GUID) else {
-            return false;
-        };
 
-        !manager
-            .exists(&Variable::new_with_vendor(LOADER_INFO_VAR, guid))
-            .unwrap_or(false)
+        !efi_variable_exists(manager.as_ref(), LOADER_INFO_VAR, SD_BOOT_LOADER_GUID)
+            && !efi_variable_exists(manager.as_ref(), PREVIOUS_BOOT_VAR, PREVIOUS_BOOT_GUID)
     }
 
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), UkiError> {
@@ -90,4 +91,12 @@ impl Uki {
 
         Err(UkiError::EntryNotFound)
     }
+}
+
+fn efi_variable_exists(manager: &dyn VarManager, name: &str, guid: &str) -> bool {
+    let Ok(guid) = Uuid::from_str(guid) else {
+        return false;
+    };
+
+    manager.exists(&Variable::new_with_vendor(name, guid)).unwrap_or(false)
 }

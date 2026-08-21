@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::fs::{File, create_dir_all, remove_dir_all, write};
+use std::fs::{File, write};
 use std::io::Read;
-use std::path::PathBuf;
 
 use composefs::erofs::reader::erofs_to_filesystem;
 use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
@@ -13,28 +12,25 @@ use composefs::generic_tree::Stat;
 use composefs::repository::{ImportContext, Repository, RepositoryConfig};
 use composefs::tree::FileSystem;
 use nix::fcntl::AT_FDCWD;
+use tempfile::{Builder, TempDir};
 use upac::composefs::diff::TreeDiff;
 use upac::composefs::file::FileHandle;
 use upac::composefs::repository::{ObjectID, commit_tree};
 
-fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-composefs-repository-{}-{name}", std::process::id()));
-    let _ = remove_dir_all(&dir);
-    create_dir_all(&dir).unwrap();
-
-    dir
+fn scratch_dir(name: &str) -> TempDir {
+    Builder::new().prefix(name).tempdir().unwrap()
 }
 
 fn empty_tree() -> FileSystem<ObjectID> {
     FileSystem::new(Stat::uninitialized())
 }
 
-fn open_repository(name: &str) -> Repository<ObjectID> {
+fn open_repository(name: &str) -> (TempDir, Repository<ObjectID>) {
     let dir = scratch_dir(name);
     let (repository, _created) =
-        Repository::init_path(AT_FDCWD, &dir, RepositoryConfig::default().set_insecure()).unwrap();
+        Repository::init_path(AT_FDCWD, dir.path(), RepositoryConfig::default().set_insecure()).unwrap();
 
-    repository
+    (dir, repository)
 }
 
 fn open_image_tree(repository: &Repository<ObjectID>, digest: &Sha256HashValue) -> FileSystem<ObjectID> {
@@ -48,12 +44,12 @@ fn open_image_tree(repository: &Repository<ObjectID>, digest: &Sha256HashValue) 
 
 #[test]
 fn commit_tree_round_trips_through_the_repository() {
-    let repository = open_repository("commit-round-trip");
+    let (_scratch, repository) = open_repository("commit-round-trip");
     let mut tree = empty_tree();
     let mut ctx = ImportContext::default();
 
     let source_dir = scratch_dir("commit-round-trip-src");
-    let source_path = source_dir.join("source");
+    let source_path = source_dir.path().join("source");
     write(&source_path, b"hello").unwrap();
 
     FileHandle::new("file.txt")

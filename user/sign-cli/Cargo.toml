@@ -25,3 +25,6 @@ gettext-rs = { workspace = true }
 colored    = { workspace = true }
 anyhow     = { workspace = true }
 clap       = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

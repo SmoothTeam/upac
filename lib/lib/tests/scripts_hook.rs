@@ -3,9 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::fs::{create_dir_all, remove_dir_all, write};
+use std::fs::{read_link, write};
 use std::path::{Path, PathBuf};
 
+use tempfile::{Builder, TempDir};
 use upac::scripts::error::HookError;
 use upac::scripts::file::HookFile;
 use upac::scripts::load::load_hooks;
@@ -14,12 +15,8 @@ use upac::scripts::primitive::Step;
 use upac_pki::generate::{Identity, SigningIdentity, generate_root, generate_signing_cert};
 use upac_pki::signature::HookSignature;
 
-fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-scripts-hook-{}-{name}", std::process::id()));
-    let _ = remove_dir_all(&dir);
-    create_dir_all(&dir).unwrap();
-
-    dir
+fn scratch_dir(name: &str) -> TempDir {
+    Builder::new().prefix(name).tempdir().unwrap()
 }
 
 fn root_cert_file(dir: &Path, common_name: &str) -> (PathBuf, SigningIdentity) {
@@ -103,7 +100,7 @@ fn native_trigger_pre_and_post_set_correct_timing() {
 #[test]
 fn touch_file_step_creates_missing_file_and_rollback_removes_it() {
     let dir = scratch_dir("touch-missing");
-    let path = dir.join("marker");
+    let path = dir.path().join("marker");
 
     let mut hook_file = HookFile::parse(&format!(
         "operation = \"install\"\ntiming = \"pre\"\n\n[[steps]]\ntype = \"touch_file\"\npath = {:?}\n",
@@ -122,7 +119,7 @@ fn touch_file_step_creates_missing_file_and_rollback_removes_it() {
 #[test]
 fn touch_file_step_leaves_preexisting_file_after_rollback() {
     let dir = scratch_dir("touch-existing");
-    let path = dir.join("marker");
+    let path = dir.path().join("marker");
     write(&path, b"already here").unwrap();
 
     let mut hook_file = HookFile::parse(&format!(
@@ -141,8 +138,8 @@ fn touch_file_step_leaves_preexisting_file_after_rollback() {
 #[test]
 fn move_file_step_execute_and_rollback_round_trip() {
     let dir = scratch_dir("move-round-trip");
-    let from = dir.join("a");
-    let to = dir.join("b");
+    let from = dir.path().join("a");
+    let to = dir.path().join("b");
     write(&from, b"content").unwrap();
 
     let mut hook_file = HookFile::parse(&format!(
@@ -164,8 +161,8 @@ fn move_file_step_execute_and_rollback_round_trip() {
 #[test]
 fn create_symlink_step_execute_and_rollback() {
     let dir = scratch_dir("symlink");
-    let target = dir.join("target");
-    let link = dir.join("link");
+    let target = dir.path().join("target");
+    let link = dir.path().join("link");
     write(&target, b"content").unwrap();
 
     let mut hook_file = HookFile::parse(&format!(
@@ -176,7 +173,7 @@ fn create_symlink_step_execute_and_rollback() {
     let mut step = hook_file.steps.remove(0);
 
     step.execute().unwrap();
-    assert_eq!(std::fs::read_link(&link).unwrap(), target);
+    assert_eq!(read_link(&link).unwrap(), target);
 
     step.rollback().unwrap();
     assert!(!link.exists());
@@ -187,9 +184,9 @@ fn primitive_vec_rollback_guard_unwinds_in_reverse_order() {
     use upac::orchestrator::stage::RollbackGuard;
 
     let dir = scratch_dir("rollback-order");
-    let a = dir.join("a");
-    let b = dir.join("b");
-    let c = dir.join("c");
+    let a = dir.path().join("a");
+    let b = dir.path().join("b");
+    let c = dir.path().join("c");
     write(&a, b"content").unwrap();
 
     let mut hook_file = HookFile::parse(&format!(
@@ -219,15 +216,21 @@ fn primitive_vec_rollback_guard_unwinds_in_reverse_order() {
 #[test]
 fn load_hooks_returns_matching_hook_for_signed_valid_file() {
     let hooks_dir = scratch_dir("load-valid");
-    let (cert_path, signing) = root_cert_file(&hooks_dir, "load-valid root");
+    let (cert_path, signing) = root_cert_file(hooks_dir.path(), "load-valid root");
     write_signed_hook(
-        &hooks_dir,
+        hooks_dir.path(),
         "install",
         "operation = \"install\"\ntiming = \"pre\"\n",
         &signing,
     );
 
-    let hooks = load_hooks(hooks_dir.to_str().unwrap(), cert_path.to_str().unwrap(), "hook", "sig").unwrap();
+    let hooks = load_hooks(
+        hooks_dir.path().to_str().unwrap(),
+        cert_path.to_str().unwrap(),
+        "hook",
+        "sig",
+    )
+    .unwrap();
 
     assert_eq!(hooks.len(), 1);
     assert_eq!(hooks[0].native_trigger(), Some(NativeTrigger::pre(Operation::Install)));
@@ -236,16 +239,22 @@ fn load_hooks_returns_matching_hook_for_signed_valid_file() {
 #[test]
 fn load_hooks_skips_files_with_non_matching_extension() {
     let hooks_dir = scratch_dir("load-skip-extension");
-    let (cert_path, signing) = root_cert_file(&hooks_dir, "load-skip root");
+    let (cert_path, signing) = root_cert_file(hooks_dir.path(), "load-skip root");
     write_signed_hook(
-        &hooks_dir,
+        hooks_dir.path(),
         "install",
         "operation = \"install\"\ntiming = \"pre\"\n",
         &signing,
     );
-    write(hooks_dir.join("notes.txt"), b"not a hook").unwrap();
+    write(hooks_dir.path().join("notes.txt"), b"not a hook").unwrap();
 
-    let hooks = load_hooks(hooks_dir.to_str().unwrap(), cert_path.to_str().unwrap(), "hook", "sig").unwrap();
+    let hooks = load_hooks(
+        hooks_dir.path().to_str().unwrap(),
+        cert_path.to_str().unwrap(),
+        "hook",
+        "sig",
+    )
+    .unwrap();
 
     assert_eq!(hooks.len(), 1);
 }
@@ -253,21 +262,26 @@ fn load_hooks_skips_files_with_non_matching_extension() {
 #[test]
 fn load_hooks_fails_when_signature_is_tampered() {
     let hooks_dir = scratch_dir("load-tampered");
-    let (cert_path, signing) = root_cert_file(&hooks_dir, "load-tampered root");
+    let (cert_path, signing) = root_cert_file(hooks_dir.path(), "load-tampered root");
     write_signed_hook(
-        &hooks_dir,
+        hooks_dir.path(),
         "install",
         "operation = \"install\"\ntiming = \"pre\"\n",
         &signing,
     );
 
     write(
-        hooks_dir.join("install.hook"),
+        hooks_dir.path().join("install.hook"),
         "operation = \"install\"\ntiming = \"post\"\n",
     )
     .unwrap();
 
-    let result = load_hooks(hooks_dir.to_str().unwrap(), cert_path.to_str().unwrap(), "hook", "sig");
+    let result = load_hooks(
+        hooks_dir.path().to_str().unwrap(),
+        cert_path.to_str().unwrap(),
+        "hook",
+        "sig",
+    );
 
     assert_eq!(result.unwrap_err(), HookError::InvalidSignature);
 }
@@ -275,17 +289,17 @@ fn load_hooks_fails_when_signature_is_tampered() {
 #[test]
 fn load_hooks_fails_when_root_cert_is_unrelated() {
     let hooks_dir = scratch_dir("load-unrelated-root");
-    let (_, signing) = root_cert_file(&hooks_dir, "load-unrelated signing root");
-    let (unrelated_cert_path, _) = root_cert_file(&hooks_dir, "load-unrelated other root");
+    let (_, signing) = root_cert_file(hooks_dir.path(), "load-unrelated signing root");
+    let (unrelated_cert_path, _) = root_cert_file(hooks_dir.path(), "load-unrelated other root");
     write_signed_hook(
-        &hooks_dir,
+        hooks_dir.path(),
         "install",
         "operation = \"install\"\ntiming = \"pre\"\n",
         &signing,
     );
 
     let result = load_hooks(
-        hooks_dir.to_str().unwrap(),
+        hooks_dir.path().to_str().unwrap(),
         unrelated_cert_path.to_str().unwrap(),
         "hook",
         "sig",
@@ -296,9 +310,9 @@ fn load_hooks_fails_when_root_cert_is_unrelated() {
 
 #[test]
 fn load_hooks_fails_when_hooks_dir_is_missing() {
-    let hooks_dir = scratch_dir("load-missing-dir").join("does-not-exist");
+    let hooks_dir = scratch_dir("load-missing-dir").path().join("does-not-exist");
     let cert_dir = scratch_dir("load-missing-dir-cert");
-    let (cert_path, _) = root_cert_file(&cert_dir, "load-missing-dir root");
+    let (cert_path, _) = root_cert_file(cert_dir.path(), "load-missing-dir root");
 
     let result = load_hooks(hooks_dir.to_str().unwrap(), cert_path.to_str().unwrap(), "hook", "sig");
 
