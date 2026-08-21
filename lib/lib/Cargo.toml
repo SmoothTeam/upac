@@ -51,6 +51,7 @@ regex                 = "1"
 quick-xml             = "0.41.0"
 mime                  = "0.3.17"
 hex                   = "0.4"
+xattr                 = "1.6"
 
 [build-dependencies]
 toml = { workspace = true }

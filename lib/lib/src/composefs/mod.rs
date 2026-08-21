@@ -6,4 +6,5 @@
 pub mod diff;
 pub mod error;
 pub mod file;
+pub mod overlay;
 pub mod repository;
