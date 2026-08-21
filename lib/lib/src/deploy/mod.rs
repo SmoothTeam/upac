@@ -148,7 +148,7 @@ impl Deploy {
             .lookup_device_property_value(TagName::Type)
             .ok_or(SysrootError::FilesystemTypeNotFound)?;
 
-        Ok(tag.value().to_string())
+        Ok(tag.value().to_owned())
     }
 }
 

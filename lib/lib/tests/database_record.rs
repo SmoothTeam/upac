@@ -18,24 +18,24 @@ fn scratch_dir(name: &str) -> PathBuf {
 
 fn sample_record() -> DeployRecord {
     DeployRecord {
-        prefix_digest: "usr-digest-abc123".to_string(),
-        subject: "install firefox".to_string(),
-        message: Some("long-form commit message".to_string()),
+        prefix_digest: "usr-digest-abc123".to_owned(),
+        subject: "install firefox".to_owned(),
+        message: Some("long-form commit message".to_owned()),
         seq: 7,
         timestamp: 1_754_000_000,
         config_history: vec![
             ConfigHistoryEntry {
-                config_digest: "etc-digest-1".to_string(),
-                subject: "first etc".to_string(),
+                config_digest: "etc-digest-1".to_owned(),
+                subject: "first etc".to_owned(),
                 message: None,
             },
             ConfigHistoryEntry {
-                config_digest: "etc-digest-2".to_string(),
-                subject: "second etc".to_string(),
-                message: Some("with a message".to_string()),
+                config_digest: "etc-digest-2".to_owned(),
+                subject: "second etc".to_owned(),
+                message: Some("with a message".to_owned()),
             },
         ],
-        working_config: "etc-digest-2".to_string(),
+        working_config: "etc-digest-2".to_owned(),
     }
 }
 
@@ -73,7 +73,7 @@ fn deploy_record_read_fails_when_file_missing() {
 
 #[test]
 fn deploy_record_from_json_fails_on_non_object() {
-    let value = serde_json::Value::String("not an object".to_string());
+    let value = serde_json::Value::String("not an object".to_owned());
 
     assert!(matches!(
         DeployRecord::from_json(&value),
