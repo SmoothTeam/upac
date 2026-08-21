@@ -3,12 +3,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::env::temp_dir;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, id};
 
 pub fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("up-si-test-{}-{name}", std::process::id()));
+    let dir = temp_dir().join(format!("up-si-test-{}-{name}", id()));
     create_dir_all(&dir).unwrap();
 
     dir
