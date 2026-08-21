@@ -31,6 +31,11 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   `plugin::boot::resolve_boot_plugin` loader/resolver, four working plugin crates under
   `booters/`: `uki`, `systemd-boot`, `grub`, `refind`). None of this is consumed by a stage
   body yet, since `CheckoutStage`/`SwapStage`/`PrepareBoot`/`BootOption` are still `todo!()`.
-  `config_merge` (§5.1, 3-way `/etc` merge) has no code and no bricks yet — next big piece.
+  `config::merge::merge_config` (§5.1, 3-way `/etc` merge) now exists as a pure algorithm brick
+  (base/new/live classification + conflict `.upac-new` sidecars, built on the existing
+  `composefs::diff::TreeDiff` + a new `FileHandle::copy_from_tree`), but nothing acquires its three
+  input trees yet (`live` needs importing the on-disk `etc-upper/upper` overlay with whiteout
+  handling — not built; `new` needs `TransactionStage`, itself still `todo!()`) and no `MergeStage`
+  body calls it yet.
 - Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature
   approach) — not started, see `ROADMAP.md` §1.
