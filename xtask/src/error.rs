@@ -13,7 +13,6 @@ use crate::gen_tree::splice::{MARKER_END, MARKER_START};
 #[derive(Debug)]
 pub enum XtaskError {
     Io(IoError),
-    ComponentsRequireStaticLink,
     RepoRootNotFound,
     NoMarkedFiles(PathBuf),
     MissingStartMarker,
@@ -33,9 +32,6 @@ impl Display for XtaskError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             XtaskError::Io(error) => write!(f, "{error}"),
-            XtaskError::ComponentsRequireStaticLink => {
-                write!(f, "--components requires --link lib-static or --link full-static")
-            }
             XtaskError::RepoRootNotFound => write!(f, "xtask must live directly under the repo root"),
             XtaskError::NoMarkedFiles(root) => write!(
                 f,

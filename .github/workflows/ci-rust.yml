@@ -47,15 +47,6 @@ jobs:
   link-modes:
     name: Link modes
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - link: dynamic
-            args: ""
-          - link: lib-static
-            args: "--components uki,systemd-boot,grub"
-          - link: full-static
-            args: "--components uki,systemd-boot,grub"
     steps:
       - uses: actions/checkout@v4
 
@@ -65,5 +56,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build (${{ matrix.link }})
-        run: cargo xtask build --arch x86-64-v1 --link ${{ matrix.link }} ${{ matrix.args }}
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
+      - name: Build every dynamic-plugins/static-link/builtin-* combination
+        run: |
+          cargo hack build -p upac-cli -p upac-lib --feature-powerset \
+              --mutually-exclusive-features dynamic-plugins,static-link \
+              --at-least-one-of dynamic-plugins,static-link

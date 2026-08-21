@@ -24,7 +24,7 @@ use upac_abi::response::{
 
 use crate::types::errors::{AbiMismatch, LibError};
 
-#[cfg(not(feature = "static-link"))]
+#[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
 
 #[cfg(feature = "static-link")]
@@ -104,12 +104,12 @@ impl Lib {
 }
 
 // ── Dynamic-link symbol loading ────────────────────────────────────────────
-#[cfg(not(feature = "static-link"))]
+#[cfg(feature = "dynamic-plugins")]
 pub trait LoadLibrarySymbols: Sized {
     fn load(lib: &Library) -> Result<Self>;
 }
 
-#[cfg(not(feature = "static-link"))]
+#[cfg(feature = "dynamic-plugins")]
 impl LoadLibrarySymbols for RoSymbols {
     fn load(lib: &Library) -> Result<Self> {
         Ok(Self {
@@ -129,7 +129,7 @@ impl LoadLibrarySymbols for RoSymbols {
     }
 }
 
-#[cfg(not(feature = "static-link"))]
+#[cfg(feature = "dynamic-plugins")]
 impl LoadLibrarySymbols for RwSymbols {
     fn load(lib: &Library) -> Result<Self> {
         Ok(Self {
@@ -145,7 +145,7 @@ impl LoadLibrarySymbols for RwSymbols {
     }
 }
 
-#[cfg(not(feature = "static-link"))]
+#[cfg(feature = "dynamic-plugins")]
 impl Lib {
     pub fn load() -> Result<Self> {
         let loaded_library = unsafe { Library::new("libupac.so") }?;
@@ -221,7 +221,7 @@ pub struct Lib {
 
     pub cancel: unsafe extern "C" fn(*mut CancelToken),
     pub version_abi: unsafe extern "C" fn() -> u32,
-    #[cfg(not(feature = "static-link"))]
+    #[cfg(feature = "dynamic-plugins")]
     _lib: Library,
 }
 
