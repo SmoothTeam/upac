@@ -4,8 +4,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use std::collections::HashMap;
+use std::env::temp_dir;
 use std::fs::{create_dir_all, remove_dir_all, write};
 use std::path::PathBuf;
+use std::process::id;
 
 use upac::plugin::decoder::error::DecoderError;
 use upac::plugin::decoder::manifest::load_decoder_manifests;
@@ -14,7 +16,7 @@ use upac::scripts::error::HookError;
 use upac::scripts::file::HookFile;
 
 fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-plugin-decoder-{}-{name}", std::process::id()));
+    let dir = temp_dir().join(format!("upac-test-plugin-decoder-{}-{name}", id()));
     let _ = remove_dir_all(&dir);
     create_dir_all(&dir).unwrap();
 

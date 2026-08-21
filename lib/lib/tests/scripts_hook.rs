@@ -3,8 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::fs::{create_dir_all, remove_dir_all, write};
+use std::env::temp_dir;
+use std::fs::{create_dir_all, read_link, remove_dir_all, write};
 use std::path::{Path, PathBuf};
+use std::process::id;
 
 use upac::scripts::error::HookError;
 use upac::scripts::file::HookFile;
@@ -15,7 +17,7 @@ use upac_pki::generate::{Identity, SigningIdentity, generate_root, generate_sign
 use upac_pki::signature::HookSignature;
 
 fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-scripts-hook-{}-{name}", std::process::id()));
+    let dir = temp_dir().join(format!("upac-test-scripts-hook-{}-{name}", id()));
     let _ = remove_dir_all(&dir);
     create_dir_all(&dir).unwrap();
 
@@ -176,7 +178,7 @@ fn create_symlink_step_execute_and_rollback() {
     let mut step = hook_file.steps.remove(0);
 
     step.execute().unwrap();
-    assert_eq!(std::fs::read_link(&link).unwrap(), target);
+    assert_eq!(read_link(&link).unwrap(), target);
 
     step.rollback().unwrap();
     assert!(!link.exists());

@@ -3,14 +3,16 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::env::temp_dir;
 use std::fs::{create_dir_all, remove_dir_all};
 use std::path::PathBuf;
+use std::process::id;
 
 use upac::database::error::DeployRecordError;
 use upac::database::record::{ConfigHistoryEntry, DeployRecord};
 
 fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-database-record-{}-{name}", std::process::id()));
+    let dir = temp_dir().join(format!("upac-test-database-record-{}-{name}", id()));
     create_dir_all(&dir).unwrap();
 
     dir

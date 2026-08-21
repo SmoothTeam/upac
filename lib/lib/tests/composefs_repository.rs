@@ -3,9 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::env::temp_dir;
 use std::fs::{File, create_dir_all, remove_dir_all, write};
 use std::io::Read;
 use std::path::PathBuf;
+use std::process::id;
 
 use composefs::erofs::reader::erofs_to_filesystem;
 use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
@@ -18,7 +20,7 @@ use upac::composefs::file::FileHandle;
 use upac::composefs::repository::{ObjectID, commit_tree};
 
 fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-composefs-repository-{}-{name}", std::process::id()));
+    let dir = temp_dir().join(format!("upac-test-composefs-repository-{}-{name}", id()));
     let _ = remove_dir_all(&dir);
     create_dir_all(&dir).unwrap();
 

@@ -3,9 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::env::temp_dir;
 use std::fs::{File, create_dir_all, remove_dir_all, write};
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
+use std::process::id;
 
 use composefs::generic_tree::Stat;
 use composefs::repository::{ImportContext, Repository, RepositoryConfig};
@@ -16,7 +18,7 @@ use upac::composefs::file::FileHandle;
 use upac::composefs::repository::ObjectID;
 
 fn scratch_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("upac-test-composefs-file-{}-{name}", std::process::id()));
+    let dir = temp_dir().join(format!("upac-test-composefs-file-{}-{name}", id()));
     let _ = remove_dir_all(&dir);
     create_dir_all(&dir).unwrap();
 
@@ -135,6 +137,27 @@ fn hardlink_in_tree_shares_the_same_leaf() {
         .unwrap();
 
     assert_eq!(destination.symlink_target_in_tree(&tree).unwrap(), "/target");
+}
+
+#[test]
+fn copy_from_tree_duplicates_the_leaf_into_a_different_tree() {
+    let mut source_tree = empty_tree();
+    FileHandle::new("source")
+        .symlink_in_tree(&mut source_tree, "/target", Stat::uninitialized())
+        .unwrap();
+
+    let mut dest_tree = empty_tree();
+    FileHandle::new("destination")
+        .copy_from_tree(&mut dest_tree, &source_tree, &PathBuf::from("source"))
+        .unwrap();
+
+    assert_eq!(
+        FileHandle::new("destination")
+            .symlink_target_in_tree(&dest_tree)
+            .unwrap(),
+        "/target"
+    );
+    assert!(FileHandle::new("destination").stat_in_tree(&source_tree).is_err());
 }
 
 #[test]
