@@ -8,6 +8,7 @@ use std::ptr::null;
 
 use upac_abi::decoder::{CDependency, CTriggerEntry, CTriggerTable};
 use upac_abi::error::ErrorKind;
+use upac_abi::memory::{free_cslice, free_cvec};
 use upac_abi::package::{CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::types::{COwned, CSlice, CVec};
 
@@ -94,7 +95,7 @@ fn package_info_validate_rejects_missing_required_field() {
     };
 
     assert_eq!(unsafe { info.validate() }, Err(ErrorKind::InvalidEntry));
-    unsafe { upac_abi::memory::free_cslice(&info.arch) };
+    unsafe { free_cslice(&info.arch) };
 }
 
 #[test]
@@ -109,7 +110,7 @@ fn dependency_validate_rejects_invalid_nested_version() {
 
     assert_eq!(unsafe { dependency.validate() }, Err(ErrorKind::AbiMismatch));
     unsafe {
-        upac_abi::memory::free_cslice(&dependency.name);
+        free_cslice(&dependency.name);
         dependency.version.free();
     }
 }
@@ -135,9 +136,9 @@ fn trigger_table_validate_ok_for_valid_entries() {
     assert!(unsafe { table.validate() }.is_ok());
     unsafe {
         for entry in table.entries.as_slice() {
-            upac_abi::memory::free_cslice(&entry.name);
+            free_cslice(&entry.name);
         }
-        upac_abi::memory::free_cvec(&table.entries);
+        free_cvec(&table.entries);
     }
 }
 
@@ -155,8 +156,8 @@ fn trigger_table_validate_rejects_malformed_entry() {
     assert_eq!(unsafe { table.validate() }, Err(ErrorKind::AbiMismatch));
     unsafe {
         for entry in table.entries.as_slice() {
-            upac_abi::memory::free_cslice(&entry.name);
+            free_cslice(&entry.name);
         }
-        upac_abi::memory::free_cvec(&table.entries);
+        free_cvec(&table.entries);
     }
 }
