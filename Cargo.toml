@@ -39,6 +39,7 @@ sha2        = "0.11"
 anyhow      = "1"
 quote       = "1"
 efivar      = "2.0.0"
+tempfile    = "3"
 
 [profile.dev]
 opt-level = 0

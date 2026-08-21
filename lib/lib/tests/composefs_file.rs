@@ -3,43 +3,38 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::env::temp_dir;
-use std::fs::{File, create_dir_all, remove_dir_all, write};
+use std::fs::{File, create_dir_all, write};
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
-use std::process::id;
 
 use composefs::generic_tree::Stat;
 use composefs::repository::{ImportContext, Repository, RepositoryConfig};
 use composefs::tree::FileSystem;
 use nix::fcntl::AT_FDCWD;
+use tempfile::{Builder, TempDir};
 use upac::composefs::error::RepoError;
 use upac::composefs::file::FileHandle;
 use upac::composefs::repository::ObjectID;
 
-fn scratch_dir(name: &str) -> PathBuf {
-    let dir = temp_dir().join(format!("upac-test-composefs-file-{}-{name}", id()));
-    let _ = remove_dir_all(&dir);
-    create_dir_all(&dir).unwrap();
-
-    dir
+fn scratch_dir(name: &str) -> TempDir {
+    Builder::new().prefix(name).tempdir().unwrap()
 }
 
 fn empty_tree() -> FileSystem<ObjectID> {
     FileSystem::new(Stat::uninitialized())
 }
 
-fn open_repository(name: &str) -> Repository<ObjectID> {
+fn open_repository(name: &str) -> (TempDir, Repository<ObjectID>) {
     let dir = scratch_dir(name);
     let (repository, _created) =
-        Repository::init_path(AT_FDCWD, &dir, RepositoryConfig::default().set_insecure()).unwrap();
+        Repository::init_path(AT_FDCWD, dir.path(), RepositoryConfig::default().set_insecure()).unwrap();
 
-    repository
+    (dir, repository)
 }
 
 fn source_file(dir_name: &str, content: &[u8]) -> File {
     let dir = scratch_dir(dir_name);
-    let path = dir.join("source");
+    let path = dir.path().join("source");
     write(&path, content).unwrap();
 
     File::open(&path).unwrap()
@@ -197,7 +192,7 @@ fn from_tree_succeeds_for_existing_path_and_fails_for_missing_path() {
 
 #[test]
 fn insert_file_inline_then_read_file_round_trips() {
-    let repository = open_repository("insert-inline");
+    let (_scratch, repository) = open_repository("insert-inline");
     let mut tree = empty_tree();
     let mut ctx = ImportContext::default();
     let handle = FileHandle::new("small.txt");
@@ -217,7 +212,7 @@ fn insert_file_inline_then_read_file_round_trips() {
 
 #[test]
 fn insert_file_external_then_read_file_round_trips() {
-    let repository = open_repository("insert-external");
+    let (_scratch, repository) = open_repository("insert-external");
     let mut tree = empty_tree();
     let mut ctx = ImportContext::default();
     let handle = FileHandle::new("large.bin");
@@ -238,7 +233,7 @@ fn insert_file_external_then_read_file_round_trips() {
 
 #[test]
 fn replace_file_overwrites_previous_content() {
-    let repository = open_repository("replace");
+    let (_scratch, repository) = open_repository("replace");
     let mut tree = empty_tree();
     let mut ctx = ImportContext::default();
     let handle = FileHandle::new("file.txt");
@@ -268,18 +263,18 @@ fn replace_file_overwrites_previous_content() {
 #[test]
 fn import_directory_inserts_files_dirs_and_symlinks() {
     let source_dir = scratch_dir("import-source");
-    create_dir_all(source_dir.join("sub")).unwrap();
-    write(source_dir.join("sub/file.txt"), b"content").unwrap();
-    symlink("file.txt", source_dir.join("sub/link")).unwrap();
+    create_dir_all(source_dir.path().join("sub")).unwrap();
+    write(source_dir.path().join("sub/file.txt"), b"content").unwrap();
+    symlink("file.txt", source_dir.path().join("sub/link")).unwrap();
 
-    let repository = open_repository("import-repo");
+    let (_scratch, repository) = open_repository("import-repo");
     let mut tree = empty_tree();
     let mut ctx = ImportContext::default();
     let handle = FileHandle::new("target");
     handle.insert_in_tree(&mut tree, Stat::uninitialized()).unwrap();
 
     let mut imported = handle
-        .import_directory(&repository, &mut tree, &source_dir, &mut ctx)
+        .import_directory(&repository, &mut tree, source_dir.path(), &mut ctx)
         .unwrap();
     imported.sort();
 

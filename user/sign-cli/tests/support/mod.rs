@@ -3,16 +3,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::env::temp_dir;
-use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
-use std::process::{Command, id};
+use std::process::Command;
 
-pub fn scratch_dir(name: &str) -> PathBuf {
-    let dir = temp_dir().join(format!("up-si-test-{}-{name}", id()));
-    create_dir_all(&dir).unwrap();
+use tempfile::{Builder, TempDir};
 
-    dir
+pub fn scratch_dir(name: &str) -> TempDir {
+    Builder::new().prefix(name).tempdir().unwrap()
 }
 
 pub fn bin() -> Command {

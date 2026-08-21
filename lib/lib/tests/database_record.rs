@@ -3,19 +3,12 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::env::temp_dir;
-use std::fs::{create_dir_all, remove_dir_all};
-use std::path::PathBuf;
-use std::process::id;
-
+use tempfile::{Builder, TempDir};
 use upac::database::error::DeployRecordError;
 use upac::database::record::{ConfigHistoryEntry, DeployRecord};
 
-fn scratch_dir(name: &str) -> PathBuf {
-    let dir = temp_dir().join(format!("upac-test-database-record-{}-{name}", id()));
-    create_dir_all(&dir).unwrap();
-
-    dir
+fn scratch_dir(name: &str) -> TempDir {
+    Builder::new().prefix(name).tempdir().unwrap()
 }
 
 fn sample_record() -> DeployRecord {
@@ -56,21 +49,20 @@ fn deploy_record_disk_round_trip_preserves_value() {
     let dir = scratch_dir("disk-round-trip");
     let record = sample_record();
 
-    record.write(&dir).unwrap();
-    let decoded = DeployRecord::read(&dir).unwrap();
+    record.write(dir.path()).unwrap();
+    let decoded = DeployRecord::read(dir.path()).unwrap();
 
     assert_eq!(record, decoded);
-
-    let _ = remove_dir_all(&dir);
 }
 
 #[test]
 fn deploy_record_read_fails_when_file_missing() {
     let dir = scratch_dir("missing-file");
 
-    assert!(matches!(DeployRecord::read(&dir), Err(DeployRecordError::NotFound)));
-
-    let _ = remove_dir_all(&dir);
+    assert!(matches!(
+        DeployRecord::read(dir.path()),
+        Err(DeployRecordError::NotFound)
+    ));
 }
 
 #[test]
@@ -98,14 +90,12 @@ fn deploy_record_from_json_fails_on_missing_field() {
 fn deploy_record_write_overwrites_previous_value() {
     let dir = scratch_dir("overwrite");
 
-    sample_record().write(&dir).unwrap();
+    sample_record().write(dir.path()).unwrap();
 
     let mut second = sample_record();
     second.seq = 42;
-    second.write(&dir).unwrap();
+    second.write(dir.path()).unwrap();
 
-    let decoded = DeployRecord::read(&dir).unwrap();
+    let decoded = DeployRecord::read(dir.path()).unwrap();
     assert_eq!(decoded.seq, 42);
-
-    let _ = remove_dir_all(&dir);
 }

@@ -55,6 +55,9 @@ hex                   = "0.4"
 [build-dependencies]
 toml = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [features]
 default = ["dynamic-plugins"]
 
