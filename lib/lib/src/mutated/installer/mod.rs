@@ -22,6 +22,7 @@ use self::transaction::TransactionStage;
 use crate::composefs::repository::ObjectID;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
+use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
 use upac_types::TmpPath;
@@ -38,10 +39,14 @@ pub(crate) struct NewPrefixDigest(pub String);
 pub(crate) struct NewConfigDefaults(pub FileSystem<ObjectID>);
 pub(crate) struct Subject(pub String);
 pub(crate) struct CommitMessage(pub Option<String>);
+pub(crate) struct RequestedBootPlugin(pub Option<String>);
+pub(crate) struct ResolvedBootEntry {
+    pub plugin: BootPlugin,
+    pub entry_name: String,
+}
 
 pub struct InstallData<'a> {
     pub packages: Vec<&'a str>,
-    #[expect(dead_code)]
     pub boot_plugin: Option<&'a str>,
 
     pub tmp_path: &'a str,
@@ -95,6 +100,7 @@ pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
+    context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

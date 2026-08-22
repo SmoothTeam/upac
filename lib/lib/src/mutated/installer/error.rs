@@ -10,10 +10,11 @@ use crate::composefs::error::RepoError;
 use crate::database::error::{DatabaseError, DeployRecordError};
 use crate::deploy::error::SysrootError;
 use crate::errors::{
-    CommonError, boot_error_from, common_error_from, database_error_from, deploy_record_error_from, lock_error_from,
-    repo_error_from, sysroot_error_from,
+    CommonError, boot_error_from, boot_plugin_error_from, common_error_from, database_error_from,
+    deploy_record_error_from, lock_error_from, repo_error_from, sysroot_error_from,
 };
 use crate::lock::LockError;
+use crate::plugin::boot::error::BootPluginError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InstallError {
@@ -31,6 +32,8 @@ sysroot_error_from!(InstallError);
 lock_error_from!(InstallError);
 
 boot_error_from!(InstallError);
+
+boot_plugin_error_from!(InstallError);
 
 deploy_record_error_from!(InstallError);
 

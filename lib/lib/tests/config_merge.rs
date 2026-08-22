@@ -190,6 +190,57 @@ fn user_deletion_conflicts_when_the_package_also_changed_the_file() {
 }
 
 #[test]
+fn user_edit_survives_when_the_package_stops_providing_the_file() {
+    let (_scratch, repository) = open_repository("orphaned-edit");
+    let mut ctx = ImportContext::default();
+
+    let mut base = empty_tree();
+    insert(&repository, &mut base, &mut ctx, "orphaned-edit-base", "conf", b"base");
+
+    let new = empty_tree();
+
+    let mut live = empty_tree();
+    insert(
+        &repository,
+        &mut live,
+        &mut ctx,
+        "orphaned-edit-live",
+        "conf",
+        b"user-edit",
+    );
+
+    let result = merge_config(&base, &new, &live).unwrap();
+
+    assert_eq!(read(&repository, &result.tree, "conf"), b"user-edit");
+    assert!(!exists(&result.tree, "conf.upac-new"));
+    assert!(result.conflicts.is_empty());
+}
+
+#[test]
+fn user_deletion_is_not_a_conflict_when_the_package_also_removed_the_file() {
+    let (_scratch, repository) = open_repository("agreed-deletion");
+    let mut ctx = ImportContext::default();
+
+    let mut base = empty_tree();
+    insert(
+        &repository,
+        &mut base,
+        &mut ctx,
+        "agreed-deletion-base",
+        "conf",
+        b"base",
+    );
+
+    let new = empty_tree();
+    let live = empty_tree();
+
+    let result = merge_config(&base, &new, &live).unwrap();
+
+    assert!(!exists(&result.tree, "conf"));
+    assert!(result.conflicts.is_empty());
+}
+
+#[test]
 fn brand_new_user_file_survives_the_merge() {
     let (_scratch, repository) = open_repository("brand-new-user-file");
     let mut ctx = ImportContext::default();

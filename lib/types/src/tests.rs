@@ -33,6 +33,7 @@ fn file_entry_redb_round_trip_preserves_value() {
     let original = FileEntry {
         path: "/usr/bin/up".to_owned(),
         is_user: false,
+        scope: FileEntryScope::Prefix,
     };
 
     let mut buf = Vec::new();
@@ -43,5 +44,6 @@ fn file_entry_redb_round_trip_preserves_value() {
 
     assert_eq!(restored.path, original.path);
     assert_eq!(restored.is_user, original.is_user);
+    assert_eq!(restored.scope, original.scope);
     assert_eq!(offset, buf.len());
 }

@@ -13,7 +13,7 @@ use composefs::tree::FileSystem;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use upac_types::{FileEntry, PackageTemp, TmpPath};
+use upac_types::{FileEntry, FileEntryScope, PackageTemp, TmpPath};
 
 use crate::composefs::error::RepoError;
 use crate::composefs::file::FileHandle;
@@ -96,20 +96,28 @@ impl TransactionStage {
         };
 
         let config_source = source_root.join("etc");
-        if config_source.is_dir() {
-            FileHandle::new(PathBuf::new()).import_directory(
-                repository,
-                config_defaults,
-                &config_source,
-                import_ctx,
-            )?;
-        }
+        let imported_config = if config_source.is_dir() {
+            FileHandle::new(PathBuf::new()).import_directory(repository, config_defaults, &config_source, import_ctx)?
+        } else {
+            Vec::new()
+        };
 
         let uuid = database.insert_package_meta(&package.meta)?;
+
         for path in imported {
             let entry = FileEntry {
                 path: path.to_string_lossy().into_owned(),
                 is_user: false,
+                scope: FileEntryScope::Prefix,
+            };
+            database.insert_package_file(uuid, &entry)?;
+        }
+
+        for path in imported_config {
+            let entry = FileEntry {
+                path: path.to_string_lossy().into_owned(),
+                is_user: false,
+                scope: FileEntryScope::Config,
             };
             database.insert_package_file(uuid, &entry)?;
         }

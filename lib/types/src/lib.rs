@@ -87,11 +87,36 @@ pub struct PackageEntry {
     pub arch_sub: Option<String>,
 }
 
+// ── FileEntryScope ──────────────────────────────────────────────────────────
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileEntryScope {
+    Prefix = 0,
+    Config = 1,
+}
+
+impl FileEntryScope {
+    pub fn encode_into(buf: &mut Vec<u8>, value: &FileEntryScope) {
+        buf.push(*value as u8);
+    }
+
+    pub fn decode_from(data: &[u8], offset: &mut usize) -> FileEntryScope {
+        let value = data[*offset];
+        *offset += 1;
+
+        match value {
+            1 => FileEntryScope::Config,
+            _ => FileEntryScope::Prefix,
+        }
+    }
+}
+
 // ── FileEntry ───────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RedbCodec)]
 pub struct FileEntry {
     pub path: String,
     pub is_user: bool,
+    pub scope: FileEntryScope,
 }
 
 // ── SearchFileEntry ─────────────────────────────────────────────────────────

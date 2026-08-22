@@ -41,14 +41,13 @@ impl_command_state!(InstallStateId, Install);
 pub enum UninstallStateId {
     PreHooks = 0,
     Preparation = 1,
-    Build = 2,
-    Commit = 3,
-    ConfigMerge = 4,
-    PrepareBoot = 5,
-    BootOption = 6,
-    PostHooks = 7,
-    Done = 8,
-    Setup = 9,
+    Transaction = 2,
+    ConfigMerge = 3,
+    PrepareBoot = 4,
+    BootOption = 5,
+    PostHooks = 6,
+    Done = 7,
+    Setup = 8,
 }
 
 impl_command_state!(UninstallStateId, Uninstall);

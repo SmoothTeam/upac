@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use composefs::tree::FileSystem;
@@ -24,24 +24,22 @@ pub fn merge_config(
     base: &FileSystem<ObjectID>, new: &FileSystem<ObjectID>, live: &FileSystem<ObjectID>,
 ) -> Result<MergeResult, RepoError> {
     let user_changes = TreeDiff::run(base, live);
-    let package_changed: BTreeSet<String> = TreeDiff::run(base, new).into_iter().map(|(path, _)| path).collect();
+    let package_changes: BTreeMap<String, FileDiffKind> = TreeDiff::run(base, new).into_iter().collect();
 
     let mut tree = new.clone();
     let mut conflicts = Vec::new();
 
     for (path, kind) in user_changes {
-        let conflict = package_changed.contains(&path);
+        let package_change = package_changes.get(&path);
 
         match kind {
-            FileDiffKind::Removed => {
-                if conflict {
-                    conflicts.push(path);
-                } else {
-                    FileHandle::new(&path).remove_in_tree(&mut tree)?;
-                }
-            }
+            FileDiffKind::Removed => match package_change {
+                Some(FileDiffKind::Added | FileDiffKind::Modified) => conflicts.push(path),
+                Some(FileDiffKind::Removed) => {}
+                None => FileHandle::new(&path).remove_in_tree(&mut tree)?,
+            },
             FileDiffKind::Added | FileDiffKind::Modified => {
-                if conflict {
+                if let Some(FileDiffKind::Added | FileDiffKind::Modified) = package_change {
                     FileHandle::new(format!("{path}.upac-new")).copy_from_tree(&mut tree, new, Path::new(&path))?;
                     conflicts.push(path.clone());
                 }
