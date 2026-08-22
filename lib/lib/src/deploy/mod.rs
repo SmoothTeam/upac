@@ -22,7 +22,7 @@ use self::error::SysrootError;
 
 use crate::composefs::error::RepoError;
 use crate::composefs::repository::{self, ObjectID};
-use crate::layout::deployment::{DEPLOYS_DIR, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
+use crate::layout::deployment::{DEPLOYS_DIR, NEXT_SEQ_PATH, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
 
 pub mod digest;
 pub mod error;
@@ -86,6 +86,10 @@ impl Deploy {
 
     pub fn deploy(&self, prefix_digest: &str) -> PathBuf {
         self.deploy.join(prefix_digest)
+    }
+
+    pub(crate) fn next_seq_path(&self) -> PathBuf {
+        self.sysroot.join(NEXT_SEQ_PATH)
     }
 
     pub fn deploys(&self) -> Result<Vec<String>, SysrootError> {

@@ -29,6 +29,13 @@ database_path = "share/upac/packages.redb"
 # boot entry creation (§5.2, "composefs.digest=D'") and read back at runtime
 # to resolve the currently booted deploy's prefix_digest — one name shared by
 # both sides.
+#
+# next_seq_path is a single monotonic counter file, sysroot-relative (not
+# per-deploy like deploys_dir), that hands out each new deploy record's `seq`
+# (doc §5.7: "a built-in marker for finding the array element following it").
+# etc_upper_relative_path is fixed relative to a single deploy record
+# directory (`state/deploy/<usr-digest>/`, doc §3) — the live overlayfs upper
+# layer for that usr-digest's `/etc`.
 [deployment]
 root_dir = "/"
 deploys_dir = "state/deploy"
@@ -36,6 +43,8 @@ repo_dir = "composefs"
 sysroot_dir = "sysroot"
 record_filename = "meta.json"
 prefix_digest_cmdline_param = "composefs.digest"
+next_seq_path = "state/next-seq"
+etc_upper_relative_path = "etc-upper/upper"
 
 # Name of the abstract Unix socket address upac uses to hold its exclusive
 # process lock (bind() on this address — a second concurrent upac gets
