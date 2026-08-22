@@ -5,9 +5,12 @@ members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" ,
 [workspace.package]
 version = "0.1.5"
 edition = "2024"
-license = "LGPL-3.0-or-later"
+readme = "README.md"
 rust-version = "1.98"
+license = "LGPL-3.0-or-later"
 repository = "https://github.com/SmoothTeam/upac"
+keywords = ["package-manager", "installer", "cli", "linux"]
+categories = ["command-line-utilities"]
 
 [workspace.lints.rust]
 explicit_outlives_requirements = "warn"
