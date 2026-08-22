@@ -8,6 +8,9 @@ use std::fs::{File, write};
 use composefs::fsverity::FsVerityHashValue;
 use composefs::generic_tree::Stat;
 use composefs::repository::ImportContext;
+use composefs::tree::FileSystem;
+
+use uuid::Uuid;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
@@ -15,7 +18,7 @@ use upac_types::{FileEntryScope, TmpPath};
 
 use crate::composefs::error::RepoError;
 use crate::composefs::file::FileHandle;
-use crate::composefs::repository::commit_tree;
+use crate::composefs::repository::{ObjectID, commit_tree};
 use crate::database::files::{FileStore, FileStoreMut};
 use crate::database::meta::{MetaStore, MetaStoreMut};
 use crate::database::{InMemory, MemoryDatabase};
@@ -49,23 +52,7 @@ impl Stage<UninstallError> for TransactionStage {
         let mut removed_config_paths = Vec::new();
 
         for uuid in &uuids.0 {
-            for entry in database.list_package_files(*uuid)? {
-                match entry.scope {
-                    FileEntryScope::Prefix => {
-                        FileHandle::new(&entry.path).remove_in_tree(&mut tree)?;
-                    }
-                    FileEntryScope::Config => {
-                        removed_config_paths.push(entry.path.clone());
-                    }
-                }
-
-                database.remove_package_file(*uuid, &entry.path)?;
-            }
-
-            let meta = database
-                .get_package_meta(*uuid)?
-                .ok_or(UninstallError::PackageNotFound)?;
-            database.remove_package_meta(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
+            self.remove_package(*uuid, &mut tree, &mut database, &mut removed_config_paths)?;
         }
 
         let database_bytes = database.into_bytes()?;
@@ -86,5 +73,32 @@ impl Stage<UninstallError> for TransactionStage {
         context.put(RemovedConfigPaths(removed_config_paths));
 
         Ok((progress, Box::new(NoRollback)))
+    }
+}
+
+impl TransactionStage {
+    fn remove_package(
+        &self, uuid: Uuid, tree: &mut FileSystem<ObjectID>, database: &mut MemoryDatabase,
+        removed_config_paths: &mut Vec<String>,
+    ) -> Result<(), UninstallError> {
+        for entry in database.list_package_files(uuid)? {
+            match entry.scope {
+                FileEntryScope::Prefix => {
+                    FileHandle::new(&entry.path).remove_in_tree(tree)?;
+                }
+                FileEntryScope::Config => {
+                    removed_config_paths.push(entry.path.clone());
+                }
+            }
+
+            database.remove_package_file(uuid, &entry.path)?;
+        }
+
+        let meta = database
+            .get_package_meta(uuid)?
+            .ok_or(UninstallError::PackageNotFound)?;
+        database.remove_package_meta(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
+
+        Ok(())
     }
 }

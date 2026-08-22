@@ -59,10 +59,41 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   resolves the requested (or autodetected) boot plugin via `plugin::boot::resolve_boot_plugin`, and
   selects it for one-shot boot. `install` is now the first command with its **entire** pipeline
   real end to end (Transaction+Merge+Checkout+Swap), no `todo!()` left in it.
+- `uninstaller` is now fully real too, end to end (`Preparation` → `Transaction` → `ConfigMerge` →
+  `PrepareBoot` → `BootOption`, no `todo!()` left). `UninstallStateId` originally had a `Build`/
+  `Commit` split inherited from an old, undocumented rename (git-archaeology found it was a
+  by-product of an unrelated repo-restructuring commit, not a deliberate design) — collapsed back
+  into a single `Transaction` stage to match install/update/files' shape.
+  Building this surfaced a real, pre-existing gap: `install`'s `TransactionStage` never recorded
+  which `/etc` files belong to which package in the DB (only `/usr` paths got `insert_package_file`
+  calls), even though `database::attribution::FileAttribute` (used by `diff_config`) already
+  assumed that tracking existed. Fixed via a new `upac_types::FileEntryScope { Prefix, Config }`
+  field on `FileEntry` (the `#[derive(RedbCodec)]` macro needed zero changes — it already falls
+  back to calling a field type's own `encode_into`/`decode_from` generically), plus updating
+  `TransactionStage` to insert `FileEntryScope::Config` rows for the `/etc`-imported paths it was
+  previously discarding.
+  This in turn required generalizing `config::merge::merge_config` itself: the existing algorithm
+  assumed `new` always still has whatever the user edited (fine for install, where packages only
+  ever add/modify defaults), but uninstall's `new` (`base` minus the removed package's own config
+  paths) can lack a path entirely. Fixed by keying the package-side diff by `FileDiffKind` (not
+  just path presence) so "package no longer provides this path at all" is treated as *not* a
+  conflict — the user's edit (or deletion) is simply carried forward, with no `.upac-new` sidecar
+  synthesized against nothing. Two new tests cover this (`user_edit_survives_when_the_package_stops
+  _providing_the_file`, `user_deletion_is_not_a_conflict_when_the_package_also_removed_the_file`);
+  all pre-existing `merge_config` tests still pass unchanged.
   `update`/`files` still have `todo!()` `TransactionStage`/`MergeStage`/`CheckoutStage`/`SwapStage`
-  bodies (though they should look very close to install's, now that it exists as a full template),
-  and so are `uninstaller`'s `PrepareBootStage`/`BootOptionStage`. One test
+  bodies, though they should look very close to install's now that it's a full template. One test
   (`opaque_directory_drops_base_subtree_entirely`) is `#[ignore]`d — setting the
   `trusted.overlay.opaque` xattr needs `CAP_SYS_ADMIN`/root, unavailable in normal test runs.
+- `up gc`'s `CleaningStage` is now real: composefs 0.9.0's own `Repository::gc(additional_roots)`
+  already walks `objects/`/`streams/` and sweeps everything unreachable — no hand-rolled
+  `ObjectCollector` needed, just a thin `composefs::repository::gc` wrapper. Since none of our
+  images are registered under `images/refs/` (every commit is anonymous, addressed by digest), the
+  stage itself enumerates every currently-existing `state/deploy/<digest>/` (via `Deploy::deploys`)
+  and passes each one's `prefix_digest` + `working_config` + every `config_history` entry's
+  `config_digest` as `additional_roots` — anything not reachable from that set gets swept. Deploy
+  *retention* (deciding which `state/deploy/<digest>/` directories should exist in the first place,
+  §5.5 point 1, "light cleanup after every operation") is a separate, still-unbuilt mechanism —
+  `gc` only sweeps objects given whatever deploys currently happen to be on disk.
 - Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature
   approach) — not started, see `ROADMAP.md` §1.

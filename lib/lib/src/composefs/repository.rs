@@ -10,7 +10,7 @@ use std::path::Path;
 use composefs::erofs::reader::erofs_to_filesystem;
 use composefs::erofs::writer::{ValidatedFileSystem, mkfs_erofs};
 use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
-use composefs::repository::Repository;
+use composefs::repository::{GcResult, Repository};
 use composefs::tree::FileSystem;
 
 use nix::fcntl::AT_FDCWD;
@@ -41,4 +41,8 @@ pub fn commit_tree(repository: &Repository<ObjectID>, tree: FileSystem<ObjectID>
 
 pub fn object_id_from_hex(hex: &str) -> Result<ObjectID, RepoError> {
     Ok(ObjectID::from_hex(hex.as_bytes())?)
+}
+
+pub fn gc(repository: &Repository<ObjectID>, additional_roots: &[&str]) -> Result<GcResult, RepoError> {
+    Ok(repository.gc(additional_roots)?)
 }
