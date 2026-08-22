@@ -41,12 +41,12 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   `config::merge::merge_config`'s future `new` input, since the package-shipped `/etc` defaults
   live in the very same unpacked directory, just a different top-level prefix. Both the new
   prefix digest and that `/etc`-defaults tree are stashed in `Context`
-  (`installer::{NewPrefixDigest, NewEtcDefaults}`).
+  (`installer::{NewPrefixDigest, NewConfigDefaults}`).
 - `install`'s `MergeStage` is now real too: builds `base` (the current record's sealed
   `working_config` tree) and `live` (`base` + the current deploy's on-disk `etc-upper/upper`
   applied via `composefs::overlay::apply_overlay_upper`), runs `config::merge::merge_config(base,
-  new, live)` against `TransactionStage`'s `NewEtcDefaults`, commits the merged tree as a new
-  etc-digest, then either updates or **creates** the `DeployRecord` for the freshly-committed
+  new, live)` against `TransactionStage`'s `NewConfigDefaults`, commits the merged tree as a new
+  config-digest, then either updates or **creates** the `DeployRecord` for the freshly-committed
   `/usr` digest — a real gap this surfaced: unlike `rollback`'s `MergeStage` (which only ever
   *selects* an already-existing record), install's target `/usr` digest is brand new, so there was
   no existing `state/deploy/<digest>/meta.json` to read. New brick: `DeployRecord::allocate_seq`
@@ -54,11 +54,14 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   implementation anywhere before this). Conflict `.upac-new` notification via the message-hook
   mechanism (per §5.1) is **not** wired yet — deferred, same class of gap as `up mime sync`'s
   best-effort cache refresh.
+- `install`'s own `CheckoutStage`/`SwapStage` are now real too, same shape as `rollback`'s: writes
+  the ESP boot entry for the newly-committed `NewPrefixDigest` via `boot::write_boot_entry`,
+  resolves the requested (or autodetected) boot plugin via `plugin::boot::resolve_boot_plugin`, and
+  selects it for one-shot boot. `install` is now the first command with its **entire** pipeline
+  real end to end (Transaction+Merge+Checkout+Swap), no `todo!()` left in it.
   `update`/`files` still have `todo!()` `TransactionStage`/`MergeStage`/`CheckoutStage`/`SwapStage`
-  bodies (though `update`'s should look very close to install's, now that both exist as a
-  template), install's own `CheckoutStage`/`SwapStage` are still `todo!()` (should look close to
-  rollback's, now that both boot bricks are proven working), and so are `uninstaller`'s
-  `PrepareBootStage`/`BootOptionStage`. One test
+  bodies (though they should look very close to install's, now that it exists as a full template),
+  and so are `uninstaller`'s `PrepareBootStage`/`BootOptionStage`. One test
   (`opaque_directory_drops_base_subtree_entirely`) is `#[ignore]`d — setting the
   `trusted.overlay.opaque` xattr needs `CAP_SYS_ADMIN`/root, unavailable in normal test runs.
 - Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature

@@ -5,16 +5,45 @@
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::mutated::uninstaller::UninstallError;
+use upac_types::Targets;
+
+use crate::composefs::file::FileHandle;
+use crate::database::meta::MetaStore;
+use crate::database::{InMemory, MemoryDatabase};
+use crate::deploy::Deploy;
+use crate::deploy::digest::current_prefix_digest;
+use crate::errors::CommonError;
+use crate::layout::database::DATABASE_PATH;
+use crate::mutated::uninstaller::{PackageUuidsToRemove, UninstallError};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 
 pub struct PreparationStage;
 
 impl Stage<UninstallError> for PreparationStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
-        todo!()
+        let targets = context.get::<Targets>().ok_or(CommonError::MissingResult)?;
+        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+
+        let current_prefix = current_prefix_digest()?;
+        let repository = deploy.open_repository()?;
+        let tree = deploy.open_tree(&current_prefix)?;
+
+        let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &tree)?;
+        let database = MemoryDatabase::open_in_memory(database_bytes)?;
+
+        let mut uuids = Vec::new();
+        for entry in &targets.0 {
+            let uuid = database
+                .find_package_uuid(&entry.name, &entry.arch, entry.arch_sub.as_deref())?
+                .ok_or(UninstallError::PackageNotFound)?;
+            uuids.push(uuid);
+        }
+
+        context.put(PackageUuidsToRemove(uuids));
+
+        Ok((progress, Box::new(NoRollback)))
     }
 }

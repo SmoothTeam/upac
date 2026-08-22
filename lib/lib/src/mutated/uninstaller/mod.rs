@@ -5,6 +5,8 @@
 
 use std::os::raw::c_void;
 
+use uuid::Uuid;
+
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
@@ -12,6 +14,7 @@ use upac_abi::request::CUninstallRequest;
 
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
+use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
 
@@ -21,19 +24,28 @@ use upac_types::{PackageEntry, Targets, TmpPath};
 pub use self::error::UninstallError;
 
 use self::boot_option::BootOptionStage;
-use self::build::BuildStage;
-use self::commit::CommitStage;
 use self::config_merge::ConfigMergeStage;
 use self::preparation::PreparationStage;
 use self::prepare_boot::PrepareBootStage;
+use self::transaction::TransactionStage;
 
 mod boot_option;
-mod build;
-mod commit;
 mod config_merge;
 mod error;
 mod preparation;
 mod prepare_boot;
+mod transaction;
+
+pub(crate) struct PackageUuidsToRemove(pub Vec<Uuid>);
+pub(crate) struct NewPrefixDigest(pub String);
+pub(crate) struct RemovedConfigPaths(pub Vec<String>);
+pub(crate) struct Subject(pub String);
+pub(crate) struct CommitMessage(pub Option<String>);
+pub(crate) struct RequestedBootPlugin(pub Option<String>);
+pub(crate) struct ResolvedBootEntry {
+    pub plugin: BootPlugin,
+    pub entry_name: String,
+}
 
 pub struct UninstallPackage<'a> {
     pub name: &'a str,
@@ -57,14 +69,11 @@ impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
 
 pub struct UninstallData<'a> {
     pub packages: Vec<UninstallPackage<'a>>,
-    #[expect(dead_code)]
     pub boot_plugin: Option<&'a str>,
 
     pub tmp_path: &'a str,
 
-    #[expect(dead_code)]
     pub subject: &'a str,
-    #[expect(dead_code)]
     pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
@@ -117,6 +126,9 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     context.put(targets);
     context.put(deploy);
     context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(Subject(data.subject.to_owned()));
+    context.put(CommitMessage(data.message.map(str::to_owned)));
+    context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
@@ -140,8 +152,7 @@ fn assemble() -> SequentialOrchestrator<UninstallError> {
             trigger: NativeTrigger::pre(Operation::Uninstall),
         }),
         Box::new(PreparationStage),
-        Box::new(BuildStage),
-        Box::new(CommitStage),
+        Box::new(TransactionStage),
         Box::new(ConfigMergeStage),
         Box::new(PrepareBootStage),
         Box::new(BootOptionStage),
