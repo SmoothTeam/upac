@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+use std::cmp::Ordering;
+
 use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CVersion};
@@ -10,7 +12,7 @@ use upac_abi::response::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
-use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
+use upac_abi::types::{COwned, CSlice, CVec};
 use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
 
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
@@ -32,22 +34,89 @@ macro_rules! as_str_method {
 }
 
 // ── Version ─────────────────────────────────────────────────────────────────
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum VersionToken<'a> {
+    Alpha(&'a str),
+    Numeric(u64),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, CTryToRust, RedbCodec, RustToC)]
 pub struct Version {
     pub epoch: u32,
-    pub parts: Vec<u32>,
-    pub pre: Option<String>,
-    pub release: u32,
+    pub raw: String,
 }
 
 impl Default for Version {
     fn default() -> Self {
         Version {
             epoch: 0,
-            parts: Vec::new(),
-            pre: None,
-            release: 1,
+            raw: String::new(),
         }
+    }
+}
+
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Version {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.epoch != other.epoch {
+            return self.epoch.cmp(&other.epoch);
+        }
+
+        let self_tokens = self.tokenize();
+        let other_tokens = other.tokenize();
+
+        let mut self_iter = self_tokens.iter();
+        let mut other_iter = other_tokens.iter();
+
+        loop {
+            match (self_iter.next(), other_iter.next()) {
+                (Some(a), Some(b)) => match a.cmp(b) {
+                    Ordering::Equal => continue,
+                    ordering => return ordering,
+                },
+                (Some(VersionToken::Numeric(_)), None) => return Ordering::Greater,
+                (Some(VersionToken::Alpha(_)), None) => return Ordering::Less,
+                (None, Some(VersionToken::Numeric(_))) => return Ordering::Less,
+                (None, Some(VersionToken::Alpha(_))) => return Ordering::Greater,
+                (None, None) => return Ordering::Equal,
+            }
+        }
+    }
+}
+
+impl Version {
+    fn tokenize(&self) -> Vec<VersionToken<'_>> {
+        let bytes = self.raw.as_bytes();
+        let mut tokens = Vec::new();
+        let mut index = 0;
+
+        while index < bytes.len() {
+            if !bytes[index].is_ascii_alphanumeric() {
+                index += 1;
+                continue;
+            }
+
+            let start = index;
+            if bytes[index].is_ascii_digit() {
+                while index < bytes.len() && bytes[index].is_ascii_digit() {
+                    index += 1;
+                }
+                let value = self.raw[start..index].parse().unwrap_or(u64::MAX);
+                tokens.push(VersionToken::Numeric(value));
+            } else {
+                while index < bytes.len() && bytes[index].is_ascii_alphabetic() {
+                    index += 1;
+                }
+                tokens.push(VersionToken::Alpha(&self.raw[start..index]));
+            }
+        }
+
+        tokens
     }
 }
 

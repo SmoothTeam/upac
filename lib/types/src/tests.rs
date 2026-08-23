@@ -8,9 +8,7 @@ use super::*;
 fn sample_version() -> Version {
     Version {
         epoch: 1,
-        parts: vec![2, 5, 0],
-        pre: Some("rc1".to_owned()),
-        release: 3,
+        raw: "2.5.0-3~rc1".to_owned(),
     }
 }
 

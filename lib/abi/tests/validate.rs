@@ -16,9 +16,7 @@ fn valid_version() -> CVersion {
     CVersion {
         struct_size: size_of::<CVersion>(),
         epoch: 0,
-        release: 1,
-        parts: CVec::from_owned(vec![1, 0, 0]),
-        pre: CSlice { ptr: null(), len: 0 },
+        raw: CSlice::from_owned(b"1.0.0".to_vec()),
     }
 }
 
@@ -56,13 +54,11 @@ fn version_validate_rejects_wrong_struct_size() {
 }
 
 #[test]
-fn version_validate_rejects_empty_parts() {
+fn version_validate_rejects_empty_raw() {
     let version = CVersion {
         struct_size: size_of::<CVersion>(),
         epoch: 0,
-        release: 1,
-        parts: CVec::from_owned(Vec::new()),
-        pre: CSlice { ptr: null(), len: 0 },
+        raw: CSlice { ptr: null(), len: 0 },
     };
 
     assert_eq!(unsafe { version.validate() }, Err(ErrorKind::InvalidEntry));

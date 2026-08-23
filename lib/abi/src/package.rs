@@ -6,8 +6,8 @@
 use upac_macro::{CFree, CNew, CValidate};
 
 use crate::error::ErrorKind;
-use crate::memory::{free_cslice, free_cvec};
-use crate::types::{CSlice, CVec, check_size};
+use crate::memory::free_cslice;
+use crate::types::{CSlice, check_size};
 
 #[repr(C)]
 #[derive(CFree, CValidate)]
@@ -15,11 +15,8 @@ pub struct CVersion {
     pub struct_size: usize,
 
     pub epoch: u32,
-    pub release: u32,
     #[non_empty]
-    pub parts: CVec<u32>,
-    #[optional]
-    pub pre: CSlice,
+    pub raw: CSlice,
 }
 
 #[repr(C)]
