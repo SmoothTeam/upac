@@ -11,7 +11,7 @@ use composefs::repository::ImportContext;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::composefs::overlay::apply_overlay_upper;
+use crate::composefs::overlay::{apply_overlay_upper, apply_tree_overlay};
 use crate::composefs::repository::commit_tree;
 use crate::config::merge::merge_config;
 use crate::database::error::DeployRecordError;
@@ -49,10 +49,13 @@ impl Stage<InstallError> for MergeStage {
         let mut import_ctx = ImportContext::default();
         apply_overlay_upper(&repository, &mut live, &etc_upper_dir, &mut import_ctx)?;
 
+        let mut new = base.clone();
+        apply_tree_overlay(&mut new, &new_config_defaults.0)?;
+
         // The doc calls for notifying the user about `<path>.upac-new` conflicts through the
         // message-hook mechanism — deferred, no established precedent yet for a non-fatal
         // notification of this shape (see also the `up mime sync` best-effort refresh, same gap).
-        let merge_result = merge_config(&base, &new_config_defaults.0, &live)?;
+        let merge_result = merge_config(&base, &new, &live)?;
         let new_config_digest = commit_tree(&repository, merge_result.tree)?.to_hex();
 
         let new_record_dir = deploy.deploy(&new_prefix.0);

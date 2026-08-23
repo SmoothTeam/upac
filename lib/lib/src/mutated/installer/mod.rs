@@ -14,6 +14,7 @@ use upac_abi::request::CInstallRequest;
 pub use self::error::InstallError;
 
 use self::checkout::CheckoutStage;
+use self::fetching::FetchingStage;
 use self::merge::MergeStage;
 use self::preparation::PreparationStage;
 use self::swap::SwapStage;
@@ -30,6 +31,7 @@ use upac_types::states::InstallStateId;
 
 mod checkout;
 mod error;
+mod fetching;
 mod merge;
 mod preparation;
 mod swap;
@@ -117,6 +119,7 @@ fn assemble() -> SequentialOrchestrator<InstallError> {
         Box::new(HookStage {
             trigger: NativeTrigger::pre(Operation::Install),
         }),
+        Box::new(FetchingStage),
         Box::new(PreparationStage),
         Box::new(TransactionStage),
         Box::new(MergeStage),

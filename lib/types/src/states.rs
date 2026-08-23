@@ -24,14 +24,15 @@ macro_rules! impl_command_state {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum InstallStateId {
     PreHooks = 0,
-    Preparation = 1,
-    Transaction = 2,
-    Merge = 3,
-    Checkout = 4,
-    Swap = 5,
-    PostHooks = 6,
-    Done = 7,
-    Setup = 8,
+    Fetching = 1,
+    Preparation = 2,
+    Transaction = 3,
+    Merge = 4,
+    Checkout = 5,
+    Swap = 6,
+    PostHooks = 7,
+    Done = 8,
+    Setup = 9,
 }
 
 impl_command_state!(InstallStateId, Install);
@@ -190,14 +191,15 @@ impl_command_state!(DiffStateId, Diff);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex)]
 pub enum UpdateStateId {
     PreHooks = 0,
-    Preparation = 1,
-    Transaction = 2,
-    Merge = 3,
-    Checkout = 4,
-    Swap = 5,
-    PostHooks = 6,
-    Done = 7,
-    Setup = 8,
+    Fetching = 1,
+    Preparation = 2,
+    Transaction = 3,
+    Merge = 4,
+    Checkout = 5,
+    Swap = 6,
+    PostHooks = 7,
+    Done = 8,
+    Setup = 9,
 }
 
 impl_command_state!(UpdateStateId, Update);

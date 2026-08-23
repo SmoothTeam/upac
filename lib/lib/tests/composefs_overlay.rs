@@ -12,7 +12,7 @@ use nix::fcntl::AT_FDCWD;
 use nix::sys::stat::{Mode, SFlag, mknod};
 use tempfile::{Builder, TempDir};
 use upac::composefs::file::FileHandle;
-use upac::composefs::overlay::apply_overlay_upper;
+use upac::composefs::overlay::{apply_overlay_upper, apply_tree_overlay};
 use upac::composefs::repository::ObjectID;
 
 fn scratch_dir(name: &str) -> TempDir {
@@ -165,6 +165,134 @@ fn nested_directory_merges_without_opaque() {
 
     assert_eq!(read(&repository, &tree, "dir/a.txt"), b"a content");
     assert_eq!(read(&repository, &tree, "dir/b.txt"), b"new b content");
+}
+
+#[test]
+fn tree_overlay_leaves_untouched_base_entries_alone() {
+    let (_scratch, repository) = open_repository("tree-untouched-repo");
+    let mut ctx = ImportContext::default();
+
+    let mut base = empty_tree();
+    insert(
+        &repository,
+        &mut base,
+        &mut ctx,
+        "tree-untouched-base",
+        "keep.txt",
+        b"base content",
+    );
+
+    let overlay = empty_tree();
+
+    apply_tree_overlay(&mut base, &overlay).unwrap();
+
+    assert_eq!(read(&repository, &base, "keep.txt"), b"base content");
+}
+
+#[test]
+fn tree_overlay_file_overrides_base_file() {
+    let (_scratch, repository) = open_repository("tree-override-repo");
+    let mut ctx = ImportContext::default();
+
+    let mut base = empty_tree();
+    insert(
+        &repository,
+        &mut base,
+        &mut ctx,
+        "tree-override-base",
+        "conf",
+        b"base content",
+    );
+
+    let mut overlay = empty_tree();
+    insert(
+        &repository,
+        &mut overlay,
+        &mut ctx,
+        "tree-override-overlay",
+        "conf",
+        b"overlay content",
+    );
+
+    apply_tree_overlay(&mut base, &overlay).unwrap();
+
+    assert_eq!(read(&repository, &base, "conf"), b"overlay content");
+}
+
+#[test]
+fn tree_overlay_adds_brand_new_path() {
+    let (_scratch, repository) = open_repository("tree-new-repo");
+    let mut ctx = ImportContext::default();
+
+    let mut base = empty_tree();
+    insert(
+        &repository,
+        &mut base,
+        &mut ctx,
+        "tree-new-base",
+        "old.txt",
+        b"old content",
+    );
+
+    let mut overlay = empty_tree();
+    insert(
+        &repository,
+        &mut overlay,
+        &mut ctx,
+        "tree-new-overlay",
+        "new.txt",
+        b"new content",
+    );
+
+    apply_tree_overlay(&mut base, &overlay).unwrap();
+
+    assert_eq!(read(&repository, &base, "old.txt"), b"old content");
+    assert_eq!(read(&repository, &base, "new.txt"), b"new content");
+}
+
+#[test]
+fn tree_overlay_merges_nested_directory_without_removing_siblings() {
+    let (_scratch, repository) = open_repository("tree-nested-repo");
+    let mut ctx = ImportContext::default();
+
+    let mut base = empty_tree();
+    FileHandle::new("dir")
+        .insert_in_tree(&mut base, Stat::uninitialized())
+        .unwrap();
+    insert(
+        &repository,
+        &mut base,
+        &mut ctx,
+        "tree-nested-base-a",
+        "dir/a.txt",
+        b"a content",
+    );
+    insert(
+        &repository,
+        &mut base,
+        &mut ctx,
+        "tree-nested-base-b",
+        "dir/b.txt",
+        b"old b content",
+    );
+
+    let mut overlay = empty_tree();
+    FileHandle::new("dir")
+        .insert_in_tree(&mut overlay, Stat::uninitialized())
+        .unwrap();
+    insert(
+        &repository,
+        &mut overlay,
+        &mut ctx,
+        "tree-nested-overlay-b",
+        "dir/b.txt",
+        b"new b content",
+    );
+
+    apply_tree_overlay(&mut base, &overlay).unwrap();
+
+    assert_eq!(read(&repository, &base, "dir/a.txt"), b"a content");
+    assert_eq!(read(&repository, &base, "dir/b.txt"), b"new b content");
 }
 
 #[test]

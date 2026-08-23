@@ -35,7 +35,13 @@ database_path = "share/upac/packages.redb"
 # (doc §5.7: "a built-in marker for finding the array element following it").
 # etc_upper_relative_path is fixed relative to a single deploy record
 # directory (`state/deploy/<usr-digest>/`, doc §3) — the live overlayfs upper
-# layer for that usr-digest's `/etc`.
+# layer for that usr-digest's `/etc`. overlay_opaque_xattr is the fixed
+# extended-attribute name the Linux kernel's overlayfs driver itself looks
+# for to mark a directory opaque (§5.1's "carry over the user's config
+# edits" upper-layer walk) — an external kernel contract, not something a
+# distro/OEM would ever reconfigure, but kept here rather than a bare Rust
+# `const` for the same reason the boot-plugin GUIDs live in `booter.toml`:
+# one documented source of truth for fixed external constants.
 [deployment]
 root_dir = "/"
 deploys_dir = "state/deploy"
@@ -45,6 +51,7 @@ record_filename = "meta.json"
 prefix_digest_cmdline_param = "composefs.digest"
 next_seq_path = "state/next-seq"
 etc_upper_relative_path = "etc-upper/upper"
+overlay_opaque_xattr = "trusted.overlay.opaque"
 
 # Name of the abstract Unix socket address upac uses to hold its exclusive
 # process lock (bind() on this address — a second concurrent upac gets
