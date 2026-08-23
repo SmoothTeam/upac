@@ -35,6 +35,8 @@ pub struct Args {
     pub message: Option<String>,
     #[arg(long)]
     pub boot: Option<String>,
+    #[arg(long)]
+    pub purge: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -160,6 +162,7 @@ impl RemoveMachine {
             optional_slice(message.as_ref()),
             borrowed_vec(&packages),
             optional_slice(boot_plugin.as_ref()),
+            self.args.purge,
         );
 
         invoke(|error| unsafe { (symbols.uninstall)(request, error) })?;
