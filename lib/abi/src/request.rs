@@ -71,6 +71,7 @@ pub struct CUninstallRequest {
     pub packages: CVec<CPackageInfo>,
     #[optional]
     pub boot_plugin: CSlice,
+    pub purge: bool,
 }
 
 #[repr(C)]
