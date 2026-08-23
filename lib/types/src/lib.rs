@@ -40,19 +40,10 @@ enum VersionToken<'a> {
     Numeric(u64),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, CTryToRust, RedbCodec, RustToC)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, CTryToRust, RedbCodec, RustToC)]
 pub struct Version {
     pub epoch: u32,
     pub raw: String,
-}
-
-impl Default for Version {
-    fn default() -> Self {
-        Version {
-            epoch: 0,
-            raw: String::new(),
-        }
-    }
 }
 
 impl PartialOrd for Version {
