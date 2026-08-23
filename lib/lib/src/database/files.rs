@@ -30,6 +30,7 @@ pub trait FileStoreMut: FileStore {
     fn insert_package_file(&mut self, uuid: Uuid, entry: &FileEntry) -> Result<(), DatabaseError>;
     fn update_package_file(&mut self, uuid: Uuid, entry: &FileEntry) -> Result<(), DatabaseError>;
     fn remove_package_file(&mut self, uuid: Uuid, path: &str) -> Result<FileEntry, DatabaseError>;
+    fn remove_user_file(&mut self, uuid: Uuid, path: &str) -> Result<FileEntry, DatabaseError>;
 }
 
 impl<T: ReadableSource> FileStore for T {
@@ -122,18 +123,34 @@ impl FileStoreMut for MemoryDatabase {
 
         Ok(entry)
     }
+
+    fn remove_user_file(&mut self, uuid: Uuid, path: &str) -> Result<FileEntry, DatabaseError> {
+        let hash = Self::path_hash(path);
+        let transaction = self.database.begin_write()?;
+        let mut files = transaction.open_table(FILES_UUID_TABLE)?;
+
+        let entry = files.get((uuid, hash))?.ok_or(DatabaseError::FileNotFound)?.value().0;
+
+        if !entry.is_user {
+            return Err(DatabaseError::AccessDenied);
+        }
+
+        files.remove((uuid, hash))?;
+
+        drop(files);
+        transaction.open_table(FILES_UUID_HASH_TABLE)?.remove(hash)?;
+        transaction.commit()?;
+
+        Ok(entry)
+    }
 }
 
-// Wraps `FileEntry` (defined in the external `upac-types` crate) so `redb::Value` can be
-// implemented for it here without violating the orphan rule.
 #[derive(Debug)]
 #[repr(transparent)]
 pub(crate) struct StoredFileEntry(pub(crate) FileEntry);
 
 impl StoredFileEntry {
     fn from_ref(entry: &FileEntry) -> &StoredFileEntry {
-        // SAFETY: `StoredFileEntry` is `#[repr(transparent)]` over `FileEntry`, so the two share
-        // identical layout and this reference cast is sound.
         unsafe { &*(entry as *const FileEntry as *const StoredFileEntry) }
     }
 }

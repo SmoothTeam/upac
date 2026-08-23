@@ -26,7 +26,7 @@ use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
-use crate::mutated::uninstaller::{NewPrefixDigest, PackageUuidsToRemove, RemovedConfigPaths, UninstallError};
+use crate::mutated::uninstaller::{NewPrefixDigest, PackageUuidsToRemove, Purge, RemovedConfigPaths, UninstallError};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 
@@ -41,6 +41,7 @@ impl Stage<UninstallError> for TransactionStage {
             .ok_or(CommonError::MissingResult)?;
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let purge = context.get::<Purge>().ok_or(CommonError::MissingResult)?;
 
         let current_prefix = current_prefix_digest()?;
         let repository = deploy.open_repository()?;
@@ -52,7 +53,7 @@ impl Stage<UninstallError> for TransactionStage {
         let mut removed_config_paths = Vec::new();
 
         for uuid in &uuids.0 {
-            self.remove_package(*uuid, &mut tree, &mut database, &mut removed_config_paths)?;
+            self.remove_package(*uuid, &mut tree, &mut database, &mut removed_config_paths, purge.0)?;
         }
 
         let database_bytes = database.into_bytes()?;
@@ -79,9 +80,13 @@ impl Stage<UninstallError> for TransactionStage {
 impl TransactionStage {
     fn remove_package(
         &self, uuid: Uuid, tree: &mut FileSystem<ObjectID>, database: &mut MemoryDatabase,
-        removed_config_paths: &mut Vec<String>,
+        removed_config_paths: &mut Vec<String>, purge: bool,
     ) -> Result<(), UninstallError> {
         for entry in database.list_package_files(uuid)? {
+            if entry.is_user && !purge {
+                continue;
+            }
+
             match entry.scope {
                 FileEntryScope::Prefix => {
                     FileHandle::new(&entry.path).remove_in_tree(tree)?;
@@ -91,7 +96,11 @@ impl TransactionStage {
                 }
             }
 
-            database.remove_package_file(uuid, &entry.path)?;
+            if entry.is_user {
+                database.remove_user_file(uuid, &entry.path)?;
+            } else {
+                database.remove_package_file(uuid, &entry.path)?;
+            }
         }
 
         let meta = database
