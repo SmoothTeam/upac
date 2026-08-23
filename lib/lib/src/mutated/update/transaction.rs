@@ -50,16 +50,17 @@ impl Stage<UpdateError> for TransactionStage {
         let mut removed_config_paths = Vec::new();
         let mut import_ctx = ImportContext::default();
 
+        let mut workspace = UpdatePackageWorkspace {
+            repository: &repository,
+            tree: &mut tree,
+            config_defaults: &mut config_defaults,
+            removed_config_paths: &mut removed_config_paths,
+            database: &mut database,
+            import_ctx: &mut import_ctx,
+        };
+
         for package in &packages {
-            self.update_package(
-                package,
-                &repository,
-                &mut tree,
-                &mut config_defaults,
-                &mut removed_config_paths,
-                &mut database,
-                &mut import_ctx,
-            )?;
+            self.update_package(package, &mut workspace)?;
         }
 
         let database_bytes = database.into_bytes()?;
@@ -84,46 +85,62 @@ impl Stage<UpdateError> for TransactionStage {
     }
 }
 
+struct UpdatePackageWorkspace<'a> {
+    repository: &'a Repository<ObjectID>,
+    tree: &'a mut FileSystem<ObjectID>,
+    config_defaults: &'a mut FileSystem<ObjectID>,
+    removed_config_paths: &'a mut Vec<String>,
+    database: &'a mut MemoryDatabase,
+    import_ctx: &'a mut ImportContext,
+}
+
 impl TransactionStage {
-    fn update_package(
-        &self, package: &PackageTemp, repository: &Repository<ObjectID>, tree: &mut FileSystem<ObjectID>,
-        config_defaults: &mut FileSystem<ObjectID>, removed_config_paths: &mut Vec<String>,
-        database: &mut MemoryDatabase, import_ctx: &mut ImportContext,
-    ) -> Result<(), UpdateError> {
-        let uuid = database
+    fn update_package(&self, package: &PackageTemp, workspace: &mut UpdatePackageWorkspace) -> Result<(), UpdateError> {
+        let uuid = workspace
+            .database
             .find_package_uuid(&package.meta.name, &package.meta.arch, package.meta.arch_sub.as_deref())?
             .ok_or(UpdateError::PackageNotFound)?;
 
-        for entry in database.list_package_files(uuid)? {
+        for entry in workspace.database.list_package_files(uuid)? {
             match entry.scope {
                 FileEntryScope::Prefix => {
-                    FileHandle::new(&entry.path).remove_in_tree(tree)?;
+                    FileHandle::new(&entry.path).remove_in_tree(workspace.tree)?;
                 }
                 FileEntryScope::Config => {
-                    removed_config_paths.push(entry.path.clone());
+                    workspace.removed_config_paths.push(entry.path.clone());
                 }
             }
 
-            database.remove_package_file(uuid, &entry.path)?;
+            workspace.database.remove_package_file(uuid, &entry.path)?;
         }
 
         let source_root = Path::new(&package.temp_package_path);
 
         let usr_source = source_root.join("usr");
         let imported = if usr_source.is_dir() {
-            FileHandle::new(PathBuf::new()).import_directory(repository, tree, &usr_source, import_ctx)?
+            FileHandle::new(PathBuf::new()).import_directory(
+                workspace.repository,
+                workspace.tree,
+                &usr_source,
+                workspace.import_ctx,
+            )?
         } else {
             Vec::new()
         };
 
         let config_source = source_root.join("etc");
         let imported_config = if config_source.is_dir() {
-            FileHandle::new(PathBuf::new()).import_directory(repository, config_defaults, &config_source, import_ctx)?
+            FileHandle::new(PathBuf::new()).import_directory(
+                workspace.repository,
+                workspace.config_defaults,
+                &config_source,
+                workspace.import_ctx,
+            )?
         } else {
             Vec::new()
         };
 
-        database.update_package_meta(&package.meta)?;
+        workspace.database.update_package_meta(&package.meta)?;
 
         for path in imported {
             let entry = FileEntry {
@@ -131,7 +148,7 @@ impl TransactionStage {
                 is_user: false,
                 scope: FileEntryScope::Prefix,
             };
-            database.insert_package_file(uuid, &entry)?;
+            workspace.database.insert_package_file(uuid, &entry)?;
         }
 
         for path in imported_config {
@@ -140,7 +157,7 @@ impl TransactionStage {
                 is_user: false,
                 scope: FileEntryScope::Config,
             };
-            database.insert_package_file(uuid, &entry)?;
+            workspace.database.insert_package_file(uuid, &entry)?;
         }
 
         Ok(())
