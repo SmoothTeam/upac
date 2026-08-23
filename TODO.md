@@ -22,9 +22,10 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 
 ## upac-lib
 
-- `files`' own `TransactionStage`/`MergeStage`/`CheckoutStage`/`SwapStage` are the last remaining
-  `todo!()` stage bodies in the mutated pipeline — `install`/`update`/`uninstaller`/`rollback`/`gc`
-  are all fully real now. Should closely follow `install`'s/`update`'s template.
+- `files` is the only command left with `todo!()` stage bodies (`TransactionStage`/`CheckoutStage`/
+  `SwapStage` — no `merge.rs` exists yet either). Every other command
+  (`install`/`update`/`uninstaller`/`rollback`/`commit`/`gc`) is fully real now. Should closely
+  follow `install`'s/`update`'s template.
 - `FetchingStage` (`install`/`update`) is a real no-op placeholder, not `todo!()` — the network
   side (resolving name-based package requests, as opposed to local `--file` paths) isn't designed
   or built yet.
