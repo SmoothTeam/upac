@@ -25,7 +25,7 @@ use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
-use crate::mutated::update::{NewConfigDefaults, NewPrefixDigest, RemovedConfigPaths, UpdateError};
+use crate::mutated::update::{AllowDowngrade, NewConfigDefaults, NewPrefixDigest, RemovedConfigPaths, UpdateError};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 
@@ -38,6 +38,7 @@ struct UpdatePackageData<'a> {
     removed_config_paths: &'a mut Vec<String>,
     database: &'a mut MemoryDatabase,
     import_ctx: &'a mut ImportContext,
+    allow_downgrade: bool,
 }
 
 impl Stage<UpdateError> for TransactionStage {
@@ -47,6 +48,7 @@ impl Stage<UpdateError> for TransactionStage {
         let packages = context.take::<Vec<PackageTemp>>().ok_or(CommonError::MissingResult)?;
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let allow_downgrade = context.get::<AllowDowngrade>().ok_or(CommonError::MissingResult)?;
 
         let current_prefix = current_prefix_digest()?;
         let repository = deploy.open_repository()?;
@@ -66,6 +68,7 @@ impl Stage<UpdateError> for TransactionStage {
             removed_config_paths: &mut removed_config_paths,
             database: &mut database,
             import_ctx: &mut import_ctx,
+            allow_downgrade: allow_downgrade.0,
         };
 
         for package in &packages {
@@ -100,6 +103,17 @@ impl TransactionStage {
             .database
             .find_package_uuid(&package.meta.name, &package.meta.arch, package.meta.arch_sub.as_deref())?
             .ok_or(UpdateError::PackageNotFound)?;
+
+        if !package_data.allow_downgrade {
+            let current_meta = package_data
+                .database
+                .get_package_meta(uuid)?
+                .ok_or(UpdateError::PackageNotFound)?;
+
+            if package.meta.version < current_meta.version {
+                return Err(UpdateError::DowngradeNotAllowed);
+            }
+        }
 
         for entry in package_data.database.list_package_files(uuid)? {
             match entry.scope {

@@ -19,6 +19,7 @@ use crate::plugin::boot::error::BootPluginError;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UpdateError {
     PackageNotFound,
+    DowngradeNotAllowed,
     Common(CommonError),
 }
 
@@ -42,6 +43,7 @@ impl From<UpdateError> for ErrorKind {
     fn from(error: UpdateError) -> Self {
         match error {
             UpdateError::PackageNotFound => ErrorKind::NotFound,
+            UpdateError::DowngradeNotAllowed => ErrorKind::InvalidEntry,
             UpdateError::Common(common_error) => common_error.into(),
         }
     }

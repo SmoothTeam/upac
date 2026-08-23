@@ -47,10 +47,12 @@ pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
 }
+pub(crate) struct AllowDowngrade(pub bool);
 
 pub struct UpdateData<'a> {
     pub packages: Vec<&'a str>,
     pub boot_plugin: Option<&'a str>,
+    pub allow_downgrade: bool,
 
     pub tmp_path: &'a str,
 
@@ -74,6 +76,7 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
         Ok(UpdateData {
             packages: Vec::try_from(&request.packages)?,
             boot_plugin: (&request.boot_plugin).try_into()?,
+            allow_downgrade: request.allow_downgrade,
 
             tmp_path: (&request.tmp_path).try_into()?,
 
@@ -104,6 +107,7 @@ pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
     context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
+    context.put(AllowDowngrade(data.allow_downgrade));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

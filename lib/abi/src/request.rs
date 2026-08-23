@@ -56,6 +56,7 @@ pub struct CUpdateRequest {
     pub packages: CVec<CSlice>,
     #[optional]
     pub boot_plugin: CSlice,
+    pub allow_downgrade: bool,
 }
 
 #[repr(C)]
