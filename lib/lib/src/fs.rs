@@ -3,26 +3,15 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::ffi::OsString;
-use std::fs::{self, File};
+use std::fs;
 use std::io::{Error as IoError, ErrorKind as IoErrorKind, Write as IoWrite};
 use std::path::{Path, PathBuf};
+
+use tempfile::NamedTempFile;
 
 use upac_abi::error::ErrorKind;
 
 use crate::orchestrator::stage::{RollbackGuard, StageResult};
-
-pub fn atomic_write(path: &Path, content: &[u8]) -> Result<(), IoError> {
-    let mut tmp_name = OsString::from(path.as_os_str());
-    tmp_name.push(".tmp");
-    let tmp_path = PathBuf::from(tmp_name);
-
-    let mut tmp_file = File::create(&tmp_path)?;
-    tmp_file.write_all(content)?;
-    tmp_file.sync_all()?;
-
-    fs::rename(&tmp_path, path)
-}
 
 /// A file written via [`atomic_write`], remembering its previous content (if any) so a group of
 /// writes can be undone as a unit — push each successfully written file into a `Vec<WrittenFile>`
@@ -36,23 +25,35 @@ pub struct WrittenFile {
 impl WrittenFile {
     pub fn write(path: &Path, content: &[u8]) -> Result<Self, IoError> {
         let previous = fs::read(path).ok();
-        atomic_write(path, content)?;
-
-        Ok(WrittenFile {
+        let written = WrittenFile {
             path: path.to_owned(),
             previous,
-        })
+        };
+        written.atomic_write(content)?;
+
+        Ok(written)
     }
 
     fn restore(&self) -> Result<(), IoError> {
         match &self.previous {
-            Some(bytes) => atomic_write(&self.path, bytes),
+            Some(bytes) => self.atomic_write(bytes),
             None => match fs::remove_file(&self.path) {
                 Ok(()) => Ok(()),
                 Err(error) if error.kind() == IoErrorKind::NotFound => Ok(()),
                 Err(error) => Err(error),
             },
         }
+    }
+
+    fn atomic_write(&self, content: &[u8]) -> Result<(), IoError> {
+        let parent = self.path.parent().unwrap_or_else(|| Path::new("."));
+
+        let mut tmp_file = NamedTempFile::new_in(parent)?;
+        tmp_file.write_all(content)?;
+        tmp_file.as_file().sync_all()?;
+        tmp_file.persist(&self.path).map_err(|error| error.error)?;
+
+        Ok(())
     }
 }
 
