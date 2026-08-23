@@ -22,13 +22,16 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 
 ## upac-lib
 
-- `files` is the only command left with `todo!()` stage bodies (`TransactionStage`/`CheckoutStage`/
-  `SwapStage` — no `merge.rs` exists yet either). Every other command
-  (`install`/`update`/`uninstaller`/`rollback`/`commit`/`gc`) is fully real now. Should closely
-  follow `install`'s/`update`'s template.
+- The entire mutated pipeline is real now — zero `todo!()` stage bodies left anywhere
+  (`install`/`update`/`uninstaller`/`rollback`/`commit`/`files`/`gc`).
 - `FetchingStage` (`install`/`update`) is a real no-op placeholder, not `todo!()` — the network
   side (resolving name-based package requests, as opposed to local `--file` paths) isn't designed
   or built yet.
+- `files add`/`files remove` only ever target `/usr`-scope (`is_user` `FileEntry` rows) — there's no
+  ABI/CLI path for attaching a user file to a package's `/etc` scope, and it's architecturally
+  different if it's ever added (config-digest based, not `FileStoreMut`-tracked).
+- `up pkg remove --purge` is now the only way to remove a package's own `is_user` files; without it
+  they're left in place (both in the tree and the DB) when their owning package is uninstalled.
 - Conflict `.upac-new` notification via the message-hook mechanism (doc §5.1) isn't wired for any
   command yet — same class of gap as `up mime sync`'s best-effort cache refresh.
 - Deploy retention / "light cleanup after every operation" (doc §5.5 point 1 — deciding which
