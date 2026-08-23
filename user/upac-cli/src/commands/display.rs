@@ -141,24 +141,13 @@ pub(crate) struct VersionDisplay<'a>(pub &'a CVersion);
 impl Display for VersionDisplay<'_> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         let version = self.0;
-        let parts = unsafe { version.parts.as_slice() };
-        let version_str = parts.iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");
+        let raw = str_field!(version.raw);
 
         if version.epoch > 0 {
-            write!(formatter, "{}:{}", version.epoch, version_str)?;
+            write!(formatter, "{}:{raw}", version.epoch)
         } else {
-            write!(formatter, "{version_str}")?;
+            write!(formatter, "{raw}")
         }
-
-        if version.release > 0 {
-            write!(formatter, "-{}", version.release)?;
-        }
-
-        if let Some(pre) = optional_str_field!(version.pre) {
-            write!(formatter, "~{pre}")?;
-        }
-
-        Ok(())
     }
 }
 
