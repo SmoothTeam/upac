@@ -32,17 +32,36 @@ resolution, etc. all live in `upac-lib`). Status:
 - `#[derive(CNew)]` (in `upac-macro`) replaced manual `struct_size: size_of::<...>()` boilerplate
   across every C-ABI struct construction site in both `upac-lib` and `upac-cli`.
 
-## 3. Config-file / declarative test coverage
+## 3. Config-file / declarative test coverage (done)
 
-`upac-cli` no longer reads any config file at all (paths are baked into `upac-lib` via `lib.toml`
-at build time) — `config.rs`/`Config` were removed entirely. No further work planned here unless
-a genuine CLI-only setting (not ABI-related) comes up.
+`upac-lib`'s own paths are still baked in at build time via `lib.toml`. Separately, a genuine
+*runtime* config now exists: `upac_types::settings::RuntimeSettings` reads a shared
+`/etc/upac.d/upac.toml` (currently `[gc] retention_depth` and `[progress]` indicatif templates),
+parsed independently by both `upac-lib` and `upac-cli` (both link `upac_types` directly) —
+best-effort, missing/malformed file falls back to defaults. No dedicated `cli.toml`/`build.rs`
+codegen mechanism was needed once this existed.
 
 ## 4. Decoders (Zig, `decoders/`)
 
-Per-format decoder shared libraries (deb/rpm/alpm/xbps) exist as scaffolding; not tracked in
-detail here — see `decoders/*/` and the README's Decoders section for the current contract
-(`package_path` + `output_dir` + SHA-256 checksum in, `PackageMeta` + dependencies out).
+Per-format decoder shared libraries (deb/rpm/alpm/xbps) exist with real backend logic; see
+`decoders/*/` and the README's Decoders section for the current contract (`package_path` +
+`output_dir` + SHA-256 checksum in, `PackageMeta` + dependencies out). Remaining work, not
+near-term:
+
+- **Packaging pipeline.** Decoder manifest TOML files exist for all 4 decoders
+  (`decoders/{alpm,deb,rpm,xbps}/upac-*.toml`), but there's no PKGBUILD/spec/etc packaging and no
+  `build.zig` install step that actually copies them (or the built `.so`) to
+  `/etc/upac.d/decoders/` — canonical source only, unexercised end-to-end. mime types for
+  alpm/xbps (`application/x-alpm-package`/`application/x-xbps-package`) are unofficial
+  vendor-prefixed (no shared-mime-info registration exists for either format, unlike deb/rpm).
+  `up mime sync` is the mechanism meant to populate desktop integration once decoders are
+  actually installed (e.g. from a decoder package's postinstall hook) — not written yet either.
+- **Full rewrite to Rust.** The 4 decoders are considered legacy: static linking was never
+  started (separate mechanism from the Rust boot plugins' Cargo-feature approach — no Zig-side
+  equivalent designed), and `parseVersion`/`CVersion` still populate the pre-`Ver`-brick 4-field
+  shape, out of sync with the simplified Rust/C-ABI `{epoch, raw}`. Rather than reconciling that
+  drift in Zig, the plan is a full rewrite of the decoders in Rust later — do not invest in
+  fixing/extending the Zig side in the meantime.
 
 ## 5. Bootstrap / installer concerns (not yet started)
 
@@ -56,7 +75,11 @@ detail here — see `decoders/*/` and the README's Decoders section for the curr
   are real — the installer needs the same "build tree → commit image → write boot entry →
   one-shot select" logic those stages will implement, and building it first risks duplicating
   work that'll need reworking once `Deploy`'s real write-side semantics land.
-- **Static linking of the Zig decoders** — separate mechanism from the Rust boot plugins' Cargo
-  feature approach (see `TODO.md`); no equivalent exists on the Zig side yet, needs its own
-  design pass.
 - Scope beyond these points not yet defined — expand this section as decisions get made.
+
+## 6. Network package fetching (not yet started)
+
+`FetchingStage` (`install`/`update`) is a real no-op placeholder, not `todo!()` — resolving a
+name-based package request (as opposed to a local `--file` path) against a remote repository
+needs its own design pass (repository format, index/metadata fetching, download + checksum
+verification, mirror/retry policy) before any code lands here.
