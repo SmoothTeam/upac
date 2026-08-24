@@ -28,7 +28,7 @@ use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
-use crate::layout::database::DATABASE_PATH;
+use crate::layout::database::{DATABASE_PATH, FILES_SCRATCH_FILENAME};
 use crate::mutated::files::{
     CommitMessage, FilesError, NewPrefixDigest, RequestedFileKind, RequestedFilePackage, Subject,
 };
@@ -39,7 +39,7 @@ pub struct TransactionStage;
 
 impl Stage<FilesError> for TransactionStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), FilesError> {
         let files = context.take::<Vec<String>>().ok_or(CommonError::MissingResult)?;
         let file_kind = context.get::<RequestedFileKind>().ok_or(CommonError::MissingResult)?;
@@ -67,12 +67,20 @@ impl Stage<FilesError> for TransactionStage {
         match file_kind.0 {
             FileDiffKind::Removed => {
                 for path in &files {
+                    if cancel.is_cancelled() {
+                        return Err(CommonError::Cancelled.into());
+                    }
+
                     FileHandle::new(path).remove_in_tree(&mut tree)?;
                     database.remove_user_file(uuid, path)?;
                 }
             }
             FileDiffKind::Added | FileDiffKind::Modified => {
                 for path in &files {
+                    if cancel.is_cancelled() {
+                        return Err(CommonError::Cancelled.into());
+                    }
+
                     self.add_file(path, &repository, &mut tree, &mut import_ctx)?;
                     database.insert_package_file(
                         uuid,
@@ -87,7 +95,7 @@ impl Stage<FilesError> for TransactionStage {
         }
 
         let database_bytes = database.into_bytes()?;
-        let database_scratch_path = format!("{}/files-packages.redb", tmp_path.as_ref());
+        let database_scratch_path = format!("{}/{FILES_SCRATCH_FILENAME}", tmp_path.as_ref());
         write(&database_scratch_path, &database_bytes).map_err(RepoError::from)?;
 
         FileHandle::new(DATABASE_PATH).insert_file(

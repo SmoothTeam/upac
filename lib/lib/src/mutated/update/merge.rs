@@ -31,7 +31,7 @@ pub struct MergeStage;
 
 impl Stage<UpdateError> for MergeStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UpdateError> {
         let new_config_defaults = context.take::<NewConfigDefaults>().ok_or(CommonError::MissingResult)?;
         let removed_config_paths = context.take::<RemovedConfigPaths>().ok_or(CommonError::MissingResult)?;
@@ -55,6 +55,10 @@ impl Stage<UpdateError> for MergeStage {
 
         let mut new = base.clone();
         for path in &removed_config_paths.0 {
+            if cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
             FileHandle::new(path).remove_in_tree(&mut new)?;
         }
         apply_tree_overlay(&mut new, &new_config_defaults.0)?;

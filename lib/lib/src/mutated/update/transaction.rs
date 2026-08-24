@@ -24,7 +24,7 @@ use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
-use crate::layout::database::DATABASE_PATH;
+use crate::layout::database::{DATABASE_PATH, UPDATE_SCRATCH_FILENAME};
 use crate::mutated::update::{AllowDowngrade, NewConfigDefaults, NewPrefixDigest, RemovedConfigPaths, UpdateError};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
@@ -39,11 +39,12 @@ struct UpdatePackageData<'a> {
     database: &'a mut MemoryDatabase,
     import_ctx: &'a mut ImportContext,
     allow_downgrade: bool,
+    cancel: &'a CancelToken,
 }
 
 impl Stage<UpdateError> for TransactionStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UpdateError> {
         let packages = context.take::<Vec<PackageTemp>>().ok_or(CommonError::MissingResult)?;
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
@@ -69,14 +70,19 @@ impl Stage<UpdateError> for TransactionStage {
             database: &mut database,
             import_ctx: &mut import_ctx,
             allow_downgrade: allow_downgrade.0,
+            cancel,
         };
 
         for package in &packages {
+            if cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
             self.update_package(package, &mut package_data)?;
         }
 
         let database_bytes = database.into_bytes()?;
-        let database_scratch_path = format!("{}/update-packages.redb", tmp_path.as_ref());
+        let database_scratch_path = format!("{}/{UPDATE_SCRATCH_FILENAME}", tmp_path.as_ref());
         write(&database_scratch_path, &database_bytes).map_err(RepoError::from)?;
 
         FileHandle::new(DATABASE_PATH).insert_file(
@@ -116,6 +122,10 @@ impl TransactionStage {
         }
 
         for entry in package_data.database.list_package_files(uuid)? {
+            if package_data.cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
             match entry.scope {
                 FileEntryScope::Prefix => {
                     FileHandle::new(&entry.path).remove_in_tree(package_data.tree)?;
@@ -137,6 +147,7 @@ impl TransactionStage {
                 package_data.tree,
                 &usr_source,
                 package_data.import_ctx,
+                package_data.cancel,
             )?
         } else {
             Vec::new()
@@ -149,6 +160,7 @@ impl TransactionStage {
                 package_data.config_defaults,
                 &config_source,
                 package_data.import_ctx,
+                package_data.cancel,
             )?
         } else {
             Vec::new()

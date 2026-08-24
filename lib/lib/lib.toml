@@ -21,6 +21,16 @@ packages_meta_type_name = "upac::PackageMeta"
 files_entry_type_name = "upac::FileEntry"
 database_path = "share/upac/packages.redb"
 
+# Scratch filenames each mutating command's TransactionStage writes the rebuilt package database
+# to (inside the shared system tmp_path) before re-inserting it into the new /usr tree — purely
+# transient, read back once via File::open right after the write and never inspected afterward.
+# Kept distinct per command rather than one shared name so a stale leftover file in tmp_path
+# (e.g. after a crash) is still identifiable by which command wrote it.
+installer_scratch_filename = "installer-packages.redb"
+update_scratch_filename = "update-packages.redb"
+uninstall_scratch_filename = "uninstall-packages.redb"
+files_scratch_filename = "files-packages.redb"
+
 # Names of the well-known directories on the deployment partition (deploy
 # records + composefs repo, see doc §3). Changing a name means existing
 # installs stop finding their deploys/repo on upgrade.

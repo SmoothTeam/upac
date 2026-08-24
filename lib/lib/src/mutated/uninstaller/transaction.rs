@@ -25,7 +25,7 @@ use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
-use crate::layout::database::DATABASE_PATH;
+use crate::layout::database::{DATABASE_PATH, UNINSTALL_SCRATCH_FILENAME};
 use crate::mutated::uninstaller::{NewPrefixDigest, PackageUuidsToRemove, Purge, RemovedConfigPaths, UninstallError};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
@@ -34,7 +34,7 @@ pub struct TransactionStage;
 
 impl Stage<UninstallError> for TransactionStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
         let uuids = context
             .take::<PackageUuidsToRemove>()
@@ -53,11 +53,22 @@ impl Stage<UninstallError> for TransactionStage {
         let mut removed_config_paths = Vec::new();
 
         for uuid in &uuids.0 {
-            self.remove_package(*uuid, &mut tree, &mut database, &mut removed_config_paths, purge.0)?;
+            if cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
+            self.remove_package(
+                *uuid,
+                &mut tree,
+                &mut database,
+                &mut removed_config_paths,
+                purge.0,
+                cancel,
+            )?;
         }
 
         let database_bytes = database.into_bytes()?;
-        let database_scratch_path = format!("{}/uninstall-packages.redb", tmp_path.as_ref());
+        let database_scratch_path = format!("{}/{UNINSTALL_SCRATCH_FILENAME}", tmp_path.as_ref());
         write(&database_scratch_path, &database_bytes).map_err(RepoError::from)?;
 
         FileHandle::new(DATABASE_PATH).insert_file(
@@ -80,9 +91,13 @@ impl Stage<UninstallError> for TransactionStage {
 impl TransactionStage {
     fn remove_package(
         &self, uuid: Uuid, tree: &mut FileSystem<ObjectID>, database: &mut MemoryDatabase,
-        removed_config_paths: &mut Vec<String>, purge: bool,
+        removed_config_paths: &mut Vec<String>, purge: bool, cancel: &CancelToken,
     ) -> Result<(), UninstallError> {
         for entry in database.list_package_files(uuid)? {
+            if cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
             if entry.is_user && !purge {
                 continue;
             }

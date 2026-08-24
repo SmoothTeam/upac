@@ -29,6 +29,7 @@ pub enum RepoError {
     IsADirectory,
     NotRegularFile,
     NotASymlink,
+    Cancelled,
     Unexpected,
 }
 
@@ -96,6 +97,7 @@ impl From<RepoError> for ErrorKind {
             RepoError::NotADirectory | RepoError::IsADirectory | RepoError::NotRegularFile | RepoError::NotASymlink => {
                 ErrorKind::InvalidEntry
             }
+            RepoError::Cancelled => ErrorKind::Cancelled,
             RepoError::Unexpected => ErrorKind::Unexpected,
         }
     }

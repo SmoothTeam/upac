@@ -29,7 +29,7 @@ pub struct ConfigMergeStage;
 
 impl Stage<UninstallError> for ConfigMergeStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
         let removed_config_paths = context.take::<RemovedConfigPaths>().ok_or(CommonError::MissingResult)?;
         let new_prefix = context.get::<NewPrefixDigest>().ok_or(CommonError::MissingResult)?;
@@ -52,6 +52,10 @@ impl Stage<UninstallError> for ConfigMergeStage {
 
         let mut new = base.clone();
         for path in &removed_config_paths.0 {
+            if cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
             FileHandle::new(path).remove_in_tree(&mut new)?;
         }
 
