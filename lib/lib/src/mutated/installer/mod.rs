@@ -21,6 +21,7 @@ use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
 use crate::composefs::repository::ObjectID;
+use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
@@ -128,5 +129,6 @@ fn assemble() -> SequentialOrchestrator<InstallError> {
         Box::new(HookStage {
             trigger: NativeTrigger::post(Operation::Install),
         }),
+        Box::new(RetentionStage),
     ])
 }

@@ -12,6 +12,7 @@ use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
+use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
@@ -24,14 +25,14 @@ use upac_types::{PackageEntry, Targets, TmpPath};
 pub use self::error::UninstallError;
 
 use self::boot_option::BootOptionStage;
-use self::config_merge::ConfigMergeStage;
+use self::merge::MergeStage;
 use self::preparation::PreparationStage;
 use self::prepare_boot::PrepareBootStage;
 use self::transaction::TransactionStage;
 
 mod boot_option;
-mod config_merge;
 mod error;
+mod merge;
 mod preparation;
 mod prepare_boot;
 mod transaction;
@@ -157,11 +158,12 @@ fn assemble() -> SequentialOrchestrator<UninstallError> {
         }),
         Box::new(PreparationStage),
         Box::new(TransactionStage),
-        Box::new(ConfigMergeStage),
+        Box::new(MergeStage),
         Box::new(PrepareBootStage),
         Box::new(BootOptionStage),
         Box::new(HookStage {
             trigger: NativeTrigger::post(Operation::Uninstall),
         }),
+        Box::new(RetentionStage),
     ])
 }

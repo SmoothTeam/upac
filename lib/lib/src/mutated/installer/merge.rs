@@ -70,10 +70,8 @@ impl Stage<InstallError> for MergeStage {
                     seq: DeployRecord::allocate_seq(deploy)?,
                     timestamp: DeployRecord::now_secs(),
                     config_history: Vec::new(),
-                    // Never equals a real digest — guarantees the shared "did working_config
-                    // change" check below always fires for a brand-new record, sealing its first
-                    // config_history entry and writing meta.json for the first time.
                     working_config: String::new(),
+                    pinned: false,
                 }
             }
             Err(error) => return Err(error.into()),

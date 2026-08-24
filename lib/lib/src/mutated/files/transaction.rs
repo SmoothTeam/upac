@@ -145,6 +145,7 @@ impl Stage<FilesError> for TransactionStage {
                 timestamp: DeployRecord::now_secs(),
                 config_history: current_record.config_history.clone(),
                 working_config: current_record.working_config.clone(),
+                pinned: false,
             };
             written.push(record.write(&new_record_dir)?);
         }

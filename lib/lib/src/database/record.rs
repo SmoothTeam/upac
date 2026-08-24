@@ -32,6 +32,7 @@ pub struct DeployRecord {
     pub timestamp: u64,
     pub config_history: Vec<ConfigHistoryEntry>,
     pub working_config: String,
+    pub pinned: bool,
 }
 
 impl DeployRecord {

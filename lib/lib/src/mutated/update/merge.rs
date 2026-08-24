@@ -84,6 +84,7 @@ impl Stage<UpdateError> for MergeStage {
                     timestamp: DeployRecord::now_secs(),
                     config_history: Vec::new(),
                     working_config: String::new(),
+                    pinned: false,
                 }
             }
             Err(error) => return Err(error.into()),

@@ -27,6 +27,7 @@ use crate::layout::deployment::{DEPLOYS_DIR, NEXT_SEQ_PATH, REPO_DIR, ROOT_DIR, 
 pub mod digest;
 pub mod error;
 pub mod esp;
+pub mod retention;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeployMode {

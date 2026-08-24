@@ -13,6 +13,7 @@ pub use self::error::CommitError;
 
 use self::transaction::TransactionStage;
 
+use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
@@ -89,5 +90,6 @@ fn assemble() -> SequentialOrchestrator<CommitError> {
         Box::new(HookStage {
             trigger: NativeTrigger::post(Operation::Commit),
         }),
+        Box::new(RetentionStage),
     ])
 }

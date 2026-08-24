@@ -17,6 +17,7 @@ use self::checkout::CheckoutStage;
 use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
+use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
@@ -157,5 +158,6 @@ fn assemble() -> SequentialOrchestrator<FilesError> {
         Box::new(HookStage {
             trigger: NativeTrigger::post(Operation::Files),
         }),
+        Box::new(RetentionStage),
     ])
 }
