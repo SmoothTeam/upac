@@ -33,6 +33,8 @@ pub struct Args {
     pub description: bool,
     #[arg(long)]
     pub checksum: bool,
+    #[arg(long, value_enum)]
+    pub sort: Option<PackageField>,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -44,6 +46,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     PackageFormatter {
         extra_fields: &extra_fields,
         metas: unsafe { response.metas.as_slice() },
+        sort: args.sort,
     }
     .print();
 

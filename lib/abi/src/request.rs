@@ -7,11 +7,11 @@ use std::os::raw::c_void;
 
 use upac_macro::{CNew, CValidate};
 
-use crate::FileDiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
 use crate::package::CPackageInfo;
 use crate::types::{CSlice, CVec, check_size};
+use crate::{DiffFileSource, FileDiffKind};
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
@@ -39,6 +39,7 @@ pub struct CInstallRequest {
     pub packages: CVec<CSlice>,
     #[optional]
     pub boot_plugin: CSlice,
+    pub allow_conflict_files: bool,
 }
 
 #[repr(C)]
@@ -56,6 +57,8 @@ pub struct CUpdateRequest {
     pub packages: CVec<CSlice>,
     #[optional]
     pub boot_plugin: CSlice,
+    pub allow_downgrade: bool,
+    pub allow_conflict_files: bool,
 }
 
 #[repr(C)]
@@ -71,6 +74,7 @@ pub struct CUninstallRequest {
     pub packages: CVec<CPackageInfo>,
     #[optional]
     pub boot_plugin: CSlice,
+    pub purge: bool,
 }
 
 #[repr(C)]
@@ -109,6 +113,7 @@ pub struct CFilesRequest {
     pub message: CSlice,
     pub files: CVec<CSlice>,
     pub file_kind: FileDiffKind,
+    pub scope: DiffFileSource,
     pub file_package: *const CPackageInfo,
     #[optional]
     pub boot_plugin: CSlice,
@@ -126,6 +131,17 @@ pub struct CGcRequest {
 pub struct CMimeSyncRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CPinRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    #[non_empty]
+    pub prefix_digest: CSlice,
+    pub pinned: bool,
 }
 
 #[repr(C)]

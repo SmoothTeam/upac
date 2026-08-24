@@ -12,13 +12,16 @@ use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
-use upac_abi::request::{CListPackagesRequest, CUninstallRequest};
+use upac_abi::error::ErrorDomain;
+use upac_abi::request::{CListPackagesRequest, CRequestBase, CUninstallRequest};
 use upac_abi::types::CSlice;
 
+use crate::cancel_token_ptr;
 use crate::types::CommandContext;
 use crate::types::abi::{
     borrowed_vec, invoke, invoke_with_response, optional_slice, package_info, request_base, slice_from_cstr,
 };
+use crate::types::progress::{ProgressState, on_progress};
 
 type InstalledEntry = (String, String, Option<String>);
 type ResolvedEntry = (CString, CString, Option<CString>);
@@ -35,6 +38,8 @@ pub struct Args {
     pub message: Option<String>,
     #[arg(long)]
     pub boot: Option<String>,
+    #[arg(long)]
+    pub purge: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -153,16 +158,22 @@ impl RemoveMachine {
             .map(|(name, arch, arch_sub)| package_info(name, arch, arch_sub.as_ref()))
             .collect();
 
+        let mut progress = ProgressState::new(ErrorDomain::Uninstall);
+        let base = CRequestBase::new(Some(on_progress), progress.ctx_ptr(), cancel_token_ptr());
+
         let request = CUninstallRequest::new(
-            request_base(),
+            base,
             slice_from_cstr(&self.ctx.tmp_path),
             slice_from_cstr(&subject),
             optional_slice(message.as_ref()),
             borrowed_vec(&packages),
             optional_slice(boot_plugin.as_ref()),
+            self.args.purge,
         );
 
-        invoke(|error| unsafe { (symbols.uninstall)(request, error) })?;
+        let result = invoke(|error| unsafe { (symbols.uninstall)(request, error) });
+        progress.finish();
+        result?;
 
         Ok(State::Done)
     }

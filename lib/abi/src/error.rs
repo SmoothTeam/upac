@@ -16,6 +16,7 @@ pub enum ErrorDomain {
     Files,
     Update,
     Gc,
+    Pin,
     Mime,
     ListPackages,
     ListConfig,

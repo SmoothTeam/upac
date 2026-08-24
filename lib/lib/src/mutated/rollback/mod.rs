@@ -15,6 +15,7 @@ use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::swap::SwapStage;
 
+use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
@@ -101,5 +102,6 @@ fn assemble() -> SequentialOrchestrator<RollbackError> {
         Box::new(HookStage {
             trigger: NativeTrigger::post(Operation::Rollback),
         }),
+        Box::new(RetentionStage),
     ])
 }

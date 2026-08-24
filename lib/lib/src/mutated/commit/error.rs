@@ -5,9 +5,13 @@
 
 use upac_abi::error::ErrorKind;
 
-use crate::database::error::DatabaseError;
+use crate::composefs::error::RepoError;
+use crate::database::error::{DatabaseError, DeployRecordError};
 use crate::deploy::error::SysrootError;
-use crate::errors::{CommonError, common_error_from, database_error_from, lock_error_from, sysroot_error_from};
+use crate::errors::{
+    CommonError, common_error_from, database_error_from, deploy_record_error_from, lock_error_from, repo_error_from,
+    sysroot_error_from,
+};
 use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,6 +26,10 @@ database_error_from!(CommitError);
 sysroot_error_from!(CommitError);
 
 lock_error_from!(CommitError);
+
+repo_error_from!(CommitError);
+
+deploy_record_error_from!(CommitError);
 
 impl From<CommitError> for ErrorKind {
     fn from(error: CommitError) -> Self {

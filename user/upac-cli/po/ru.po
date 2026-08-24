@@ -84,6 +84,57 @@ msgstr "Уже существует"
 msgid "err_not_initialized"
 msgstr "Не инициализировано"
 
+msgid "stage_pre_hooks"
+msgstr "Пре-хуки"
+
+msgid "stage_post_hooks"
+msgstr "Пост-хуки"
+
+msgid "stage_fetching"
+msgstr "Загрузка"
+
+msgid "stage_preparation"
+msgstr "Подготовка"
+
+msgid "stage_preparing"
+msgstr "Подготовка"
+
+msgid "stage_transaction"
+msgstr "Транзакция"
+
+msgid "stage_merge"
+msgstr "Слияние"
+
+msgid "stage_checkout"
+msgstr "Переключение"
+
+msgid "stage_swap"
+msgstr "Подмена"
+
+msgid "stage_cleaning"
+msgstr "Очистка"
+
+msgid "stage_rendering"
+msgstr "Рендеринг"
+
+msgid "stage_writing"
+msgstr "Запись"
+
+msgid "stage_set_pinned"
+msgstr "Установка pin"
+
+msgid "stage_comparing"
+msgstr "Сравнение"
+
+msgid "stage_searching"
+msgstr "Поиск"
+
+msgid "stage_done"
+msgstr "Готово"
+
+msgid "stage_setup"
+msgstr "Настройка"
+
 msgid "error"
 msgstr "Ошибка"
 

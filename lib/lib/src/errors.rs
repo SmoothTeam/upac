@@ -9,7 +9,7 @@ use upac_abi::error::ErrorKind;
 
 use crate::boot::error::BootError;
 use crate::composefs::error::RepoError;
-use crate::database::error::{DatabaseError, DeployRecordError};
+use crate::database::error::{DatabaseError, DeployRecordError, DeployRecordsError};
 use crate::deploy::error::SysrootError;
 use crate::lock::LockError;
 use crate::plugin::boot::error::BootPluginError;
@@ -233,6 +233,15 @@ impl From<LockError> for CommonError {
 impl From<DeployRecordError> for CommonError {
     fn from(error: DeployRecordError) -> Self {
         CommonError::DeployRecord(error)
+    }
+}
+
+impl From<DeployRecordsError> for CommonError {
+    fn from(error: DeployRecordsError) -> Self {
+        match error {
+            DeployRecordsError::Sysroot(error) => CommonError::Sysroot(error),
+            DeployRecordsError::DeployRecord(error) => CommonError::DeployRecord(error),
+        }
     }
 }
 

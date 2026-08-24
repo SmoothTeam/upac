@@ -14,7 +14,9 @@ pub mod diff;
 pub mod history;
 pub mod list;
 pub mod new;
+pub mod pin;
 pub mod prefixes;
+pub mod unpin;
 
 // ── Args ─────────────────────────────────────────────────────────────────────
 #[derive(Args)]
@@ -30,7 +32,9 @@ pub enum CommitCommand {
     History(history::Args),
     List(list::Args),
     New(new::Args),
+    Pin(pin::Args),
     Prefixes(prefixes::Args),
+    Unpin(unpin::Args),
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -40,6 +44,8 @@ pub fn run(args: CommitArgs, context: CommandContext) -> Result<()> {
         CommitCommand::History(args) => history::run(args, context),
         CommitCommand::List(args) => list::run(args, context),
         CommitCommand::New(args) => new::run(args, context),
+        CommitCommand::Pin(args) => pin::run(args, context),
         CommitCommand::Prefixes(args) => prefixes::run(args, context),
+        CommitCommand::Unpin(args) => unpin::run(args, context),
     }
 }

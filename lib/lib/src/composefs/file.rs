@@ -15,6 +15,8 @@ use composefs::generic_tree::Stat;
 use composefs::repository::{ImportContext, Repository};
 use composefs::tree::{Directory, FileSystem, Inode, LeafContent, RegularFile};
 
+use upac_abi::hook::CancelToken;
+
 use crate::composefs::error::RepoError;
 use crate::composefs::repository::ObjectID;
 
@@ -191,11 +193,15 @@ impl FileHandle {
 
     pub fn import_directory(
         &self, repository: &Repository<ObjectID>, tree: &mut FileSystem<ObjectID>, source_dir: &Path,
-        ctx: &mut ImportContext,
+        ctx: &mut ImportContext, cancel: &CancelToken,
     ) -> Result<Vec<PathBuf>, RepoError> {
         let mut imported = Vec::new();
 
         for entry in read_dir(source_dir)? {
+            if cancel.is_cancelled() {
+                return Err(RepoError::Cancelled);
+            }
+
             let entry = entry?;
             let source_path = entry.path();
             let metadata = entry.metadata()?;
@@ -205,7 +211,7 @@ impl FileHandle {
 
             if metadata.is_dir() {
                 target.insert_in_tree(tree, stat)?;
-                let nested = target.import_directory(repository, tree, &source_path, ctx)?;
+                let nested = target.import_directory(repository, tree, &source_path, ctx, cancel)?;
                 imported.extend(nested.into_iter().map(|relative| name.join(relative)));
             } else if metadata.is_symlink() {
                 target.symlink_in_tree(tree, read_link(&source_path)?, stat)?;
@@ -220,7 +226,7 @@ impl FileHandle {
     }
 }
 
-fn stat_from_metadata(metadata: &Metadata) -> Stat {
+pub(crate) fn stat_from_metadata(metadata: &Metadata) -> Stat {
     Stat {
         st_mode: metadata.mode(),
         st_uid: metadata.uid(),

@@ -39,6 +39,18 @@ fn u64_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     )
 }
 
+fn bool_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
+    (
+        quote! { object.insert(stringify!(#ident).to_string(), serde_json::Value::from(self.#ident)); },
+        quote! {
+            let #ident = object
+                .get(stringify!(#ident))
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+        },
+    )
+}
+
 fn option_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
         quote! {
@@ -128,6 +140,7 @@ fn field_path_codec(ident: &Ident, segment: &PathSegment, ty: &Type) -> (TokenSt
     match segment.ident.to_string().as_str() {
         "String" => string_codec(ident),
         "u64" => u64_codec(ident),
+        "bool" => bool_codec(ident),
         "Option" => option_codec(ident),
         "Vec" => vec_codec(ident, segment),
         _ => composite_codec(ident, ty),

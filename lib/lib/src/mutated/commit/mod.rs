@@ -13,6 +13,8 @@ pub use self::error::CommitError;
 
 use self::transaction::TransactionStage;
 
+use crate::deploy::retention::RetentionStage;
+use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
 use crate::scripts::native::{NativeTrigger, Operation};
@@ -22,12 +24,13 @@ use upac_types::states::CommitStateId;
 mod error;
 mod transaction;
 
+pub(crate) struct Subject(pub String);
+pub(crate) struct CommitMessage(pub Option<String>);
+
 pub struct CommitData<'a> {
     pub tmp_path: &'a str,
 
-    #[expect(dead_code)]
     pub subject: &'a str,
-    #[expect(dead_code)]
     pub message: Option<&'a str>,
 
     pub hook_message: Option<HookMessageFn>,
@@ -59,8 +62,14 @@ impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
 }
 
 pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {
+    let deploy =
+        Deploy::new(DeployMode::ReadWrite).map_err(|error| (CommitStateId::Setup, CommitError::from(error)))?;
+
     let mut context = Context::new();
+    context.put(deploy);
     context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(Subject(data.subject.to_owned()));
+    context.put(CommitMessage(data.message.map(str::to_owned)));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
@@ -81,5 +90,6 @@ fn assemble() -> SequentialOrchestrator<CommitError> {
         Box::new(HookStage {
             trigger: NativeTrigger::post(Operation::Commit),
         }),
+        Box::new(RetentionStage),
     ])
 }

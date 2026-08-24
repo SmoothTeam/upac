@@ -10,10 +10,13 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::request::CInstallRequest;
+use upac_abi::error::ErrorDomain;
+use upac_abi::request::{CInstallRequest, CRequestBase};
 
+use crate::cancel_token_ptr;
 use crate::types::CommandContext;
-use crate::types::abi::{borrowed_vec, invoke, optional_slice, request_base, slice_from_cstr};
+use crate::types::abi::{borrowed_vec, invoke, optional_slice, slice_from_cstr};
+use crate::types::progress::{ProgressState, on_progress};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -25,6 +28,8 @@ pub struct Args {
     pub message: Option<String>,
     #[arg(long)]
     pub boot: Option<String>,
+    #[arg(long)]
+    pub no_conflict_files: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -43,14 +48,21 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let path_slices: Vec<_> = paths.iter().map(slice_from_cstr).collect();
 
+    let mut progress = ProgressState::new(ErrorDomain::Install);
+    let base = CRequestBase::new(Some(on_progress), progress.ctx_ptr(), cancel_token_ptr());
+
     let request = CInstallRequest::new(
-        request_base(),
+        base,
         slice_from_cstr(&ctx.tmp_path),
         slice_from_cstr(&subject),
         optional_slice(message.as_ref()),
         borrowed_vec(&path_slices),
         optional_slice(boot_plugin.as_ref()),
+        !args.no_conflict_files,
     );
 
-    invoke(|error| unsafe { (symbols.install)(request, error) })
+    let result = invoke(|error| unsafe { (symbols.install)(request, error) });
+    progress.finish();
+
+    result
 }

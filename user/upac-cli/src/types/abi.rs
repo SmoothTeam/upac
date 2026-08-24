@@ -9,6 +9,7 @@ use std::ptr::{null, null_mut};
 
 use anyhow::Result;
 
+use upac_abi::DiffFileSource;
 use upac_abi::error::CError;
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CRequestBase;
@@ -16,6 +17,21 @@ use upac_abi::types::{CBorrowed, CSlice, CVec};
 
 use crate::cancel_token_ptr;
 use crate::types::errors::LibError;
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum FileScope {
+    Usr,
+    Config,
+}
+
+impl From<FileScope> for DiffFileSource {
+    fn from(value: FileScope) -> Self {
+        match value {
+            FileScope::Usr => DiffFileSource::Prefix,
+            FileScope::Config => DiffFileSource::Config,
+        }
+    }
+}
 
 pub fn request_base() -> CRequestBase {
     CRequestBase::new(None, null_mut(), cancel_token_ptr())

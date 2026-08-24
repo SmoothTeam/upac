@@ -17,3 +17,6 @@ workspace = true
 [dependencies]
 upac-macro = { workspace = true }
 upac-abi   = { workspace = true }
+
+serde = { workspace = true }
+toml  = { workspace = true }

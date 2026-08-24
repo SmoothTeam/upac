@@ -84,6 +84,57 @@ msgstr "Already exists"
 msgid "err_not_initialized"
 msgstr "Not initialized"
 
+msgid "stage_pre_hooks"
+msgstr "Pre-hooks"
+
+msgid "stage_post_hooks"
+msgstr "Post-hooks"
+
+msgid "stage_fetching"
+msgstr "Fetching"
+
+msgid "stage_preparation"
+msgstr "Preparation"
+
+msgid "stage_preparing"
+msgstr "Preparing"
+
+msgid "stage_transaction"
+msgstr "Transaction"
+
+msgid "stage_merge"
+msgstr "Merge"
+
+msgid "stage_checkout"
+msgstr "Checkout"
+
+msgid "stage_swap"
+msgstr "Swap"
+
+msgid "stage_cleaning"
+msgstr "Cleaning"
+
+msgid "stage_rendering"
+msgstr "Rendering"
+
+msgid "stage_writing"
+msgstr "Writing"
+
+msgid "stage_set_pinned"
+msgstr "Set pinned"
+
+msgid "stage_comparing"
+msgstr "Comparing"
+
+msgid "stage_searching"
+msgstr "Searching"
+
+msgid "stage_done"
+msgstr "Done"
+
+msgid "stage_setup"
+msgstr "Setup"
+
 msgid "error"
 msgstr "Error"
 

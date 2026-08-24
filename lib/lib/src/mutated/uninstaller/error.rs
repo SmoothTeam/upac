@@ -6,21 +6,19 @@
 use upac_abi::error::ErrorKind;
 
 use crate::boot::error::BootError;
-use crate::database::error::DatabaseError;
+use crate::composefs::error::RepoError;
+use crate::database::error::{DatabaseError, DeployRecordError};
 use crate::deploy::error::SysrootError;
 use crate::errors::{
-    CommonError, boot_error_from, common_error_from, database_error_from, lock_error_from, sysroot_error_from,
+    CommonError, boot_error_from, boot_plugin_error_from, common_error_from, database_error_from,
+    deploy_record_error_from, lock_error_from, repo_error_from, sysroot_error_from,
 };
 use crate::lock::LockError;
+use crate::plugin::boot::error::BootPluginError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UninstallError {
     PackageNotFound,
-    FileMapCorrupted,
-    StagingNotCleaned,
-    CheckoutFailed,
-    ReadDatabaseFailed,
-    WriteDatabaseFailed,
     Common(CommonError),
 }
 
@@ -34,15 +32,16 @@ lock_error_from!(UninstallError);
 
 boot_error_from!(UninstallError);
 
+boot_plugin_error_from!(UninstallError);
+
+repo_error_from!(UninstallError);
+
+deploy_record_error_from!(UninstallError);
+
 impl From<UninstallError> for ErrorKind {
     fn from(error: UninstallError) -> Self {
         match error {
             UninstallError::PackageNotFound => ErrorKind::NotFound,
-            UninstallError::FileMapCorrupted => ErrorKind::Unexpected,
-            UninstallError::StagingNotCleaned => ErrorKind::Unexpected,
-            UninstallError::CheckoutFailed => ErrorKind::WriteFailed,
-            UninstallError::ReadDatabaseFailed => ErrorKind::ReadFailed,
-            UninstallError::WriteDatabaseFailed => ErrorKind::WriteFailed,
             UninstallError::Common(common_error) => common_error.into(),
         }
     }

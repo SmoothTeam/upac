@@ -15,6 +15,7 @@ use tempfile::{Builder, TempDir};
 use upac::composefs::error::RepoError;
 use upac::composefs::file::FileHandle;
 use upac::composefs::repository::ObjectID;
+use upac_abi::hook::CancelToken;
 
 fn scratch_dir(name: &str) -> TempDir {
     Builder::new().prefix(name).tempdir().unwrap()
@@ -273,8 +274,9 @@ fn import_directory_inserts_files_dirs_and_symlinks() {
     let handle = FileHandle::new("target");
     handle.insert_in_tree(&mut tree, Stat::uninitialized()).unwrap();
 
+    let cancel = CancelToken::new();
     let mut imported = handle
-        .import_directory(&repository, &mut tree, source_dir.path(), &mut ctx)
+        .import_directory(&repository, &mut tree, source_dir.path(), &mut ctx, &cancel)
         .unwrap();
     imported.sort();
 

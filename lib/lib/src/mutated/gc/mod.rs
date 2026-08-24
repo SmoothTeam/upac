@@ -13,6 +13,7 @@ pub use self::error::GcError;
 
 use self::cleaning::CleaningStage;
 
+use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use upac_types::states::GcStateId;
 
@@ -44,7 +45,10 @@ impl<'a> TryFrom<&'a CGcRequest> for GcData<'a> {
 }
 
 pub fn run(data: GcData) -> Result<(), (GcStateId, GcError)> {
+    let deploy = Deploy::new(DeployMode::ReadWrite).map_err(|error| (GcStateId::Setup, GcError::from(error)))?;
+
     let mut context = Context::new();
+    context.put(deploy);
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = SequentialOrchestrator::new(vec![Box::new(CleaningStage)]);

@@ -20,14 +20,6 @@ pub fn write_len_prefixed(buf: &mut Vec<u8>, bytes: &[u8]) {
     buf.extend_from_slice(bytes);
 }
 
-pub(crate) fn write_vec_u32(buf: &mut Vec<u8>, values: &[u32]) {
-    write_u32(buf, values.len() as u32);
-
-    for value in values {
-        write_u32(buf, *value);
-    }
-}
-
 pub fn write_opt_str(buf: &mut Vec<u8>, value: Option<&str>) {
     match value {
         Some(text) => {
@@ -77,15 +69,4 @@ pub(crate) fn read_opt_str(data: &[u8], offset: &mut usize) -> Option<String> {
     *offset += 1;
 
     if flag == 1 { Some(read_str(data, offset)) } else { None }
-}
-
-pub(crate) fn read_vec_u32(data: &[u8], offset: &mut usize) -> Vec<u32> {
-    let len = read_u32(data, offset) as usize;
-    let mut values = Vec::with_capacity(len);
-
-    for _ in 0..len {
-        values.push(read_u32(data, offset));
-    }
-
-    values
 }

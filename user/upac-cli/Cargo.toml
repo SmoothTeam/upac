@@ -19,8 +19,9 @@ name = "up"
 path = "src/main.rs"
 
 [dependencies]
-upac-lib = { workspace = true, optional = true }
-upac-abi = { workspace = true }
+upac-lib   = { workspace = true, optional = true }
+upac-abi   = { workspace = true }
+upac-types = { workspace = true }
 
 libloading = { workspace = true, optional = true }
 gettext-rs = { workspace = true }

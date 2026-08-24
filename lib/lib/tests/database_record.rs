@@ -31,6 +31,7 @@ fn sample_record() -> DeployRecord {
             },
         ],
         working_config: "etc-digest-2".to_owned(),
+        pinned: false,
     }
 }
 
@@ -84,6 +85,16 @@ fn deploy_record_from_json_fails_on_missing_field() {
         DeployRecord::from_json(&object),
         Err(DeployRecordError::InvalidField)
     ));
+}
+
+#[test]
+fn deploy_record_from_json_defaults_pinned_to_false_when_absent() {
+    let mut object = sample_record().to_json();
+    object.as_object_mut().unwrap().remove("pinned");
+
+    let decoded = DeployRecord::from_json(&object).unwrap();
+
+    assert!(!decoded.pinned);
 }
 
 #[test]

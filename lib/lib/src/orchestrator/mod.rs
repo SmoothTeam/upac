@@ -112,6 +112,13 @@ impl Context {
         Ok(runtime)
     }
 
+    pub fn send_progress(&self, progress: &ProgressEventBuilder) {
+        if let Some(hook) = self.get::<Box<dyn MessageHook>>() {
+            let event = progress.build();
+            while hook.send(&event) == HookAck::Retry {}
+        }
+    }
+
     fn type_ids(&self) -> HashSet<TypeId> {
         self.slots.keys().copied().collect()
     }
@@ -133,13 +140,6 @@ pub trait Orchestrator<E>: Sized {
     fn run_exclusive(self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>>;
 
     fn run_concurrent(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)>;
-
-    fn send_progress(context: &Context, progress: &ProgressEventBuilder) {
-        if let Some(hook) = context.get::<Box<dyn MessageHook>>() {
-            let event = progress.build();
-            while hook.send(&event) == HookAck::Retry {}
-        }
-    }
 }
 
 pub struct SequentialOrchestrator<E> {
@@ -216,7 +216,7 @@ where
             }
         };
 
-        Self::send_progress(context, &progress);
+        context.send_progress(&progress);
 
         let result = guard.result();
         context.rollback.push(guard);
@@ -274,7 +274,7 @@ where
         while let Some(outcome) = set.join_next().await {
             match outcome {
                 Ok(Ok((progress, guard))) => {
-                    Self::send_progress(context, &progress);
+                    context.send_progress(&progress);
                     context.rollback.push(guard);
                 }
                 Ok(Err(error)) => {

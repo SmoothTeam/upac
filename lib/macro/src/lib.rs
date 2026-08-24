@@ -13,6 +13,7 @@
 //!   CToRust        - C-ABI struct -> Rust domain type, infallible (inbound)
 //!   CValidate      - unsafe validate() checking struct_size + every field
 //!   FromStageIndex - orchestrator stage index -> enum variant (by position)
+//!   StageKey       - enum variant -> "stage_snake_case" gettext key (by name)
 //!   RedbCodec      - encode_into()/decode_from() for the redb key-value store
 //!   JsonCodec      - to_json()/from_json() for on-disk records outside the redb DB
 //!
@@ -32,6 +33,7 @@ mod from_stage_index;
 mod json_codec;
 mod redb_codec;
 mod rust_to_c;
+mod stage_key;
 
 #[proc_macro_derive(CFree)]
 pub fn derive_cfree(input: TokenStream) -> TokenStream {
@@ -66,6 +68,11 @@ pub fn derive_cvalidate(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FromStageIndex)]
 pub fn derive_from_stage_index(input: TokenStream) -> TokenStream {
     from_stage_index::expand(input)
+}
+
+#[proc_macro_derive(StageKey)]
+pub fn derive_stage_key(input: TokenStream) -> TokenStream {
+    stage_key::expand(input)
 }
 
 #[proc_macro_derive(RedbCodec)]

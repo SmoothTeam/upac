@@ -3,9 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::fs::File;
-use std::io::Read;
+use std::fs::{File, read_to_string};
+use std::io::{ErrorKind as IoErrorKind, Read};
 use std::path::Path;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use upac_macro::JsonCodec;
 
@@ -31,6 +32,7 @@ pub struct DeployRecord {
     pub timestamp: u64,
     pub config_history: Vec<ConfigHistoryEntry>,
     pub working_config: String,
+    pub pinned: bool,
 }
 
 impl DeployRecord {
@@ -47,6 +49,27 @@ impl DeployRecord {
         let content = serde_json::to_vec_pretty(&self.to_json())?;
 
         Ok(WrittenFile::write(&deploy_dir.join(RECORD_FILENAME), &content)?)
+    }
+
+    pub fn now_secs() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::ZERO)
+            .as_secs()
+    }
+
+    pub fn allocate_seq(deploy: &Deploy) -> Result<u64, DeployRecordError> {
+        let path = deploy.next_seq_path();
+
+        let current = match read_to_string(&path) {
+            Ok(content) => content.trim().parse().map_err(|_| DeployRecordError::InvalidField)?,
+            Err(error) if error.kind() == IoErrorKind::NotFound => 0,
+            Err(error) => return Err(error.into()),
+        };
+
+        WrittenFile::write(&path, (current + 1).to_string().as_bytes())?;
+
+        Ok(current)
     }
 
     pub fn read_all(deploy: &Deploy) -> Result<Vec<DeployRecord>, DeployRecordsError> {
