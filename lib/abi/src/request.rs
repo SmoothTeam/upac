@@ -39,6 +39,7 @@ pub struct CInstallRequest {
     pub packages: CVec<CSlice>,
     #[optional]
     pub boot_plugin: CSlice,
+    pub allow_conflict_files: bool,
 }
 
 #[repr(C)]
@@ -57,6 +58,7 @@ pub struct CUpdateRequest {
     #[optional]
     pub boot_plugin: CSlice,
     pub allow_downgrade: bool,
+    pub allow_conflict_files: bool,
 }
 
 #[repr(C)]
