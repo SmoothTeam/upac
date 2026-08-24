@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use std::fs::create_dir_all;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use composefs::fsverity::FsVerityHashValue;
 use composefs::repository::ImportContext;
@@ -82,7 +81,7 @@ impl Stage<UpdateError> for MergeStage {
                     subject: subject.0.clone(),
                     message: message.0.clone(),
                     seq: DeployRecord::allocate_seq(deploy)?,
-                    timestamp: now_secs(),
+                    timestamp: DeployRecord::now_secs(),
                     config_history: Vec::new(),
                     working_config: String::new(),
                 }
@@ -103,11 +102,4 @@ impl Stage<UpdateError> for MergeStage {
 
         Ok((progress, Box::new(written)))
     }
-}
-
-fn now_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
-        .as_secs()
 }

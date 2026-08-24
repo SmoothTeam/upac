@@ -5,11 +5,11 @@
 
 use std::os::raw::c_void;
 
-use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CFilesRequest;
+use upac_abi::{DiffFileSource, FileDiffKind};
 
 pub use self::error::FilesError;
 
@@ -31,6 +31,7 @@ mod swap;
 mod transaction;
 
 pub(crate) struct RequestedFileKind(pub FileDiffKind);
+pub(crate) struct RequestedFileScope(pub DiffFileSource);
 pub(crate) struct RequestedFilePackage {
     pub name: String,
     pub arch: String,
@@ -68,6 +69,7 @@ impl<'a> TryFrom<&'a CPackageInfo> for FilesPackage<'a> {
 pub struct FilesData<'a> {
     pub files: Vec<&'a str>,
     pub file_kind: FileDiffKind,
+    pub scope: DiffFileSource,
     pub file_package: FilesPackage<'a>,
     pub boot_plugin: Option<&'a str>,
 
@@ -94,6 +96,7 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
         Ok(FilesData {
             files: Vec::try_from(&request.files)?,
             file_kind: request.file_kind,
+            scope: request.scope,
             file_package: FilesPackage::try_from(file_package)?,
             boot_plugin: (&request.boot_plugin).try_into()?,
 
@@ -122,6 +125,7 @@ pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
             .collect::<Vec<String>>(),
     );
     context.put(RequestedFileKind(data.file_kind));
+    context.put(RequestedFileScope(data.scope));
     context.put(RequestedFilePackage {
         name: data.file_package.name.to_owned(),
         arch: data.file_package.arch.to_owned(),

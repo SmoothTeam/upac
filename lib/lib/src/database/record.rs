@@ -6,6 +6,7 @@
 use std::fs::{File, read_to_string};
 use std::io::{ErrorKind as IoErrorKind, Read};
 use std::path::Path;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use upac_macro::JsonCodec;
 
@@ -47,6 +48,13 @@ impl DeployRecord {
         let content = serde_json::to_vec_pretty(&self.to_json())?;
 
         Ok(WrittenFile::write(&deploy_dir.join(RECORD_FILENAME), &content)?)
+    }
+
+    pub fn now_secs() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::ZERO)
+            .as_secs()
     }
 
     pub fn allocate_seq(deploy: &Deploy) -> Result<u64, DeployRecordError> {

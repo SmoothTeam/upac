@@ -3,17 +3,19 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-use std::fs::{File, create_dir_all, read_link, symlink_metadata, write};
+use std::fs::{File, copy, create_dir_all, read_link, remove_file, symlink_metadata, write};
+use std::os::unix::fs::symlink;
 use std::path::Path;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use composefs::fsverity::FsVerityHashValue;
 use composefs::generic_tree::Stat;
 use composefs::repository::{ImportContext, Repository};
 use composefs::tree::FileSystem;
 
-use upac_abi::FileDiffKind;
+use uuid::Uuid;
+
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::{DiffFileSource, FileDiffKind};
 
 use upac_types::{FileEntry, FileEntryScope, TmpPath};
 
@@ -29,20 +31,40 @@ use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
 use crate::layout::database::{DATABASE_PATH, FILES_SCRATCH_FILENAME};
+use crate::layout::deployment::{ETC_UPPER_RELATIVE_PATH, LIVE_ETC_DIR};
 use crate::mutated::files::{
-    CommitMessage, FilesError, NewPrefixDigest, RequestedFileKind, RequestedFilePackage, Subject,
+    CommitMessage, FilesError, NewPrefixDigest, RequestedFileKind, RequestedFilePackage, RequestedFileScope, Subject,
 };
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage};
 
 pub struct TransactionStage;
 
+struct PrefixFilesData<'a> {
+    repository: &'a Repository<ObjectID>,
+    tree: &'a mut FileSystem<ObjectID>,
+    database: &'a mut MemoryDatabase,
+    import_ctx: &'a mut ImportContext,
+    cancel: &'a CancelToken,
+    context: &'a Context,
+    stage: u32,
+}
+
+struct ConfigFilesData<'a> {
+    etc_upper_dir: &'a Path,
+    database: &'a mut MemoryDatabase,
+    cancel: &'a CancelToken,
+    context: &'a Context,
+    stage: u32,
+}
+
 impl Stage<FilesError> for TransactionStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), FilesError> {
         let files = context.take::<Vec<String>>().ok_or(CommonError::MissingResult)?;
         let file_kind = context.get::<RequestedFileKind>().ok_or(CommonError::MissingResult)?;
+        let scope = context.get::<RequestedFileScope>().ok_or(CommonError::MissingResult)?;
         let file_package = context
             .get::<RequestedFilePackage>()
             .ok_or(CommonError::MissingResult)?;
@@ -55,6 +77,9 @@ impl Stage<FilesError> for TransactionStage {
         let repository = deploy.open_repository()?;
         let mut tree = deploy.open_tree(&current_prefix)?;
 
+        let current_record_dir = deploy.deploy(&current_prefix);
+        let etc_upper_dir = current_record_dir.join(ETC_UPPER_RELATIVE_PATH);
+
         let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &tree)?;
         let mut database = MemoryDatabase::open_in_memory(database_bytes)?;
 
@@ -63,41 +88,30 @@ impl Stage<FilesError> for TransactionStage {
             .ok_or(FilesError::PackageNotFound)?;
 
         let mut import_ctx = ImportContext::default();
-        let files_total = files.len() as u64;
+        let stage = progress.stage();
 
-        match file_kind.0 {
-            FileDiffKind::Removed => {
-                for (index, path) in files.iter().enumerate() {
-                    if cancel.is_cancelled() {
-                        return Err(CommonError::Cancelled.into());
-                    }
-
-                    progress = progress.subject(path.clone()).progress(index as u64, files_total);
-                    context.send_progress(&progress);
-
-                    FileHandle::new(path).remove_in_tree(&mut tree)?;
-                    database.remove_user_file(uuid, path)?;
-                }
+        match scope.0 {
+            DiffFileSource::Prefix => {
+                let mut data = PrefixFilesData {
+                    repository: &repository,
+                    tree: &mut tree,
+                    database: &mut database,
+                    import_ctx: &mut import_ctx,
+                    cancel,
+                    context: &*context,
+                    stage,
+                };
+                self.apply_prefix_files(uuid, &files, file_kind.0, &mut data)?;
             }
-            FileDiffKind::Added | FileDiffKind::Modified => {
-                for (index, path) in files.iter().enumerate() {
-                    if cancel.is_cancelled() {
-                        return Err(CommonError::Cancelled.into());
-                    }
-
-                    progress = progress.subject(path.clone()).progress(index as u64, files_total);
-                    context.send_progress(&progress);
-
-                    self.add_file(path, &repository, &mut tree, &mut import_ctx)?;
-                    database.insert_package_file(
-                        uuid,
-                        &FileEntry {
-                            path: path.clone(),
-                            is_user: true,
-                            scope: FileEntryScope::Prefix,
-                        },
-                    )?;
-                }
+            DiffFileSource::Config => {
+                let mut data = ConfigFilesData {
+                    etc_upper_dir: &etc_upper_dir,
+                    database: &mut database,
+                    cancel,
+                    context: &*context,
+                    stage,
+                };
+                self.apply_config_files(uuid, &files, file_kind.0, &mut data)?;
             }
         }
 
@@ -116,7 +130,6 @@ impl Stage<FilesError> for TransactionStage {
         let digest = commit_tree(&repository, tree)?;
         let new_prefix = digest.to_hex();
 
-        let current_record_dir = deploy.deploy(&current_prefix);
         let current_record = DeployRecord::read(&current_record_dir)?;
 
         let new_record_dir = deploy.deploy(&new_prefix);
@@ -129,7 +142,7 @@ impl Stage<FilesError> for TransactionStage {
                 subject: subject.0.clone(),
                 message: message.0.clone(),
                 seq: DeployRecord::allocate_seq(deploy)?,
-                timestamp: now_secs(),
+                timestamp: DeployRecord::now_secs(),
                 config_history: current_record.config_history.clone(),
                 working_config: current_record.working_config.clone(),
             };
@@ -143,6 +156,80 @@ impl Stage<FilesError> for TransactionStage {
 }
 
 impl TransactionStage {
+    fn apply_prefix_files(
+        &self, uuid: Uuid, files: &[String], kind: FileDiffKind, data: &mut PrefixFilesData,
+    ) -> Result<(), FilesError> {
+        let files_total = files.len() as u64;
+
+        for (index, path) in files.iter().enumerate() {
+            if data.cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
+            let event = ProgressEventBuilder::new(data.stage)
+                .subject(path.clone())
+                .progress(index as u64, files_total);
+            data.context.send_progress(&event);
+
+            match kind {
+                FileDiffKind::Removed => {
+                    FileHandle::new(path).remove_in_tree(data.tree)?;
+                    data.database.remove_user_file(uuid, path)?;
+                }
+                FileDiffKind::Added | FileDiffKind::Modified => {
+                    self.add_file(path, data.repository, data.tree, data.import_ctx)?;
+                    data.database.insert_package_file(
+                        uuid,
+                        &FileEntry {
+                            path: path.clone(),
+                            is_user: true,
+                            scope: FileEntryScope::Prefix,
+                        },
+                    )?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn apply_config_files(
+        &self, uuid: Uuid, files: &[String], kind: FileDiffKind, data: &mut ConfigFilesData,
+    ) -> Result<(), FilesError> {
+        let files_total = files.len() as u64;
+
+        for (index, path) in files.iter().enumerate() {
+            if data.cancel.is_cancelled() {
+                return Err(CommonError::Cancelled.into());
+            }
+
+            let event = ProgressEventBuilder::new(data.stage)
+                .subject(path.clone())
+                .progress(index as u64, files_total);
+            data.context.send_progress(&event);
+
+            match kind {
+                FileDiffKind::Removed => {
+                    remove_file(data.etc_upper_dir.join(path)).map_err(RepoError::from)?;
+                    data.database.remove_user_file(uuid, path)?;
+                }
+                FileDiffKind::Added | FileDiffKind::Modified => {
+                    self.add_config_file(path, data.etc_upper_dir)?;
+                    data.database.insert_package_file(
+                        uuid,
+                        &FileEntry {
+                            path: path.clone(),
+                            is_user: true,
+                            scope: FileEntryScope::Config,
+                        },
+                    )?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn add_file(
         &self, path: &str, repository: &Repository<ObjectID>, tree: &mut FileSystem<ObjectID>,
         import_ctx: &mut ImportContext,
@@ -168,11 +255,23 @@ impl TransactionStage {
 
         Ok(())
     }
-}
 
-fn now_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
-        .as_secs()
+    fn add_config_file(&self, path: &str, etc_upper_dir: &Path) -> Result<(), FilesError> {
+        let live_path = Path::new(LIVE_ETC_DIR).join(path);
+        let metadata = symlink_metadata(&live_path).map_err(RepoError::from)?;
+        let dest_path = etc_upper_dir.join(path);
+
+        if let Some(parent) = dest_path.parent() {
+            create_dir_all(parent).map_err(RepoError::from)?;
+        }
+
+        if metadata.is_symlink() {
+            let _ = remove_file(&dest_path);
+            symlink(read_link(&live_path).map_err(RepoError::from)?, &dest_path).map_err(RepoError::from)?;
+        } else {
+            copy(&live_path, &dest_path).map_err(RepoError::from)?;
+        }
+
+        Ok(())
+    }
 }
