@@ -120,6 +120,9 @@ msgstr "Рендеринг"
 msgid "stage_writing"
 msgstr "Запись"
 
+msgid "stage_set_pinned"
+msgstr "Установка pin"
+
 msgid "stage_comparing"
 msgstr "Сравнение"
 

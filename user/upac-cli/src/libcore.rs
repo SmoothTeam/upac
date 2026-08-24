@@ -13,8 +13,8 @@ use upac_abi::hook::CancelToken;
 use upac_abi::request::{
     CCommitRequest, CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CFilesRequest,
     CGcRequest, CInstallRequest, CListConfigRequest, CListHistoryRequest, CListPackagesRequest, CListPrefixRequest,
-    CMimeSyncRequest, CRollbackRequest, CSearchFilesRequest, CSearchInMetaRequest, CSearchInPackageFilesRequest,
-    CSearchMetaRequest, CUninstallRequest, CUpdateRequest,
+    CMimeSyncRequest, CPinRequest, CRollbackRequest, CSearchFilesRequest, CSearchInMetaRequest,
+    CSearchInPackageFilesRequest, CSearchMetaRequest, CUninstallRequest, CUpdateRequest,
 };
 use upac_abi::response::{
     CDiffConfigResponse, CDiffPackagesResponse, CDiffPrefixResponse, CDiffResponse, CListConfigResponse,
@@ -29,8 +29,8 @@ use libloading::Library;
 
 #[cfg(feature = "static-link")]
 use upac::export::mutated::{
-    commit::commit, files::files, gc::gc, installer::install, mime::mime, rollback::rollback, uninstaller::uninstall,
-    update::update,
+    commit::commit, files::files, gc::gc, installer::install, mime::mime, pin::pin_deploy, rollback::rollback,
+    uninstaller::uninstall, update::update,
 };
 #[cfg(feature = "static-link")]
 use upac::export::unmutated::{
@@ -75,6 +75,7 @@ impl RwSymbols {
             files,
             mime,
             gc,
+            pin_deploy,
         }
     }
 }
@@ -141,6 +142,7 @@ impl LoadLibrarySymbols for RwSymbols {
             files: unsafe { Lib::load_symbol(lib, "files")? },
             mime: unsafe { Lib::load_symbol(lib, "mime")? },
             gc: unsafe { Lib::load_symbol(lib, "gc")? },
+            pin_deploy: unsafe { Lib::load_symbol(lib, "pin_deploy")? },
         })
     }
 }
@@ -212,6 +214,7 @@ pub struct RwSymbols {
     pub files: unsafe extern "C" fn(CFilesRequest, *mut CError) -> i32,
     pub mime: unsafe extern "C" fn(CMimeSyncRequest, *mut CError) -> i32,
     pub gc: unsafe extern "C" fn(CGcRequest, *mut CError) -> i32,
+    pub pin_deploy: unsafe extern "C" fn(CPinRequest, *mut CError) -> i32,
 }
 
 // ── Wrapper around either libupac.so or the statically linked upac-lib ──────

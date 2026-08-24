@@ -120,6 +120,9 @@ msgstr "Rendering"
 msgid "stage_writing"
 msgstr "Writing"
 
+msgid "stage_set_pinned"
+msgstr "Set pinned"
+
 msgid "stage_comparing"
 msgstr "Comparing"
 

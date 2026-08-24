@@ -11,8 +11,8 @@ use upac_abi::error::{CError, ErrorDomain, ErrorKind};
 use upac_types::states::{
     CommitStateId, DiffConfigStateId, DiffPackagesStateId, DiffPrefixStateId, DiffStateId, FilesStateId, GcStateId,
     InstallStateId, ListConfigStateId, ListHistoryStateId, ListPackagesStateId, ListPrefixStateId, MimeStateId,
-    RollbackStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId, SearchMetaStateId,
-    UninstallStateId, UpdateStateId,
+    PinStateId, RollbackStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
+    SearchMetaStateId, UninstallStateId, UpdateStateId,
 };
 
 #[derive(Debug)]
@@ -64,6 +64,7 @@ impl Display for StageName {
             ErrorDomain::Files => FilesStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Update => UpdateStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Gc => GcStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Pin => PinStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Mime => MimeStateId::from_stage_index(state).stage_key(),
             ErrorDomain::ListPackages => ListPackagesStateId::from_stage_index(state).stage_key(),
             ErrorDomain::ListConfig => ListConfigStateId::from_stage_index(state).stage_key(),
