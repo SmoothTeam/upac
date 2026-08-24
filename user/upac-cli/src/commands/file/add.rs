@@ -15,7 +15,7 @@ use upac_abi::request::{CFilesRequest, CRequestBase};
 
 use crate::cancel_token_ptr;
 use crate::types::CommandContext;
-use crate::types::abi::{borrowed_vec, invoke, optional_slice, package_info, slice_from_cstr};
+use crate::types::abi::{FileScope, borrowed_vec, invoke, optional_slice, package_info, slice_from_cstr};
 use crate::types::progress::{ProgressState, on_progress};
 
 #[derive(ClapArgs)]
@@ -32,6 +32,8 @@ pub struct Args {
     pub message: Option<String>,
     #[arg(long)]
     pub boot: Option<String>,
+    #[arg(long, value_enum, default_value_t = FileScope::Usr)]
+    pub scope: FileScope,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -43,6 +45,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let subject = CString::new("file add")?;
     let message = args.message.map(CString::new).transpose()?;
     let boot_plugin = args.boot.map(CString::new).transpose()?;
+    let scope = args.scope.into();
 
     let file_cstrings = args
         .files
@@ -63,6 +66,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         optional_slice(message.as_ref()),
         borrowed_vec(&file_slices),
         FileDiffKind::Added,
+        scope,
         &package,
         optional_slice(boot_plugin.as_ref()),
     );
