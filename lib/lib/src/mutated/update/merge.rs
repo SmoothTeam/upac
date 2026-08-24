@@ -21,7 +21,7 @@ use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
 use crate::layout::deployment::ETC_UPPER_RELATIVE_PATH;
 use crate::mutated::update::{
-    CommitMessage, NewConfigDefaults, NewPrefixDigest, RemovedConfigPaths, Subject, UpdateError,
+    AllowConflictFiles, CommitMessage, NewConfigDefaults, NewPrefixDigest, RemovedConfigPaths, Subject, UpdateError,
 };
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage};
@@ -38,6 +38,7 @@ impl Stage<UpdateError> for MergeStage {
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
         let subject = context.get::<Subject>().ok_or(CommonError::MissingResult)?;
         let message = context.get::<CommitMessage>().ok_or(CommonError::MissingResult)?;
+        let allow_conflict_files = context.get::<AllowConflictFiles>().ok_or(CommonError::MissingResult)?;
 
         let repository = deploy.open_repository()?;
 
@@ -67,8 +68,14 @@ impl Stage<UpdateError> for MergeStage {
         }
         apply_tree_overlay(&mut new, &new_config_defaults.0)?;
 
-        let merge_result = merge_config(&base, &new, &live)?;
+        let merge_result = merge_config(&base, &new, &live, allow_conflict_files.0)?;
         let new_config_digest = commit_tree(&repository, merge_result.tree)?.to_hex();
+
+        let conflicts_total = merge_result.conflicts.len() as u64;
+        for (index, path) in merge_result.conflicts.iter().enumerate() {
+            progress = progress.subject(path.clone()).progress(index as u64, conflicts_total);
+            context.send_progress(&progress);
+        }
 
         let new_record_dir = deploy.deploy(&new_prefix.0);
         let mut record = match DeployRecord::read(&new_record_dir) {

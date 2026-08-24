@@ -21,7 +21,7 @@ pub struct MergeResult {
 }
 
 pub fn merge_config(
-    base: &FileSystem<ObjectID>, new: &FileSystem<ObjectID>, live: &FileSystem<ObjectID>,
+    base: &FileSystem<ObjectID>, new: &FileSystem<ObjectID>, live: &FileSystem<ObjectID>, allow_conflict_files: bool,
 ) -> Result<MergeResult, RepoError> {
     let user_changes = TreeDiff::run(base, live);
     let package_changes: BTreeMap<String, FileDiffKind> = TreeDiff::run(base, new).into_iter().collect();
@@ -40,7 +40,9 @@ pub fn merge_config(
             },
             FileDiffKind::Added | FileDiffKind::Modified => {
                 if let Some(FileDiffKind::Added | FileDiffKind::Modified) = package_change {
-                    FileHandle::new(format!("{path}.upac-new")).copy_from_tree(&mut tree, new, Path::new(&path))?;
+                    if allow_conflict_files {
+                        FileHandle::new(format!("{path}.upac-new")).copy_from_tree(&mut tree, new, Path::new(&path))?;
+                    }
                     conflicts.push(path.clone());
                 }
 

@@ -43,6 +43,7 @@ pub(crate) struct NewConfigDefaults(pub FileSystem<ObjectID>);
 pub(crate) struct Subject(pub String);
 pub(crate) struct CommitMessage(pub Option<String>);
 pub(crate) struct RequestedBootPlugin(pub Option<String>);
+pub(crate) struct AllowConflictFiles(pub bool);
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
@@ -51,6 +52,7 @@ pub(crate) struct ResolvedBootEntry {
 pub struct InstallData<'a> {
     pub packages: Vec<&'a str>,
     pub boot_plugin: Option<&'a str>,
+    pub allow_conflict_files: bool,
 
     pub tmp_path: &'a str,
 
@@ -74,6 +76,7 @@ impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
         Ok(InstallData {
             packages: Vec::try_from(&request.packages)?,
             boot_plugin: (&request.boot_plugin).try_into()?,
+            allow_conflict_files: request.allow_conflict_files,
 
             tmp_path: (&request.tmp_path).try_into()?,
 
@@ -104,6 +107,7 @@ pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
     context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
+    context.put(AllowConflictFiles(data.allow_conflict_files));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

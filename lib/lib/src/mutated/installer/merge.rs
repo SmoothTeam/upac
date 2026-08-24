@@ -19,7 +19,9 @@ use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
 use crate::layout::deployment::ETC_UPPER_RELATIVE_PATH;
-use crate::mutated::installer::{CommitMessage, InstallError, NewConfigDefaults, NewPrefixDigest, Subject};
+use crate::mutated::installer::{
+    AllowConflictFiles, CommitMessage, InstallError, NewConfigDefaults, NewPrefixDigest, Subject,
+};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage};
 
@@ -27,13 +29,14 @@ pub struct MergeStage;
 
 impl Stage<InstallError> for MergeStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), InstallError> {
         let new_config_defaults = context.take::<NewConfigDefaults>().ok_or(CommonError::MissingResult)?;
         let new_prefix = context.get::<NewPrefixDigest>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
         let subject = context.get::<Subject>().ok_or(CommonError::MissingResult)?;
         let message = context.get::<CommitMessage>().ok_or(CommonError::MissingResult)?;
+        let allow_conflict_files = context.get::<AllowConflictFiles>().ok_or(CommonError::MissingResult)?;
 
         let repository = deploy.open_repository()?;
 
@@ -51,11 +54,14 @@ impl Stage<InstallError> for MergeStage {
         let mut new = base.clone();
         apply_tree_overlay(&mut new, &new_config_defaults.0)?;
 
-        // The doc calls for notifying the user about `<path>.upac-new` conflicts through the
-        // message-hook mechanism — deferred, no established precedent yet for a non-fatal
-        // notification of this shape (see also the `up mime sync` best-effort refresh, same gap).
-        let merge_result = merge_config(&base, &new, &live)?;
+        let merge_result = merge_config(&base, &new, &live, allow_conflict_files.0)?;
         let new_config_digest = commit_tree(&repository, merge_result.tree)?.to_hex();
+
+        let conflicts_total = merge_result.conflicts.len() as u64;
+        for (index, path) in merge_result.conflicts.iter().enumerate() {
+            progress = progress.subject(path.clone()).progress(index as u64, conflicts_total);
+            context.send_progress(&progress);
+        }
 
         let new_record_dir = deploy.deploy(&new_prefix.0);
         let mut record = match DeployRecord::read(&new_record_dir) {

@@ -73,7 +73,7 @@ fn untouched_file_keeps_the_new_package_default() {
     let mut new = empty_tree();
     insert(&repository, &mut new, &mut ctx, "untouched-new", "conf", b"new");
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert_eq!(read(&repository, &result.tree, "conf"), b"new");
     assert!(result.conflicts.is_empty());
@@ -98,7 +98,7 @@ fn user_only_edit_is_kept_when_package_did_not_change_the_file() {
         b"user-edit",
     );
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert_eq!(read(&repository, &result.tree, "conf"), b"user-edit");
     assert!(result.conflicts.is_empty());
@@ -132,10 +132,52 @@ fn conflicting_edit_keeps_the_user_version_and_writes_upac_new_sidecar() {
         b"user-edit",
     );
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert_eq!(read(&repository, &result.tree, "conf"), b"user-edit");
     assert_eq!(read(&repository, &result.tree, "conf.upac-new"), b"package-new");
+    assert_eq!(result.conflicts, vec!["conf".to_owned()]);
+}
+
+#[test]
+fn conflicting_edit_skips_the_upac_new_sidecar_when_conflict_files_are_disallowed() {
+    let (_scratch, repository) = open_repository("conflict-edit-no-sidecar");
+    let mut ctx = ImportContext::default();
+
+    let mut base = empty_tree();
+    insert(
+        &repository,
+        &mut base,
+        &mut ctx,
+        "conflict-edit-no-sidecar-base",
+        "conf",
+        b"base",
+    );
+
+    let mut new = empty_tree();
+    insert(
+        &repository,
+        &mut new,
+        &mut ctx,
+        "conflict-edit-no-sidecar-new",
+        "conf",
+        b"package-new",
+    );
+
+    let mut live = empty_tree();
+    insert(
+        &repository,
+        &mut live,
+        &mut ctx,
+        "conflict-edit-no-sidecar-live",
+        "conf",
+        b"user-edit",
+    );
+
+    let result = merge_config(&base, &new, &live, false).unwrap();
+
+    assert_eq!(read(&repository, &result.tree, "conf"), b"user-edit");
+    assert!(!exists(&result.tree, "conf.upac-new"));
     assert_eq!(result.conflicts, vec!["conf".to_owned()]);
 }
 
@@ -149,7 +191,7 @@ fn user_deletion_is_carried_over_when_the_package_did_not_change_the_file() {
     let new = base.clone();
     let live = empty_tree();
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert!(!exists(&result.tree, "conf"));
     assert!(result.conflicts.is_empty());
@@ -182,7 +224,7 @@ fn user_deletion_conflicts_when_the_package_also_changed_the_file() {
 
     let live = empty_tree();
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert_eq!(read(&repository, &result.tree, "conf"), b"package-new");
     assert!(!exists(&result.tree, "conf.upac-new"));
@@ -209,7 +251,7 @@ fn user_edit_survives_when_the_package_stops_providing_the_file() {
         b"user-edit",
     );
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert_eq!(read(&repository, &result.tree, "conf"), b"user-edit");
     assert!(!exists(&result.tree, "conf.upac-new"));
@@ -234,7 +276,7 @@ fn user_deletion_is_not_a_conflict_when_the_package_also_removed_the_file() {
     let new = empty_tree();
     let live = empty_tree();
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert!(!exists(&result.tree, "conf"));
     assert!(result.conflicts.is_empty());
@@ -258,7 +300,7 @@ fn brand_new_user_file_survives_the_merge() {
         b"user-only",
     );
 
-    let result = merge_config(&base, &new, &live).unwrap();
+    let result = merge_config(&base, &new, &live, true).unwrap();
 
     assert_eq!(read(&repository, &result.tree, "conf"), b"user-only");
     assert!(result.conflicts.is_empty());

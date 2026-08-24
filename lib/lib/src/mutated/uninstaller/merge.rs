@@ -63,7 +63,7 @@ impl Stage<UninstallError> for MergeStage {
             FileHandle::new(path).remove_in_tree(&mut new)?;
         }
 
-        let merge_result = merge_config(&base, &new, &live)?;
+        let merge_result = merge_config(&base, &new, &live, true)?;
         let new_config_digest = commit_tree(&repository, merge_result.tree)?.to_hex();
 
         let new_record_dir = deploy.deploy(&new_prefix.0);
