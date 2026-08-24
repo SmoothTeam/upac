@@ -70,6 +70,8 @@ up file search <query>   [--regex]                                  # searches t
 up file search <query> --package <name> --package-arch <arch> [--package-arch-sub <sub>] [--regex]  # same, scoped to one package's files
 
 up commit new <message>      # creates a new commit of the current deploy state
+up commit pin <digest>       # pins a deploy so gc's automatic retention never removes it
+up commit unpin <digest>     # unpins a previously pinned deploy
 up commit list               # lists config-commits for the current deploy (rollback targets)
 up commit prefixes           # lists deploy-level (prefix) commits
 up commit history            # lists deploy-level commits with their nested config-commits, marking the active one
