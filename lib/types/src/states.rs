@@ -93,6 +93,16 @@ impl_command_state!(GcStateId, Gc);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum PinStateId {
+    SetPinned = 0,
+    Done = 1,
+    Setup = 2,
+}
+
+impl_command_state!(PinStateId, Pin);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum MimeStateId {
     Preparing = 0,
     Rendering = 1,
