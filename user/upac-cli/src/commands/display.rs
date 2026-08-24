@@ -5,10 +5,12 @@
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
+use clap::ValueEnum;
 use colored::Colorize;
 use strum::AsRefStr;
 
 use upac_abi::package::{CPackageMeta, CVersion};
+use upac_types::Version;
 
 macro_rules! str_field {
     ($field:expr) => {
@@ -35,7 +37,7 @@ macro_rules! optional_str {
 }
 
 // ── Package field indices ────────────────────────────────────────────────────
-#[derive(Debug, Clone, Copy, AsRefStr)]
+#[derive(Debug, Clone, Copy, AsRefStr, ValueEnum)]
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum PackageField {
@@ -61,28 +63,40 @@ impl PackageField {
 pub struct PackageFormatter<'a> {
     pub extra_fields: &'a [PackageField],
     pub metas: &'a [CPackageMeta],
+    pub sort: Option<PackageField>,
 }
 
 impl<'a> PackageFormatter<'a> {
     pub fn print(&self) {
+        let metas = self.ordered_metas();
         if self.extra_fields.is_empty() {
-            for meta in self.metas {
+            for meta in &metas {
                 println!("{}", required_str!(meta.name).bold());
             }
         } else {
-            self.print_table();
+            self.print_table(&metas);
         }
     }
 
-    fn print_table(&self) {
+    fn ordered_metas(&self) -> Vec<&'a CPackageMeta> {
+        let mut metas: Vec<&CPackageMeta> = self.metas.iter().collect();
+        match self.sort {
+            Some(PackageField::Version) => metas.sort_by_key(|meta| Version::try_from(&meta.version).ok()),
+            Some(PackageField::Size) => metas.sort_by_key(|meta| meta.installed_size),
+            Some(field) => metas.sort_by_key(|meta| Self::field_value(meta, field)),
+            None => {}
+        }
+        metas
+    }
+
+    fn print_table(&self, metas: &[&CPackageMeta]) {
         let all_fields: Vec<PackageField> = std::iter::once(PackageField::Name)
             .chain(self.extra_fields.iter().copied())
             .collect();
 
         let headers: Vec<String> = all_fields.iter().map(PackageField::display).collect();
 
-        let rows: Vec<Vec<String>> = self
-            .metas
+        let rows: Vec<Vec<String>> = metas
             .iter()
             .map(|meta| all_fields.iter().map(|f| Self::field_value(meta, *f)).collect())
             .collect();

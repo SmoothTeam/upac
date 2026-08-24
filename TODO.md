@@ -43,12 +43,13 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 - Deploy retention / "light cleanup after every operation" (doc §5.5 point 1 — deciding which
   `state/deploy/<digest>/` directories should be pruned) has no code anywhere yet; `up gc` only
   sweeps objects given whatever deploys currently happen to exist on disk.
-- Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature
-  approach) — not started, see `ROADMAP.md` §1.
 - `Version` has a real rpmvercmp-style `Ord`/`PartialOrd` (epoch first, then alternating
-  numeric/alpha token comparison), consumed by `update`'s `--allow-downgrade` check, but
-  `pkg list`/`pkg search` still don't sort by version (display order is whatever the C-ABI
-  response returns). The 4 Zig decoders (`decoders/{alpm,deb,rpm,xbps}`) still populate `CVersion`
-  via their own independent, partially-buggy per-segment parsers (deb hard-fails on a non-numeric
-  dot segment, e.g. `"1.2.3-alpha"`) — `CVersion`'s Rust/C-ABI shape was simplified to
-  `{epoch, raw}` but the Zig-side parsing itself is untouched, deliberately out of scope for now.
+  numeric/alpha token comparison), consumed by `update`'s `--allow-downgrade` check AND now by
+  `pkg list --sort`/`pkg search --sort` (`--sort <field>` accepts any `PackageField` variant —
+  `version`/`size` sort by real `Ord`, every other field sorts by its already-rendered display
+  string via the existing `field_value` — no default sort, unset `--sort` keeps whatever order the
+  C-ABI response returned, same as before).
+- The 4 Zig decoders (`decoders/{alpm,deb,rpm,xbps}`) are legacy: static linking was never
+  started, and `parseVersion`/`CVersion` still populate the old 4-field shape, out of sync with
+  the simplified Rust/C-ABI `{epoch, raw}`. Both are slated for a full rewrite later — do not
+  invest in fixing/extending the Zig side as part of any near-term work here.
