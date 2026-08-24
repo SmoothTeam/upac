@@ -42,7 +42,7 @@ struct ImportPackageData<'a> {
 
 impl Stage<InstallError> for TransactionStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), InstallError> {
         let packages = context.take::<Vec<PackageTemp>>().ok_or(CommonError::MissingResult)?;
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
@@ -67,10 +67,17 @@ impl Stage<InstallError> for TransactionStage {
             cancel,
         };
 
-        for package in &packages {
+        let packages_total = packages.len() as u64;
+
+        for (index, package) in packages.iter().enumerate() {
             if cancel.is_cancelled() {
                 return Err(CommonError::Cancelled.into());
             }
+
+            progress = progress
+                .subject(package.meta.name.clone())
+                .progress(index as u64, packages_total);
+            context.send_progress(&progress);
 
             self.import_package(package, &mut package_data)?;
         }

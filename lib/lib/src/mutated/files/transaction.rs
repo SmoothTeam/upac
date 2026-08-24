@@ -39,7 +39,7 @@ pub struct TransactionStage;
 
 impl Stage<FilesError> for TransactionStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), FilesError> {
         let files = context.take::<Vec<String>>().ok_or(CommonError::MissingResult)?;
         let file_kind = context.get::<RequestedFileKind>().ok_or(CommonError::MissingResult)?;
@@ -63,23 +63,30 @@ impl Stage<FilesError> for TransactionStage {
             .ok_or(FilesError::PackageNotFound)?;
 
         let mut import_ctx = ImportContext::default();
+        let files_total = files.len() as u64;
 
         match file_kind.0 {
             FileDiffKind::Removed => {
-                for path in &files {
+                for (index, path) in files.iter().enumerate() {
                     if cancel.is_cancelled() {
                         return Err(CommonError::Cancelled.into());
                     }
+
+                    progress = progress.subject(path.clone()).progress(index as u64, files_total);
+                    context.send_progress(&progress);
 
                     FileHandle::new(path).remove_in_tree(&mut tree)?;
                     database.remove_user_file(uuid, path)?;
                 }
             }
             FileDiffKind::Added | FileDiffKind::Modified => {
-                for path in &files {
+                for (index, path) in files.iter().enumerate() {
                     if cancel.is_cancelled() {
                         return Err(CommonError::Cancelled.into());
                     }
+
+                    progress = progress.subject(path.clone()).progress(index as u64, files_total);
+                    context.send_progress(&progress);
 
                     self.add_file(path, &repository, &mut tree, &mut import_ctx)?;
                     database.insert_package_file(

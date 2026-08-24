@@ -34,7 +34,7 @@ pub struct TransactionStage;
 
 impl Stage<UninstallError> for TransactionStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
         let uuids = context
             .take::<PackageUuidsToRemove>()
@@ -52,10 +52,19 @@ impl Stage<UninstallError> for TransactionStage {
 
         let mut removed_config_paths = Vec::new();
 
-        for uuid in &uuids.0 {
+        let uuids_total = uuids.0.len() as u64;
+
+        for (index, uuid) in uuids.0.iter().enumerate() {
             if cancel.is_cancelled() {
                 return Err(CommonError::Cancelled.into());
             }
+
+            let subject = database
+                .get_package_meta(*uuid)?
+                .map(|meta| meta.name)
+                .unwrap_or_default();
+            progress = progress.subject(subject).progress(index as u64, uuids_total);
+            context.send_progress(&progress);
 
             self.remove_package(
                 *uuid,
