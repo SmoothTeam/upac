@@ -23,17 +23,17 @@ impl Deploy {
         let retention_depth = RuntimeSettings::load().gc.retention_depth as usize;
 
         let mut records = DeployRecord::read_all(self)?;
-        records.sort_by(|left, right| right.seq.cmp(&left.seq));
+        records.sort_by_key(|record| std::cmp::Reverse(record.seq));
 
         let mut pinned: HashSet<String> = HashSet::new();
 
-        if let Ok(current) = current_prefix_digest() {
-            if let Some(current_record) = records.iter().find(|record| record.prefix_digest == current) {
-                pinned.insert(current_record.prefix_digest.clone());
+        if let Ok(current) = current_prefix_digest()
+            && let Some(current_record) = records.iter().find(|record| record.prefix_digest == current)
+        {
+            pinned.insert(current_record.prefix_digest.clone());
 
-                if let Some(previous) = records.iter().find(|record| record.seq < current_record.seq) {
-                    pinned.insert(previous.prefix_digest.clone());
-                }
+            if let Some(previous) = records.iter().find(|record| record.seq < current_record.seq) {
+                pinned.insert(previous.prefix_digest.clone());
             }
         }
 
