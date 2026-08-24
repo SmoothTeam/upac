@@ -38,9 +38,6 @@ jobs:
       - name: Lint style
         run: cargo xtask lint-style
 
-      - name: Build
-        run: cargo build --workspace
-
       - name: Test
         run: cargo test --workspace --lib --tests
 
