@@ -35,17 +35,20 @@ impl Display for AbiMismatch {
 
 impl Error for AbiMismatch {}
 
-struct StageName {
+pub(crate) struct StageName {
     domain: ErrorDomain,
     state: u32,
 }
 
+impl StageName {
+    pub(crate) fn new(domain: ErrorDomain, state: u32) -> Self {
+        StageName { domain, state }
+    }
+}
+
 impl From<&CError> for StageName {
     fn from(error: &CError) -> Self {
-        StageName {
-            domain: error.domain,
-            state: error.state,
-        }
+        StageName::new(error.domain, error.state)
     }
 }
 

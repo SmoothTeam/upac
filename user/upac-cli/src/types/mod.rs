@@ -13,6 +13,7 @@ use crate::libcore::Lib;
 
 pub mod abi;
 pub mod errors;
+pub mod progress;
 
 pub struct CommandContext {
     pub lib: Arc<Lib>,

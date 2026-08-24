@@ -10,10 +10,13 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::request::CUpdateRequest;
+use upac_abi::error::ErrorDomain;
+use upac_abi::request::{CRequestBase, CUpdateRequest};
 
+use crate::cancel_token_ptr;
 use crate::types::CommandContext;
-use crate::types::abi::{borrowed_vec, invoke, optional_slice, request_base, slice_from_cstr};
+use crate::types::abi::{borrowed_vec, invoke, optional_slice, slice_from_cstr};
+use crate::types::progress::{ProgressState, on_progress};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -45,8 +48,11 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let path_slices: Vec<_> = paths.iter().map(slice_from_cstr).collect();
 
+    let mut progress = ProgressState::new(ErrorDomain::Update);
+    let base = CRequestBase::new(Some(on_progress), progress.ctx_ptr(), cancel_token_ptr());
+
     let request = CUpdateRequest::new(
-        request_base(),
+        base,
         slice_from_cstr(&ctx.tmp_path),
         slice_from_cstr(&subject),
         optional_slice(message.as_ref()),
@@ -55,5 +61,8 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         args.allow_downgrade,
     );
 
-    invoke(|error| unsafe { (symbols.update)(request, error) })
+    let result = invoke(|error| unsafe { (symbols.update)(request, error) });
+    progress.finish();
+
+    result
 }
