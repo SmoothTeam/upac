@@ -133,6 +133,17 @@ pub struct CMimeSyncRequest {
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
+pub struct CPinRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    #[non_empty]
+    pub prefix_digest: CSlice,
+    pub pinned: bool,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
 pub struct CListPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
