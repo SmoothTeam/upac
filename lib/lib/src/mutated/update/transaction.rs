@@ -40,6 +40,8 @@ struct UpdatePackageData<'a> {
     import_ctx: &'a mut ImportContext,
     allow_downgrade: bool,
     cancel: &'a CancelToken,
+    context: &'a Context,
+    stage: u32,
 }
 
 impl Stage<UpdateError> for TransactionStage {
@@ -62,6 +64,8 @@ impl Stage<UpdateError> for TransactionStage {
         let mut removed_config_paths = Vec::new();
         let mut import_ctx = ImportContext::default();
 
+        let stage = progress.stage();
+
         let mut package_data = UpdatePackageData {
             repository: &repository,
             tree: &mut tree,
@@ -71,6 +75,8 @@ impl Stage<UpdateError> for TransactionStage {
             import_ctx: &mut import_ctx,
             allow_downgrade: allow_downgrade.0,
             cancel,
+            context: &*context,
+            stage,
         };
 
         let packages_total = packages.len() as u64;
@@ -128,10 +134,18 @@ impl TransactionStage {
             }
         }
 
-        for entry in package_data.database.list_package_files(uuid)? {
+        let old_files = package_data.database.list_package_files(uuid)?;
+        let old_files_total = old_files.len() as u64;
+
+        for (index, entry) in old_files.into_iter().enumerate() {
             if package_data.cancel.is_cancelled() {
                 return Err(CommonError::Cancelled.into());
             }
+
+            let event = ProgressEventBuilder::new(package_data.stage)
+                .subject(entry.path.clone())
+                .progress(index as u64, old_files_total);
+            package_data.context.send_progress(&event);
 
             match entry.scope {
                 FileEntryScope::Prefix => {

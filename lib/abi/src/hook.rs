@@ -47,6 +47,10 @@ impl ProgressEventBuilder {
         }
     }
 
+    pub fn stage(&self) -> u32 {
+        self.stage
+    }
+
     pub fn phase(mut self, phase: u32) -> Self {
         self.phase = phase;
         self

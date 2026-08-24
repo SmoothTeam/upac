@@ -32,6 +32,16 @@ use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 
 pub struct TransactionStage;
 
+struct RemovePackageData<'a> {
+    tree: &'a mut FileSystem<ObjectID>,
+    database: &'a mut MemoryDatabase,
+    removed_config_paths: &'a mut Vec<String>,
+    purge: bool,
+    cancel: &'a CancelToken,
+    context: &'a Context,
+    stage: u32,
+}
+
 impl Stage<UninstallError> for TransactionStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
@@ -52,6 +62,7 @@ impl Stage<UninstallError> for TransactionStage {
 
         let mut removed_config_paths = Vec::new();
 
+        let stage = progress.stage();
         let uuids_total = uuids.0.len() as u64;
 
         for (index, uuid) in uuids.0.iter().enumerate() {
@@ -66,14 +77,17 @@ impl Stage<UninstallError> for TransactionStage {
             progress = progress.subject(subject).progress(index as u64, uuids_total);
             context.send_progress(&progress);
 
-            self.remove_package(
-                *uuid,
-                &mut tree,
-                &mut database,
-                &mut removed_config_paths,
-                purge.0,
+            let mut package_data = RemovePackageData {
+                tree: &mut tree,
+                database: &mut database,
+                removed_config_paths: &mut removed_config_paths,
+                purge: purge.0,
                 cancel,
-            )?;
+                context: &*context,
+                stage,
+            };
+
+            self.remove_package(*uuid, &mut package_data)?;
         }
 
         let database_bytes = database.into_bytes()?;
@@ -98,39 +112,47 @@ impl Stage<UninstallError> for TransactionStage {
 }
 
 impl TransactionStage {
-    fn remove_package(
-        &self, uuid: Uuid, tree: &mut FileSystem<ObjectID>, database: &mut MemoryDatabase,
-        removed_config_paths: &mut Vec<String>, purge: bool, cancel: &CancelToken,
-    ) -> Result<(), UninstallError> {
-        for entry in database.list_package_files(uuid)? {
-            if cancel.is_cancelled() {
+    fn remove_package(&self, uuid: Uuid, package_data: &mut RemovePackageData) -> Result<(), UninstallError> {
+        let files = package_data.database.list_package_files(uuid)?;
+        let files_total = files.len() as u64;
+
+        for (index, entry) in files.into_iter().enumerate() {
+            if package_data.cancel.is_cancelled() {
                 return Err(CommonError::Cancelled.into());
             }
 
-            if entry.is_user && !purge {
+            if entry.is_user && !package_data.purge {
                 continue;
             }
 
+            let event = ProgressEventBuilder::new(package_data.stage)
+                .subject(entry.path.clone())
+                .progress(index as u64, files_total);
+            package_data.context.send_progress(&event);
+
             match entry.scope {
                 FileEntryScope::Prefix => {
-                    FileHandle::new(&entry.path).remove_in_tree(tree)?;
+                    FileHandle::new(&entry.path).remove_in_tree(package_data.tree)?;
                 }
                 FileEntryScope::Config => {
-                    removed_config_paths.push(entry.path.clone());
+                    package_data.removed_config_paths.push(entry.path.clone());
                 }
             }
 
             if entry.is_user {
-                database.remove_user_file(uuid, &entry.path)?;
+                package_data.database.remove_user_file(uuid, &entry.path)?;
             } else {
-                database.remove_package_file(uuid, &entry.path)?;
+                package_data.database.remove_package_file(uuid, &entry.path)?;
             }
         }
 
-        let meta = database
+        let meta = package_data
+            .database
             .get_package_meta(uuid)?
             .ok_or(UninstallError::PackageNotFound)?;
-        database.remove_package_meta(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
+        package_data
+            .database
+            .remove_package_meta(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
 
         Ok(())
     }
