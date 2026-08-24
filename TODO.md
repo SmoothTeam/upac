@@ -30,16 +30,6 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 - `FetchingStage` (`install`/`update`) is a real no-op placeholder, not `todo!()` — the network
   side (resolving name-based package requests, as opposed to local `--file` paths) isn't designed
   or built yet.
-- `files add`/`files remove` now support both scopes via `--scope <usr|config>` (CLI) /
-  `DiffFileSource` (ABI — reused as-is from the existing diff-response enum, not a new duplicate
-  type). `usr`-scope is unchanged (composefs `/usr` tree). `config`-scope reads/writes go straight
-  to the current deploy's `etc-upper/upper` overlay (doc §3 (13)), never the composefs tree —
-  attribution (`FileEntry{is_user: true, scope: Config}`) is still recorded in the package DB,
-  still persisted via a fresh `/usr` commit (same epilogue as `usr`-scope). `files remove --scope
-  config` only ever removes files physically present in `etc-upper/upper` — no OverlayFS whiteout
-  support (removal of a package-default file that was never copied-up isn't possible through this
-  command, by design: `remove_user_file` is already `is_user`-only, and `files add --scope config`
-  always copies-up first, so every removable entry is guaranteed to be in upper).
 - The `MessageHook`/`on_hook` mechanism (progress events) is real and wired for the 5 commands
   with genuine per-item progress (`install`/`update`/`remove`(uninstall)/`file add`/`file remove`
   — `types/progress.rs`'s `ProgressState` + indicatif bar). It is still purely one-directional
@@ -50,12 +40,6 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 - Deploy retention / "light cleanup after every operation" (doc §5.5 point 1 — deciding which
   `state/deploy/<digest>/` directories should be pruned) has no code anywhere yet; `up gc` only
   sweeps objects given whatever deploys currently happen to exist on disk.
-- `Version` has a real rpmvercmp-style `Ord`/`PartialOrd` (epoch first, then alternating
-  numeric/alpha token comparison), consumed by `update`'s `--allow-downgrade` check AND now by
-  `pkg list --sort`/`pkg search --sort` (`--sort <field>` accepts any `PackageField` variant —
-  `version`/`size` sort by real `Ord`, every other field sorts by its already-rendered display
-  string via the existing `field_value` — no default sort, unset `--sort` keeps whatever order the
-  C-ABI response returned, same as before).
 - The 4 Zig decoders (`decoders/{alpm,deb,rpm,xbps}`) are legacy: static linking was never
   started, and `parseVersion`/`CVersion` still populate the old 4-field shape, out of sync with
   the simplified Rust/C-ABI `{epoch, raw}`. Both are slated for a full rewrite later — do not
