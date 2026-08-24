@@ -18,6 +18,7 @@ use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 pub mod codec;
+pub mod settings;
 pub mod states;
 
 #[cfg(test)]
