@@ -30,9 +30,9 @@ pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_v
 }
 
 pub struct ProgressState {
-    bar: ProgressBar,
+    pub(crate) bar: ProgressBar,
     domain: ErrorDomain,
-    is_bar: bool,
+    pub(crate) is_bar: bool,
     settings: ProgressSettings,
 }
 
@@ -60,7 +60,7 @@ impl ProgressState {
         self.bar.finish_and_clear();
     }
 
-    fn apply(&mut self, event: &CProgressEvent) {
+    pub(crate) fn apply(&mut self, event: &CProgressEvent) {
         let stage = StageName::new(self.domain, event.stage).to_string();
         let subject = <&str>::try_from(&event.subject).unwrap_or_default();
 
