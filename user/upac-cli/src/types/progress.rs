@@ -15,6 +15,20 @@ use upac_types::settings::{ProgressSettings, RuntimeSettings};
 
 use crate::types::errors::StageName;
 
+/// # Safety
+/// `ctx` must be a valid, live pointer to a `ProgressState` for the whole duration of the FFI
+/// call that this hook is registered for (guaranteed by construction: callers keep their
+/// `ProgressState` on the stack for exactly that call, calling `ctx_ptr()` only after it's in
+/// its final resting place).
+pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck {
+    let state = unsafe { &mut *ctx.cast::<ProgressState>() };
+    let event = unsafe { &*event };
+
+    state.apply(event);
+
+    HookAck::Delivered
+}
+
 pub struct ProgressState {
     bar: ProgressBar,
     domain: ErrorDomain,
@@ -74,18 +88,4 @@ fn spinner_style(template: &str) -> ProgressStyle {
 
 fn bar_style(template: &str) -> ProgressStyle {
     ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_bar())
-}
-
-/// # Safety
-/// `ctx` must be a valid, live pointer to a `ProgressState` for the whole duration of the FFI
-/// call that this hook is registered for (guaranteed by construction: callers keep their
-/// `ProgressState` on the stack for exactly that call, calling `ctx_ptr()` only after it's in
-/// its final resting place).
-pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck {
-    let state = unsafe { &mut *ctx.cast::<ProgressState>() };
-    let event = unsafe { &*event };
-
-    state.apply(event);
-
-    HookAck::Delivered
 }
