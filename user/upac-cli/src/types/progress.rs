@@ -11,28 +11,30 @@ use indicatif::{ProgressBar, ProgressStyle};
 use upac_abi::error::ErrorDomain;
 use upac_abi::hook::{CProgressEvent, HookAck};
 
-use crate::types::errors::StageName;
+use upac_types::settings::{ProgressSettings, RuntimeSettings};
 
-const SPINNER_TEMPLATE: &str = "{spinner:.cyan} {msg}";
-const BAR_TEMPLATE: &str = "{spinner:.cyan} [{bar:32.cyan/blue}] {pos}/{len} {msg}";
-const TICK_INTERVAL: Duration = Duration::from_millis(100);
+use crate::types::errors::StageName;
 
 pub struct ProgressState {
     bar: ProgressBar,
     domain: ErrorDomain,
     is_bar: bool,
+    settings: ProgressSettings,
 }
 
 impl ProgressState {
     pub fn new(domain: ErrorDomain) -> Self {
+        let settings = RuntimeSettings::load().progress;
+
         let bar = ProgressBar::new_spinner();
-        bar.set_style(spinner_style());
-        bar.enable_steady_tick(TICK_INTERVAL);
+        bar.set_style(spinner_style(&settings.spinner_template));
+        bar.enable_steady_tick(Duration::from_millis(settings.tick_interval_ms));
 
         ProgressState {
             bar,
             domain,
             is_bar: false,
+            settings,
         }
     }
 
@@ -50,7 +52,7 @@ impl ProgressState {
 
         if event.total > 0 {
             if !self.is_bar {
-                self.bar.set_style(bar_style());
+                self.bar.set_style(bar_style(&self.settings.bar_template));
                 self.is_bar = true;
             }
             self.bar.set_length(event.total);
@@ -66,12 +68,12 @@ impl ProgressState {
     }
 }
 
-fn spinner_style() -> ProgressStyle {
-    ProgressStyle::with_template(SPINNER_TEMPLATE).unwrap_or_else(|_| ProgressStyle::default_spinner())
+fn spinner_style(template: &str) -> ProgressStyle {
+    ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_spinner())
 }
 
-fn bar_style() -> ProgressStyle {
-    ProgressStyle::with_template(BAR_TEMPLATE).unwrap_or_else(|_| ProgressStyle::default_bar())
+fn bar_style(template: &str) -> ProgressStyle {
+    ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_bar())
 }
 
 /// # Safety
