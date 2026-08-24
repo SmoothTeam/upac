@@ -24,17 +24,17 @@ use upac_types::{PackageEntry, Targets, TmpPath};
 
 pub use self::error::UninstallError;
 
-use self::boot_option::BootOptionStage;
+use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::preparation::PreparationStage;
-use self::prepare_boot::PrepareBootStage;
+use self::swap::SwapStage;
 use self::transaction::TransactionStage;
 
-mod boot_option;
+mod checkout;
 mod error;
 mod merge;
 mod preparation;
-mod prepare_boot;
+mod swap;
 mod transaction;
 
 pub(crate) struct PackageUuidsToRemove(pub Vec<Uuid>);
@@ -159,8 +159,8 @@ fn assemble() -> SequentialOrchestrator<UninstallError> {
         Box::new(PreparationStage),
         Box::new(TransactionStage),
         Box::new(MergeStage),
-        Box::new(PrepareBootStage),
-        Box::new(BootOptionStage),
+        Box::new(CheckoutStage),
+        Box::new(SwapStage),
         Box::new(HookStage {
             trigger: NativeTrigger::post(Operation::Uninstall),
         }),

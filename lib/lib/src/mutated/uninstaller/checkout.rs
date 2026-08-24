@@ -16,9 +16,9 @@ use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 use crate::plugin::boot::resolve_boot_plugin;
 
-pub struct PrepareBootStage;
+pub struct CheckoutStage;
 
-impl Stage<UninstallError> for PrepareBootStage {
+impl Stage<UninstallError> for CheckoutStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {

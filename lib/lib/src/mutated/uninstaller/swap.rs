@@ -10,9 +10,9 @@ use crate::mutated::uninstaller::{ResolvedBootEntry, UninstallError};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
 
-pub struct BootOptionStage;
+pub struct SwapStage;
 
-impl Stage<UninstallError> for BootOptionStage {
+impl Stage<UninstallError> for SwapStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
