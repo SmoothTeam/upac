@@ -33,28 +33,22 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 - `files add`/`files remove` only ever target `/usr`-scope (`is_user` `FileEntry` rows) — there's no
   ABI/CLI path for attaching a user file to a package's `/etc` scope, and it's architecturally
   different if it's ever added (config-digest based, not `FileStoreMut`-tracked).
-- `upac-cli` never registers a message hook at all — `request_base()`
-  (`user/upac-cli/src/types/abi.rs:20-22`) hardcodes `on_hook: None` for every single command.
-  This means `ProgressEventBuilder` events (stage/phase/subject/current/total — already generated
-  by stage bodies) and any `MessageHook` confirmation (including the `.upac-new` conflict
-  notification from doc §5.1) currently go nowhere: the CLI shows no progress output and can't
-  respond to any hook-driven prompt during a long-running command. Needs a real `on_hook`
-  implementation in `upac-cli` (progress bar/line + confirmation prompt), not just the `None`
-  placeholder.
-- Cancellation (`Ctrl+C` → `CancelToken` → orchestrator) is wired and checked *between* stages
-  (`lib/lib/src/orchestrator/cursor.rs:43-45`), but no individual stage body's own internal loop
-  (e.g. copying many files in a `TransactionStage`) checks `cancel.is_cancelled()` mid-loop — needs
-  an audit of every stage with a per-item loop to decide where a finer-grained check is actually
-  worth adding, versus stage-boundary granularity being good enough.
+- The `MessageHook`/`on_hook` mechanism (progress events) is real and wired for the 5 commands
+  with genuine per-item progress (`install`/`update`/`remove`(uninstall)/`file add`/`file remove`
+  — `types/progress.rs`'s `ProgressState` + indicatif bar). It is still purely one-directional
+  (lib → caller, ack is only "delivered"/"retry") — there is still no way for the caller to answer
+  a question and have lib block on the response. The `.upac-new` conflict notification from doc
+  §5.1 needs exactly that (a real yes/no decision, not a fire-and-forget event), so it needs a
+  genuinely new, separate two-way mechanism, not just another event on the existing hook.
 - Deploy retention / "light cleanup after every operation" (doc §5.5 point 1 — deciding which
   `state/deploy/<digest>/` directories should be pruned) has no code anywhere yet; `up gc` only
   sweeps objects given whatever deploys currently happen to exist on disk.
 - Decoder static linking (Zig, separate mechanism from the Rust boot plugins' Cargo-feature
   approach) — not started, see `ROADMAP.md` §1.
-- `Version` now has a real rpmvercmp-style `Ord`/`PartialOrd` (epoch first, then alternating
-  numeric/alpha token comparison), but nothing consumes it yet: `update` doesn't check whether a
-  `--file` package is actually newer than what's installed, and `pkg list`/`pkg search` don't sort
-  by version. The 4 Zig decoders (`decoders/{alpm,deb,rpm,xbps}`) still populate `CVersion` via
-  their own independent, partially-buggy per-segment parsers (deb hard-fails on a non-numeric
+- `Version` has a real rpmvercmp-style `Ord`/`PartialOrd` (epoch first, then alternating
+  numeric/alpha token comparison), consumed by `update`'s `--allow-downgrade` check, but
+  `pkg list`/`pkg search` still don't sort by version (display order is whatever the C-ABI
+  response returns). The 4 Zig decoders (`decoders/{alpm,deb,rpm,xbps}`) still populate `CVersion`
+  via their own independent, partially-buggy per-segment parsers (deb hard-fails on a non-numeric
   dot segment, e.g. `"1.2.3-alpha"`) — `CVersion`'s Rust/C-ABI shape was simplified to
   `{epoch, raw}` but the Zig-side parsing itself is untouched, deliberately out of scope for now.
