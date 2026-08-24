@@ -8,6 +8,7 @@ pub mod files;
 pub mod gc;
 pub mod installer;
 pub mod mime;
+pub mod pin;
 pub mod rollback;
 pub mod uninstaller;
 pub mod update;
