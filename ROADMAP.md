@@ -2,20 +2,22 @@
 
 Big-picture phases, roughly in order. See `TODO.md` for concrete, immediately-actionable items.
 
-## 1. composefs redesign (in progress)
+## 1. composefs redesign (done)
 
-Upac was originally OSTree-based; the project is migrating to composefs-backed atomic deploys
-(new repo layout, `composefs`/`composefs-oci` crates, `redb`-backed package/file database). Most
-of the read-only surface (`unmutated/`) and the composefs/database layers themselves are done and
-tested. What remains:
+Upac was originally OSTree-based; the project is migrated to composefs-backed atomic deploys
+(new repo layout, `composefs`/`composefs-oci` crates, `redb`-backed package/file database). Both
+the read-only surface (`unmutated/`) and the composefs/database layers are done and tested.
+**Every mutating command's entire pipeline is real end-to-end** — install/update/uninstall/
+rollback/commit/files/gc all have genuine `transaction`/`merge`/`checkout`/`swap` bodies (no
+`todo!()` anywhere in `lib/lib/src`), including the boot-plugin subsystem (pluggable UKI/
+systemd-boot/grub/rEFInd one-shot reboot selection), the real §5.1 3-way `/etc` merge with
+`.upac-new` conflict handling, and deploy retention/pinning. Package unpacking itself
+(`upac-lib`'s own decoder-plugin invocation, checksum, output-dir bookkeeping) is done
+(`PackageUnpacker` in `lib/lib/src/plugin/decoder/unpack.rs`), wired into both install's and
+update's `PreparationStage`.
 
-- **Mutating command bodies** (`lib/lib/src/mutated/*/{transaction,merge,checkout,swap}.rs` and
-  similar) are still `todo!()` across every mutating command (install/update/uninstall/rollback/
-  commit/files/gc). This is the actual composefs mount/merge/checkout/swap logic — the largest
-  remaining piece of work in `upac-lib`.
-- Package unpacking itself (`upac-lib`'s own decoder-plugin invocation, checksum, output-dir
-  bookkeeping) is done (`PackageUnpacker` in `lib/lib/src/plugin/decoder/unpack.rs`), wired into
-  both install's and update's `PreparationStage`.
+What's still explicitly out of scope for this phase, tracked separately below: network-based
+package fetching (§6) and the first-boot bootstrap installer (§5).
 
 ## 2. upac-cli ABI resync (done)
 
