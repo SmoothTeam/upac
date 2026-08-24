@@ -32,7 +32,7 @@ upac-pki          = { path = "lib/pki" }
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 clap       = { version = "4.6.1", features = ["derive"] }
 serde      = { version = "1", features = ["derive"] }
-syn        = { version = "2", features = ["full"] }
+syn        = { version = "3", features = ["full"] }
 
 colored     = "3.1.1"
 libloading  = "0.9"
