@@ -7,11 +7,11 @@ use std::os::raw::c_void;
 
 use upac_macro::{CNew, CValidate};
 
-use crate::FileDiffKind;
 use crate::error::ErrorKind;
 use crate::hook::{CancelToken, HookMessageFn};
 use crate::package::CPackageInfo;
 use crate::types::{CSlice, CVec, check_size};
+use crate::{DiffFileSource, FileDiffKind};
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
@@ -111,6 +111,7 @@ pub struct CFilesRequest {
     pub message: CSlice,
     pub files: CVec<CSlice>,
     pub file_kind: FileDiffKind,
+    pub scope: DiffFileSource,
     pub file_package: *const CPackageInfo,
     #[optional]
     pub boot_plugin: CSlice,
