@@ -30,6 +30,8 @@ pub struct Args {
     pub boot: Option<String>,
     #[arg(long)]
     pub allow_downgrade: bool,
+    #[arg(long)]
+    pub no_conflict_files: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -59,6 +61,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         borrowed_vec(&path_slices),
         optional_slice(boot_plugin.as_ref()),
         args.allow_downgrade,
+        !args.no_conflict_files,
     );
 
     let result = invoke(|error| unsafe { (symbols.update)(request, error) });

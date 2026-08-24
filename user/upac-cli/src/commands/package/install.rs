@@ -28,6 +28,8 @@ pub struct Args {
     pub message: Option<String>,
     #[arg(long)]
     pub boot: Option<String>,
+    #[arg(long)]
+    pub no_conflict_files: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -56,6 +58,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         optional_slice(message.as_ref()),
         borrowed_vec(&path_slices),
         optional_slice(boot_plugin.as_ref()),
+        !args.no_conflict_files,
     );
 
     let result = invoke(|error| unsafe { (symbols.install)(request, error) });
