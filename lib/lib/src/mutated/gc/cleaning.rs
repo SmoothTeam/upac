@@ -21,6 +21,8 @@ impl Stage<GcError> for CleaningStage {
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), GcError> {
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
 
+        deploy.prune_deploys()?;
+
         let mut roots = Vec::new();
         for prefix_digest in deploy.deploys()? {
             let record = DeployRecord::read(&deploy.deploy(&prefix_digest))?;
