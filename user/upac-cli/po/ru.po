@@ -105,20 +105,11 @@ msgstr "Транзакция"
 msgid "stage_merge"
 msgstr "Слияние"
 
-msgid "stage_config_merge"
-msgstr "Слияние конфигурации"
-
 msgid "stage_checkout"
 msgstr "Переключение"
 
 msgid "stage_swap"
 msgstr "Подмена"
-
-msgid "stage_prepare_boot"
-msgstr "Подготовка загрузки"
-
-msgid "stage_boot_option"
-msgstr "Опция загрузки"
 
 msgid "stage_cleaning"
 msgstr "Очистка"

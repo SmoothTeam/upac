@@ -105,20 +105,11 @@ msgstr "Transaction"
 msgid "stage_merge"
 msgstr "Merge"
 
-msgid "stage_config_merge"
-msgstr "Config merge"
-
 msgid "stage_checkout"
 msgstr "Checkout"
 
 msgid "stage_swap"
 msgstr "Swap"
-
-msgid "stage_prepare_boot"
-msgstr "Prepare boot"
-
-msgid "stage_boot_option"
-msgstr "Boot option"
 
 msgid "stage_cleaning"
 msgstr "Cleaning"
