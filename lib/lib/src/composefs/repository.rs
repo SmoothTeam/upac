@@ -10,7 +10,7 @@ use std::path::Path;
 use composefs::erofs::reader::erofs_to_filesystem;
 use composefs::erofs::writer::{ValidatedFileSystem, mkfs_erofs};
 use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
-use composefs::repository::{GcResult, Repository};
+use composefs::repository::{GcResult, Repository, RepositoryConfig};
 use composefs::tree::FileSystem;
 
 use nix::fcntl::AT_FDCWD;
@@ -18,6 +18,10 @@ use nix::fcntl::AT_FDCWD;
 use crate::composefs::error::RepoError;
 
 pub type ObjectID = Sha256HashValue;
+
+pub fn init(path: &Path) -> Result<(Repository<ObjectID>, bool), RepoError> {
+    Ok(Repository::init_path(AT_FDCWD, path, RepositoryConfig::default())?)
+}
 
 pub(crate) fn open(path: &Path) -> Result<Repository<ObjectID>, RepoError> {
     Ok(Repository::open_path(AT_FDCWD, path)?)
