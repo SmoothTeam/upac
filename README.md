@@ -1,18 +1,17 @@
-# 📦 Upac
+<h1 align="center">📦 Upac</h1>
+<p align="center"><em>One atomic deploy. Any package format. One rollback away.</em></p>
+<p align="center"><strong>A modular package management for Linux systems with composefs-based atomic deploys.</strong></p>
 
-### A modular package management for Linux systems with composefs-based atomic deploys.
+**Links for repositories:** [![GitHub](https://img.shields.io/badge/GitHub-SmoothTeam%2Fupac-181717?logo=github)](https://github.com/SmoothTeam/upac) [![Codeberg](https://img.shields.io/badge/Codeberg-justpav05%2Fupac-2185D0?logo=codeberg)](https://codeberg.org/justpav05/upac)
 
-Links for repositories: [![GitHub](https://img.shields.io/badge/GitHub-SmoothTeam%2Fupac-181717?logo=github)](https://github.com/SmoothTeam/upac) [![Codeberg](https://img.shields.io/badge/Codeberg-justpav05%2Fupac-2185D0?logo=codeberg)](https://codeberg.org/justpav05/upac)
+**General information:** [![Version](https://img.shields.io/badge/version-0.1.5-green)](https://github.com/SmoothTeam/upac/releases) [![REUSE](https://github.com/SmoothTeam/upac/actions/workflows/reuse.yml/badge.svg?branch=main)](https://github.com/SmoothTeam/upac/actions/workflows/reuse.yml)
 
-General information: [![Version](https://img.shields.io/badge/version-0.1.5-green)](https://github.com/SmoothTeam/upac/releases) [![REUSE](https://github.com/SmoothTeam/upac/actions/workflows/reuse.yml/badge.svg?branch=main)](https://github.com/SmoothTeam/upac/actions/workflows/reuse.yml)
-
-Licensing: [![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-light_green.svg)](LICENSES/LGPL-3.0-or-later.txt) [![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-light_green.svg)](LICENSES/GPL-3.0-only.txt) [![documentation: CC-BY-SA-4.0](https://img.shields.io/badge/documentation-CC--BY--SA--4.0-light_green.svg)](LICENSES/CC-BY-SA-4.0.txt)
+**Licensing:** [![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-light_green.svg)](LICENSES/LGPL-3.0-or-later.txt) [![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-light_green.svg)](LICENSES/GPL-3.0-only.txt) [![documentation: CC-BY-SA-4.0](https://img.shields.io/badge/documentation-CC--BY--SA--4.0-light_green.svg)](LICENSES/CC-BY-SA-4.0.txt)
 
 > **⚠️ Active development is on [`lib-rs`](https://github.com/SmoothTeam/upac/tree/lib-rs).**
 > That branch is a from-scratch rewrite of upac's core library in Rust, built around
 > [composefs](https://github.com/containers/composefs) instead of OSTree. `main` is synced
-> from it periodically and lags behind. The FFI/orchestration engine is done; command
-> bodies, the hook system, and packaging are still in progress — expect gaps and `todo!()`s.
+> from it periodically and lags behind.
 
 
 

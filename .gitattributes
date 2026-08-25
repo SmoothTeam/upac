@@ -9,6 +9,8 @@
 *.toml       linguist-documentation
 LICENSE      linguist-documentation
 LICENSES/**  linguist-documentation
+.gitattributes linguist-documentation
+.gitignore     linguist-documentation
 
 # Not needed to build or use upac from a source release archive.
 .github/**      export-ignore linguist-vendored
