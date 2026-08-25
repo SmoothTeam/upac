@@ -66,8 +66,6 @@ opt-level = 2
 codegen-units = 1
 opt-level = 3
 
-panic = "abort"
-
 lto = true
 strip = true
 debug-assertions = false
