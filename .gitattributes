@@ -11,5 +11,11 @@ LICENSE      linguist-documentation
 LICENSES/**  linguist-documentation
 
 # Not needed to build or use upac from a source release archive.
-.github/**   export-ignore
-.githooks/** export-ignore
+.github/**      export-ignore linguist-vendored
+.githooks/**    export-ignore linguist-vendored
+doc/**          export-ignore
+README.md       export-ignore
+CONTRIBUTING.md export-ignore
+SECURITY.md     export-ignore
+TODO.md         export-ignore
+ROADMAP.md      export-ignore
