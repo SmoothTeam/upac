@@ -6,10 +6,13 @@
 [package]
 name = "upac-abi"
 description = "C-ABI types, error codes, and conversions shared between upac-lib and its consumers"
+
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+
+include = ["/src"]
 
 [lints]
 workspace = true

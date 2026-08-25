@@ -6,10 +6,13 @@
 [package]
 name = "upac-lib"
 description = "Core library implementing upac's package management logic (composefs-based atomic deploys) and exposing it via a C ABI"
+
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+
+include = ["/src", "lib.toml", "build.rs"]
 
 [lints]
 workspace = true
@@ -23,10 +26,10 @@ upac-macro        = { workspace = true }
 upac-types        = { workspace = true }
 upac-abi          = { workspace = true }
 upac-pki          = { workspace = true }
-upac-uki          = { path = "../../booters/uki", optional = true, default-features = false }
-upac-systemd-boot = { path = "../../booters/systemd-boot", optional = true, default-features = false }
-upac-grub         = { path = "../../booters/grub", optional = true, default-features = false }
-upac-refind       = { path = "../../booters/refind", optional = true, default-features = false }
+upac-uki          = { workspace = true, optional = true }
+upac-systemd-boot = { workspace = true, optional = true }
+upac-grub         = { workspace = true, optional = true }
+upac-refind       = { workspace = true, optional = true }
 
 libloading = { workspace = true, optional = true }
 anyhow     = { workspace = true }
