@@ -1,0 +1,15 @@
+# Normalize line endings to LF everywhere, regardless of the platform a
+# contributor checks the repo out on.
+* text=auto eol=lf
+
+# Only lib/**, user/**, booters/**, xtask/** (Rust) and decoders/** (Zig) are
+# actual source code — everything else is docs/config/legal text and
+# shouldn't count toward GitHub's language stats.
+*.md         linguist-documentation
+*.toml       linguist-documentation
+LICENSE      linguist-documentation
+LICENSES/**  linguist-documentation
+
+# Not needed to build or use upac from a source release archive.
+.github/**   export-ignore
+.githooks/** export-ignore
