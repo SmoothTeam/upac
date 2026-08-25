@@ -12,7 +12,7 @@ pub(crate) const PRIMITIVES: &[&str] = &[
     "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize", "bool", "f32", "f64",
 ];
 
-pub(crate) const SHARED_TYPES: &[&str] = &["FileDiffKind", "PackageDiffKind", "DiffFileSource"];
+pub(crate) const SHARED_TYPES: &[&str] = &["FileDiffKind", "PackageDiffKind", "DiffFileSource", "FsKind"];
 
 pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
     "CVersion",
@@ -30,6 +30,9 @@ pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
     "CRequestBase",
     "CDependency",
     "CTriggerEntry",
+    "CSetupBase",
+    "CPartitionMount",
+    "CPartitionSpec",
 ];
 
 pub(crate) fn generic_arg(segment: &PathSegment) -> Option<&Type> {

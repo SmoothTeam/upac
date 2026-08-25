@@ -12,8 +12,9 @@ use upac_abi::response::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
+use upac_abi::setup::{CPartitionMount, CPartitionSpec};
 use upac_abi::types::{COwned, CSlice, CVec};
-use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
+use upac_abi::{DiffFileSource, FileDiffKind, FsKind, PackageDiffKind};
 
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
@@ -298,4 +299,19 @@ pub struct RequestedConfigDigestRange {
 pub struct DiffPackagesSnapshot {
     pub from: Vec<PackageMeta>,
     pub to: Vec<PackageMeta>,
+}
+
+// ── PartitionMount / PartitionSpec (bootstrap setup) ────────────────────────
+#[derive(Debug, Clone, CTryToRust)]
+pub struct PartitionMount {
+    pub mount_path: String,
+    pub device_path: String,
+    pub fs_kind: FsKind,
+}
+
+#[derive(Debug, Clone, CTryToRust)]
+pub struct PartitionSpec {
+    pub mount_path: String,
+    pub size_mib: u64,
+    pub fs_kind: FsKind,
 }
