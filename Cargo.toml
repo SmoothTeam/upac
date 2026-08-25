@@ -5,12 +5,17 @@ members = ["user/upac-cli", "user/sign-cli", "lib/macro", "lib/abi", "lib/lib" ,
 [workspace.package]
 version = "0.1.5"
 edition = "2024"
-readme = "README.md"
 rust-version = "1.98"
+
 license = "LGPL-3.0-or-later"
+license-file = "LICENSES/LGPL-3.0-or-later"
+
+readme = "README.md"
+homepage = "https://github.com/SmoothTeam/upac"
 repository = "https://github.com/SmoothTeam/upac"
+
 keywords = ["package-manager", "installer", "cli", "linux"]
-categories = ["command-line-utilities"]
+categories = ["command-line-utilities", "command-line-interface"]
 
 [workspace.lints.rust]
 explicit_outlives_requirements = "warn"
@@ -28,6 +33,10 @@ upac-macro        = { path = "lib/macro" }
 upac-types        = { path = "lib/types" }
 upac-abi          = { path = "lib/abi" }
 upac-pki          = { path = "lib/pki" }
+upac-uki          = { path = "booters/uki", default-features = false }
+upac-systemd-boot = { path = "booters/systemd-boot", default-features = false }
+upac-grub         = { path = "booters/grub", default-features = false }
+upac-refind       = { path = "booters/refind", default-features = false }
 
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 clap       = { version = "4.6.1", features = ["derive"] }
@@ -54,11 +63,14 @@ incremental = true
 opt-level = 2
 
 [profile.release]
-opt-level = 3
-lto = "fat"
 codegen-units = 1
-strip = true
+opt-level = 3
+
 panic = "abort"
+
+lto = true
+strip = true
+debug-assertions = false
 
 [profile.release-x86-64-v1]
 inherits = "release"

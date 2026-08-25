@@ -6,10 +6,13 @@
 [package]
 name = "upac-types"
 description = "Rust-native domain types shared between upac-lib and its direct Rust consumers, independent of the C ABI"
+
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+
+include = ["/src"]
 
 [lints]
 workspace = true
