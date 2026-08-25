@@ -111,7 +111,7 @@ pub fn resolve_boot_plugin(
     #[cfg(not(feature = "builtin-booters"))]
     {
         let _ = requested;
-        return Err(BootPluginError::NoClaimant);
+        Err(BootPluginError::NoClaimant)
     }
 
     #[cfg(feature = "builtin-booters")]

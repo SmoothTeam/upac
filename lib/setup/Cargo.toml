@@ -19,3 +19,4 @@ upac-lib   = { workspace = true }
 upac-types = { workspace = true }
 
 composefs  = { workspace = true }
+nix        = { workspace = true }

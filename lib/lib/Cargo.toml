@@ -31,21 +31,22 @@ upac-systemd-boot = { workspace = true, optional = true }
 upac-grub         = { workspace = true, optional = true }
 upac-refind       = { workspace = true, optional = true }
 
+composefs     = { workspace = true }
+composefs-oci = { workspace = true }
+composefs-boot = { workspace = true }
+nix           = { workspace = true }
+
 libloading = { workspace = true, optional = true }
 anyhow     = { workspace = true }
 serde      = { workspace = true }
 toml       = { workspace = true }
 sha2       = { workspace = true }
-tempfile              = { workspace = true }
+tempfile   = { workspace = true }
 
-composefs-oci = { workspace = true }
-nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
-composefs     = { workspace = true }
 redb          = { version = "4.1.0", features = ["uuid"] }
 tokio         = { version = "1", features = ["rt"] }
 uuid          = { version = "1", features = ["v4"] }
 
-composefs-boot        = { workspace = true }
 linux-kernel-cmdline  = "0.1.1"
 serde_json            = "1.0.151"
 twox-hash             = "2.1.3"
