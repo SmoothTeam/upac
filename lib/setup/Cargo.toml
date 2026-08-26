@@ -22,7 +22,11 @@ upac-abi   = { workspace = true }
 composefs  = { workspace = true }
 nix        = { workspace = true }
 serde      = { workspace = true }
+sha2       = { workspace = true }
 toml       = { workspace = true }
+
+gptman = "3.1.1"
+btrfs-mkfs = "0.13.0"
 
 [build-dependencies]
 toml = { workspace = true }

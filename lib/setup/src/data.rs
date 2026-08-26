@@ -12,6 +12,8 @@ use upac_abi::setup::CSetupExistingRequest;
 
 use upac_types::PartitionMount;
 
+use crate::layout::mount::DEFAULT_MOUNT_POINT;
+
 pub struct SetupData<'a> {
     pub esp_device: &'a str,
     pub deploy_device: &'a str,
@@ -29,6 +31,12 @@ pub struct SetupData<'a> {
     pub hook_message_context: *mut c_void,
 
     pub cancel_token: &'a CancelToken,
+}
+
+impl SetupData<'_> {
+    pub fn mount_point(&self) -> &str {
+        self.mount_point.unwrap_or(DEFAULT_MOUNT_POINT)
+    }
 }
 
 impl<'a> TryFrom<&'a CSetupExistingRequest> for SetupData<'a> {
