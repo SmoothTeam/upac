@@ -29,11 +29,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             .as_table()
             .ok_or_else(|| format!("lib.toml: [{section}] must be a table"))?;
         for (key, value) in entries {
-            let value = value
-                .as_str()
-                .ok_or_else(|| format!("lib.toml: {section}.{key} must be a string"))?;
+            let key = key.to_uppercase();
 
-            generated.push_str(&format!("    pub const {}: &str = {value:?};\n", key.to_uppercase()));
+            match value {
+                Value::String(text) => generated.push_str(&format!("    pub const {key}: &str = {text:?};\n")),
+                Value::Integer(number) => generated.push_str(&format!("    pub const {key}: u32 = {number};\n")),
+                _ => return Err(format!("lib.toml: {section}.{key} must be a string or integer").into()),
+            }
         }
 
         generated.push_str("}\n");

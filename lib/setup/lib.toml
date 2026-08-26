@@ -13,3 +13,11 @@ filename = "meta.toml"
 # mount_point is left empty.
 [mount]
 default_mount_point = "/mnt/upac-setup"
+
+# btrfs.node_size/sector_size are mkfs.btrfs's own tunables (metadata b-tree
+# node size / minimum I/O unit), matching mkfs.btrfs's own defaults —
+# overridable per request via CSetupWholeDiskRequest.node_size/sector_size
+# (0 ⇒ use these defaults).
+[btrfs]
+node_size = 16384
+sector_size = 4096

@@ -43,6 +43,7 @@ nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"]
 gettext-rs    = { version = "0.7", features = ["gettext-system"] }
 composefs     = { version = "0.9.0", features = ["tempfile"] }
 clap          = { version = "4.6.1", features = ["derive"] }
+uuid          = { version = "1", features = ["v4"] }
 serde         = { version = "1", features = ["derive"] }
 syn           = { version = "3", features = ["full"] }
 
