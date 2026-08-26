@@ -65,6 +65,26 @@ pub struct CSetupExistingRequest {
 }
 
 #[repr(C)]
+#[derive(CValidate)]
+pub struct CGptLayout {
+    pub struct_size: usize,
+
+    pub esp_size_mib: u64,
+    pub deploy_fs: FsKind,
+    pub deploy_size_mib: u64,
+    pub extra_partitions: CVec<CPartitionSpec>,
+}
+
+#[repr(C)]
+#[derive(CValidate)]
+pub struct CBtrfsOptions {
+    pub struct_size: usize,
+
+    pub node_size: u32,
+    pub sector_size: u32,
+}
+
+#[repr(C)]
 #[derive(CNew, CValidate)]
 pub struct CSetupWholeDiskRequest {
     pub struct_size: usize,
@@ -73,8 +93,6 @@ pub struct CSetupWholeDiskRequest {
 
     #[non_empty]
     pub device_path: CSlice,
-    pub esp_size_mib: u64,
-    pub deploy_fs: FsKind,
-    pub deploy_size_mib: u64,
-    pub extra_partitions: CVec<CPartitionSpec>,
+    pub gpt: CGptLayout,
+    pub btrfs: CBtrfsOptions,
 }
