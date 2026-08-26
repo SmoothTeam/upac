@@ -145,6 +145,10 @@ impl TargetSysroot {
     pub fn next_seq_path(&self) -> PathBuf {
         self.mount_point.join(NEXT_SEQ_PATH)
     }
+
+    pub fn esp_mount_point(&self) -> PathBuf {
+        self.mount_point.join(ESP_MOUNT_PRIMARY.trim_start_matches('/'))
+    }
 }
 
 impl Drop for TargetSysroot {

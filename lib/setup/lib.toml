@@ -28,3 +28,9 @@ sector_size = 4096
 [mkfs]
 ext4_bin = "mkfs.ext4"
 xfs_bin = "mkfs.xfs"
+
+# genesis.scratch_filename is where the freshly-built package database is
+# written (under the OS temp dir) before being embedded into the new /usr
+# tree — purely transient, read back once right after the write.
+[genesis]
+scratch_filename = "genesis-packages.redb"

@@ -27,13 +27,15 @@ impl SourceDir<'_> {
         Ok(from_str(&content)?)
     }
 
-    pub fn checksum(&self) -> Result<([u8; 32], u64), SetupError> {
+    pub fn checksum(&self, include_config: bool) -> Result<([u8; 32], u64), SetupError> {
         let mut accumulator = Accumulator {
             hasher: Sha256::new(),
             installed_size: 0,
         };
 
-        for section in ["usr", "etc"] {
+        let sections: &[&str] = if include_config { &["usr", "etc"] } else { &["usr"] };
+
+        for &section in sections {
             let section_dir = self.path.join(section);
             if section_dir.is_dir() {
                 accumulator.hasher.update(section.as_bytes());

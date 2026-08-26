@@ -19,7 +19,8 @@ use uuid::Uuid;
 use upac_abi::FsKind;
 
 use crate::error::SetupError;
-use crate::layout;
+use crate::layout::btrfs::{NODE_SIZE, SECTOR_SIZE};
+use crate::layout::mkfs::{EXT4_BIN, XFS_BIN};
 
 pub struct FormatTarget<'a> {
     pub device_path: &'a Path,
@@ -49,16 +50,8 @@ impl FormatTarget<'_> {
     }
 
     pub fn format_btrfs(&self, node_size: u32, sector_size: u32) -> Result<(), SetupError> {
-        let node_size = if node_size == 0 {
-            layout::btrfs::NODE_SIZE
-        } else {
-            node_size
-        };
-        let sector_size = if sector_size == 0 {
-            layout::btrfs::SECTOR_SIZE
-        } else {
-            sector_size
-        };
+        let node_size = if node_size == 0 { NODE_SIZE } else { node_size };
+        let sector_size = if sector_size == 0 { SECTOR_SIZE } else { sector_size };
 
         let total_bytes = device_size(self.device_path)?;
         let total_bytes = total_bytes / u64::from(sector_size) * u64::from(sector_size);
@@ -99,7 +92,7 @@ impl FormatTarget<'_> {
         }
         args.push(self.device_path.as_os_str());
 
-        run_mkfs(layout::mkfs::EXT4_BIN, &args)
+        run_mkfs(EXT4_BIN, &args)
     }
 
     pub fn format_xfs(&self) -> Result<(), SetupError> {
@@ -110,7 +103,7 @@ impl FormatTarget<'_> {
         }
         args.push(self.device_path.as_os_str());
 
-        run_mkfs(layout::mkfs::XFS_BIN, &args)
+        run_mkfs(XFS_BIN, &args)
     }
 }
 

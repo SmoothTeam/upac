@@ -14,15 +14,19 @@ use nix::errno::Errno;
 
 use toml::de::Error as TomlError;
 
+use upac::boot::error::BootError;
 use upac::composefs::error::RepoError;
 use upac::database::error::{DatabaseError, DeployRecordError};
+use upac::plugin::boot::error::BootPluginError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupError {
     Mount(Errno),
     Repo(RepoError),
     Database(DatabaseError),
     DeployRecord(DeployRecordError),
+    Boot(BootError),
+    BootPlugin(BootPluginError),
     Io(IoErrorKind),
     MetaMalformed,
     NoSpaceLeft,
@@ -52,6 +56,18 @@ impl From<DatabaseError> for SetupError {
 impl From<DeployRecordError> for SetupError {
     fn from(error: DeployRecordError) -> Self {
         SetupError::DeployRecord(error)
+    }
+}
+
+impl From<BootError> for SetupError {
+    fn from(error: BootError) -> Self {
+        SetupError::Boot(error)
+    }
+}
+
+impl From<BootPluginError> for SetupError {
+    fn from(error: BootPluginError) -> Self {
+        SetupError::BootPlugin(error)
     }
 }
 
