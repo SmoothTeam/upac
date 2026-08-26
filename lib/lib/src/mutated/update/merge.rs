@@ -87,7 +87,7 @@ impl Stage<UpdateError> for MergeStage {
                     prefix_digest: new_prefix.0.clone(),
                     subject: subject.0.clone(),
                     message: message.0.clone(),
-                    seq: DeployRecord::allocate_seq(deploy)?,
+                    seq: DeployRecord::allocate_seq(&deploy.next_seq_path())?,
                     timestamp: DeployRecord::now_secs(),
                     config_history: Vec::new(),
                     working_config: String::new(),
