@@ -59,7 +59,10 @@ enum Command {
 
 // ── Entry points ───────────────────────────────────────────────────────────────
 fn main() -> ExitCode {
-    setlocale(LocaleCategory::LcAll, "");
+    // SAFETY: called first thing in main, before any other threads or signal handlers exist.
+    unsafe {
+        setlocale(LocaleCategory::LcAll, "");
+    }
 
     bindtextdomain("upac", env!("LOCALEDIR")).expect("bindtextdomain failed");
     textdomain("upac").expect("textdomain failed");
