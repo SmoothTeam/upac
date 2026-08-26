@@ -5,6 +5,11 @@
 
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
+use anyhow::Error as AnyhowError;
+
+use gptman::Error as GptError;
+use gptman::linux::BlockError as GptBlockError;
+
 use nix::errno::Errno;
 
 use toml::de::Error as TomlError;
@@ -20,6 +25,9 @@ pub enum SetupError {
     DeployRecord(DeployRecordError),
     Io(IoErrorKind),
     MetaMalformed,
+    NoSpaceLeft,
+    NotBlockDevice,
+    Unexpected,
 }
 
 impl From<Errno> for SetupError {
@@ -55,5 +63,31 @@ impl From<IoError> for SetupError {
 impl From<TomlError> for SetupError {
     fn from(_: TomlError) -> Self {
         SetupError::MetaMalformed
+    }
+}
+
+impl From<GptError> for SetupError {
+    fn from(error: GptError) -> Self {
+        match error {
+            GptError::Io(io_error) => SetupError::Io(io_error.kind()),
+            GptError::NoSpaceLeft => SetupError::NoSpaceLeft,
+            _ => SetupError::Unexpected,
+        }
+    }
+}
+
+impl From<GptBlockError> for SetupError {
+    fn from(error: GptBlockError) -> Self {
+        match error {
+            GptBlockError::Metadata(io_error) => SetupError::Io(io_error.kind()),
+            GptBlockError::NotBlock => SetupError::NotBlockDevice,
+            _ => SetupError::Unexpected,
+        }
+    }
+}
+
+impl From<AnyhowError> for SetupError {
+    fn from(_: AnyhowError) -> Self {
+        SetupError::Unexpected
     }
 }
