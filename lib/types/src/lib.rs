@@ -14,7 +14,7 @@ use upac_abi::response::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
-use upac_abi::setup::{CPartitionMount, CPartitionSpec};
+use upac_abi::setup::{CBtrfsOptions, CGptLayout, CPartitionMount, CPartitionSpec};
 use upac_abi::types::{COwned, CSlice, CVec};
 use upac_abi::{DiffFileSource, FileDiffKind, FsKind, PackageDiffKind};
 
@@ -352,4 +352,18 @@ pub struct PartitionSpec {
     pub mount_path: String,
     pub size_mib: u64,
     pub fs_kind: FsKind,
+}
+
+#[derive(Debug, Clone, CTryToRust)]
+pub struct GptLayout {
+    pub esp_size_mib: u64,
+    pub deploy_fs: FsKind,
+    pub deploy_size_mib: u64,
+    pub extra_partitions: Vec<PartitionSpec>,
+}
+
+#[derive(Debug, Clone, CTryToRust)]
+pub struct BtrfsOptions {
+    pub node_size: u32,
+    pub sector_size: u32,
 }
