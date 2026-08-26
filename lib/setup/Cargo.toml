@@ -30,6 +30,7 @@ uuid       = { workspace = true }
 
 gptman     = "3.1.1"
 btrfs-mkfs = "0.13.0"
+fatfs      = "0.3"
 
 [build-dependencies]
 toml = { workspace = true }

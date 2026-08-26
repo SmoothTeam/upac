@@ -21,3 +21,10 @@ default_mount_point = "/mnt/upac-setup"
 [btrfs]
 node_size = 16384
 sector_size = 4096
+
+# mkfs.ext4_bin/xfs_bin are the mkfs binaries shelled out to for ext4/xfs
+# formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs —
+# see [btrfs]).
+[mkfs]
+ext4_bin = "mkfs.ext4"
+xfs_bin = "mkfs.xfs"

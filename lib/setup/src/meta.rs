@@ -16,54 +16,70 @@ use upac_types::PackageMeta;
 use crate::error::SetupError;
 use crate::layout::meta::FILENAME;
 
-pub fn read(source_dir: &Path, filename: Option<&str>) -> Result<PackageMeta, SetupError> {
-    let content = read_to_string(source_dir.join(filename.unwrap_or(FILENAME)))?;
-
-    Ok(from_str(&content)?)
+pub struct SourceDir<'a> {
+    pub path: &'a Path,
 }
 
-pub fn checksum(source_dir: &Path) -> Result<([u8; 32], u64), SetupError> {
-    let mut hasher = Sha256::new();
-    let mut installed_size = 0u64;
+impl SourceDir<'_> {
+    pub fn read(&self, filename: Option<&str>) -> Result<PackageMeta, SetupError> {
+        let content = read_to_string(self.path.join(filename.unwrap_or(FILENAME)))?;
 
-    for section in ["usr", "etc"] {
-        let section_dir = source_dir.join(section);
-        if section_dir.is_dir() {
-            hasher.update(section.as_bytes());
-            hash_dir(&section_dir, &mut hasher, &mut installed_size)?;
-        }
+        Ok(from_str(&content)?)
     }
 
-    Ok((hasher.finalize().into(), installed_size))
-}
+    pub fn checksum(&self) -> Result<([u8; 32], u64), SetupError> {
+        let mut accumulator = Accumulator {
+            hasher: Sha256::new(),
+            installed_size: 0,
+        };
 
-fn hash_dir(dir: &Path, hasher: &mut Sha256, installed_size: &mut u64) -> Result<(), SetupError> {
-    let mut entries = read_dir(dir)?.collect::<Result<Vec<_>, _>>()?;
-    entries.sort_by_key(|entry| entry.file_name());
-
-    for entry in entries {
-        let metadata = entry.metadata()?;
-        hasher.update(entry.file_name().as_encoded_bytes());
-
-        if metadata.is_dir() {
-            hash_dir(&entry.path(), hasher, installed_size)?;
-        } else if metadata.is_symlink() {
-            hasher.update(read_link(entry.path())?.as_os_str().as_encoded_bytes());
-        } else {
-            let mut file = File::open(entry.path())?;
-            let mut buffer = [0u8; 65536];
-
-            loop {
-                let bytes_read = file.read(&mut buffer)?;
-                if bytes_read == 0 {
-                    break;
-                }
-                hasher.update(&buffer[..bytes_read]);
+        for section in ["usr", "etc"] {
+            let section_dir = self.path.join(section);
+            if section_dir.is_dir() {
+                accumulator.hasher.update(section.as_bytes());
+                accumulator.hash_dir(&section_dir)?;
             }
-
-            *installed_size += metadata.len();
         }
-    }
 
-    Ok(())
+        Ok((accumulator.hasher.finalize().into(), accumulator.installed_size))
+    }
+}
+
+struct Accumulator {
+    hasher: Sha256,
+    installed_size: u64,
+}
+
+impl Accumulator {
+    fn hash_dir(&mut self, dir: &Path) -> Result<(), SetupError> {
+        let mut entries = read_dir(dir)?.collect::<Result<Vec<_>, _>>()?;
+        entries.sort_by_key(|entry| entry.file_name());
+
+        for entry in entries {
+            let metadata = entry.metadata()?;
+            self.hasher.update(entry.file_name().as_encoded_bytes());
+
+            if metadata.is_dir() {
+                self.hash_dir(&entry.path())?;
+            } else if metadata.is_symlink() {
+                self.hasher
+                    .update(read_link(entry.path())?.as_os_str().as_encoded_bytes());
+            } else {
+                let mut file = File::open(entry.path())?;
+                let mut buffer = [0u8; 65536];
+
+                loop {
+                    let bytes_read = file.read(&mut buffer)?;
+                    if bytes_read == 0 {
+                        break;
+                    }
+                    self.hasher.update(&buffer[..bytes_read]);
+                }
+
+                self.installed_size += metadata.len();
+            }
+        }
+
+        Ok(())
+    }
 }

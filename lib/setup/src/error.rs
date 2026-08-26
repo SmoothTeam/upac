@@ -27,6 +27,7 @@ pub enum SetupError {
     MetaMalformed,
     NoSpaceLeft,
     NotBlockDevice,
+    MkfsFailed,
     Unexpected,
 }
 

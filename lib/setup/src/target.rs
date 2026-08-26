@@ -18,7 +18,10 @@ use upac_abi::FsKind;
 
 use upac_types::PartitionMount;
 
+use crate::data::SetupWholeDiskData;
 use crate::error::SetupError;
+use crate::format::FormatTarget;
+use crate::partition::DiskLayout;
 
 pub struct TargetSysroot {
     mount_point: PathBuf,
@@ -81,6 +84,54 @@ impl TargetSysroot {
             repository,
             mounted,
         })
+    }
+
+    pub fn create_whole_disk(data: &SetupWholeDiskData) -> Result<Self, SetupError> {
+        let layout = DiskLayout::create(
+            Path::new(data.device_path),
+            data.esp_size_mib,
+            data.deploy_size_mib,
+            &data.extra_partitions,
+        )?;
+
+        let esp_path = layout.esp_path();
+        FormatTarget {
+            device_path: &esp_path,
+            label: Some("ESP"),
+        }
+        .format_esp()?;
+
+        let deploy_path = layout.deploy_path();
+        FormatTarget {
+            device_path: &deploy_path,
+            label: Some("upac-deploy"),
+        }
+        .format(data.deploy_fs, data.node_size, data.sector_size)?;
+
+        let extra_paths = layout.extra_paths();
+        let mut extra_mounts = Vec::with_capacity(data.extra_partitions.len());
+
+        for (spec, path) in data.extra_partitions.iter().zip(extra_paths.iter()) {
+            FormatTarget {
+                device_path: path,
+                label: Some(&spec.mount_path),
+            }
+            .format(spec.fs_kind, 0, 0)?;
+
+            extra_mounts.push(PartitionMount {
+                mount_path: spec.mount_path.clone(),
+                device_path: path.display().to_string(),
+                fs_kind: spec.fs_kind,
+            });
+        }
+
+        Self::new(
+            &deploy_path,
+            data.deploy_fs,
+            &esp_path,
+            PathBuf::from(data.mount_point()),
+            &extra_mounts,
+        )
     }
 
     pub fn repository(&self) -> &Repository<ObjectID> {
