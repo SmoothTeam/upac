@@ -110,3 +110,13 @@ impl FsKind {
         }
     }
 }
+
+impl AsRef<str> for FsKind {
+    fn as_ref(&self) -> &str {
+        match self {
+            FsKind::Ext4 => "ext4",
+            FsKind::Btrfs => "btrfs",
+            FsKind::Xfs => "xfs",
+        }
+    }
+}

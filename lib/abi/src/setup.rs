@@ -20,6 +20,7 @@ pub struct CSetupBase {
     pub mount_point: CSlice,
     #[non_empty]
     pub source_dir: CSlice,
+    pub meta_filename: CSlice,
     pub empty_config: bool,
     pub pinned: bool,
     pub boot_plugin: CSlice,
