@@ -35,7 +35,7 @@ enum Command {
 
 // ── Entry points ───────────────────────────────────────────────────────────────
 fn main() -> ExitCode {
-    setlocale(LocaleCategory::LcAll, "");
+    unsafe { setlocale(LocaleCategory::LcAll, "") };
 
     bindtextdomain("upac-sign", env!("LOCALEDIR")).expect("bindtextdomain failed");
     textdomain("upac-sign").expect("textdomain failed");
