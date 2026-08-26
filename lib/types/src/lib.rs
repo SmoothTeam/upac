@@ -5,6 +5,8 @@
 
 use std::cmp::Ordering;
 
+use serde::{Deserialize, Deserializer};
+
 use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageMeta, CVersion};
@@ -12,8 +14,9 @@ use upac_abi::response::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
+use upac_abi::setup::{CBtrfsOptions, CGptLayout, CPartitionMount, CPartitionSpec};
 use upac_abi::types::{COwned, CSlice, CVec};
-use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
+use upac_abi::{DiffFileSource, FileDiffKind, FsKind, PackageDiffKind};
 
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
@@ -41,10 +44,45 @@ enum VersionToken<'a> {
     Numeric(u64),
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, CTryToRust, RedbCodec, RustToC)]
+#[derive(Debug, Clone, PartialEq, Eq, CTryToRust, RedbCodec, RustToC)]
 pub struct Version {
     pub epoch: u32,
     pub raw: String,
+}
+
+impl Default for Version {
+    fn default() -> Self {
+        Version {
+            epoch: 0,
+            raw: "1.0.0".to_owned(),
+        }
+    }
+}
+
+impl Version {
+    pub fn parse(raw: &str) -> Version {
+        match raw.split_once(':') {
+            Some((epoch, rest)) => Version {
+                epoch: epoch.parse().unwrap_or(0),
+                raw: rest.to_owned(),
+            },
+            None => Version {
+                epoch: 0,
+                raw: raw.to_owned(),
+            },
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Version {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+
+        Ok(Version::parse(&raw))
+    }
 }
 
 impl PartialOrd for Version {
@@ -119,7 +157,8 @@ pub struct PackageTemp {
     pub temp_package_path: String,
 }
 
-#[derive(Debug, Clone, CTryToRust, RedbCodec, RustToC)]
+#[derive(Debug, Clone, Default, Deserialize, CTryToRust, RedbCodec, RustToC)]
+#[serde(default)]
 pub struct PackageMeta {
     pub name: String,
     pub version: Version,
@@ -298,4 +337,33 @@ pub struct RequestedConfigDigestRange {
 pub struct DiffPackagesSnapshot {
     pub from: Vec<PackageMeta>,
     pub to: Vec<PackageMeta>,
+}
+
+// ── PartitionMount / PartitionSpec (bootstrap setup) ────────────────────────
+#[derive(Debug, Clone, CTryToRust)]
+pub struct PartitionMount {
+    pub mount_path: String,
+    pub device_path: String,
+    pub fs_kind: FsKind,
+}
+
+#[derive(Debug, Clone, CTryToRust)]
+pub struct PartitionSpec {
+    pub mount_path: String,
+    pub size_mib: u64,
+    pub fs_kind: FsKind,
+}
+
+#[derive(Debug, Clone, CTryToRust)]
+pub struct GptLayout {
+    pub esp_size_mib: u64,
+    pub deploy_fs: FsKind,
+    pub deploy_size_mib: u64,
+    pub extra_partitions: Vec<PartitionSpec>,
+}
+
+#[derive(Debug, Clone, CTryToRust)]
+pub struct BtrfsOptions {
+    pub node_size: u32,
+    pub sector_size: u32,
 }

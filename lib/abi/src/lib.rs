@@ -13,6 +13,7 @@ pub mod memory;
 pub mod package;
 pub mod request;
 pub mod response;
+pub mod setup;
 pub mod types;
 
 pub const ABI_VERSION: u32 = 2;
@@ -83,6 +84,39 @@ impl DiffFileSource {
             0 => Ok(DiffFileSource::Prefix),
             1 => Ok(DiffFileSource::Config),
             _ => Err(ErrorKind::InvalidEntry),
+        }
+    }
+}
+
+// Filesystem chosen for the deployment partition (needs fs-verity support, see
+// doc chapter 3 §(4)) or any extra mount upac-setup formats/mounts. Appending
+// a new variant later (e.g. bcachefs) is a plain additive change here — every
+// consumer already goes through from_u8, so nothing needs pre-reserving.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FsKind {
+    Ext4 = 0,
+    Btrfs = 1,
+    Xfs = 2,
+}
+
+impl FsKind {
+    pub fn from_u8(version: u8) -> Result<FsKind, ErrorKind> {
+        match version {
+            0 => Ok(FsKind::Ext4),
+            1 => Ok(FsKind::Btrfs),
+            2 => Ok(FsKind::Xfs),
+            _ => Err(ErrorKind::InvalidEntry),
+        }
+    }
+}
+
+impl AsRef<str> for FsKind {
+    fn as_ref(&self) -> &str {
+        match self {
+            FsKind::Ext4 => "ext4",
+            FsKind::Btrfs => "btrfs",
+            FsKind::Xfs => "xfs",
         }
     }
 }

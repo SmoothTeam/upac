@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+[package]
+name = "upac-setup"
+description = "First-boot bootstrap installer: initial disk layout for a blank system"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+upac-lib   = { workspace = true }
+upac-types = { workspace = true }
+upac-abi   = { workspace = true }
+
+
+composefs  = { workspace = true }
+nix        = { workspace = true }
+anyhow     = { workspace = true }
+serde      = { workspace = true }
+sha2       = { workspace = true }
+toml       = { workspace = true }
+uuid       = { workspace = true }
+
+gptman     = "3.1.1"
+btrfs-mkfs = "0.13.0"
+fatfs      = "0.3"
+
+[build-dependencies]
+toml = { workspace = true }

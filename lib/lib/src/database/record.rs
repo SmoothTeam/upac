@@ -58,16 +58,14 @@ impl DeployRecord {
             .as_secs()
     }
 
-    pub fn allocate_seq(deploy: &Deploy) -> Result<u64, DeployRecordError> {
-        let path = deploy.next_seq_path();
-
-        let current = match read_to_string(&path) {
+    pub fn allocate_seq(next_seq_path: &Path) -> Result<u64, DeployRecordError> {
+        let current = match read_to_string(next_seq_path) {
             Ok(content) => content.trim().parse().map_err(|_| DeployRecordError::InvalidField)?,
             Err(error) if error.kind() == IoErrorKind::NotFound => 0,
             Err(error) => return Err(error.into()),
         };
 
-        WrittenFile::write(&path, (current + 1).to_string().as_bytes())?;
+        WrittenFile::write(next_seq_path, (current + 1).to_string().as_bytes())?;
 
         Ok(current)
     }

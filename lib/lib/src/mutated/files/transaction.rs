@@ -141,7 +141,7 @@ impl Stage<FilesError> for TransactionStage {
                 prefix_digest: new_prefix.clone(),
                 subject: subject.0.clone(),
                 message: message.0.clone(),
-                seq: DeployRecord::allocate_seq(deploy)?,
+                seq: DeployRecord::allocate_seq(&deploy.next_seq_path())?,
                 timestamp: DeployRecord::now_secs(),
                 config_history: current_record.config_history.clone(),
                 working_config: current_record.working_config.clone(),
