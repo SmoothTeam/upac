@@ -7,6 +7,8 @@ use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use nix::errno::Errno;
 
+use toml::de::Error as TomlError;
+
 use upac::composefs::error::RepoError;
 use upac::database::error::{DatabaseError, DeployRecordError};
 
@@ -17,6 +19,7 @@ pub enum SetupError {
     Database(DatabaseError),
     DeployRecord(DeployRecordError),
     Io(IoErrorKind),
+    MetaMalformed,
 }
 
 impl From<Errno> for SetupError {
@@ -46,5 +49,11 @@ impl From<DeployRecordError> for SetupError {
 impl From<IoError> for SetupError {
     fn from(error: IoError) -> Self {
         SetupError::Io(error.kind())
+    }
+}
+
+impl From<TomlError> for SetupError {
+    fn from(_: TomlError) -> Self {
+        SetupError::MetaMalformed
     }
 }
