@@ -19,3 +19,9 @@ name = "up-sp"
 path = "src/main.rs"
 
 [dependencies]
+upac-setup = { workspace = true }
+
+gettext-rs = { workspace = true }
+colored    = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true }

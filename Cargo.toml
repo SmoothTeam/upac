@@ -33,6 +33,7 @@ upac-macro        = { path = "lib/macro" }
 upac-types        = { path = "lib/types" }
 upac-abi          = { path = "lib/abi" }
 upac-pki          = { path = "lib/pki" }
+upac-setup        = { path = "lib/setup" }
 upac-uki          = { path = "booters/uki", default-features = false }
 upac-systemd-boot = { path = "booters/systemd-boot", default-features = false }
 upac-grub         = { path = "booters/grub", default-features = false }
