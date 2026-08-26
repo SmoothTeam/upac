@@ -1,4 +1,4 @@
-# Contributing to Upac
+<h1 align="center">✨ Contributing</h1> 
 
 ## Before you start
 

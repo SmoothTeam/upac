@@ -1,4 +1,4 @@
-# Security Policy
+<h1 align="center">🛡️ Security Policy</h1> 
 
 Upac runs with elevated privileges (mounting, `/etc` merges, package installation) and verifies
 package/hook authenticity via Ed25519/X.509 signing (`upac-pki`). Vulnerabilities here can have
