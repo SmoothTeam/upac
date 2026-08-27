@@ -20,7 +20,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation};
+use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
 use upac_types::states::RollbackStateId;
 
@@ -94,13 +94,13 @@ pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
 fn assemble() -> SequentialOrchestrator<RollbackError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Rollback),
+            trigger: PipelineTrigger::pre(Operation::Rollback),
         }),
         Box::new(MergeStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Rollback),
+            trigger: PipelineTrigger::post(Operation::Rollback),
         }),
         Box::new(RetentionStage),
     ])

@@ -22,7 +22,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation};
+use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
 use upac_types::states::FilesStateId;
 
@@ -150,13 +150,13 @@ pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
 fn assemble() -> SequentialOrchestrator<FilesError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Files),
+            trigger: PipelineTrigger::pre(Operation::Files),
         }),
         Box::new(TransactionStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Files),
+            trigger: PipelineTrigger::post(Operation::Files),
         }),
         Box::new(RetentionStage),
     ])

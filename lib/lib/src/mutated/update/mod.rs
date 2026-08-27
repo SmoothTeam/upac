@@ -26,7 +26,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation};
+use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
 use upac_types::states::UpdateStateId;
 
@@ -127,7 +127,7 @@ pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
 fn assemble() -> SequentialOrchestrator<UpdateError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Update),
+            trigger: PipelineTrigger::pre(Operation::Update),
         }),
         Box::new(FetchingStage),
         Box::new(PreparationStage),
@@ -136,7 +136,7 @@ fn assemble() -> SequentialOrchestrator<UpdateError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Update),
+            trigger: PipelineTrigger::post(Operation::Update),
         }),
         Box::new(RetentionStage),
     ])

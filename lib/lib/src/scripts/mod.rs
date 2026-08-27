@@ -11,17 +11,17 @@ use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard, Stage};
 use crate::orchestrator::{Context, Orchestrator, ParallelOrchestrator};
 use crate::scripts::error::HookError;
 use crate::scripts::load::load_hooks;
-use crate::scripts::native::NativeTrigger;
+use crate::scripts::pipeline::PipelineTrigger;
 use crate::scripts::primitive::Primitive;
 
 pub mod error;
 pub mod file;
 pub mod load;
-pub mod native;
+pub mod pipeline;
 pub mod primitive;
 
 pub struct HookStage {
-    pub trigger: NativeTrigger,
+    pub trigger: PipelineTrigger,
 }
 
 impl<E: From<CommonError> + Send + 'static> Stage<E> for HookStage {
@@ -35,7 +35,7 @@ impl<E: From<CommonError> + Send + 'static> Stage<E> for HookStage {
 
         let matched: Vec<Box<dyn ConcurrentStage<E>>> = hooks
             .into_iter()
-            .filter(|hook_file| hook_file.native_trigger() == Some(self.trigger))
+            .filter(|hook_file| hook_file.pipeline_trigger() == Some(self.trigger))
             .map(|hook_file| Box::new(hook_file) as Box<dyn ConcurrentStage<E>>)
             .collect();
 

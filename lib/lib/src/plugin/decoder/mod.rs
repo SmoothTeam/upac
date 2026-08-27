@@ -7,6 +7,8 @@ use upac_types::{Dependency, PackageMeta};
 
 #[cfg(feature = "dynamic-plugins")]
 use std::mem::MaybeUninit;
+#[cfg(feature = "dynamic-plugins")]
+use std::str::from_utf8;
 
 #[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
@@ -15,9 +17,7 @@ use libloading::Library;
 use upac_abi::ABI_VERSION;
 
 #[cfg(feature = "dynamic-plugins")]
-use upac_abi::decoder::{
-    AbiVersionFn, CDecodeRequest, CDecodeResponse, CTriggerMatches, CTriggerTable, DecodeFn, MatchTriggersFn,
-};
+use upac_abi::decoder::{AbiVersionFn, CDecodeRequest, CDecodeResponse, DecodeFn};
 
 #[cfg(feature = "dynamic-plugins")]
 use upac_abi::hook::CancelToken;
@@ -41,6 +41,7 @@ pub mod unpack;
 pub struct DecodedPackage {
     pub meta: PackageMeta,
     pub dependencies: Vec<Dependency>,
+    pub declarative_triggers: Vec<String>,
 }
 
 #[cfg(feature = "dynamic-plugins")]
@@ -60,7 +61,6 @@ unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, Decod
 #[cfg(feature = "dynamic-plugins")]
 pub struct Decoder {
     decode: DecodeFn,
-    match_triggers: MatchTriggersFn,
 
     _library: Library,
 }
@@ -72,7 +72,6 @@ impl Decoder {
 
         let abi_version: AbiVersionFn = unsafe { load_symbol(&library, "abi_version")? };
         let decode: DecodeFn = unsafe { load_symbol(&library, "decode")? };
-        let match_triggers: MatchTriggersFn = unsafe { load_symbol(&library, "match_triggers")? };
 
         let got = unsafe { abi_version() };
         if got != ABI_VERSION {
@@ -84,7 +83,6 @@ impl Decoder {
 
         Ok(Decoder {
             decode,
-            match_triggers,
             _library: library,
         })
     }
@@ -117,22 +115,17 @@ impl Decoder {
             .map(Dependency::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(DecodedPackage { meta, dependencies })
-    }
+        let declarative_triggers = unsafe { response.declarative_triggers.as_slice() }
+            .iter()
+            .map(|trigger| unsafe { trigger.as_borrowed() })
+            .map(|bytes| from_utf8(bytes).map(str::to_owned))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| DecoderError::InvalidResponse)?;
 
-    pub fn match_triggers(&self, table: &CTriggerTable) -> Result<Vec<u16>, DecoderError> {
-        let capacity = unsafe { table.entries.as_slice() }.len();
-        let mut ids = vec![0u16; capacity];
-
-        let mut matches = CTriggerMatches::new(ids.as_mut_ptr(), capacity, 0);
-
-        let code = unsafe { (self.match_triggers)(table, &mut matches) };
-        if code != 0 {
-            return Err(DecoderError::Failed(code));
-        }
-
-        ids.truncate(matches.len.min(matches.capacity));
-
-        Ok(ids)
+        Ok(DecodedPackage {
+            meta,
+            dependencies,
+            declarative_triggers,
+        })
     }
 }
