@@ -131,6 +131,9 @@ fn assemble() -> SequentialOrchestrator<InstallError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
+            trigger: PipelineTrigger::declarative(Operation::Install),
+        }),
+        Box::new(HookStage {
             trigger: PipelineTrigger::post(Operation::Install),
         }),
         Box::new(RetentionStage),

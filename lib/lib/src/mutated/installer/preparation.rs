@@ -23,10 +23,11 @@ impl Stage<InstallError> for PreparationStage {
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
 
         let mut unpacker = PackageUnpacker::new().map_err(CommonError::Decoder)?;
-        let packages = unpacker
+        let (packages, declarative_triggers) = unpacker
             .unpack_all(&package_paths, tmp_path.as_ref(), cancel)
             .map_err(CommonError::Decoder)?;
         context.put(packages);
+        context.put(declarative_triggers);
 
         Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }

@@ -136,6 +136,9 @@ fn assemble() -> SequentialOrchestrator<UpdateError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
+            trigger: PipelineTrigger::declarative(Operation::Update),
+        }),
+        Box::new(HookStage {
             trigger: PipelineTrigger::post(Operation::Update),
         }),
         Box::new(RetentionStage),

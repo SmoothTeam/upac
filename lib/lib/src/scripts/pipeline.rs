@@ -21,6 +21,7 @@ pub enum Operation {
 pub enum Timing {
     Pre,
     Post,
+    Declarative,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +42,13 @@ impl PipelineTrigger {
         Self {
             operation,
             timing: Timing::Post,
+        }
+    }
+
+    pub fn declarative(operation: Operation) -> Self {
+        Self {
+            operation,
+            timing: Timing::Declarative,
         }
     }
 }

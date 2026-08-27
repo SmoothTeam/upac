@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use upac_abi::hook::CancelToken;
 
-use upac_types::PackageTemp;
+use upac_types::{DeclarativeTrigger, PackageTemp};
 
 use crate::layout::decoders;
 use crate::plugin::decoder::error::DecoderError;
@@ -47,15 +47,17 @@ impl PackageUnpacker {
 
     pub fn unpack_all(
         &mut self, package_paths: &[String], tmp_path: &str, cancel: &CancelToken,
-    ) -> Result<Vec<PackageTemp>, DecoderError> {
+    ) -> Result<(Vec<PackageTemp>, Vec<DeclarativeTrigger>), DecoderError> {
         let mut packages = Vec::with_capacity(package_paths.len());
+        let mut declarative_triggers = Vec::with_capacity(package_paths.len());
         let mut output_dirs = Vec::with_capacity(package_paths.len());
 
         for (index, package_path) in package_paths.iter().enumerate() {
             match self.unpack_one(package_path, index, tmp_path, cancel) {
-                Ok(package) => {
+                Ok((package, trigger)) => {
                     output_dirs.push(package.temp_package_path.clone());
                     packages.push(package);
+                    declarative_triggers.push(trigger);
                 }
                 Err(error) => {
                     for output_dir in output_dirs.into_iter().rev() {
@@ -67,12 +69,12 @@ impl PackageUnpacker {
             }
         }
 
-        Ok(packages)
+        Ok((packages, declarative_triggers))
     }
 
     fn unpack_one(
         &mut self, package_path: &str, index: usize, tmp_path: &str, cancel: &CancelToken,
-    ) -> Result<PackageTemp, DecoderError> {
+    ) -> Result<(PackageTemp, DeclarativeTrigger), DecoderError> {
         let format = self.format_for(package_path)?;
         let checksum = checksum_of_file(package_path)?;
 
@@ -89,10 +91,16 @@ impl PackageUnpacker {
                 let _ = remove_dir_all(&output_dir);
             })?;
 
-        Ok(PackageTemp {
-            meta: decoded.meta,
-            temp_package_path: output_dir,
-        })
+        Ok((
+            PackageTemp {
+                meta: decoded.meta,
+                temp_package_path: output_dir,
+            },
+            DeclarativeTrigger {
+                format,
+                triggers: decoded.declarative_triggers,
+            },
+        ))
     }
 
     fn format_for(&self, package_path: &str) -> Result<String, DecoderError> {
@@ -136,7 +144,7 @@ impl PackageUnpacker {
 
     pub fn unpack_all(
         &mut self, _package_paths: &[String], _tmp_path: &str, _cancel: &CancelToken,
-    ) -> Result<Vec<PackageTemp>, DecoderError> {
+    ) -> Result<(Vec<PackageTemp>, Vec<DeclarativeTrigger>), DecoderError> {
         Err(DecoderError::NoDecoders)
     }
 }
