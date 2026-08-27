@@ -32,12 +32,11 @@ clap       = { workspace = true }
 toml       = { workspace = true }
 sha2       = { workspace = true }
 ctrlc      = { workspace = true }
-
+indicatif = { workspace = true }
 
 strum = { version = "0.28.0", features = ["derive"] }
 nix   = { version = "0.31.3", features = ["user"] }
 
-indicatif = { version = "0.18.4" }
 chrono    = { version = "0.4" }
 hex       = { version = "0.4" }
 
