@@ -6,11 +6,11 @@
 use std::mem::size_of;
 use std::ptr::null;
 
-use upac_abi::decoder::{CDependency, CTriggerEntry, CTriggerTable};
+use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
-use upac_abi::memory::{free_cslice, free_cvec};
+use upac_abi::memory::free_cslice;
 use upac_abi::package::{CPackageInfo, CPackageMeta, CVersion};
-use upac_abi::types::{COwned, CSlice, CVec};
+use upac_abi::types::{COwned, CSlice};
 
 fn valid_version() -> CVersion {
     CVersion {
@@ -108,52 +108,5 @@ fn dependency_validate_rejects_invalid_nested_version() {
     unsafe {
         free_cslice(&dependency.name);
         dependency.version.free();
-    }
-}
-
-#[test]
-fn trigger_table_validate_ok_for_valid_entries() {
-    let table = CTriggerTable {
-        struct_size: size_of::<CTriggerTable>(),
-        entries: CVec::from_owned(vec![
-            CTriggerEntry {
-                struct_size: size_of::<CTriggerEntry>(),
-                name: CSlice::from_owned(b"pre-install".to_vec()),
-                hook_id: 0,
-            },
-            CTriggerEntry {
-                struct_size: size_of::<CTriggerEntry>(),
-                name: CSlice::from_owned(b"post-install".to_vec()),
-                hook_id: 1,
-            },
-        ]),
-    };
-
-    assert!(unsafe { table.validate() }.is_ok());
-    unsafe {
-        for entry in table.entries.as_slice() {
-            free_cslice(&entry.name);
-        }
-        free_cvec(&table.entries);
-    }
-}
-
-#[test]
-fn trigger_table_validate_rejects_malformed_entry() {
-    let table = CTriggerTable {
-        struct_size: size_of::<CTriggerTable>(),
-        entries: CVec::from_owned(vec![CTriggerEntry {
-            struct_size: 0,
-            name: CSlice::from_owned(b"pre-install".to_vec()),
-            hook_id: 0,
-        }]),
-    };
-
-    assert_eq!(unsafe { table.validate() }, Err(ErrorKind::AbiMismatch));
-    unsafe {
-        for entry in table.entries.as_slice() {
-            free_cslice(&entry.name);
-        }
-        free_cvec(&table.entries);
     }
 }

@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::slice::from_raw_parts;
-
 use upac_macro::{CNew, CValidate};
 
 use crate::error::ErrorKind;
@@ -22,8 +20,6 @@ pub type AbiVersionFn = unsafe extern "C" fn() -> u32;
 pub type DecodeFn = unsafe extern "C" fn(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32;
 
 pub type FreeDecodeResponseFn = unsafe extern "C" fn(response: *mut CDecodeResponse);
-
-pub type MatchTriggersFn = unsafe extern "C" fn(table: *const CTriggerTable, matches: *mut CTriggerMatches) -> i32;
 
 #[repr(C)]
 #[derive(CNew)]
@@ -46,6 +42,7 @@ pub struct CDecodeResponse {
     pub meta: CPackageMeta,
 
     pub dependencies: CVec<CDependency>,
+    pub declarative_triggers: CVec<CSlice>,
 
     pub free: FreeDecodeResponseFn,
 }
@@ -64,45 +61,4 @@ pub struct CDependency {
     pub name: CSlice,
     pub constraint: u8,
     pub version: CVersion,
-}
-
-#[repr(C)]
-#[derive(CValidate)]
-pub struct CTriggerEntry {
-    pub struct_size: usize,
-    pub name: CSlice,
-    pub hook_id: u16,
-}
-
-#[repr(C)]
-#[derive(CValidate)]
-pub struct CTriggerTable {
-    pub struct_size: usize,
-
-    pub entries: CVec<CTriggerEntry>,
-}
-
-#[repr(C)]
-#[derive(CNew)]
-pub struct CTriggerMatches {
-    pub struct_size: usize,
-
-    pub ids: *mut u16,
-    pub capacity: usize,
-    pub len: usize,
-}
-
-impl CTriggerMatches {
-    /// # Safety
-    /// `ids` must point to `capacity` writable `u16` slots, and `len` must have been written by the
-    /// decoder (or left at `0`) before this is called.
-    pub unsafe fn matched(&self) -> &[u16] {
-        if self.ids.is_null() {
-            return &[];
-        }
-
-        let len = self.len.min(self.capacity);
-
-        unsafe { from_raw_parts(self.ids, len) }
-    }
 }
