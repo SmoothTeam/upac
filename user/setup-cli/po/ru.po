@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+msgid "error"
+msgstr "Ошибка"
+
+msgid "err_common"
+msgstr "Сбой общей подсистемы"
+
+msgid "err_mount"
+msgstr "Ошибка монтирования"
+
+msgid "err_repo"
+msgstr "Ошибка операции с репозиторием"
+
+msgid "err_database"
+msgstr "Ошибка операции с базой данных"
+
+msgid "err_deploy_record"
+msgstr "Ошибка операции с записью деплоя"
+
+msgid "err_boot"
+msgstr "Ошибка подготовки загрузочной записи"
+
+msgid "err_boot_plugin"
+msgstr "Ошибка загрузочного плагина"
+
+msgid "err_io"
+msgstr "Ошибка ввода-вывода"
+
+msgid "err_meta_malformed"
+msgstr "Повреждённые метаданные пакета"
+
+msgid "err_no_space_left"
+msgstr "Не осталось места на устройстве"
+
+msgid "err_not_block_device"
+msgstr "Не является блочным устройством"
+
+msgid "err_mkfs_failed"
+msgstr "Ошибка создания файловой системы"
+
+msgid "err_unexpected"
+msgstr "Непредвиденная ошибка"
+
+msgid "err_missing_device"
+msgstr "Отсутствует обязательный аргумент: --device"
+
+msgid "err_missing_esp_size_mib"
+msgstr "Отсутствует обязательный аргумент: --esp-size-mib"
+
+msgid "err_missing_deploy_fs"
+msgstr "Отсутствует обязательный аргумент: --deploy-fs"
+
+msgid "err_missing_deploy_size_mib"
+msgstr "Отсутствует обязательный аргумент: --deploy-size-mib"
+
+msgid "err_missing_source_dir"
+msgstr "Отсутствует обязательный аргумент: --source-dir"
+
+msgid "stage_read_meta"
+msgstr "Чтение метаданных пакета"
+
+msgid "stage_import_trees"
+msgstr "Импорт дерева пакета"
+
+msgid "stage_write_deploy_record"
+msgstr "Запись записи деплоя"
+
+msgid "stage_stage_boot"
+msgstr "Подготовка загрузочной записи"
+
+msgid "stage_unknown"
+msgstr "Выполнение"
