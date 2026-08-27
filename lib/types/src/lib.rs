@@ -155,6 +155,8 @@ impl Version {
 pub struct PackageTemp {
     pub meta: PackageMeta,
     pub temp_package_path: String,
+    pub format: String,
+    pub declarative_triggers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, CTryToRust, RedbCodec, RustToC)]
