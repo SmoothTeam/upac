@@ -7,9 +7,19 @@
 name = "upac-cli"
 description = "Package manager for installing any type of package in Linux, as well as registering binary file rollbacks based on composefs, written in Rust"
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license = "GPL-3.0-only"
+license-file = "LICENSES/GPL-3.0-only"
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 [lints]
 workspace = true

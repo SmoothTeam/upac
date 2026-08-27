@@ -6,11 +6,20 @@
 [package]
 name = "upac-types"
 description = "Rust-native domain types shared between upac-lib and its direct Rust consumers, independent of the C ABI"
-
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license.workspace = true
+license-file.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 include = ["/src"]
 

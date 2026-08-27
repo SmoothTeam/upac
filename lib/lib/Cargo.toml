@@ -6,11 +6,20 @@
 [package]
 name = "upac-lib"
 description = "Core library implementing upac's package management logic (composefs-based atomic deploys) and exposing it via a C ABI"
-
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license.workspace = true
+license-file.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 include = ["/src", "lib.toml", "build.rs"]
 

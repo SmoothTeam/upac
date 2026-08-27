@@ -6,11 +6,20 @@
 [package]
 name = "upac-abi"
 description = "C-ABI types, error codes, and conversions shared between upac-lib and its consumers"
-
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license.workspace = true
+license-file.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 include = ["/src"]
 

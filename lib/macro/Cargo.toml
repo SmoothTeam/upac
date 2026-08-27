@@ -6,11 +6,20 @@
 [package]
 name = "upac-macro"
 description = "Derive macros for C-ABI struct plumbing used internally by upac-lib and upac-abi"
-
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license.workspace = true
+license-file.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 include = ["/src"]
 

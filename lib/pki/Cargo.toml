@@ -6,11 +6,20 @@
 [package]
 name = "upac-pki"
 description = "Ed25519/X.509 signing and verification for upac hook files"
-
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license.workspace = true
+license-file.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 include = ["/src"]
 

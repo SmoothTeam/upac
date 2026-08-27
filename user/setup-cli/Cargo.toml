@@ -7,9 +7,19 @@
 name = "upac-setup-cli"
 description = "First-boot bootstrap installer CLI, driving upac-setup"
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license = "GPL-3.0-only"
+license-file = "LICENSES/GPL-3.0-only"
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 [lints]
 workspace = true

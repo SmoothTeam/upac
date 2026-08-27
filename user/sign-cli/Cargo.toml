@@ -7,9 +7,19 @@
 name = "upac-sign-cli"
 description = "CLI tool for signing upac hook files (and other artifacts) with Ed25519 certificates"
 version.workspace = true
+
 edition.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
 license = "GPL-3.0-only"
+license-file = "LICENSES/GPL-3.0-only"
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
 
 [lints]
 workspace = true
