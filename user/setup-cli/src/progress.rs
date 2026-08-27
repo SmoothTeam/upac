@@ -35,7 +35,7 @@ impl ProgressState {
         let settings = RuntimeSettings::load().progress;
 
         let bar = ProgressBar::new_spinner();
-        bar.set_style(spinner_style(&settings.spinner_template));
+        bar.set_style(Self::spinner_style(&settings.spinner_template));
         bar.enable_steady_tick(Duration::from_millis(settings.tick_interval_ms));
 
         ProgressState {
@@ -54,12 +54,12 @@ impl ProgressState {
     }
 
     fn apply(&mut self, event: &CProgressEvent) {
-        let stage = stage_name(event.stage);
+        let stage = Self::stage_name(event.stage);
         let subject = <&str>::try_from(&event.subject).unwrap_or_default();
 
         if event.total > 0 {
             if !self.is_bar {
-                self.bar.set_style(bar_style(&self.settings.bar_template));
+                self.bar.set_style(Self::bar_style(&self.settings.bar_template));
                 self.is_bar = true;
             }
             self.bar.set_length(event.total);
@@ -75,27 +75,29 @@ impl ProgressState {
     }
 }
 
+impl ProgressState {
+    fn stage_name(index: u32) -> String {
+        let key = match index {
+            0 => "stage_read_meta",
+            1 => "stage_import_trees",
+            2 => "stage_write_deploy_record",
+            3 => "stage_stage_boot",
+            _ => "stage_unknown",
+        };
+        gettextrs::gettext(key)
+    }
+
+    fn spinner_style(template: &str) -> ProgressStyle {
+        ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_spinner())
+    }
+
+    fn bar_style(template: &str) -> ProgressStyle {
+        ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_bar())
+    }
+}
+
 impl Default for ProgressState {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn stage_name(index: u32) -> String {
-    let key = match index {
-        0 => "stage_read_meta",
-        1 => "stage_import_trees",
-        2 => "stage_write_deploy_record",
-        3 => "stage_stage_boot",
-        _ => "stage_unknown",
-    };
-    gettextrs::gettext(key)
-}
-
-fn spinner_style(template: &str) -> ProgressStyle {
-    ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_spinner())
-}
-
-fn bar_style(template: &str) -> ProgressStyle {
-    ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_bar())
 }
