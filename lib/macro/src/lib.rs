@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 //! Proc-macro crate for UPAC. Each derive reflects over a struct's (or
 //! enum's) fields at compile time to generate boilerplate that would

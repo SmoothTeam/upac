@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 pub(crate) fn write_bool(buf: &mut Vec<u8>, value: bool) {
     buf.push(u8::from(value));
