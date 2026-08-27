@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["user/upac-cli", "user/sign-cli", "user/setup-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types", "lib/setup", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind"]
+members = ["user/upac-cli", "user/sign-cli", "user/setup-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types", "lib/setup", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind", "decoders/alpm-rs"]
 
 [workspace.package]
 version = "0.2.0"
@@ -60,6 +60,10 @@ composefs-boot = "0.9.0"
 indicatif      = "0.18.4"
 efivar         = "2.0.0"
 tempfile       = "3"
+flate2         = "1.1.9"
+tar            = "0.4.46"
+xz2            = "0.1.7"
+zstd           = "0.13.3"
 
 [profile.dev]
 opt-level = 0

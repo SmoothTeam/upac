@@ -12,7 +12,6 @@ edition.workspace = true
 rust-version.workspace = true
 
 license = "GPL-3.0-only"
-license-file = "LICENSES/GPL-3.0-only"
 
 readme.workspace = true
 homepage.workspace = true

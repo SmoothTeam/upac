@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 [package]
-name = "upac-grub"
+name = "alpm"
 version.workspace = true
 
 edition.workspace = true
@@ -23,14 +23,16 @@ categories.workspace = true
 workspace = true
 
 [lib]
-name = "upac_boot_grub"
+name = "upac_alpm_decoder"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 upac-abi = { workspace = true }
 
-[build-dependencies]
-toml = { workspace = true }
+flate2 = { workspace = true }
+tar    = { workspace = true }
+xz2    = { workspace = true }
+zstd   = { workspace = true }
 
 [features]
 default = ["cdylib"]
