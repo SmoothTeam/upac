@@ -17,10 +17,13 @@ use toml::de::Error as TomlError;
 use upac::boot::error::BootError;
 use upac::composefs::error::RepoError;
 use upac::database::error::{DatabaseError, DeployRecordError};
+use upac::errors::CommonError;
+use upac::lock::LockError;
 use upac::plugin::boot::error::BootPluginError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupError {
+    Common(CommonError),
     Mount(Errno),
     Repo(RepoError),
     Database(DatabaseError),
@@ -33,6 +36,18 @@ pub enum SetupError {
     NotBlockDevice,
     MkfsFailed,
     Unexpected,
+}
+
+impl From<CommonError> for SetupError {
+    fn from(error: CommonError) -> Self {
+        SetupError::Common(error)
+    }
+}
+
+impl From<LockError> for SetupError {
+    fn from(error: LockError) -> Self {
+        SetupError::Common(CommonError::Lock(error))
+    }
 }
 
 impl From<Errno> for SetupError {
