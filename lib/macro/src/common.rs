@@ -29,7 +29,6 @@ pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
     "CHistoryEntry",
     "CRequestBase",
     "CDependency",
-    "CTriggerEntry",
     "CSetupBase",
     "CPartitionMount",
     "CPartitionSpec",
