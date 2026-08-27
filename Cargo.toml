@@ -47,6 +47,7 @@ clap          = { version = "4.6.1", features = ["derive"] }
 uuid          = { version = "1", features = ["v4"] }
 serde         = { version = "1", features = ["derive"] }
 syn           = { version = "3", features = ["full"] }
+ctrlc         = { version = "3.5.2", features = ["termination"] }
 
 colored        = "3.1.1"
 libloading     = "0.9"

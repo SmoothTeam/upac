@@ -20,8 +20,11 @@ path = "src/main.rs"
 
 [dependencies]
 upac-setup = { workspace = true }
+upac-abi   = { workspace = true }
+upac-types = { workspace = true }
 
 gettext-rs = { workspace = true }
 colored    = { workspace = true }
 anyhow     = { workspace = true }
 clap       = { workspace = true }
+ctrlc      = { workspace = true }
