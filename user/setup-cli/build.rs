@@ -12,6 +12,7 @@ use std::process::Command;
 fn main() -> IoResult<()> {
     // Packager sets LOCALEDIR at build time; dev default is /usr/share/locale.
     let localedir = var("LOCALEDIR").unwrap_or_else(|_| "/usr/share/locale".to_owned());
+
     println!("cargo:rustc-env=LOCALEDIR={localedir}");
     println!("cargo:rerun-if-env-changed=LOCALEDIR");
 
@@ -47,7 +48,7 @@ fn main() -> IoResult<()> {
             let status = Command::new("msgfmt")
                 .args([
                     "-o",
-                    mo_dir.join("upac-sign.mo").to_str().expect("path is not valid UTF-8"),
+                    mo_dir.join("upac-setup.mo").to_str().expect("path is not valid UTF-8"),
                 ])
                 .arg(&path)
                 .status();
