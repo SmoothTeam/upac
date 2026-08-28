@@ -5,10 +5,11 @@
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use upac_types::Targets;
+use upac_types::{DeclarativeTrigger, Targets};
 
 use crate::composefs::file::FileHandle;
 use crate::database::meta::MetaStore;
+use crate::database::triggers::TriggerStore;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
@@ -35,14 +36,20 @@ impl Stage<UninstallError> for PreparationStage {
         let database = MemoryDatabase::open_in_memory(database_bytes)?;
 
         let mut uuids = Vec::new();
+        let mut declarative_triggers: Vec<DeclarativeTrigger> = Vec::new();
         for entry in &targets.0 {
             let uuid = database
                 .find_package_uuid(&entry.name, &entry.arch, entry.arch_sub.as_deref())?
                 .ok_or(UninstallError::PackageNotFound)?;
             uuids.push(uuid);
+
+            if let Some(trigger) = database.get_declarative_triggers(uuid)? {
+                declarative_triggers.push(trigger);
+            }
         }
 
         context.put(PackageUuidsToRemove(uuids));
+        context.put(declarative_triggers);
 
         Ok((progress, Box::new(NoRollback)))
     }

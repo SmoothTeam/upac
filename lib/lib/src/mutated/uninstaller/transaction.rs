@@ -21,6 +21,7 @@ use crate::composefs::file::FileHandle;
 use crate::composefs::repository::{ObjectID, commit_tree};
 use crate::database::files::{FileStore, FileStoreMut};
 use crate::database::meta::{MetaStore, MetaStoreMut};
+use crate::database::triggers::TriggerStoreMut;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
@@ -153,6 +154,7 @@ impl TransactionStage {
         package_data
             .database
             .remove_package_meta(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
+        package_data.database.remove_declarative_triggers(uuid)?;
 
         Ok(())
     }

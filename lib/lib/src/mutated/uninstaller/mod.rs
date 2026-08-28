@@ -162,6 +162,9 @@ fn assemble() -> SequentialOrchestrator<UninstallError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
+            trigger: PipelineTrigger::declarative(Operation::Uninstall),
+        }),
+        Box::new(HookStage {
             trigger: PipelineTrigger::post(Operation::Uninstall),
         }),
         Box::new(RetentionStage),

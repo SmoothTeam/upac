@@ -13,13 +13,14 @@ use composefs::tree::FileSystem;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use upac_types::{FileEntry, FileEntryScope, PackageTemp, TmpPath};
+use upac_types::{DeclarativeTrigger, FileEntry, FileEntryScope, PackageTemp, TmpPath};
 
 use crate::composefs::error::RepoError;
 use crate::composefs::file::FileHandle;
 use crate::composefs::repository::{ObjectID, commit_tree};
 use crate::database::files::FileStoreMut;
 use crate::database::meta::MetaStoreMut;
+use crate::database::triggers::TriggerStoreMut;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
@@ -79,7 +80,12 @@ impl Stage<InstallError> for TransactionStage {
                 .progress(index as u64, packages_total);
             context.send_progress(&progress);
 
-            self.import_package(package, &mut package_data)?;
+            let trigger = context
+                .get::<Vec<DeclarativeTrigger>>()
+                .and_then(|triggers| triggers.get(index))
+                .ok_or(CommonError::MissingResult)?;
+
+            self.import_package(package, trigger, &mut package_data)?;
         }
 
         let database_bytes = database.into_bytes()?;
@@ -104,7 +110,9 @@ impl Stage<InstallError> for TransactionStage {
 }
 
 impl TransactionStage {
-    fn import_package(&self, package: &PackageTemp, package_data: &mut ImportPackageData) -> Result<(), InstallError> {
+    fn import_package(
+        &self, package: &PackageTemp, trigger: &DeclarativeTrigger, package_data: &mut ImportPackageData,
+    ) -> Result<(), InstallError> {
         let source_root = Path::new(&package.temp_package_path);
 
         let usr_source = source_root.join("usr");
@@ -134,6 +142,7 @@ impl TransactionStage {
         };
 
         let uuid = package_data.database.insert_package_meta(&package.meta)?;
+        package_data.database.set_declarative_triggers(uuid, trigger)?;
 
         for path in imported {
             let entry = FileEntry {

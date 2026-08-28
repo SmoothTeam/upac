@@ -13,13 +13,14 @@ use composefs::tree::FileSystem;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use upac_types::{FileEntry, FileEntryScope, PackageTemp, TmpPath};
+use upac_types::{DeclarativeTrigger, FileEntry, FileEntryScope, PackageTemp, TmpPath};
 
 use crate::composefs::error::RepoError;
 use crate::composefs::file::FileHandle;
 use crate::composefs::repository::{ObjectID, commit_tree};
 use crate::database::files::{FileStore, FileStoreMut};
 use crate::database::meta::{MetaStore, MetaStoreMut};
+use crate::database::triggers::TriggerStoreMut;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
@@ -91,7 +92,12 @@ impl Stage<UpdateError> for TransactionStage {
                 .progress(index as u64, packages_total);
             context.send_progress(&progress);
 
-            self.update_package(package, &mut package_data)?;
+            let trigger = context
+                .get::<Vec<DeclarativeTrigger>>()
+                .and_then(|triggers| triggers.get(index))
+                .ok_or(CommonError::MissingResult)?;
+
+            self.update_package(package, trigger, &mut package_data)?;
         }
 
         let database_bytes = database.into_bytes()?;
@@ -117,7 +123,9 @@ impl Stage<UpdateError> for TransactionStage {
 }
 
 impl TransactionStage {
-    fn update_package(&self, package: &PackageTemp, package_data: &mut UpdatePackageData) -> Result<(), UpdateError> {
+    fn update_package(
+        &self, package: &PackageTemp, trigger: &DeclarativeTrigger, package_data: &mut UpdatePackageData,
+    ) -> Result<(), UpdateError> {
         let uuid = package_data
             .database
             .find_package_uuid(&package.meta.name, &package.meta.arch, package.meta.arch_sub.as_deref())?
@@ -188,6 +196,7 @@ impl TransactionStage {
         };
 
         package_data.database.update_package_meta(&package.meta)?;
+        package_data.database.set_declarative_triggers(uuid, trigger)?;
 
         for path in imported {
             let entry = FileEntry {
