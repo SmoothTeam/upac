@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+# Shared source of truth for external package-format constants used by decoder plugins. Each
+# decoder's own build.rs reads this same file and generates its own private layout module;
+# nothing here is a Cargo dependency between decoders, just a shared data file.
+
+# Fixed metadata entry names inside an ALPM (.pkg.tar.*) archive, per pacman's own package
+# format — never deployment-configurable, never change without a new package format entirely.
+[alpm]
+pkginfo_entry = ".PKGINFO"
+install_entry = ".INSTALL"
+buildinfo_entry = ".BUILDINFO"
+mtree_entry = ".MTREE"
+changelog_entry = ".CHANGELOG"

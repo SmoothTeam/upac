@@ -27,12 +27,17 @@ name = "upac_alpm_decoder"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-abi = { workspace = true }
+upac-abi   = { workspace = true }
+upac-types = { workspace = true }
 
 flate2 = { workspace = true }
+sha2   = { workspace = true }
 tar    = { workspace = true }
 xz2    = { workspace = true }
 zstd   = { workspace = true }
+
+[build-dependencies]
+toml = { workspace = true }
 
 [features]
 default = ["cdylib"]
