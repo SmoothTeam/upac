@@ -11,14 +11,14 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
-license = "GPL-3.0-only"
-
 readme.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
 keywords.workspace = true
 categories.workspace = true
+
+license = "GPL-3.0-only"
 
 [lints]
 workspace = true
