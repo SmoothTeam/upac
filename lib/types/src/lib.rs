@@ -20,6 +20,8 @@ use upac_abi::{DiffFileSource, FileDiffKind, FsKind, PackageDiffKind};
 
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
+use crate::codec::RedbCodable;
+
 pub mod codec;
 pub mod settings;
 pub mod states;
@@ -157,7 +159,7 @@ pub struct PackageTemp {
     pub temp_package_path: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, RedbCodec)]
 pub struct DeclarativeTrigger {
     pub format: String,
     pub triggers: Vec<String>,
@@ -201,12 +203,12 @@ pub enum FileEntryScope {
     Config = 1,
 }
 
-impl FileEntryScope {
-    pub fn encode_into(buf: &mut Vec<u8>, value: &FileEntryScope) {
-        buf.push(*value as u8);
+impl RedbCodable for FileEntryScope {
+    fn redb_encode(&self, buf: &mut Vec<u8>) {
+        buf.push(*self as u8);
     }
 
-    pub fn decode_from(data: &[u8], offset: &mut usize) -> FileEntryScope {
+    fn redb_decode(data: &[u8], offset: &mut usize) -> FileEntryScope {
         let value = data[*offset];
         *offset += 1;
 

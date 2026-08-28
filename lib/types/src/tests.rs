@@ -17,10 +17,10 @@ fn version_redb_round_trip_preserves_value() {
     let original = sample_version();
 
     let mut buf = Vec::new();
-    Version::encode_into(&mut buf, &original);
+    original.redb_encode(&mut buf);
 
     let mut offset = 0;
-    let restored = Version::decode_from(&buf, &mut offset);
+    let restored = Version::redb_decode(&buf, &mut offset);
 
     assert_eq!(restored, original);
     assert_eq!(offset, buf.len());
@@ -145,10 +145,10 @@ fn file_entry_redb_round_trip_preserves_value() {
     };
 
     let mut buf = Vec::new();
-    FileEntry::encode_into(&mut buf, &original);
+    original.redb_encode(&mut buf);
 
     let mut offset = 0;
-    let restored = FileEntry::decode_from(&buf, &mut offset);
+    let restored = FileEntry::redb_decode(&buf, &mut offset);
 
     assert_eq!(restored.path, original.path);
     assert_eq!(restored.is_user, original.is_user);
