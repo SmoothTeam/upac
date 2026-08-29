@@ -38,6 +38,7 @@ upac-uki          = { path = "booters/uki", default-features = false }
 upac-systemd-boot = { path = "booters/systemd-boot", default-features = false }
 upac-grub         = { path = "booters/grub", default-features = false }
 upac-refind       = { path = "booters/refind", default-features = false }
+upac-decoders-alpm = { path = "decoders/alpm", package = "alpm", default-features = false }
 
 composefs-oci = { version = "0.9.0", features = ["composefs-boot", "boot", "tar"] }
 nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }

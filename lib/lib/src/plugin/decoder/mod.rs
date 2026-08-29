@@ -5,9 +5,9 @@
 
 use upac_types::{Dependency, PackageMeta};
 
-#[cfg(feature = "dynamic-plugins")]
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
 use std::mem::MaybeUninit;
-#[cfg(feature = "dynamic-plugins")]
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
 use std::str::from_utf8;
 
 #[cfg(feature = "dynamic-plugins")]
@@ -17,16 +17,22 @@ use libloading::Library;
 use upac_abi::ABI_VERSION;
 
 #[cfg(feature = "dynamic-plugins")]
-use upac_abi::decoder::{AbiVersionFn, CDecodeRequest, CDecodeResponse, DecodeFn};
+use upac_abi::decoder::AbiVersionFn;
 
-#[cfg(feature = "dynamic-plugins")]
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
+use upac_abi::decoder::{CDecodeRequest, CDecodeResponse, DecodeFn};
+
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
 use upac_abi::hook::CancelToken;
 
-#[cfg(feature = "dynamic-plugins")]
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
 use upac_abi::types::{CBorrowed, CSlice};
 
-#[cfg(feature = "dynamic-plugins")]
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
 use crate::plugin::decoder::error::DecoderError;
+
+#[cfg(feature = "builtin-alpm")]
+use upac_decoders_alpm::{decode as alpm_decode, manifest as alpm_manifest};
 
 pub mod error;
 pub mod manifest;
@@ -36,8 +42,8 @@ pub mod unpack;
 /// A package decoded by a decoder plugin.
 ///
 /// Plain owned data — available in every build configuration, including ones
-/// without `dynamic-plugins`, so that callers and error types elsewhere in the
-/// crate keep compiling.
+/// without `dynamic-plugins`/`builtin-decoders`, so that callers and error
+/// types elsewhere in the crate keep compiling.
 pub struct DecodedPackage {
     pub meta: PackageMeta,
     pub dependencies: Vec<Dependency>,
@@ -51,18 +57,26 @@ unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, Decod
         .map_err(|_| DecoderError::Symbol)
 }
 
-/// A decoder plugin loaded from a shared object at runtime.
-///
-/// Exists only in builds with `dynamic-plugins`. There is currently no
-/// compiled-in decoder path: decoders live outside this crate, so a build
-/// without `dynamic-plugins` cannot decode packages at all. Once decoders are
-/// rewritten in Rust, a `builtin-decoders` counterpart belongs here, mirroring
-/// `static_plugins` on the boot side.
-#[cfg(feature = "dynamic-plugins")]
+/// A decoder plugin, either loaded from a shared object at runtime (`dynamic-plugins`) or
+/// compiled directly into this binary (`builtin-decoders`).
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
 pub struct Decoder {
     decode: DecodeFn,
 
-    _library: Library,
+    #[cfg(feature = "dynamic-plugins")]
+    _library: Option<Library>,
+}
+
+#[cfg(feature = "builtin-decoders")]
+impl Decoder {
+    fn from_static(decode: DecodeFn) -> Self {
+        Decoder {
+            decode,
+
+            #[cfg(feature = "dynamic-plugins")]
+            _library: None,
+        }
+    }
 }
 
 #[cfg(feature = "dynamic-plugins")]
@@ -83,10 +97,13 @@ impl Decoder {
 
         Ok(Decoder {
             decode,
-            _library: library,
+            _library: Some(library),
         })
     }
+}
 
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
+impl Decoder {
     pub fn decode(
         &self, package_path: &str, output_dir: &str, checksum: [u8; 32], cancel: &CancelToken,
     ) -> Result<DecodedPackage, DecoderError> {
@@ -128,4 +145,27 @@ impl Decoder {
             declarative_triggers,
         })
     }
+}
+
+/// The decoders compiled directly into this binary, keyed by format name with their claimed
+/// extensions — mirrors `plugin::boot::static_plugins`, adapted for extension-based dispatch
+/// (a decoder is selected by the package file's extension, not by a `probe()` call). No ABI
+/// version check: compiled from the same source tree by the same compiler, so the decoder's own
+/// `ABI_VERSION` matches by construction.
+#[cfg(feature = "builtin-decoders")]
+#[allow(
+    clippy::vec_init_then_push,
+    reason = "each push is independently cfg-gated, vec![] can't express that"
+)]
+pub(crate) fn static_decoders() -> Vec<(&'static str, &'static [&'static str], Decoder)> {
+    let mut decoders = Vec::new();
+
+    #[cfg(feature = "builtin-alpm")]
+    decoders.push((
+        alpm_manifest::FORMAT,
+        alpm_manifest::EXTENSIONS,
+        Decoder::from_static(alpm_decode),
+    ));
+
+    decoders
 }

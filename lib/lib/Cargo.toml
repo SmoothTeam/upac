@@ -38,6 +38,7 @@ upac-uki          = { workspace = true, optional = true }
 upac-systemd-boot = { workspace = true, optional = true }
 upac-grub         = { workspace = true, optional = true }
 upac-refind       = { workspace = true, optional = true }
+upac-decoders-alpm = { workspace = true, optional = true }
 
 composefs     = { workspace = true }
 composefs-oci = { workspace = true }
@@ -81,6 +82,8 @@ builtin-uki          = ["dep:upac-uki", "builtin-booters"]
 builtin-systemd-boot = ["dep:upac-systemd-boot", "builtin-booters"]
 builtin-grub         = ["dep:upac-grub", "builtin-booters"]
 builtin-refind       = ["dep:upac-refind", "builtin-booters"]
+
+builtin-alpm = ["dep:upac-decoders-alpm", "builtin-decoders"]
 
 builtin-all = [
     "builtin-uki", "builtin-systemd-boot", "builtin-grub", "builtin-refind",
