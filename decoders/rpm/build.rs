@@ -31,25 +31,28 @@ fn generate_decoder_toml(manifest_dir: &str) -> Result<String, Box<dyn Error>> {
     let raw = read_to_string(&source)?;
     let config: Value = from_str(&raw)?;
 
+    let section = "rpm";
+    let entries = config
+        .get(section)
+        .and_then(Value::as_table)
+        .ok_or_else(|| format!("decoder.toml: [{section}] must be a table"))?;
+
     let mut generated = String::new();
+    generated.push_str(&format!("pub mod {section} {{\n"));
 
-    let sections = config.as_table().ok_or("decoder.toml: root must be a table")?;
-    for (section, entries) in sections {
-        generated.push_str(&format!("pub mod {section} {{\n"));
+    for (key, value) in entries {
+        let rendered = if let Some(value) = value.as_str() {
+            format!("&str = {value:?}")
+        } else if let Some(value) = value.as_integer() {
+            format!("u32 = {value}")
+        } else {
+            return Err(format!("decoder.toml: {section}.{key} must be a string or integer").into());
+        };
 
-        let entries = entries
-            .as_table()
-            .ok_or_else(|| format!("decoder.toml: [{section}] must be a table"))?;
-        for (key, value) in entries {
-            let value = value
-                .as_str()
-                .ok_or_else(|| format!("decoder.toml: {section}.{key} must be a string"))?;
-
-            generated.push_str(&format!("    pub const {}: &str = {value:?};\n", key.to_uppercase()));
-        }
-
-        generated.push_str("}\n");
+        generated.push_str(&format!("    pub const {}: {rendered};\n", key.to_uppercase()));
     }
+
+    generated.push_str("}\n");
 
     Ok(generated)
 }
