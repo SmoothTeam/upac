@@ -15,13 +15,13 @@ use std::process::ExitCode;
 
 use crate::error::XtaskError;
 
-mod cargo_toml_dependency_order;
-mod cargo_toml_package_order;
-mod extern_fn_position;
-mod macro_visibility_adjacency;
-mod no_pub_use_reexport;
-mod toml_config_field_order;
-mod violation;
+pub mod cargo_toml_dependency_order;
+pub mod cargo_toml_package_order;
+pub mod extern_fn_position;
+pub mod macro_visibility_adjacency;
+pub mod no_pub_use_reexport;
+pub mod toml_config_field_order;
+pub mod violation;
 mod walk;
 
 pub fn run() -> Result<ExitCode, XtaskError> {

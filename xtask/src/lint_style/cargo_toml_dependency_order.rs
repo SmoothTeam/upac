@@ -24,7 +24,7 @@ struct Entry {
     key_count: usize,
 }
 
-pub(super) fn check(path: &Path, contents: &str) -> Vec<Violation> {
+pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     let entries = dependency_entries(contents);
 
     let mut violations = Vec::new();
