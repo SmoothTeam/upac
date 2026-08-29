@@ -16,6 +16,7 @@ use crate::alpm::{
 };
 use crate::error::DecodeError;
 
+#[derive(Debug)]
 pub struct PkgInfo {
     pub meta: PackageMeta,
     pub dependencies: Vec<Dependency>,

@@ -29,7 +29,11 @@ fn native_name(trigger: DecoderTrigger) -> &'static str {
 
 fn declares_function(content: &str, name: &str) -> bool {
     content.lines().any(|line| {
-        let Some(rest) = line.trim_start().strip_prefix(name) else {
+        if line.starts_with(char::is_whitespace) {
+            return false;
+        }
+
+        let Some(rest) = line.strip_prefix(name) else {
             return false;
         };
 

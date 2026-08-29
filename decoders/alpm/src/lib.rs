@@ -15,10 +15,11 @@ use upac_abi::types::{CSlice, CVec};
 use crate::error::DecodeError;
 use crate::pkginfo::PkgInfo;
 
-mod error;
+pub mod error;
+pub mod pkginfo;
+pub mod triggers;
+
 mod extract;
-mod pkginfo;
-mod triggers;
 mod verify;
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
