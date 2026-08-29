@@ -5,6 +5,7 @@
 
 [package]
 name = "upac-grub"
+description = "GRUB (BLS via blscfg) boot plugin for upac: one-shot/persistent reboot selection via grub-reboot/grub-set-default"
 version.workspace = true
 
 edition.workspace = true

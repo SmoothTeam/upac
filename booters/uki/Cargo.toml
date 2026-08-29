@@ -5,6 +5,7 @@
 
 [package]
 name = "upac-uki"
+description = "UKI-direct boot plugin for upac: one-shot/persistent reboot selection via UEFI BootNext/BootOrder"
 version.workspace = true
 
 edition.workspace = true

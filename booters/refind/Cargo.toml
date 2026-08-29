@@ -5,6 +5,7 @@
 
 [package]
 name = "upac-refind"
+description = "rEFInd boot plugin for upac: one-shot/persistent reboot selection via the PreviousBoot EFI variable"
 version.workspace = true
 
 edition.workspace = true

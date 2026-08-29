@@ -5,6 +5,7 @@
 
 [package]
 name = "upac-systemd-boot"
+description = "systemd-boot (BLS) boot plugin for upac: one-shot/persistent reboot selection via LoaderEntryOneShot/LoaderEntryDefault"
 version.workspace = true
 
 edition.workspace = true
