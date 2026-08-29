@@ -5,6 +5,7 @@
 
 [package]
 name = "upac-xtask"
+description = "Developer tooling for upac's own build: repo-internal style lints and other checks, invoked via `cargo xtask`"
 version = "0.1.0"
 
 edition = "2024"
