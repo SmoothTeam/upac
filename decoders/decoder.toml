@@ -63,3 +63,43 @@ preinst_file = "preinst"
 postinst_file = "postinst"
 prerm_file = "prerm"
 postrm_file = "postrm"
+
+# Fixed offsets inside an RPM package's binary layout, per rpm's own file format (lead +
+# signature header + main header + cpio payload) — never deployment-configurable, never
+# change without a new package format entirely.
+[rpm]
+# Native scriptlet identifiers, matched against declared hook triggers (doc §5.8), never
+# executed — RPM has no separate script files (unlike dpkg), so these just label the 4
+# scriptlet tag positions below, named after their spec-file macro (%pre/%post/%preun/%postun).
+prein_name = "pre"
+postin_name = "post"
+preun_name = "preun"
+postun_name = "postun"
+
+lead_size = 96
+
+# Fixed RPM header tag IDs, per rpm's own stable tag namespace (lib/rpmtag.h) — never change
+# without a new package format entirely.
+name_tag = 1000
+version_tag = 1001
+release_tag = 1002
+summary_tag = 1004
+size_tag = 1009
+license_tag = 1014
+packager_tag = 1015
+url_tag = 1020
+arch_tag = 1022
+prein_tag = 1023
+postin_tag = 1024
+preun_tag = 1025
+postun_tag = 1026
+provide_name_tag = 1047
+require_name_tag = 1049
+require_version_tag = 1050
+require_flags_tag = 1048
+payload_format_tag = 1124
+payload_compressor_tag = 1125
+
+# Reserved for xbps's own archive-layout/field-key constants, once xbps gets its Rust rewrite
+# (still Zig today, see decoders/xbps-zig).
+[xbps]

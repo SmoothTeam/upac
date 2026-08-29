@@ -31,10 +31,9 @@ crate-type = ["cdylib", "rlib"]
 upac-abi   = { workspace = true }
 upac-types = { workspace = true }
 
-ar     = { workspace = true }
+cpio   = { workspace = true }
 flate2 = { workspace = true }
 sha2   = { workspace = true }
-tar    = { workspace = true }
 xz2    = { workspace = true }
 zstd   = { workspace = true }
 
