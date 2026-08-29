@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_alpm_decoder::triggers;
+use upac_decoder_alpm::triggers;
 
 #[test]
 fn finds_no_triggers_in_empty_content() {

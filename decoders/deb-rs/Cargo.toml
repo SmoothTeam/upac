@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 [package]
-name = "alpm"
+name = "deb"
 version.workspace = true
 
 edition.workspace = true
@@ -23,7 +23,7 @@ categories.workspace = true
 workspace = true
 
 [lib]
-name = "upac_decoder_alpm"
+name = "upac_decoder_deb"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

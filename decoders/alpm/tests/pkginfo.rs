@@ -5,8 +5,8 @@
 
 use upac_abi::decoder::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
 
-use upac_alpm_decoder::error::DecodeError;
-use upac_alpm_decoder::pkginfo::PkgInfo;
+use upac_decoder_alpm::error::DecodeError;
+use upac_decoder_alpm::pkginfo::PkgInfo;
 
 const CHECKSUM: [u8; 32] = [7; 32];
 
