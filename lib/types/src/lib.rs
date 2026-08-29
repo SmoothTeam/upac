@@ -165,6 +165,27 @@ pub struct DeclarativeTrigger {
     pub triggers: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecoderTrigger {
+    PreInstall,
+    PostInstall,
+    PreUpgrade,
+    PostUpgrade,
+    PreRemove,
+    PostRemove,
+}
+
+impl DecoderTrigger {
+    pub const ALL: [DecoderTrigger; 6] = [
+        DecoderTrigger::PreInstall,
+        DecoderTrigger::PostInstall,
+        DecoderTrigger::PreUpgrade,
+        DecoderTrigger::PostUpgrade,
+        DecoderTrigger::PreRemove,
+        DecoderTrigger::PostRemove,
+    ];
+}
+
 #[derive(Debug, Clone, Default, Deserialize, CTryToRust, RedbCodec, RustToC)]
 #[serde(default)]
 pub struct PackageMeta {
@@ -180,7 +201,7 @@ pub struct PackageMeta {
     pub installed_size: u64,
 }
 
-#[derive(Debug, Clone, CTryToRust)]
+#[derive(Debug, Clone, CTryToRust, RustToC)]
 pub struct Dependency {
     pub name: String,
     pub constraint: u8,
