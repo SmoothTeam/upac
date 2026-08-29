@@ -5,6 +5,7 @@
 
 [package]
 name = "deb"
+description = "Debian (.deb) package decoder plugin for upac, implementing dpkg's package format"
 version.workspace = true
 
 edition.workspace = true

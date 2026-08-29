@@ -5,6 +5,7 @@
 
 [package]
 name = "alpm"
+description = "ALPM (.pkg.tar.*) package decoder plugin for upac, implementing pacman's package format"
 version.workspace = true
 
 edition.workspace = true

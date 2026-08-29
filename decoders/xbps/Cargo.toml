@@ -5,6 +5,7 @@
 
 [package]
 name = "xbps"
+description = "XBPS (.xbps) package decoder plugin for upac, implementing Void Linux's xbps package format"
 version.workspace = true
 
 edition.workspace = true

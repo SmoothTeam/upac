@@ -5,6 +5,7 @@
 
 [package]
 name = "rpm"
+description = "RPM (.rpm) package decoder plugin for upac, implementing rpm's package format"
 version.workspace = true
 
 edition.workspace = true

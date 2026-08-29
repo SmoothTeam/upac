@@ -55,10 +55,10 @@ fn generate_decoder_toml(manifest_dir: &str) -> Result<String, Box<dyn Error>> {
 }
 
 /// Compiles this crate's own deployable manifest (`format`/`extensions`) into constants, so a
-/// `builtin-deb` build can dispatch by format without reading `upac-deb.toml` from disk at
+/// `builtin-xbps` build can dispatch by format without reading `upac-xbps.toml` from disk at
 /// runtime — `library`/`mime` are runtime-deployment-only fields, not needed here.
 fn generate_manifest_module(manifest_dir: &str) -> Result<String, Box<dyn Error>> {
-    let source = Path::new(manifest_dir).join("upac-deb.toml");
+    let source = Path::new(manifest_dir).join("upac-xbps.toml");
 
     println!("cargo:rerun-if-changed={}", source.display());
 
@@ -68,17 +68,17 @@ fn generate_manifest_module(manifest_dir: &str) -> Result<String, Box<dyn Error>
     let format = config
         .get("format")
         .and_then(Value::as_str)
-        .ok_or("upac-deb.toml: format must be a string")?;
+        .ok_or("upac-xbps.toml: format must be a string")?;
 
     let extensions = config
         .get("extensions")
         .and_then(Value::as_array)
-        .ok_or("upac-deb.toml: extensions must be an array")?
+        .ok_or("upac-xbps.toml: extensions must be an array")?
         .iter()
         .map(|entry| {
             entry
                 .as_str()
-                .ok_or("upac-deb.toml: extensions entries must be strings")
+                .ok_or("upac-xbps.toml: extensions entries must be strings")
         })
         .collect::<Result<Vec<_>, _>>()?;
 
