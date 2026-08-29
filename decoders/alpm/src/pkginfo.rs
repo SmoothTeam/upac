@@ -5,7 +5,9 @@
 
 use std::collections::HashMap;
 
-use upac_abi::decoder::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
+use upac_abi::decoder::{
+    CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS, parse_constraint_prefix,
+};
 
 use upac_types::{Dependency, PackageMeta, Version};
 
@@ -15,6 +17,14 @@ use crate::alpm::{
     PKGINFO_VERSION_KEY,
 };
 use crate::error::DecodeError;
+
+const OPERATORS: [(&[u8], u8); 5] = [
+    (b"<=", CONSTRAINT_LESS | CONSTRAINT_EQUAL),
+    (b">=", CONSTRAINT_GREATER | CONSTRAINT_EQUAL),
+    (b"<", CONSTRAINT_LESS),
+    (b">", CONSTRAINT_GREATER),
+    (b"=", CONSTRAINT_EQUAL),
+];
 
 #[derive(Debug)]
 pub struct PkgInfo {
@@ -87,7 +97,7 @@ impl PkgInfo {
         let bytes = raw.as_bytes();
 
         for index in 0..bytes.len() {
-            let Some((constraint, operator_len)) = Self::parse_constraint(&bytes[index..]) else {
+            let Some((constraint, operator_len)) = parse_constraint_prefix(&bytes[index..], &OPERATORS) else {
                 continue;
             };
 
@@ -102,17 +112,6 @@ impl PkgInfo {
             name: raw.to_owned(),
             constraint: CONSTRAINT_ANY,
             version: Version::default(),
-        }
-    }
-
-    fn parse_constraint(token: &[u8]) -> Option<(u8, usize)> {
-        match token {
-            [b'<', b'=', ..] => Some((CONSTRAINT_LESS | CONSTRAINT_EQUAL, 2)),
-            [b'>', b'=', ..] => Some((CONSTRAINT_GREATER | CONSTRAINT_EQUAL, 2)),
-            [b'<', ..] => Some((CONSTRAINT_LESS, 1)),
-            [b'>', ..] => Some((CONSTRAINT_GREATER, 1)),
-            [b'=', ..] => Some((CONSTRAINT_EQUAL, 1)),
-            _ => None,
         }
     }
 }
