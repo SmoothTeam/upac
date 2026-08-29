@@ -15,3 +15,25 @@ install_entry = ".INSTALL"
 buildinfo_entry = ".BUILDINFO"
 mtree_entry = ".MTREE"
 changelog_entry = ".CHANGELOG"
+
+# .PKGINFO's own "key = value" field names, per pacman's package format.
+pkginfo_name_key = "pkgname"
+pkginfo_version_key = "pkgver"
+pkginfo_release_key = "pkgrel"
+pkginfo_epoch_key = "epoch"
+pkginfo_description_key = "pkgdesc"
+pkginfo_url_key = "url"
+pkginfo_maintainer_key = "packager"
+pkginfo_size_key = "size"
+pkginfo_arch_key = "arch"
+pkginfo_license_key = "license"
+pkginfo_depend_key = "depend"
+
+# Fixed .INSTALL lifecycle scriptlet function names, per pacman's package format — matched
+# against declared hook triggers (doc §5.8), never executed.
+pre_install_fn = "pre_install"
+post_install_fn = "post_install"
+pre_upgrade_fn = "pre_upgrade"
+post_upgrade_fn = "post_upgrade"
+pre_remove_fn = "pre_remove"
+post_remove_fn = "post_remove"
