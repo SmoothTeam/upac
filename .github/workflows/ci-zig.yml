@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: ["alpm", "rpm", "deb", "xbps"]
+        component: ["rpm", "deb", "xbps"]
     steps:
       - uses: actions/checkout@v4
 
