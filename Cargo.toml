@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["user/upac-cli", "user/sign-cli", "user/setup-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types", "lib/setup", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind", "decoders/alpm", "decoders/deb"]
+members = ["user/upac-cli", "user/sign-cli", "user/setup-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types", "lib/setup", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind", "decoders/alpm", "decoders/deb", "decoders/rpm"]
 
 [workspace.package]
 version = "0.2.0"
@@ -40,6 +40,7 @@ upac-grub         = { path = "booters/grub", default-features = false }
 upac-refind       = { path = "booters/refind", default-features = false }
 upac-decoders-alpm = { path = "decoders/alpm", package = "alpm", default-features = false }
 upac-decoders-deb  = { path = "decoders/deb", package = "deb", default-features = false }
+upac-decoders-rpm  = { path = "decoders/rpm", package = "rpm", default-features = false }
 
 composefs-oci = { version = "0.9.0", features = ["composefs-boot", "boot", "tar"] }
 nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
