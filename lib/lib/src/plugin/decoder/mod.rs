@@ -37,6 +37,9 @@ use upac_decoders_alpm::{decode as alpm_decode, manifest as alpm_manifest};
 #[cfg(feature = "builtin-deb")]
 use upac_decoders_deb::{decode as deb_decode, manifest as deb_manifest};
 
+#[cfg(feature = "builtin-rpm")]
+use upac_decoders_rpm::{decode as rpm_decode, manifest as rpm_manifest};
+
 pub mod error;
 pub mod manifest;
 pub mod triggers;
@@ -175,6 +178,13 @@ pub(crate) fn static_decoders() -> Vec<(&'static str, &'static [&'static str], D
         deb_manifest::FORMAT,
         deb_manifest::EXTENSIONS,
         Decoder::from_static(deb_decode),
+    ));
+
+    #[cfg(feature = "builtin-rpm")]
+    decoders.push((
+        rpm_manifest::FORMAT,
+        rpm_manifest::EXTENSIONS,
+        Decoder::from_static(rpm_decode),
     ));
 
     decoders
