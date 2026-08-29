@@ -34,6 +34,9 @@ use crate::plugin::decoder::error::DecoderError;
 #[cfg(feature = "builtin-alpm")]
 use upac_decoders_alpm::{decode as alpm_decode, manifest as alpm_manifest};
 
+#[cfg(feature = "builtin-deb")]
+use upac_decoders_deb::{decode as deb_decode, manifest as deb_manifest};
+
 pub mod error;
 pub mod manifest;
 pub mod triggers;
@@ -165,6 +168,13 @@ pub(crate) fn static_decoders() -> Vec<(&'static str, &'static [&'static str], D
         alpm_manifest::FORMAT,
         alpm_manifest::EXTENSIONS,
         Decoder::from_static(alpm_decode),
+    ));
+
+    #[cfg(feature = "builtin-deb")]
+    decoders.push((
+        deb_manifest::FORMAT,
+        deb_manifest::EXTENSIONS,
+        Decoder::from_static(deb_decode),
     ));
 
     decoders
