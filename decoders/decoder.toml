@@ -100,6 +100,21 @@ require_flags_tag = 1048
 payload_format_tag = 1124
 payload_compressor_tag = 1125
 
-# Reserved for xbps's own archive-layout/field-key constants, once xbps gets its Rust rewrite
-# (still Zig today, see decoders/xbps-zig).
+# Fixed archive-layout identifiers inside an .xbps (tar) archive, per xbps's own package
+# format — never deployment-configurable, never change without a new package format entirely.
 [xbps]
+props_entry = "props.plist"
+files_entry = "files.plist"
+install_entry = "INSTALL"
+remove_entry = "REMOVE"
+
+# props.plist's own <key> names, per xbps's property-list metadata format.
+pkgname_key = "pkgname"
+version_key = "version"
+architecture_key = "architecture"
+short_desc_key = "short_desc"
+maintainer_key = "maintainer"
+license_key = "license"
+homepage_key = "homepage"
+installed_size_key = "installed_size"
+run_depends_key = "run_depends"
