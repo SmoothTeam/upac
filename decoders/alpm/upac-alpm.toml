@@ -3,13 +3,15 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# Declarative decoder manifest (doc §5.8/§6). Not installed by `zig build` —
+# Declarative decoder manifest (doc §5.8/§6). Not installed by `cargo build` —
 # there is no packaging pipeline (PKGBUILD/spec/etc) in this repo yet; this
 # file is the canonical source a future package build copies to
-# /etc/upac.d/decoders/upac-alpm.toml.
+# /etc/upac.d/decoders/upac-alpm.toml. `library` matches this crate's
+# `[lib] name = "upac_alpm_decoder"` (Cargo lib-name-to-filename convention:
+# `lib` prefix + name verbatim, underscores kept as-is).
 format = "alpm"
 extensions = ["pkg.tar", "pkg.tar.gz", "pkg.tar.xz", "pkg.tar.zst"]
-library = "/usr/lib/upac/decoders/libupac-alpm.so"
+library = "/usr/lib/upac/decoders/libupac_alpm_decoder.so"
 
 # No mime type for alpm packages is registered in shared-mime-info (verified
 # against freedesktop.org.xml) — this is the same unofficial vendor-prefixed

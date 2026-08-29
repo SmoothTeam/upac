@@ -103,11 +103,11 @@ The core library exposes a C-compatible ABI through `libupac.so`. All strings cr
 
 ### Decoders (`decoders/`)
 
-Decoders are separate shared libraries, still written in [Zig](https://ziglang.org/), that handle format-specific package unpacking. Each decoder receives a package path, an output directory, and a SHA-256 checksum; it verifies the checksum, extracts the package, parses the metadata, and returns a `PackageMeta` struct.
+Decoders are separate shared libraries that handle format-specific package unpacking. Each decoder receives a package path, an output directory, and a SHA-256 checksum; it verifies the checksum, extracts the package, parses the metadata, and returns a `PackageMeta` struct, its dependencies, and any declarative (package-format-native) trigger names it declares. `alpm` is written in [Rust](https://www.rust-lang.org/); `rpm`/`deb`/`xbps` are still [Zig](https://ziglang.org/) and are planned for the same Rust rewrite.
 
 | Decoder | Formats | Distributions |
 |---|---|---|
-| **`libupac-alpm.so`** | `.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz` | Arch Linux, Manjaro, etc. |
+| **`libupac_alpm_decoder.so`** | `.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz` | Arch Linux, Manjaro, etc. |
 | **`libupac-rpm.so`** | `.rpm` | Fedora, RHEL, openSUSE, etc. |
 | **`libupac-deb.so`** | `.deb` | Debian, Ubuntu, etc. |
 | **`libupac-xbps.so`** | `.xbps` | Void Linux |
@@ -165,8 +165,16 @@ placeholder feature on `upac-lib` only.
 
 ### Build a decoder
 
+`alpm` is a normal Rust workspace member, built along with everything else:
+
 ```sh
-cd decoders/alpm
+cargo build -p alpm
+```
+
+`deb`/`rpm`/`xbps` are still Zig:
+
+```sh
+cd decoders/deb  # or rpm, xbps
 zig build
 ```
 
