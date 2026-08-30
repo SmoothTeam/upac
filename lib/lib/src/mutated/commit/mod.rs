@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::os::raw::c_void;
 
@@ -17,7 +17,7 @@ use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation};
+use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
 use upac_types::states::CommitStateId;
 
@@ -84,11 +84,11 @@ pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {
 fn assemble() -> SequentialOrchestrator<CommitError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Commit),
+            trigger: PipelineTrigger::pre(Operation::Commit),
         }),
         Box::new(TransactionStage),
         Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Commit),
+            trigger: PipelineTrigger::post(Operation::Commit),
         }),
         Box::new(RetentionStage),
     ])

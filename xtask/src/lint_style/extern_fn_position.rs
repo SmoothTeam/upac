@@ -16,7 +16,7 @@ enum Tier {
     Private,
 }
 
-pub(super) fn check(path: &Path, contents: &str) -> Vec<Violation> {
+pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     let tiers: Vec<(usize, Tier)> = contents
         .lines()
         .enumerate()

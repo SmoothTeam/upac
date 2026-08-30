@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 //! `#[derive(CToRust)]` — generates `impl From<&CRust> for Rust`, converting
 //! a C-ABI struct into an owned Rust domain type without validation

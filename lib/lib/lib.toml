@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 JustPav
 # SPDX-FileCopyrightText: 2026 SmoothTeam
 #
-# SPDX-License-Identifier: LGPL-3.0-or-later
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 # Names of the redb tables inside the package database embedded in the image.
 # Changing a name means already-built images stop finding their tables when
@@ -15,9 +15,11 @@
 [database]
 packages_table_name = "packages"
 packages_by_name_table_name = "packages_by_name"
+packages_triggers_table_name = "packages_triggers"
 files_table_name = "files"
 files_by_path_table_name = "files_by_path"
 packages_meta_type_name = "upac::PackageMeta"
+packages_triggers_type_name = "upac::DeclarativeTrigger"
 files_entry_type_name = "upac::FileEntry"
 database_path = "share/upac/packages.redb"
 

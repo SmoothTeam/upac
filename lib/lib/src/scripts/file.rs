@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::HashMap;
 
@@ -12,7 +12,7 @@ use upac_abi::hook::ProgressEventBuilder;
 use crate::errors::CommonError;
 use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard};
 use crate::scripts::error::HookError;
-use crate::scripts::native::{NativeTrigger, Operation, Timing};
+use crate::scripts::pipeline::{Operation, PipelineTrigger, Timing};
 use crate::scripts::primitive::{Primitive, Step};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -42,9 +42,9 @@ impl HookFile {
         Ok(file)
     }
 
-    pub fn native_trigger(&self) -> Option<NativeTrigger> {
+    pub fn pipeline_trigger(&self) -> Option<PipelineTrigger> {
         match (self.operation, self.timing) {
-            (Some(operation), Some(timing)) => Some(NativeTrigger { operation, timing }),
+            (Some(operation), Some(timing)) => Some(PipelineTrigger { operation, timing }),
             _ => None,
         }
     }

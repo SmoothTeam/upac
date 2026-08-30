@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::io::{Error as IoError, ErrorKind};
 use std::path::Path;
@@ -16,21 +16,26 @@ use uuid::Uuid;
 
 use crate::layout::database::{
     FILES_BY_PATH_TABLE_NAME, FILES_TABLE_NAME, PACKAGES_BY_NAME_TABLE_NAME, PACKAGES_TABLE_NAME,
+    PACKAGES_TRIGGERS_TABLE_NAME,
 };
 
 use self::error::DatabaseError;
 use self::files::StoredFileEntry;
 use self::meta::StoredPackageMeta;
+use self::triggers::StoredTriggers;
 
 pub mod attribution;
 pub mod error;
 pub mod files;
 pub mod meta;
 pub mod record;
+pub mod triggers;
 
 pub(crate) const PACKAGES_UUID_TABLE: TableDefinition<Uuid, StoredPackageMeta> =
     TableDefinition::new(PACKAGES_TABLE_NAME);
 pub(crate) const PACKAGES_HASH_TABLE: TableDefinition<u64, Uuid> = TableDefinition::new(PACKAGES_BY_NAME_TABLE_NAME);
+pub(crate) const PACKAGES_TRIGGERS_TABLE: TableDefinition<Uuid, StoredTriggers> =
+    TableDefinition::new(PACKAGES_TRIGGERS_TABLE_NAME);
 
 pub(crate) const FILES_UUID_TABLE: TableDefinition<(Uuid, u64), StoredFileEntry> =
     TableDefinition::new(FILES_TABLE_NAME);

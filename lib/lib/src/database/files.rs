@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use redb::{ReadableDatabase, ReadableTable, TypeName, Value as RedbValue};
 
@@ -10,6 +10,7 @@ use twox_hash::xxhash3_64::Hasher as XxHasher;
 use uuid::Uuid;
 
 use upac_types::FileEntry;
+use upac_types::codec::RedbCodable;
 
 use super::error::DatabaseError;
 use super::{FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadableSource};
@@ -169,7 +170,7 @@ impl RedbValue for StoredFileEntry {
     {
         let mut offset = 0;
 
-        StoredFileEntry(FileEntry::decode_from(data, &mut offset))
+        StoredFileEntry(FileEntry::redb_decode(data, &mut offset))
     }
 
     fn as_bytes<'a, 'b: 'a>(value: &'a StoredFileEntry) -> Vec<u8>
@@ -178,7 +179,7 @@ impl RedbValue for StoredFileEntry {
     {
         let mut buf = Vec::new();
 
-        FileEntry::encode_into(&mut buf, &value.0);
+        value.0.redb_encode(&mut buf);
         buf
     }
 

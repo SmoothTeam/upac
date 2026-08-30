@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::{read_link, write};
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use tempfile::{Builder, TempDir};
 use upac::scripts::error::HookError;
 use upac::scripts::file::HookFile;
 use upac::scripts::load::load_hooks;
-use upac::scripts::native::{NativeTrigger, Operation, Timing};
+use upac::scripts::pipeline::{Operation, PipelineTrigger, Timing};
 use upac::scripts::primitive::Step;
 use upac_pki::generate::{Identity, SigningIdentity, generate_root, generate_signing_cert};
 use upac_pki::signature::HookSignature;
@@ -37,17 +37,20 @@ fn write_signed_hook(dir: &Path, name: &str, hook_toml: &str, signing: &SigningI
 }
 
 #[test]
-fn hook_file_parse_succeeds_for_native_trigger() {
+fn hook_file_parse_succeeds_for_pipeline_trigger() {
     let hook_file = HookFile::parse("operation = \"install\"\ntiming = \"pre\"\n").unwrap();
 
-    assert_eq!(hook_file.native_trigger(), Some(NativeTrigger::pre(Operation::Install)));
+    assert_eq!(
+        hook_file.pipeline_trigger(),
+        Some(PipelineTrigger::pre(Operation::Install))
+    );
 }
 
 #[test]
 fn hook_file_parse_succeeds_for_trigger_map() {
     let hook_file = HookFile::parse("[triggers]\ndeb = [\"postinst\"]\n").unwrap();
 
-    assert_eq!(hook_file.native_trigger(), None);
+    assert_eq!(hook_file.pipeline_trigger(), None);
     assert_eq!(hook_file.triggers.get("deb").unwrap(), &vec!["postinst".to_owned()]);
 }
 
@@ -80,17 +83,17 @@ fn hook_file_parse_fails_on_malformed_toml() {
 }
 
 #[test]
-fn native_trigger_pre_and_post_set_correct_timing() {
+fn pipeline_trigger_pre_and_post_set_correct_timing() {
     assert_eq!(
-        NativeTrigger::pre(Operation::Update),
-        NativeTrigger {
+        PipelineTrigger::pre(Operation::Update),
+        PipelineTrigger {
             operation: Operation::Update,
             timing: Timing::Pre,
         }
     );
     assert_eq!(
-        NativeTrigger::post(Operation::Update),
-        NativeTrigger {
+        PipelineTrigger::post(Operation::Update),
+        PipelineTrigger {
             operation: Operation::Update,
             timing: Timing::Post,
         }
@@ -233,7 +236,10 @@ fn load_hooks_returns_matching_hook_for_signed_valid_file() {
     .unwrap();
 
     assert_eq!(hooks.len(), 1);
-    assert_eq!(hooks[0].native_trigger(), Some(NativeTrigger::pre(Operation::Install)));
+    assert_eq!(
+        hooks[0].pipeline_trigger(),
+        Some(PipelineTrigger::pre(Operation::Install))
+    );
 }
 
 #[test]

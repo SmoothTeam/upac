@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::cmp::Ordering;
 
@@ -20,7 +20,10 @@ use upac_abi::{DiffFileSource, FileDiffKind, FsKind, PackageDiffKind};
 
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
+use crate::codec::RedbCodable;
+
 pub mod codec;
+pub mod decoder;
 pub mod settings;
 pub mod states;
 
@@ -157,6 +160,33 @@ pub struct PackageTemp {
     pub temp_package_path: String,
 }
 
+#[derive(Debug, Clone, RedbCodec)]
+pub struct DeclarativeTrigger {
+    pub format: String,
+    pub triggers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecoderTrigger {
+    PreInstall,
+    PostInstall,
+    PreUpgrade,
+    PostUpgrade,
+    PreRemove,
+    PostRemove,
+}
+
+impl DecoderTrigger {
+    pub const ALL: [DecoderTrigger; 6] = [
+        DecoderTrigger::PreInstall,
+        DecoderTrigger::PostInstall,
+        DecoderTrigger::PreUpgrade,
+        DecoderTrigger::PostUpgrade,
+        DecoderTrigger::PreRemove,
+        DecoderTrigger::PostRemove,
+    ];
+}
+
 #[derive(Debug, Clone, Default, Deserialize, CTryToRust, RedbCodec, RustToC)]
 #[serde(default)]
 pub struct PackageMeta {
@@ -172,7 +202,7 @@ pub struct PackageMeta {
     pub installed_size: u64,
 }
 
-#[derive(Debug, Clone, CTryToRust)]
+#[derive(Debug, Clone, CTryToRust, RustToC)]
 pub struct Dependency {
     pub name: String,
     pub constraint: u8,
@@ -195,12 +225,12 @@ pub enum FileEntryScope {
     Config = 1,
 }
 
-impl FileEntryScope {
-    pub fn encode_into(buf: &mut Vec<u8>, value: &FileEntryScope) {
-        buf.push(*value as u8);
+impl RedbCodable for FileEntryScope {
+    fn redb_encode(&self, buf: &mut Vec<u8>) {
+        buf.push(*self as u8);
     }
 
-    pub fn decode_from(data: &[u8], offset: &mut usize) -> FileEntryScope {
+    fn redb_decode(data: &[u8], offset: &mut usize) -> FileEntryScope {
         let value = data[*offset];
         *offset += 1;
 

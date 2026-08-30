@@ -14,7 +14,7 @@ struct MacroBlock<'a> {
     end_line: usize,
 }
 
-pub(super) fn check(path: &Path, contents: &str) -> Vec<Violation> {
+pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     let lines: Vec<&str> = contents.lines().collect();
     let macros = find_macro_blocks(&lines);
 

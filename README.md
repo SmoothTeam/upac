@@ -103,14 +103,14 @@ The core library exposes a C-compatible ABI through `libupac.so`. All strings cr
 
 ### Decoders (`decoders/`)
 
-Decoders are separate shared libraries, still written in [Zig](https://ziglang.org/), that handle format-specific package unpacking. Each decoder receives a package path, an output directory, and a SHA-256 checksum; it verifies the checksum, extracts the package, parses the metadata, and returns a `PackageMeta` struct.
+Decoders are separate shared libraries that handle format-specific package unpacking. Each decoder receives a package path, an output directory, and a SHA-256 checksum; it verifies the checksum, extracts the package, parses the metadata, and returns a `PackageMeta` struct, its dependencies, and any declarative (package-format-native) trigger names it declares. All four decoders (`alpm`, `deb`, `rpm`, `xbps`) are written in [Rust](https://www.rust-lang.org/) and can also be statically linked into `upac-lib` via the `builtin-alpm`/`builtin-deb`/`builtin-rpm`/`builtin-xbps` Cargo features.
 
 | Decoder | Formats | Distributions |
 |---|---|---|
-| **`libupac-alpm.so`** | `.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz` | Arch Linux, Manjaro, etc. |
-| **`libupac-rpm.so`** | `.rpm` | Fedora, RHEL, openSUSE, etc. |
-| **`libupac-deb.so`** | `.deb` | Debian, Ubuntu, etc. |
-| **`libupac-xbps.so`** | `.xbps` | Void Linux |
+| **`libupac_decoder_alpm.so`** | `.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz` | Arch Linux, Manjaro, etc. |
+| **`libupac_decoder_deb.so`** | `.deb` | Debian, Ubuntu, etc. |
+| **`libupac_decoder_rpm.so`** | `.rpm` | Fedora, RHEL, openSUSE, etc. |
+| **`libupac_decoder_xbps.so`** | `.xbps` | Void Linux |
 
 Adding support for a new package format means writing a new decoder `.so` — the core library does not need to change.
 
@@ -123,7 +123,6 @@ A command-line frontend written in Rust that dynamically loads `libupac.so` and 
 ### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (stable — pinned via `rust-toolchain.toml`)
-- [Zig](https://ziglang.org/download/) ≥ 0.16.0 — for the decoders under `decoders/`
 - `libblkid`, `libmount` (`util-linux`) — used by `upac-lib` for filesystem/mount handling
 
 ### Build the Rust workspace
@@ -135,11 +134,14 @@ cargo build --workspace
 ### Static linking
 
 By default `up` dlopens `libupac.so` at startup, and `upac-lib` in turn dlopens boot-plugin
-`.so`s (`booters/{uki,systemd-boot,grub,refind}`) described by on-disk manifests — this is the
-`dynamic-plugins` feature, on by default on both `upac-cli` and `upac-lib`.
+`.so`s (`booters/{uki,systemd-boot,grub,refind}`) and decoder `.so`s (`decoders/{alpm,deb,rpm,xbps}`)
+described by on-disk manifests — this is the `dynamic-plugins` feature, on by default on both
+`upac-cli` and `upac-lib`.
 
 Each crate also has a `static-link`/`builtin-*` axis for producing self-contained binaries with
-no dlopen at all:
+no dlopen at all — `builtin-uki`/`builtin-systemd-boot`/`builtin-grub`/`builtin-refind` (bundled
+as `builtin-all`) for boot plugins, `builtin-alpm`/`builtin-deb`/`builtin-rpm`/`builtin-xbps` for
+decoders (no bundle yet):
 
 ```sh
 # libupac.so with uki+systemd-boot+grub compiled in, `up` still dlopens it
@@ -160,17 +162,15 @@ cargo hack build -p upac-cli -p upac-lib --feature-powerset \
     --at-least-one-of dynamic-plugins,static-link
 ```
 
-Decoder static linking (the Zig side) isn't implemented yet — `builtin-decoders` exists as a
-placeholder feature on `upac-lib` only.
-
 ### Build a decoder
 
+`alpm`/`deb`/`rpm`/`xbps` are normal Rust workspace members, built along with everything else:
+
 ```sh
-cd decoders/alpm
-zig build
+cargo build -p alpm -p deb -p rpm -p xbps
 ```
 
-> **Note:** packaging (Arch/RPM/deb) and the old `make`-based build pipeline from the Zig implementation have not been ported to this branch yet.
+> **Note:** packaging (Arch/RPM/deb) has not been ported to this branch yet.
 
 ### Docs tooling (`xtask`)
 

@@ -10,7 +10,7 @@ use crate::lint_style::violation::Violation;
 
 const RULE: &str = "no-pub-use-reexport";
 
-pub(super) fn check(path: &Path, contents: &str) -> Vec<Violation> {
+pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     let public_modules = public_module_names(contents);
 
     let mut violations = Vec::new();

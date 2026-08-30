@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 //! `#[derive(RustToC)]` — generates `impl From<Rust> for CRust`, converting
 //! an owned Rust domain type into its C-ABI mirror (outbound direction).

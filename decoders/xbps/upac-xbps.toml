@@ -1,15 +1,14 @@
 # SPDX-FileCopyrightText: 2026 JustPav
 # SPDX-FileCopyrightText: 2026 SmoothTeam
 #
-# SPDX-License-Identifier: LGPL-3.0-or-later
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# Declarative decoder manifest (doc §5.8/§6). Not installed by `zig build` —
-# there is no packaging pipeline (PKGBUILD/spec/etc) in this repo yet; this
-# file is the canonical source a future package build copies to
-# /etc/upac.d/decoders/upac-xbps.toml.
+# Declarative decoder manifest (doc §5.8/§6). Not installed by any packaging
+# pipeline yet — this file is the canonical source a future package build
+# copies to /etc/upac.d/decoders/upac-xbps.toml.
 format = "xbps"
 extensions = ["xbps"]
-library = "/usr/lib/upac/decoders/libupac-xbps.so"
+library = "/usr/lib/upac/decoders/libupac_decoder_xbps.so"
 
 # No mime type for xbps packages is registered in shared-mime-info (verified
 # against freedesktop.org.xml) — this is the same unofficial vendor-prefixed

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::os::raw::c_void;
 
@@ -17,7 +17,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation};
+use crate::scripts::pipeline::{Operation, PipelineTrigger};
 
 use upac_types::states::UninstallStateId;
 use upac_types::{PackageEntry, Targets, TmpPath};
@@ -154,7 +154,7 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
 fn assemble() -> SequentialOrchestrator<UninstallError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Uninstall),
+            trigger: PipelineTrigger::pre(Operation::Uninstall),
         }),
         Box::new(PreparationStage),
         Box::new(TransactionStage),
@@ -162,7 +162,10 @@ fn assemble() -> SequentialOrchestrator<UninstallError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Uninstall),
+            trigger: PipelineTrigger::declarative(Operation::Uninstall),
+        }),
+        Box::new(HookStage {
+            trigger: PipelineTrigger::post(Operation::Uninstall),
         }),
         Box::new(RetentionStage),
     ])

@@ -15,7 +15,7 @@ struct Field {
     is_workspace: bool,
 }
 
-pub(super) fn check(path: &Path, contents: &str) -> Vec<Violation> {
+pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     let Some(fields) = package_fields(contents) else {
         return Vec::new();
     };

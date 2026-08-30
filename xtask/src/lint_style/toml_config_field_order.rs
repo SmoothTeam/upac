@@ -16,7 +16,7 @@ enum Kind {
     Number,
 }
 
-pub(super) fn check(path: &Path, contents: &str) -> Vec<Violation> {
+pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     let lines: Vec<&str> = contents.lines().collect();
 
     let mut violations = Vec::new();

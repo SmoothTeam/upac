@@ -56,7 +56,7 @@ Every new source file needs an SPDX header matching its directory's license, e.g
 ```rust
 // SPDX-FileCopyrightText: 2026 <your name>
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 ```
 
 For files where a comment header doesn't make sense (e.g. Markdown, TOML), add an annotation to

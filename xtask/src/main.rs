@@ -7,11 +7,8 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
-use self::error::XtaskError;
-
-mod error;
-mod gen_tree;
-mod lint_style;
+use upac_xtask::error::XtaskError;
+use upac_xtask::{gen_tree, lint_style};
 
 #[derive(Parser)]
 #[command(name = "xtask")]

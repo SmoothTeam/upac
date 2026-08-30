@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 JustPav
 // SPDX-FileCopyrightText: 2026 SmoothTeam
 //
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::os::raw::c_void;
 
@@ -26,7 +26,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
-use crate::scripts::native::{NativeTrigger, Operation};
+use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
 use upac_types::states::InstallStateId;
 
@@ -122,7 +122,7 @@ pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
 fn assemble() -> SequentialOrchestrator<InstallError> {
     SequentialOrchestrator::new(vec![
         Box::new(HookStage {
-            trigger: NativeTrigger::pre(Operation::Install),
+            trigger: PipelineTrigger::pre(Operation::Install),
         }),
         Box::new(FetchingStage),
         Box::new(PreparationStage),
@@ -131,7 +131,10 @@ fn assemble() -> SequentialOrchestrator<InstallError> {
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {
-            trigger: NativeTrigger::post(Operation::Install),
+            trigger: PipelineTrigger::declarative(Operation::Install),
+        }),
+        Box::new(HookStage {
+            trigger: PipelineTrigger::post(Operation::Install),
         }),
         Box::new(RetentionStage),
     ])

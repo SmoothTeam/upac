@@ -1,0 +1,120 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+# Shared source of truth for external package-format constants used by decoder plugins. Each
+# decoder's own build.rs reads this same file and generates its own private layout module;
+# nothing here is a Cargo dependency between decoders, just a shared data file.
+
+# Fixed metadata entry names inside an ALPM (.pkg.tar.*) archive, per pacman's own package
+# format — never deployment-configurable, never change without a new package format entirely.
+[alpm]
+pkginfo_entry = ".PKGINFO"
+install_entry = ".INSTALL"
+buildinfo_entry = ".BUILDINFO"
+mtree_entry = ".MTREE"
+changelog_entry = ".CHANGELOG"
+
+# .PKGINFO's own "key = value" field names, per pacman's package format.
+pkginfo_name_key = "pkgname"
+pkginfo_version_key = "pkgver"
+pkginfo_release_key = "pkgrel"
+pkginfo_epoch_key = "epoch"
+pkginfo_description_key = "pkgdesc"
+pkginfo_url_key = "url"
+pkginfo_maintainer_key = "packager"
+pkginfo_size_key = "size"
+pkginfo_arch_key = "arch"
+pkginfo_license_key = "license"
+pkginfo_depend_key = "depend"
+
+# Fixed .INSTALL lifecycle scriptlet function names, per pacman's package format — matched
+# against declared hook triggers (doc §5.8), never executed.
+pre_install_fn = "pre_install"
+post_install_fn = "post_install"
+pre_upgrade_fn = "pre_upgrade"
+post_upgrade_fn = "post_upgrade"
+pre_remove_fn = "pre_remove"
+post_remove_fn = "post_remove"
+
+# Fixed archive-layout identifiers inside a .deb (Unix `ar`) archive, per dpkg's own package
+# format — never deployment-configurable, never change without a new package format entirely.
+[deb]
+control_tar_prefix = "control.tar"
+data_tar_prefix = "data.tar"
+control_entry = "control"
+copyright_dir_prefix = "usr/share/doc/"
+copyright_entry_suffix = "/copyright"
+
+# `control`'s own "Key: value" field names, per dpkg's control file format.
+control_name_key = "Package"
+control_version_key = "Version"
+control_installed_size_key = "Installed-Size"
+control_arch_key = "Architecture"
+control_description_key = "Description"
+control_url_key = "Homepage"
+control_maintainer_key = "Maintainer"
+control_depends_key = "Depends"
+
+# Fixed maintainer-script filenames, per dpkg's package format — dpkg has no separate
+# install-vs-upgrade script, so each one maps to two declarative trigger positions (doc §5.8).
+preinst_file = "preinst"
+postinst_file = "postinst"
+prerm_file = "prerm"
+postrm_file = "postrm"
+
+# Fixed offsets inside an RPM package's binary layout, per rpm's own file format (lead +
+# signature header + main header + cpio payload) — never deployment-configurable, never
+# change without a new package format entirely.
+[rpm]
+# Native scriptlet identifiers, matched against declared hook triggers (doc §5.8), never
+# executed — RPM has no separate script files (unlike dpkg), so these just label the 4
+# scriptlet tag positions below, named after their spec-file macro (%pre/%post/%preun/%postun).
+prein_name = "pre"
+postin_name = "post"
+preun_name = "preun"
+postun_name = "postun"
+
+lead_size = 96
+
+# Fixed RPM header tag IDs, per rpm's own stable tag namespace (lib/rpmtag.h) — never change
+# without a new package format entirely.
+name_tag = 1000
+version_tag = 1001
+release_tag = 1002
+summary_tag = 1004
+size_tag = 1009
+license_tag = 1014
+packager_tag = 1015
+url_tag = 1020
+arch_tag = 1022
+prein_tag = 1023
+postin_tag = 1024
+preun_tag = 1025
+postun_tag = 1026
+provide_name_tag = 1047
+require_name_tag = 1049
+require_version_tag = 1050
+require_flags_tag = 1048
+payload_format_tag = 1124
+payload_compressor_tag = 1125
+
+# Fixed archive-layout identifiers inside an .xbps (tar) archive, per xbps's own package
+# format — never deployment-configurable, never change without a new package format entirely.
+[xbps]
+props_entry = "props.plist"
+files_entry = "files.plist"
+install_entry = "INSTALL"
+remove_entry = "REMOVE"
+
+# props.plist's own <key> names, per xbps's property-list metadata format.
+pkgname_key = "pkgname"
+version_key = "version"
+architecture_key = "architecture"
+short_desc_key = "short_desc"
+maintainer_key = "maintainer"
+license_key = "license"
+homepage_key = "homepage"
+installed_size_key = "installed_size"
+run_depends_key = "run_depends"
