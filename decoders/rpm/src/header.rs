@@ -5,7 +5,8 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
-use crate::error::DecodeError;
+use upac_abi::decoder::DecodeError;
+
 use crate::rpm::LEAD_SIZE;
 
 const LEAD_MAGIC: [u8; 4] = [0xED, 0xAB, 0xEE, 0xDB];
@@ -116,10 +117,12 @@ fn read_main_header<R: Read>(reader: &mut R) -> Result<Header, DecodeError> {
     let mut index_bytes = vec![0u8; header.tag_count as usize * 16];
     reader
         .read_exact(&mut index_bytes)
-        .map_err(|_| DecodeError::MalformedHeader)?;
+        .map_err(|_| DecodeError::MalformedMetadata)?;
 
     let mut data = vec![0u8; header.data_size as usize];
-    reader.read_exact(&mut data).map_err(|_| DecodeError::MalformedHeader)?;
+    reader
+        .read_exact(&mut data)
+        .map_err(|_| DecodeError::MalformedMetadata)?;
 
     let entries = index_bytes
         .as_chunks::<16>()
@@ -139,10 +142,10 @@ fn read_section_header<R: Read>(reader: &mut R) -> Result<SectionHeader, DecodeE
     let mut buffer = [0u8; 16];
     reader
         .read_exact(&mut buffer)
-        .map_err(|_| DecodeError::MalformedHeader)?;
+        .map_err(|_| DecodeError::MalformedMetadata)?;
 
     if buffer[0..3] != SECTION_MAGIC {
-        return Err(DecodeError::MalformedHeader);
+        return Err(DecodeError::MalformedMetadata);
     }
 
     Ok(SectionHeader {
@@ -152,17 +155,17 @@ fn read_section_header<R: Read>(reader: &mut R) -> Result<SectionHeader, DecodeE
 }
 
 fn read_string_at(data: &[u8], offset: usize) -> Result<String, DecodeError> {
-    let slice = data.get(offset..).ok_or(DecodeError::MalformedHeader)?;
+    let slice = data.get(offset..).ok_or(DecodeError::MalformedMetadata)?;
     let end = slice
         .iter()
         .position(|&byte| byte == 0)
-        .ok_or(DecodeError::MalformedHeader)?;
+        .ok_or(DecodeError::MalformedMetadata)?;
 
     String::from_utf8(slice[..end].to_vec()).map_err(|_| DecodeError::InvalidUtf8)
 }
 
 fn read_i32_at(data: &[u8], offset: usize) -> Result<i32, DecodeError> {
-    let bytes = data.get(offset..offset + 4).ok_or(DecodeError::MalformedHeader)?;
+    let bytes = data.get(offset..offset + 4).ok_or(DecodeError::MalformedMetadata)?;
 
     Ok(i32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
 }

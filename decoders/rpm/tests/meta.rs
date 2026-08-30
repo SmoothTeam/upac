@@ -5,14 +5,14 @@
 
 use std::io::Cursor;
 
+use upac_abi::decoder::DecodeError;
 use upac_abi::decoder::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-use upac_decoder_rpm::error::DecodeError;
 use upac_decoder_rpm::header::{self, Header};
-use upac_decoder_rpm::meta;
 use upac_decoder_rpm::rpm::{
     ARCH_TAG, LICENSE_TAG, NAME_TAG, PACKAGER_TAG, RELEASE_TAG, REQUIRE_FLAGS_TAG, REQUIRE_NAME_TAG,
     REQUIRE_VERSION_TAG, SIZE_TAG, SUMMARY_TAG, URL_TAG, VERSION_TAG,
 };
+use upac_types::decoder::DecodeMeta;
 
 const CHECKSUM: [u8; 32] = [7; 32];
 
@@ -90,19 +90,19 @@ fn parses_minimal_meta_with_defaults() {
         (ARCH_TAG, RawValue::Str("x86_64")),
     ]);
 
-    let built = meta::build(&header, CHECKSUM).unwrap();
+    let decoded = header.decode(CHECKSUM).unwrap();
 
-    assert_eq!(built.meta.name, "foo");
-    assert_eq!(built.meta.version.raw, "1.2.3");
-    assert_eq!(built.meta.version.epoch, 0);
-    assert_eq!(built.meta.arch, "x86_64");
-    assert_eq!(built.meta.maintainer, "");
-    assert_eq!(built.meta.description, "");
-    assert_eq!(built.meta.license, None);
-    assert_eq!(built.meta.url, None);
-    assert_eq!(built.meta.installed_size, 0);
-    assert_eq!(built.meta.sha256, CHECKSUM);
-    assert!(built.dependencies.is_empty());
+    assert_eq!(decoded.meta.name, "foo");
+    assert_eq!(decoded.meta.version.raw, "1.2.3");
+    assert_eq!(decoded.meta.version.epoch, 0);
+    assert_eq!(decoded.meta.arch, "x86_64");
+    assert_eq!(decoded.meta.maintainer, "");
+    assert_eq!(decoded.meta.description, "");
+    assert_eq!(decoded.meta.license, None);
+    assert_eq!(decoded.meta.url, None);
+    assert_eq!(decoded.meta.installed_size, 0);
+    assert_eq!(decoded.meta.sha256, CHECKSUM);
+    assert!(decoded.dependencies.is_empty());
 }
 
 #[test]
@@ -114,9 +114,9 @@ fn release_is_joined_into_raw_version() {
         (ARCH_TAG, RawValue::Str("x86_64")),
     ]);
 
-    let built = meta::build(&header, CHECKSUM).unwrap();
+    let decoded = header.decode(CHECKSUM).unwrap();
 
-    assert_eq!(built.meta.version.raw, "1.2.3-2.fc40");
+    assert_eq!(decoded.meta.version.raw, "1.2.3-2.fc40");
 }
 
 #[test]
@@ -127,10 +127,10 @@ fn epoch_prefix_is_parsed_out_of_the_version() {
         (ARCH_TAG, RawValue::Str("x86_64")),
     ]);
 
-    let built = meta::build(&header, CHECKSUM).unwrap();
+    let decoded = header.decode(CHECKSUM).unwrap();
 
-    assert_eq!(built.meta.version.epoch, 2);
-    assert_eq!(built.meta.version.raw, "1.2.3");
+    assert_eq!(decoded.meta.version.epoch, 2);
+    assert_eq!(decoded.meta.version.raw, "1.2.3");
 }
 
 #[test]
@@ -147,13 +147,13 @@ fn parses_all_optional_fields() {
         (SIZE_TAG, RawValue::I32(4096)),
     ]);
 
-    let built = meta::build(&header, CHECKSUM).unwrap();
+    let decoded = header.decode(CHECKSUM).unwrap();
 
-    assert_eq!(built.meta.description, "A test package");
-    assert_eq!(built.meta.license, Some("MIT".to_owned()));
-    assert_eq!(built.meta.maintainer, "Jane <jane@example.com>");
-    assert_eq!(built.meta.url, Some("https://example.com".to_owned()));
-    assert_eq!(built.meta.installed_size, 4096);
+    assert_eq!(decoded.meta.description, "A test package");
+    assert_eq!(decoded.meta.license, Some("MIT".to_owned()));
+    assert_eq!(decoded.meta.maintainer, "Jane <jane@example.com>");
+    assert_eq!(decoded.meta.url, Some("https://example.com".to_owned()));
+    assert_eq!(decoded.meta.installed_size, 4096);
 }
 
 #[test]
@@ -163,27 +163,27 @@ fn missing_name_is_malformed() {
         (ARCH_TAG, RawValue::Str("x86_64")),
     ]);
 
-    let result = meta::build(&header, CHECKSUM);
+    let result = header.decode(CHECKSUM);
 
-    assert_eq!(result.unwrap_err(), DecodeError::MalformedHeader);
+    assert_eq!(result.unwrap_err(), DecodeError::MalformedMetadata);
 }
 
 #[test]
 fn missing_version_is_malformed() {
     let header = build_header(&[(NAME_TAG, RawValue::Str("foo")), (ARCH_TAG, RawValue::Str("x86_64"))]);
 
-    let result = meta::build(&header, CHECKSUM);
+    let result = header.decode(CHECKSUM);
 
-    assert_eq!(result.unwrap_err(), DecodeError::MalformedHeader);
+    assert_eq!(result.unwrap_err(), DecodeError::MalformedMetadata);
 }
 
 #[test]
 fn missing_arch_is_malformed() {
     let header = build_header(&[(NAME_TAG, RawValue::Str("foo")), (VERSION_TAG, RawValue::Str("1.2.3"))]);
 
-    let result = meta::build(&header, CHECKSUM);
+    let result = header.decode(CHECKSUM);
 
-    assert_eq!(result.unwrap_err(), DecodeError::MalformedHeader);
+    assert_eq!(result.unwrap_err(), DecodeError::MalformedMetadata);
 }
 
 #[test]
@@ -203,16 +203,16 @@ fn parses_dependencies_with_all_constraint_operators() {
         (REQUIRE_FLAGS_TAG, RawValue::I32Array(&[0x02, 0x0A, 0x04, 0x00, 0x08])),
     ]);
 
-    let built = meta::build(&header, CHECKSUM).unwrap();
+    let decoded = header.decode(CHECKSUM).unwrap();
 
-    assert_eq!(built.dependencies.len(), 5);
-    assert_eq!(built.dependencies[0].constraint, CONSTRAINT_LESS);
-    assert_eq!(built.dependencies[1].constraint, CONSTRAINT_LESS | CONSTRAINT_EQUAL);
-    assert_eq!(built.dependencies[2].constraint, CONSTRAINT_GREATER);
-    assert_eq!(built.dependencies[3].constraint, CONSTRAINT_ANY);
-    assert_eq!(built.dependencies[4].constraint, CONSTRAINT_EQUAL);
-    assert_eq!(built.dependencies[0].version.raw, "2.34");
-    assert_eq!(built.dependencies[3].name, "coreutils");
+    assert_eq!(decoded.dependencies.len(), 5);
+    assert_eq!(decoded.dependencies[0].constraint, CONSTRAINT_LESS);
+    assert_eq!(decoded.dependencies[1].constraint, CONSTRAINT_LESS | CONSTRAINT_EQUAL);
+    assert_eq!(decoded.dependencies[2].constraint, CONSTRAINT_GREATER);
+    assert_eq!(decoded.dependencies[3].constraint, CONSTRAINT_ANY);
+    assert_eq!(decoded.dependencies[4].constraint, CONSTRAINT_EQUAL);
+    assert_eq!(decoded.dependencies[0].version.raw, "2.34");
+    assert_eq!(decoded.dependencies[3].name, "coreutils");
 }
 
 #[test]
@@ -226,8 +226,8 @@ fn filters_out_rpmlib_internal_dependencies() {
         (REQUIRE_FLAGS_TAG, RawValue::I32Array(&[0x0100_0000 | 0x08, 0x00])),
     ]);
 
-    let built = meta::build(&header, CHECKSUM).unwrap();
+    let decoded = header.decode(CHECKSUM).unwrap();
 
-    assert_eq!(built.dependencies.len(), 1);
-    assert_eq!(built.dependencies[0].name, "bash");
+    assert_eq!(decoded.dependencies.len(), 1);
+    assert_eq!(decoded.dependencies[0].name, "bash");
 }

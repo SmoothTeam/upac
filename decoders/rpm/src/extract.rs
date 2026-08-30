@@ -13,9 +13,9 @@ use flate2::read::GzDecoder;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
+use upac_abi::decoder::DecodeError;
 use upac_abi::hook::CancelToken;
 
-use crate::error::DecodeError;
 use crate::header::Header;
 use crate::rpm::{PAYLOAD_COMPRESSOR_TAG, PAYLOAD_FORMAT_TAG};
 
@@ -58,7 +58,7 @@ pub fn extract(file: File, header: &Header, output_dir: &str, cancel: &CancelTok
             .components()
             .any(|component| matches!(component, Component::ParentDir))
         {
-            return Err(DecodeError::MalformedHeader);
+            return Err(DecodeError::MalformedMetadata);
         }
 
         let target_path = Path::new(output_dir).join(relative_path);

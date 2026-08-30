@@ -7,16 +7,13 @@ use std::fs::File;
 use std::str::from_utf8;
 
 use upac_abi::ABI_VERSION;
-use upac_abi::decoder::{CDecodeRequest, CDecodeResponse, CDependency};
+use upac_abi::decoder::{CDecodeRequest, CDecodeResponse, CDependency, DecodeError};
 use upac_abi::memory::{free_cslice, free_cvec_owning};
 use upac_abi::package::CPackageMeta;
 use upac_abi::types::COwned;
 use upac_abi::types::{CSlice, CVec};
+use upac_types::decoder::{DecodeMeta, DecodedMeta};
 
-use crate::error::DecodeError;
-use crate::meta::Meta;
-
-pub mod error;
 pub mod header;
 pub mod meta;
 pub mod triggers;
@@ -88,13 +85,13 @@ fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeErr
     extract::extract(file, &header, output_dir, cancel)?;
 
     let declarative_triggers = triggers::scan(&header);
-    let built = meta::build(&header, request.checksum)?;
+    let decoded = header.decode(request.checksum)?;
 
-    Ok(build_response(built, declarative_triggers))
+    Ok(build_response(decoded, declarative_triggers))
 }
 
-fn build_response(built: Meta, declarative_triggers: Vec<String>) -> CDecodeResponse {
-    let Meta { meta, dependencies } = built;
+fn build_response(decoded: DecodedMeta, declarative_triggers: Vec<String>) -> CDecodeResponse {
+    let DecodedMeta { meta, dependencies } = decoded;
 
     let dependencies = dependencies.into_iter().map(CDependency::from).collect::<Vec<_>>();
 
