@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["user/upac-cli", "user/sign-cli", "user/setup-cli", "lib/macro", "lib/abi", "lib/lib" , "lib/pki", "lib/types", "lib/setup", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind", "decoders/alpm", "decoders/deb", "decoders/rpm", "decoders/xbps"]
+members = ["user/upac-cli", "user/sign-cli", "user/setup-cli", "lib/macro", "lib/abi", "lib/lib", "lib/pki", "lib/types", "lib/setup", "booters/uki", "booters/systemd-boot", "booters/grub", "booters/refind", "decoders/alpm", "decoders/deb", "decoders/rpm", "decoders/xbps"]
 
 [workspace.package]
 version = "0.2.0"
@@ -8,7 +8,6 @@ edition = "2024"
 rust-version = "1.98"
 
 license = "LGPL-3.0-or-later WITH LGPL-3.0-linking-exception"
-license-file = "LICENSES/LGPL-3.0-or-later"
 
 readme = "README.md"
 homepage = "https://github.com/SmoothTeam/upac"
@@ -85,9 +84,11 @@ opt-level = 2
 codegen-units = 1
 opt-level = 3
 
+strip = false
 lto = true
-strip = true
+
 debug-assertions = false
+debug = "line-tables-only"
 
 [profile.release-x86-64-v1]
 inherits = "release"

@@ -91,6 +91,6 @@ builtin-deb  = ["dep:upac-decoders-deb", "builtin-decoders"]
 builtin-rpm  = ["dep:upac-decoders-rpm", "builtin-decoders"]
 builtin-xbps = ["dep:upac-decoders-xbps", "builtin-decoders"]
 
-builtin-all = [
-    "builtin-uki", "builtin-systemd-boot", "builtin-grub", "builtin-refind",
-]
+builtin-all-booters  = ["builtin-uki", "builtin-systemd-boot", "builtin-grub", "builtin-refind"]
+builtin-all-decoders = ["builtin-alpm", "builtin-deb", "builtin-rpm", "builtin-xbps"]
+builtin-all          = ["builtin-all-booters", "builtin-all-decoders"]
