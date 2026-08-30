@@ -2,8 +2,10 @@ name: Rust CI
 on:
   push:
     branches: [main]
+    paths-ignore: ["**.md", "doc/**", "LICENSES/**", "REUSE.toml"]
   pull_request:
     branches: [main]
+    paths-ignore: ["**.md", "doc/**", "LICENSES/**", "REUSE.toml"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}

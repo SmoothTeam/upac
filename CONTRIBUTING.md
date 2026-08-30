@@ -47,14 +47,25 @@ current before opening a PR.
 
 This repo is [REUSE](https://reuse.software/)-compliant and multi-licensed by directory:
 
-- `lib/*` (`upac-abi`, `upac-macro`, `upac-lib`, `upac-pki`) — LGPL-3.0-or-later
-- `user/*` (`upac-cli`, `upac-sign-cli`) — GPL-3.0-only
+- `lib/*` (`upac-abi`, `upac-macro`, `upac-lib`, `upac-pki`, `upac-types`, `upac-setup`) —
+  `LGPL-3.0-or-later WITH LGPL-3.0-linking-exception`
+- `user/*` (`upac-cli`, `upac-sign-cli`, `upac-setup-cli`) — GPL-3.0-only
 - `doc/*` — CC-BY-SA-4.0
+
+The `LGPL-3.0-linking-exception` on every `lib/*` crate is deliberate, not a copy-paste default:
+plain LGPL-3.0 already permits dynamic linking from proprietary code, but *statically* linking
+against an LGPL library (as the `builtin-*` Cargo features throughout this workspace do — see
+`README.md`'s Static linking section) would otherwise pull the whole resulting binary under LGPL's
+own terms. The exception explicitly permits static linking without that consequence, which is the
+whole point of `upac-lib`/`upac-abi`/etc. being embeddable as ordinary `rlib` dependencies. Drop
+the `WITH LGPL-3.0-linking-exception` suffix on a new `lib/*` file and its static-linking story
+quietly regresses — always copy the full SPDX line below, not just `LGPL-3.0-or-later`.
 
 Every new source file needs an SPDX header matching its directory's license, e.g.:
 
 ```rust
 // SPDX-FileCopyrightText: 2026 <your name>
+// SPDX-FileCopyrightText: 2026 SmoothTeam
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 ```

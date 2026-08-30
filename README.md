@@ -6,13 +6,9 @@
 
 **General information:** [![Version](https://img.shields.io/badge/version-0.1.5-green)](https://github.com/SmoothTeam/upac/releases) [![REUSE](https://github.com/SmoothTeam/upac/actions/workflows/reuse.yml/badge.svg?branch=main)](https://github.com/SmoothTeam/upac/actions/workflows/reuse.yml)
 
-**Licensing:** [![lib: LGPL-3.0-or-later](https://img.shields.io/badge/lib-LGPL--3.0--or--later-light_green.svg)](LICENSES/LGPL-3.0-or-later.txt) [![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-light_green.svg)](LICENSES/GPL-3.0-only.txt) [![documentation: CC-BY-SA-4.0](https://img.shields.io/badge/documentation-CC--BY--SA--4.0-light_green.svg)](LICENSES/CC-BY-SA-4.0.txt)
+**Licensing:** [![lib: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception](https://img.shields.io/badge/lib-LGPL--3.0--or--later--with--exception-light_green.svg)](LICENSES/LGPL-3.0-or-later.txt) [![cli: GPL-3.0-only](https://img.shields.io/badge/cli-GPL--3.0--only-light_green.svg)](LICENSES/GPL-3.0-only.txt) [![documentation: CC-BY-SA-4.0](https://img.shields.io/badge/documentation-CC--BY--SA--4.0-light_green.svg)](LICENSES/CC-BY-SA-4.0.txt)
 
-> **⚠️ Active development is on [`lib-rs`](https://github.com/SmoothTeam/upac/tree/lib-rs).**
-> That branch is a from-scratch rewrite of upac's core library in Rust, built around
-> [composefs](https://github.com/containers/composefs) instead of OSTree. `main` is synced
-> from it periodically and lags behind.
-
+The `lib` badge covers `LGPL-3.0-or-later` **plus** the `LGPL-3.0-linking-exception` — every crate under `lib/` permits static linking without pulling the resulting binary under LGPL; see [CONTRIBUTING.md § License and REUSE](CONTRIBUTING.md#license-and-reuse) for what that means in practice.
 
 
 ## 🔍 Overview
@@ -91,9 +87,9 @@ up gc                        # removes unreachable commits/deploys and reclaims 
 
 | Crate | Path | License | Role |
 |---|---|---|---|
-| `upac-abi` | `lib/abi` | LGPL-3.0-or-later | C-ABI types, error codes, and conversions shared between `upac-lib` and its consumers |
-| `upac-macro` | `lib/macro` | LGPL-3.0-or-later | Derive macros for C-ABI struct plumbing, used internally by `upac-lib`/`upac-abi` |
-| `upac-lib` | `lib/lib` | LGPL-3.0-or-later | Core library: composefs-based atomic deploys, `redb` package database, exposed via a C ABI (`libupac.so`) |
+| `upac-abi` | `lib/abi` | LGPL-3.0-or-later + exception | C-ABI types, error codes, and conversions shared between `upac-lib` and its consumers |
+| `upac-macro` | `lib/macro` | LGPL-3.0-or-later + exception | Derive macros for C-ABI struct plumbing, used internally by `upac-lib`/`upac-abi` |
+| `upac-lib` | `lib/lib` | LGPL-3.0-or-later + exception | Core library: composefs-based atomic deploys, `redb` package database, exposed via a C ABI (`libupac.so`) |
 | `upac-cli` | `user/upac-cli` | GPL-3.0-only | CLI frontend (binary `up`) |
 | `upac-sign-cli` | `user/sign-cli` | GPL-3.0-only | CLI for signing upac hook files and other artifacts with Ed25519 certificates (binary `up-si`) |
 
