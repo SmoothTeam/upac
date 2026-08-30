@@ -8,9 +8,8 @@ use std::io::{BufReader, Read};
 
 use sha2::{Digest, Sha256};
 
+use upac_abi::decoder::DecodeError;
 use upac_abi::hook::CancelToken;
-
-use crate::error::DecodeError;
 
 const READ_CHUNK_SIZE: usize = 65536;
 

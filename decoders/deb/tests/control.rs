@@ -3,10 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::decoder::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-
+use upac_abi::decoder::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS, DecodeError};
 use upac_decoder_deb::control::ControlFile;
-use upac_decoder_deb::error::DecodeError;
+use upac_types::decoder::DecodeMeta;
 
 const CHECKSUM: [u8; 32] = [7; 32];
 
@@ -14,28 +13,28 @@ const CHECKSUM: [u8; 32] = [7; 32];
 fn parses_minimal_control_with_defaults() {
     let content = "Package: foo\nVersion: 1.2.3\n";
 
-    let control = ControlFile::parse(content, None, CHECKSUM).unwrap();
+    let decoded = ControlFile { content, license: None }.decode(CHECKSUM).unwrap();
 
-    assert_eq!(control.meta.name, "foo");
-    assert_eq!(control.meta.version.raw, "1.2.3");
-    assert_eq!(control.meta.version.epoch, 0);
-    assert_eq!(control.meta.arch, "all");
-    assert_eq!(control.meta.maintainer, "");
-    assert_eq!(control.meta.description, "");
-    assert_eq!(control.meta.license, None);
-    assert_eq!(control.meta.url, None);
-    assert_eq!(control.meta.sha256, CHECKSUM);
-    assert!(control.dependencies.is_empty());
+    assert_eq!(decoded.meta.name, "foo");
+    assert_eq!(decoded.meta.version.raw, "1.2.3");
+    assert_eq!(decoded.meta.version.epoch, 0);
+    assert_eq!(decoded.meta.arch, "all");
+    assert_eq!(decoded.meta.maintainer, "");
+    assert_eq!(decoded.meta.description, "");
+    assert_eq!(decoded.meta.license, None);
+    assert_eq!(decoded.meta.url, None);
+    assert_eq!(decoded.meta.sha256, CHECKSUM);
+    assert!(decoded.dependencies.is_empty());
 }
 
 #[test]
 fn parses_epoch_out_of_the_version_string() {
     let content = "Package: foo\nVersion: 2:1.2.3-1\n";
 
-    let control = ControlFile::parse(content, None, CHECKSUM).unwrap();
+    let decoded = ControlFile { content, license: None }.decode(CHECKSUM).unwrap();
 
-    assert_eq!(control.meta.version.epoch, 2);
-    assert_eq!(control.meta.version.raw, "1.2.3-1");
+    assert_eq!(decoded.meta.version.epoch, 2);
+    assert_eq!(decoded.meta.version.raw, "1.2.3-1");
 }
 
 #[test]
@@ -43,32 +42,37 @@ fn parses_all_fields_and_ignores_blank_lines() {
     let content = "Package: foo\n\nVersion: 1.2.3\nArchitecture: amd64\nDescription: A test package\nHomepage: \
                    https://example.com\nMaintainer: Jane <jane@example.com>\nInstalled-Size: 4096\n";
 
-    let control = ControlFile::parse(content, Some("MIT".to_owned()), CHECKSUM).unwrap();
+    let decoded = ControlFile {
+        content,
+        license: Some("MIT".to_owned()),
+    }
+    .decode(CHECKSUM)
+    .unwrap();
 
-    assert_eq!(control.meta.arch, "amd64");
-    assert_eq!(control.meta.description, "A test package");
-    assert_eq!(control.meta.url, Some("https://example.com".to_owned()));
-    assert_eq!(control.meta.maintainer, "Jane <jane@example.com>");
-    assert_eq!(control.meta.license, Some("MIT".to_owned()));
-    assert_eq!(control.meta.installed_size, 4096);
+    assert_eq!(decoded.meta.arch, "amd64");
+    assert_eq!(decoded.meta.description, "A test package");
+    assert_eq!(decoded.meta.url, Some("https://example.com".to_owned()));
+    assert_eq!(decoded.meta.maintainer, "Jane <jane@example.com>");
+    assert_eq!(decoded.meta.license, Some("MIT".to_owned()));
+    assert_eq!(decoded.meta.installed_size, 4096);
 }
 
 #[test]
 fn missing_package_is_malformed() {
     let content = "Version: 1.2.3\n";
 
-    let result = ControlFile::parse(content, None, CHECKSUM);
+    let result = ControlFile { content, license: None }.decode(CHECKSUM);
 
-    assert_eq!(result.unwrap_err(), DecodeError::MalformedControl);
+    assert_eq!(result.unwrap_err(), DecodeError::MalformedMetadata);
 }
 
 #[test]
 fn missing_version_is_malformed() {
     let content = "Package: foo\n";
 
-    let result = ControlFile::parse(content, None, CHECKSUM);
+    let result = ControlFile { content, license: None }.decode(CHECKSUM);
 
-    assert_eq!(result.unwrap_err(), DecodeError::MalformedControl);
+    assert_eq!(result.unwrap_err(), DecodeError::MalformedMetadata);
 }
 
 #[test]
@@ -76,9 +80,9 @@ fn parses_dependencies_with_every_constraint_operator() {
     let content = "Package: foo\nVersion: 1.2.3\nDepends: bash, libc6 (>= 2.36), libssl (<= 3), libfoo (= 1.0), \
                    zlib1g (<< 2), libbar (>> 7)\n";
 
-    let control = ControlFile::parse(content, None, CHECKSUM).unwrap();
+    let decoded = ControlFile { content, license: None }.decode(CHECKSUM).unwrap();
 
-    let dependencies = control.dependencies;
+    let dependencies = decoded.dependencies;
     assert_eq!(dependencies.len(), 6);
 
     assert_eq!(dependencies[0].name, "bash");
@@ -109,9 +113,9 @@ fn parses_dependencies_with_every_constraint_operator() {
 fn picks_the_first_alternative_in_an_or_group() {
     let content = "Package: foo\nVersion: 1.2.3\nDepends: libfoo | libbar (>= 2.0)\n";
 
-    let control = ControlFile::parse(content, None, CHECKSUM).unwrap();
+    let decoded = ControlFile { content, license: None }.decode(CHECKSUM).unwrap();
 
-    assert_eq!(control.dependencies.len(), 1);
-    assert_eq!(control.dependencies[0].name, "libfoo");
-    assert_eq!(control.dependencies[0].constraint, CONSTRAINT_ANY);
+    assert_eq!(decoded.dependencies.len(), 1);
+    assert_eq!(decoded.dependencies[0].name, "libfoo");
+    assert_eq!(decoded.dependencies[0].constraint, CONSTRAINT_ANY);
 }

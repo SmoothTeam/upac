@@ -6,17 +6,17 @@
 use std::str::from_utf8;
 
 use upac_abi::ABI_VERSION;
-use upac_abi::decoder::{CDecodeRequest, CDecodeResponse, CDependency};
+use upac_abi::decoder::{CDecodeRequest, CDecodeResponse, CDependency, DecodeError};
 use upac_abi::memory::{free_cslice, free_cvec_owning};
 use upac_abi::package::CPackageMeta;
 use upac_abi::types::COwned;
 use upac_abi::types::{CSlice, CVec};
+use upac_types::decoder::{DecodeMeta, DecodedMeta};
 
 use crate::control::ControlFile;
-use crate::error::DecodeError;
+use crate::extract::ExtractedMetadata;
 
 pub mod control;
-pub mod error;
 pub mod triggers;
 
 mod extract;
@@ -80,16 +80,20 @@ fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeErr
 
     verify::verify(package_path, request.checksum, cancel)?;
 
-    let extracted = extract::extract(package_path, output_dir, cancel)?;
+    let extracted = ExtractedMetadata::extract(package_path, output_dir, cancel)?;
     let declarative_triggers = triggers::scan(&extracted.scripts_present);
 
-    let control = ControlFile::parse(&extracted.control, extracted.license, request.checksum)?;
+    let control = ControlFile {
+        content: &extracted.control,
+        license: extracted.license,
+    };
+    let decoded = control.decode(request.checksum)?;
 
-    Ok(build_response(control, declarative_triggers))
+    Ok(build_response(decoded, declarative_triggers))
 }
 
-fn build_response(control: ControlFile, declarative_triggers: Vec<String>) -> CDecodeResponse {
-    let ControlFile { meta, dependencies } = control;
+fn build_response(decoded: DecodedMeta, declarative_triggers: Vec<String>) -> CDecodeResponse {
+    let DecodedMeta { meta, dependencies } = decoded;
 
     let dependencies = dependencies.into_iter().map(CDependency::from).collect::<Vec<_>>();
 
