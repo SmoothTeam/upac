@@ -41,6 +41,7 @@ upac-refind       = { workspace = true, optional = true }
 upac-decoders-alpm = { workspace = true, optional = true }
 upac-decoders-deb  = { workspace = true, optional = true }
 upac-decoders-rpm  = { workspace = true, optional = true }
+upac-decoders-xbps = { workspace = true, optional = true }
 
 composefs     = { workspace = true }
 composefs-oci = { workspace = true }
@@ -88,6 +89,7 @@ builtin-refind       = ["dep:upac-refind", "builtin-booters"]
 builtin-alpm = ["dep:upac-decoders-alpm", "builtin-decoders"]
 builtin-deb  = ["dep:upac-decoders-deb", "builtin-decoders"]
 builtin-rpm  = ["dep:upac-decoders-rpm", "builtin-decoders"]
+builtin-xbps = ["dep:upac-decoders-xbps", "builtin-decoders"]
 
 builtin-all = [
     "builtin-uki", "builtin-systemd-boot", "builtin-grub", "builtin-refind",
