@@ -23,6 +23,7 @@ use upac_macro::{CTryToRust, RedbCodec, RustToC};
 use crate::codec::RedbCodable;
 
 pub mod codec;
+pub mod decoder;
 pub mod settings;
 pub mod states;
 
