@@ -74,6 +74,7 @@ pub struct SetupWholeDiskData<'a> {
     pub deploy_fs: FsKind,
     pub deploy_size_mib: u64,
     pub extra_partitions: Vec<PartitionSpec>,
+    pub force_wipe: bool,
 
     pub node_size: u32,
     pub sector_size: u32,
@@ -114,6 +115,7 @@ impl<'a> TryFrom<&'a CSetupWholeDiskRequest> for SetupWholeDiskData<'a> {
             deploy_fs: gpt.deploy_fs,
             deploy_size_mib: gpt.deploy_size_mib,
             extra_partitions: gpt.extra_partitions,
+            force_wipe: gpt.force_wipe,
 
             node_size: btrfs.node_size,
             sector_size: btrfs.sector_size,

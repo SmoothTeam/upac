@@ -48,6 +48,12 @@ msgstr "Not a block device"
 msgid "err_mkfs_failed"
 msgstr "Filesystem creation failed"
 
+msgid "err_wipe_failed"
+msgstr "Failed to wipe the target partition's existing filesystem signature"
+
+msgid "err_partition_not_ready"
+msgstr "Partition device did not appear in time after partitioning"
+
 msgid "err_unexpected"
 msgstr "Unexpected error"
 

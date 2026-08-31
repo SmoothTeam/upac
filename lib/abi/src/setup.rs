@@ -73,6 +73,7 @@ pub struct CGptLayout {
     pub deploy_fs: FsKind,
     pub deploy_size_mib: u64,
     pub extra_partitions: CVec<CPartitionSpec>,
+    pub force_wipe: bool,
 }
 
 #[repr(C)]

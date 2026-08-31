@@ -35,6 +35,8 @@ pub enum SetupError {
     NoSpaceLeft,
     NotBlockDevice,
     MkfsFailed,
+    WipeFailed,
+    PartitionNotReady,
     Unexpected,
 }
 

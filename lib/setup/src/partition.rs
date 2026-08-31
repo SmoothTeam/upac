@@ -5,6 +5,8 @@
 
 use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
+use std::thread::sleep;
+use std::time::Duration;
 
 use gptman::linux::{get_sector_size, reread_partition_table};
 use gptman::{GPT, GPTPartitionEntry};
@@ -14,6 +16,7 @@ use uuid::{Uuid, uuid};
 use upac_types::PartitionSpec;
 
 use crate::error::SetupError;
+use crate::layout::partition::{SETTLE_ATTEMPTS, SETTLE_INTERVAL_MS};
 
 macro_rules! mib_to_sectors {
     ($size_mib:expr, $sector_size:expr) => {
@@ -111,15 +114,40 @@ impl DiskLayout {
 
         GPT::write_protective_mbr_into(&mut device, sector_size)?;
         gpt.write_into(&mut device)?;
+        reread_partition_table(&mut device)?;
 
-        let _ = reread_partition_table(&mut device);
-
-        Ok(DiskLayout {
+        let layout = DiskLayout {
             device_path: device_path.to_owned(),
             esp_partition,
             deploy_partition,
             extra_partitions: extras,
-        })
+        };
+        layout.wait_until_ready()?;
+
+        Ok(layout)
+    }
+
+    fn wait_until_ready(&self) -> Result<(), SetupError> {
+        let mut paths = vec![self.esp_path(), self.deploy_path()];
+        paths.extend(self.extra_paths());
+
+        for path in &paths {
+            let mut ready = false;
+
+            for _ in 0..SETTLE_ATTEMPTS {
+                if path.exists() {
+                    ready = true;
+                    break;
+                }
+                sleep(Duration::from_millis(u64::from(SETTLE_INTERVAL_MS)));
+            }
+
+            if !ready {
+                return Err(SetupError::PartitionNotReady);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn esp_path(&self) -> PathBuf {

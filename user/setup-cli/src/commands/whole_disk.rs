@@ -30,6 +30,8 @@ pub struct Args {
     pub deploy_size_mib: Option<u64>,
     #[arg(long = "extra-partition", value_parser = parse_extra_partition)]
     pub extra_partitions: Vec<PartitionSpec>,
+    #[arg(long)]
+    pub force_wipe: bool,
     #[arg(long, default_value_t = NODE_SIZE)]
     pub node_size: u32,
     #[arg(long, default_value_t = SECTOR_SIZE)]
@@ -74,6 +76,7 @@ pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
         deploy_fs: deploy_fs.into(),
         deploy_size_mib,
         extra_partitions: args.extra_partitions,
+        force_wipe: args.force_wipe,
 
         node_size: args.node_size,
         sector_size: args.sector_size,

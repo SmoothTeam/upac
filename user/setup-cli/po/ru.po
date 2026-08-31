@@ -48,6 +48,12 @@ msgstr "Не является блочным устройством"
 msgid "err_mkfs_failed"
 msgstr "Ошибка создания файловой системы"
 
+msgid "err_wipe_failed"
+msgstr "Не удалось стереть существующую сигнатуру файловой системы на разделе"
+
+msgid "err_partition_not_ready"
+msgstr "Устройство раздела не появилось за отведённое время после разметки"
+
 msgid "err_unexpected"
 msgstr "Непредвиденная ошибка"
 

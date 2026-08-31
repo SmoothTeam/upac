@@ -24,10 +24,21 @@ sector_size = 4096
 
 # mkfs.ext4_bin/xfs_bin are the mkfs binaries shelled out to for ext4/xfs
 # formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs —
-# see [btrfs]).
+# see [btrfs]). mkfs.wipefs_bin clears a partition's existing filesystem
+# signature before formatting, only when the request explicitly opts into it
+# (CSetupWholeDiskRequest.gpt.force_wipe) — never run silently.
 [mkfs]
 ext4_bin = "mkfs.ext4"
 xfs_bin = "mkfs.xfs"
+wipefs_bin = "wipefs"
+
+# partition.settle_attempts/settle_interval_ms bound how long DiskLayout::create waits for the
+# kernel (via udev) to create the new partition device nodes after BLKRRPART, before giving up —
+# the ioctl itself is synchronous, but the /dev/vdaN nodes it triggers are created by udev
+# asynchronously afterward.
+[partition]
+settle_attempts = 50
+settle_interval_ms = 100
 
 # genesis.scratch_filename is where the freshly-built package database is
 # written (under the OS temp dir) before being embedded into the new /usr

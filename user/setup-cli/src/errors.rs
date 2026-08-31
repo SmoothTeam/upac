@@ -41,6 +41,8 @@ impl Display for LocalizedSetupError {
             SetupError::NoSpaceLeft => formatter.write_str(&gettextrs::gettext("err_no_space_left")),
             SetupError::NotBlockDevice => formatter.write_str(&gettextrs::gettext("err_not_block_device")),
             SetupError::MkfsFailed => formatter.write_str(&gettextrs::gettext("err_mkfs_failed")),
+            SetupError::WipeFailed => formatter.write_str(&gettextrs::gettext("err_wipe_failed")),
+            SetupError::PartitionNotReady => formatter.write_str(&gettextrs::gettext("err_partition_not_ready")),
             SetupError::Unexpected => formatter.write_str(&gettextrs::gettext("err_unexpected")),
         }
     }

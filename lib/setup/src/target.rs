@@ -106,7 +106,7 @@ impl TargetSysroot {
             device_path: &deploy_path,
             label: Some("upac-deploy"),
         }
-        .format(data.deploy_fs, data.node_size, data.sector_size)?;
+        .format(data.deploy_fs, data.node_size, data.sector_size, data.force_wipe)?;
 
         let extra_paths = layout.extra_paths();
         let mut extra_mounts = Vec::with_capacity(data.extra_partitions.len());
@@ -116,7 +116,7 @@ impl TargetSysroot {
                 device_path: path,
                 label: Some(&spec.mount_path),
             }
-            .format(spec.fs_kind, 0, 0)?;
+            .format(spec.fs_kind, 0, 0, data.force_wipe)?;
 
             extra_mounts.push(PartitionMount {
                 mount_path: spec.mount_path.clone(),
