@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // ── Imports ─────────────────────────────────────────────────────────────────
-use std::env::var;
+use std::env::{set_var, var};
 use std::process::ExitCode;
 
 use anyhow::Result;
@@ -54,8 +54,8 @@ fn main() -> ExitCode {
 
     // SAFETY: called first thing in main, before any other threads or signal handlers exist.
     unsafe {
-        setlocale(LocaleCategory::LcAll, "");
-        setlocale(LocaleCategory::LcMessages, lang);
+        setlocale(LocaleCategory::LcAll, "C.UTF-8");
+        set_var("LANGUAGE", lang);
     }
 
     let locale_dir = locale::extract().expect("failed to extract embedded locale data");
