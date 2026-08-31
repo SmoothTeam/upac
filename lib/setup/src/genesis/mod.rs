@@ -29,7 +29,7 @@ mod source;
 mod trees;
 
 struct GenesisInput {
-    source_dir: String,
+    source: String,
     meta_filename: Option<String>,
     empty_config: bool,
     pinned: bool,
@@ -45,7 +45,7 @@ struct ConfigDigest(ObjectID);
 impl From<&SetupExistingData<'_>> for GenesisInput {
     fn from(data: &SetupExistingData<'_>) -> Self {
         GenesisInput {
-            source_dir: data.source_dir.to_owned(),
+            source: data.source.to_owned(),
             meta_filename: data.meta_filename.map(str::to_owned),
             empty_config: data.empty_config,
             pinned: data.pinned,
@@ -57,7 +57,7 @@ impl From<&SetupExistingData<'_>> for GenesisInput {
 impl From<&SetupWholeDiskData<'_>> for GenesisInput {
     fn from(data: &SetupWholeDiskData<'_>) -> Self {
         GenesisInput {
-            source_dir: data.source_dir.to_owned(),
+            source: data.source.to_owned(),
             meta_filename: data.meta_filename.map(str::to_owned),
             empty_config: data.empty_config,
             pinned: data.pinned,

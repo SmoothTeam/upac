@@ -63,8 +63,8 @@ msgstr "Отсутствует обязательный аргумент: --depl
 msgid "err_missing_deploy_size_mib"
 msgstr "Отсутствует обязательный аргумент: --deploy-size-mib"
 
-msgid "err_missing_source_dir"
-msgstr "Отсутствует обязательный аргумент: --source-dir"
+msgid "err_missing_source"
+msgstr "Отсутствует обязательный аргумент: --source"
 
 msgid "stage_read_meta"
 msgstr "Чтение метаданных пакета"

@@ -63,8 +63,8 @@ msgstr "Missing required argument: --deploy-fs"
 msgid "err_missing_deploy_size_mib"
 msgstr "Missing required argument: --deploy-size-mib"
 
-msgid "err_missing_source_dir"
-msgstr "Missing required argument: --source-dir"
+msgid "err_missing_source"
+msgstr "Missing required argument: --source"
 
 msgid "stage_read_meta"
 msgstr "Reading package metadata"

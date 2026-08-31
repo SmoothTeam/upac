@@ -37,7 +37,7 @@ pub struct Args {
     #[arg(long)]
     pub mount_point: Option<String>,
     #[arg(long)]
-    pub source_dir: Option<String>,
+    pub source: Option<String>,
     #[arg(long)]
     pub meta_filename: Option<String>,
     #[arg(long)]
@@ -61,8 +61,8 @@ pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
     let Some(deploy_size_mib) = args.deploy_size_mib else {
         bail!(gettextrs::gettext("err_missing_deploy_size_mib"));
     };
-    let Some(source_dir) = args.source_dir.as_deref() else {
-        bail!(gettextrs::gettext("err_missing_source_dir"));
+    let Some(source) = args.source.as_deref() else {
+        bail!(gettextrs::gettext("err_missing_source"));
     };
 
     let mut progress = ProgressState::new();
@@ -78,7 +78,7 @@ pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
         sector_size: args.sector_size,
 
         mount_point: args.mount_point.as_deref(),
-        source_dir,
+        source,
         meta_filename: args.meta_filename.as_deref(),
         empty_config: args.empty_config,
         pinned: args.pinned,

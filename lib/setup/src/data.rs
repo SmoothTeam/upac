@@ -21,7 +21,7 @@ pub struct SetupExistingData<'a> {
     pub extra_mounts: Vec<PartitionMount>,
 
     pub mount_point: Option<&'a str>,
-    pub source_dir: &'a str,
+    pub source: &'a str,
     pub meta_filename: Option<&'a str>,
     pub empty_config: bool,
     pub pinned: bool,
@@ -54,7 +54,7 @@ impl<'a> TryFrom<&'a CSetupExistingRequest> for SetupExistingData<'a> {
             extra_mounts: Vec::try_from(&request.extra_mounts)?,
 
             mount_point: (&request.base.mount_point).try_into()?,
-            source_dir: (&request.base.source_dir).try_into()?,
+            source: (&request.base.source).try_into()?,
             meta_filename: (&request.base.meta_filename).try_into()?,
             empty_config: request.base.empty_config,
             pinned: request.base.pinned,
@@ -79,7 +79,7 @@ pub struct SetupWholeDiskData<'a> {
     pub sector_size: u32,
 
     pub mount_point: Option<&'a str>,
-    pub source_dir: &'a str,
+    pub source: &'a str,
     pub meta_filename: Option<&'a str>,
     pub empty_config: bool,
     pub pinned: bool,
@@ -119,7 +119,7 @@ impl<'a> TryFrom<&'a CSetupWholeDiskRequest> for SetupWholeDiskData<'a> {
             sector_size: btrfs.sector_size,
 
             mount_point: (&request.base.mount_point).try_into()?,
-            source_dir: (&request.base.source_dir).try_into()?,
+            source: (&request.base.source).try_into()?,
             meta_filename: (&request.base.meta_filename).try_into()?,
             empty_config: request.base.empty_config,
             pinned: request.base.pinned,

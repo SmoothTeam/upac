@@ -105,7 +105,7 @@ impl Stage<SetupError> for PrepareSourceStage {
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
         let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
-        let source_path = Path::new(&input.source_dir);
+        let source_path = Path::new(&input.source);
 
         if metadata(source_path)?.is_dir() {
             context.put(ResolvedSourceDir(source_path.to_path_buf()));
