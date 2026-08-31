@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // ── Imports ─────────────────────────────────────────────────────────────────
+use std::env::var;
 use std::process::ExitCode;
 
 use anyhow::Result;
@@ -46,9 +47,15 @@ enum Command {
 
 // ── Entry points ───────────────────────────────────────────────────────────────
 fn main() -> ExitCode {
+    let lang = var("LANG")
+        .ok()
+        .filter(|value| value.starts_with("ru"))
+        .map_or("en", |_| "ru");
+
     // SAFETY: called first thing in main, before any other threads or signal handlers exist.
     unsafe {
         setlocale(LocaleCategory::LcAll, "");
+        setlocale(LocaleCategory::LcMessages, lang);
     }
 
     let locale_dir = locale::extract().expect("failed to extract embedded locale data");
