@@ -15,17 +15,17 @@ use upac_types::PartitionSpec;
 
 use crate::errors::LocalizedSetupError;
 use crate::progress::{ProgressState, on_progress};
-use crate::types::{FsKind, parse_extra_partition};
+use crate::types::{FsKind, parse_extra_partition, parse_size_mib};
 
 #[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]
     pub device: Option<String>,
-    #[arg(long)]
+    #[arg(long = "esp-size", value_parser = parse_size_mib)]
     pub esp_size_mib: Option<u64>,
     #[arg(long, value_enum)]
     pub deploy_fs: Option<FsKind>,
-    #[arg(long)]
+    #[arg(long = "deploy-size", value_parser = parse_size_mib)]
     pub deploy_size_mib: Option<u64>,
     #[arg(long = "extra-partition", value_parser = parse_extra_partition)]
     pub extra_partitions: Vec<PartitionSpec>,
@@ -53,13 +53,13 @@ pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
         bail!(gettextrs::gettext("err_missing_device"));
     };
     let Some(esp_size_mib) = args.esp_size_mib else {
-        bail!(gettextrs::gettext("err_missing_esp_size_mib"));
+        bail!(gettextrs::gettext("err_missing_esp_size"));
     };
     let Some(deploy_fs) = args.deploy_fs else {
         bail!(gettextrs::gettext("err_missing_deploy_fs"));
     };
     let Some(deploy_size_mib) = args.deploy_size_mib else {
-        bail!(gettextrs::gettext("err_missing_deploy_size_mib"));
+        bail!(gettextrs::gettext("err_missing_deploy_size"));
     };
     let Some(source) = args.source.as_deref() else {
         bail!(gettextrs::gettext("err_missing_source"));

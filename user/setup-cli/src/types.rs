@@ -54,6 +54,31 @@ pub fn parse_extra_mount(raw: &str) -> Result<PartitionMount, String> {
     }
 }
 
+pub fn parse_size_mib(raw: &str) -> Result<u64, String> {
+    let trimmed = raw.trim();
+
+    let Some(split_at) = trimmed.find(|character: char| !character.is_ascii_digit()) else {
+        return trimmed.parse().map_err(|_| format!("invalid size: \"{raw}\""));
+    };
+
+    let (number, unit) = trimmed.split_at(split_at);
+    let number: u64 = number.parse().map_err(|_| format!("invalid size: \"{raw}\""))?;
+
+    let bytes_per_unit: u64 = match unit.to_ascii_uppercase().as_str() {
+        "K" | "KIB" => 1024,
+        "M" | "MIB" => 1024 * 1024,
+        "G" | "GIB" => 1024 * 1024 * 1024,
+        "T" | "TIB" => 1024 * 1024 * 1024 * 1024,
+        "KB" => 1_000,
+        "MB" => 1_000_000,
+        "GB" => 1_000_000_000,
+        "TB" => 1_000_000_000_000,
+        _ => return Err(format!("unknown size unit: \"{unit}\"")),
+    };
+
+    Ok(number * bytes_per_unit / (1024 * 1024))
+}
+
 pub fn parse_extra_partition(raw: &str) -> Result<PartitionSpec, String> {
     let mut parts = raw.splitn(3, ':');
 

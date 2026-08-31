@@ -54,14 +54,14 @@ msgstr "Unexpected error"
 msgid "err_missing_device"
 msgstr "Missing required argument: --device"
 
-msgid "err_missing_esp_size_mib"
-msgstr "Missing required argument: --esp-size-mib"
+msgid "err_missing_esp_size"
+msgstr "Missing required argument: --esp-size"
 
 msgid "err_missing_deploy_fs"
 msgstr "Missing required argument: --deploy-fs"
 
-msgid "err_missing_deploy_size_mib"
-msgstr "Missing required argument: --deploy-size-mib"
+msgid "err_missing_deploy_size"
+msgstr "Missing required argument: --deploy-size"
 
 msgid "err_missing_source"
 msgstr "Missing required argument: --source"
