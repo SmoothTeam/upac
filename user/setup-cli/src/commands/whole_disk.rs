@@ -10,6 +10,7 @@ use clap::Args as ClapArgs;
 use upac_abi::hook::CancelToken;
 
 use upac_setup::data::SetupWholeDiskData;
+use upac_setup::layout::btrfs::{NODE_SIZE, SECTOR_SIZE};
 
 use upac_types::PartitionSpec;
 
@@ -29,9 +30,9 @@ pub struct Args {
     pub deploy_size_mib: Option<u64>,
     #[arg(long = "extra-partition", value_parser = parse_extra_partition)]
     pub extra_partitions: Vec<PartitionSpec>,
-    #[arg(long, default_value_t = 0)]
+    #[arg(long, default_value_t = NODE_SIZE)]
     pub node_size: u32,
-    #[arg(long, default_value_t = 0)]
+    #[arg(long, default_value_t = SECTOR_SIZE)]
     pub sector_size: u32,
 
     #[arg(long)]
