@@ -72,6 +72,15 @@ msgstr "Отсутствует обязательный аргумент: --depl
 msgid "err_missing_source"
 msgstr "Отсутствует обязательный аргумент: --source"
 
+msgid "err_invalid_partition_layout"
+msgstr "Запрошенные размеры разделов не помещаются на диск"
+
+msgid "err_reread_failed"
+msgstr "Не удалось перечитать таблицу разделов (устройство занято?)"
+
+msgid "stage_prepare_source"
+msgstr "Подготовка источника"
+
 msgid "stage_read_meta"
 msgstr "Чтение метаданных пакета"
 

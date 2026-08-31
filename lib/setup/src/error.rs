@@ -37,6 +37,8 @@ pub enum SetupError {
     MkfsFailed,
     WipeFailed,
     PartitionNotReady,
+    InvalidPartitionLayout,
+    RereadFailed(Errno),
     Unexpected,
 }
 
@@ -105,6 +107,7 @@ impl From<GptError> for SetupError {
         match error {
             GptError::Io(io_error) => SetupError::Io(io_error.kind()),
             GptError::NoSpaceLeft => SetupError::NoSpaceLeft,
+            GptError::InvalidPartitionBoundaries => SetupError::InvalidPartitionLayout,
             _ => SetupError::Unexpected,
         }
     }
@@ -115,6 +118,7 @@ impl From<GptBlockError> for SetupError {
         match error {
             GptBlockError::Metadata(io_error) => SetupError::Io(io_error.kind()),
             GptBlockError::NotBlock => SetupError::NotBlockDevice,
+            GptBlockError::RereadTable(errno) => SetupError::RereadFailed(errno),
             _ => SetupError::Unexpected,
         }
     }

@@ -92,6 +92,7 @@ impl TargetSysroot {
             data.esp_size_mib,
             data.deploy_size_mib,
             &data.extra_partitions,
+            data.force_wipe,
         )?;
 
         let esp_path = layout.esp_path();

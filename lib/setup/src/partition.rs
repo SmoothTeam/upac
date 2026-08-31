@@ -16,6 +16,7 @@ use uuid::{Uuid, uuid};
 use upac_types::PartitionSpec;
 
 use crate::error::SetupError;
+use crate::format::FormatTarget;
 use crate::layout::partition::{SETTLE_ATTEMPTS, SETTLE_INTERVAL_MS};
 
 macro_rules! mib_to_sectors {
@@ -74,7 +75,16 @@ pub struct DiskLayout {
 impl DiskLayout {
     pub fn create(
         device_path: &Path, esp_size_mib: u64, deploy_size_mib: u64, extra_partitions: &[PartitionSpec],
+        force_wipe: bool,
     ) -> Result<Self, SetupError> {
+        if force_wipe {
+            FormatTarget {
+                device_path,
+                label: None,
+            }
+            .wipe_signature()?;
+        }
+
         let mut device = OpenOptions::new().read(true).write(true).open(device_path)?;
 
         let sector_size = get_sector_size(&mut device).unwrap_or(512);

@@ -72,6 +72,15 @@ msgstr "Missing required argument: --deploy-size"
 msgid "err_missing_source"
 msgstr "Missing required argument: --source"
 
+msgid "err_invalid_partition_layout"
+msgstr "Requested partition sizes don't fit on the disk"
+
+msgid "err_reread_failed"
+msgstr "Failed to reread the partition table (device busy?)"
+
+msgid "stage_prepare_source"
+msgstr "Preparing source"
+
 msgid "stage_read_meta"
 msgstr "Reading package metadata"
 

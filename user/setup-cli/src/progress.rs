@@ -78,10 +78,11 @@ impl ProgressState {
 impl ProgressState {
     fn stage_name(index: u32) -> String {
         let key = match index {
-            0 => "stage_read_meta",
-            1 => "stage_import_trees",
-            2 => "stage_write_deploy_record",
-            3 => "stage_stage_boot",
+            0 => "stage_prepare_source",
+            1 => "stage_read_meta",
+            2 => "stage_import_trees",
+            3 => "stage_write_deploy_record",
+            4 => "stage_stage_boot",
             _ => "stage_unknown",
         };
         gettextrs::gettext(key)
