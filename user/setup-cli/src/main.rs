@@ -54,7 +54,7 @@ fn main() -> ExitCode {
 
     // SAFETY: called first thing in main, before any other threads or signal handlers exist.
     unsafe {
-        setlocale(LocaleCategory::LcAll, "C.UTF-8");
+        setlocale(LocaleCategory::LcAll, "C.utf8");
         set_var("LANGUAGE", lang);
     }
 
