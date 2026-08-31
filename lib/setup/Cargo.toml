@@ -36,10 +36,18 @@ serde      = { workspace = true }
 sha2       = { workspace = true }
 toml       = { workspace = true }
 uuid       = { workspace = true }
+tar        = { workspace = true }
+flate2     = { workspace = true }
+xz2        = { workspace = true }
+zstd       = { workspace = true }
+tempfile   = { workspace = true }
 
-gptman     = "3.1.1"
+sevenz-rust2 = "0.22.2"
 btrfs-mkfs = "0.13.0"
+gptman     = "3.1.1"
 fatfs      = "0.3"
+zip = "8.6.0"
+
 
 [build-dependencies]
 toml = { workspace = true }

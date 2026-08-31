@@ -5,7 +5,7 @@
 
 use std::env::temp_dir;
 use std::fs::{File, write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use composefs::generic_tree::Stat;
 use composefs::repository::ImportContext;
@@ -26,7 +26,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use upac_types::{FileEntry, FileEntryScope, PackageMeta};
 
 use crate::error::SetupError;
-use crate::genesis::{ConfigDigest, GenesisInput, PrefixDigest};
+use crate::genesis::{ConfigDigest, GenesisInput, PrefixDigest, ResolvedSourceDir};
 use crate::layout::genesis::SCRATCH_FILENAME;
 use crate::target::TargetSysroot;
 
@@ -39,12 +39,13 @@ impl Stage<SetupError> for ImportTreesStage {
         let meta = context.take::<PackageMeta>().ok_or(CommonError::MissingResult)?;
         let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
         let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
+        let resolved = context.get::<ResolvedSourceDir>().ok_or(CommonError::MissingResult)?;
 
         let repository = target.repository();
         let mut import_ctx = ImportContext::default();
 
         let mut prefix_tree = FileSystem::new(Stat::uninitialized());
-        let usr_source = Path::new(&input.source_dir).join("usr");
+        let usr_source = resolved.0.join("usr");
         let imported = if usr_source.is_dir() {
             FileHandle::new(PathBuf::new()).import_directory(
                 repository,
@@ -58,7 +59,7 @@ impl Stage<SetupError> for ImportTreesStage {
         };
 
         let mut config_tree = FileSystem::new(Stat::uninitialized());
-        let config_source = Path::new(&input.source_dir).join("etc");
+        let config_source = resolved.0.join("etc");
         let imported_config = if !input.empty_config && config_source.is_dir() {
             FileHandle::new(PathBuf::new()).import_directory(
                 repository,

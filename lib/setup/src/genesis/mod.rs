@@ -15,6 +15,7 @@ use upac_abi::hook::{Message, MessageHook};
 use self::deploy::WriteDeployRecordStage;
 use self::entry::StageBootStage;
 use self::meta::ReadMetaStage;
+use self::source::PrepareSourceStage;
 use self::trees::ImportTreesStage;
 
 use crate::data::{SetupExistingData, SetupWholeDiskData};
@@ -24,6 +25,7 @@ use crate::target::TargetSysroot;
 mod deploy;
 mod entry;
 mod meta;
+mod source;
 mod trees;
 
 struct GenesisInput {
@@ -33,6 +35,12 @@ struct GenesisInput {
     pinned: bool,
     boot_plugin: Option<String>,
 }
+
+struct ResolvedSourceDir(PathBuf);
+
+struct PrefixDigest(ObjectID);
+
+struct ConfigDigest(ObjectID);
 
 impl From<&SetupExistingData<'_>> for GenesisInput {
     fn from(data: &SetupExistingData<'_>) -> Self {
@@ -58,10 +66,6 @@ impl From<&SetupWholeDiskData<'_>> for GenesisInput {
     }
 }
 
-struct PrefixDigest(ObjectID);
-
-struct ConfigDigest(ObjectID);
-
 impl SetupExistingData<'_> {
     pub fn run(&self) -> Result<(), SetupError> {
         let target = TargetSysroot::new(
@@ -78,6 +82,7 @@ impl SetupExistingData<'_> {
         context.put(GenesisInput::from(self));
 
         let orchestrator = SequentialOrchestrator::new(vec![
+            Box::new(PrepareSourceStage),
             Box::new(ReadMetaStage),
             Box::new(ImportTreesStage),
             Box::new(WriteDeployRecordStage),
@@ -111,6 +116,7 @@ impl SetupWholeDiskData<'_> {
         context.put(GenesisInput::from(self));
 
         let orchestrator = SequentialOrchestrator::new(vec![
+            Box::new(PrepareSourceStage),
             Box::new(ReadMetaStage),
             Box::new(ImportTreesStage),
             Box::new(WriteDeployRecordStage),
