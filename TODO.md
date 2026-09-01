@@ -10,11 +10,5 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 
 ## setup-cli
 
-- `up-sp`'s localization is currently broken in bootstrap/rescue environments (archiso etc.): `gettext-rs`
-  relies on glibc's `setlocale`/`LC_MESSAGES` resolution, which falls back to the "C" locale and skips
-  translation lookup entirely when no real locale is installed (confirmed via live VM testing — even
-  forcing `C.utf8` didn't help, since that minimal locale's `LC_MESSAGES` component is still effectively
-  "C"). Needs a real decision: either the pure-Rust `gettext` crate (parses `.mo` directly, no system
-  locale dependency, but reimplements its own plural-forms handling) or Mozilla's Fluent (`fluent`/
-  `fluent-rs`, a different file format/model entirely, `.ftl` not `.po`/`.mo`) before re-attempting the fix.
-
+- It is necessary to audit the stages, break down the cycles within them into orchestrator cycles, and increase granularity across all libraries.
+- Add a domain-based error system to the setup library.
