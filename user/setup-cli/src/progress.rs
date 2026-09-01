@@ -6,11 +6,15 @@
 use std::os::raw::c_void;
 use std::time::Duration;
 
+use i18n_embed_fl::fl;
+
 use indicatif::{ProgressBar, ProgressStyle};
 
 use upac_abi::hook::{CProgressEvent, HookAck};
 
 use upac_types::settings::{ProgressSettings, RuntimeSettings};
+
+use crate::locale::LOADER;
 
 /// # Safety
 /// `ctx` must be a valid, live pointer to a `ProgressState` for the whole duration of the call
@@ -77,15 +81,14 @@ impl ProgressState {
 
 impl ProgressState {
     fn stage_name(index: u32) -> String {
-        let key = match index {
-            0 => "stage_prepare_source",
-            1 => "stage_read_meta",
-            2 => "stage_import_trees",
-            3 => "stage_write_deploy_record",
-            4 => "stage_stage_boot",
-            _ => "stage_unknown",
-        };
-        gettextrs::gettext(key)
+        match index {
+            0 => fl!(LOADER, "stage-prepare-source"),
+            1 => fl!(LOADER, "stage-read-meta"),
+            2 => fl!(LOADER, "stage-import-trees"),
+            3 => fl!(LOADER, "stage-write-deploy-record"),
+            4 => fl!(LOADER, "stage-stage-boot"),
+            _ => fl!(LOADER, "stage-unknown"),
+        }
     }
 
     fn spinner_style(template: &str) -> ProgressStyle {

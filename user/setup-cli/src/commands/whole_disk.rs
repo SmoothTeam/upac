@@ -7,6 +7,8 @@ use anyhow::{Result, bail};
 
 use clap::Args as ClapArgs;
 
+use i18n_embed_fl::fl;
+
 use upac_abi::hook::CancelToken;
 
 use upac_setup::data::SetupWholeDiskData;
@@ -15,6 +17,7 @@ use upac_setup::layout::btrfs::{NODE_SIZE, SECTOR_SIZE};
 use upac_types::PartitionSpec;
 
 use crate::errors::LocalizedSetupError;
+use crate::locale::LOADER;
 use crate::progress::{ProgressState, on_progress};
 use crate::types::{FsKind, parse_extra_partition, parse_size_mib};
 
@@ -53,19 +56,19 @@ pub struct Args {
 
 pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
     let Some(device) = args.device.as_deref() else {
-        bail!(gettextrs::gettext("err_missing_device"));
+        bail!(fl!(LOADER, "err-missing-device"));
     };
     let Some(esp_size_mib) = args.esp_size_mib else {
-        bail!(gettextrs::gettext("err_missing_esp_size"));
+        bail!(fl!(LOADER, "err-missing-esp-size"));
     };
     let Some(deploy_fs) = args.deploy_fs else {
-        bail!(gettextrs::gettext("err_missing_deploy_fs"));
+        bail!(fl!(LOADER, "err-missing-deploy-fs"));
     };
     let Some(deploy_size_mib) = args.deploy_size_mib else {
-        bail!(gettextrs::gettext("err_missing_deploy_size"));
+        bail!(fl!(LOADER, "err-missing-deploy-size"));
     };
     let Some(source) = args.source.as_deref() else {
-        bail!(gettextrs::gettext("err_missing_source"));
+        bail!(fl!(LOADER, "err-missing-source"));
     };
 
     let mut progress = ProgressState::new();

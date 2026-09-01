@@ -5,7 +5,11 @@
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
+use i18n_embed_fl::fl;
+
 use upac_setup::error::SetupError;
+
+use crate::locale::LOADER;
 
 #[derive(Debug)]
 pub struct LocalizedSetupError(pub SetupError);
@@ -14,42 +18,40 @@ impl Display for LocalizedSetupError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         match &self.0 {
             SetupError::Common(error) => {
-                write!(formatter, "{} ({error:?})", gettextrs::gettext("err_common"))
+                write!(formatter, "{} ({error:?})", fl!(LOADER, "err-common"))
             }
             SetupError::Mount(errno) => {
-                write!(formatter, "{} ({errno})", gettextrs::gettext("err_mount"))
+                write!(formatter, "{} ({errno})", fl!(LOADER, "err-mount"))
             }
             SetupError::Repo(error) => {
-                write!(formatter, "{} ({error:?})", gettextrs::gettext("err_repo"))
+                write!(formatter, "{} ({error:?})", fl!(LOADER, "err-repo"))
             }
             SetupError::Database(error) => {
-                write!(formatter, "{} ({error:?})", gettextrs::gettext("err_database"))
+                write!(formatter, "{} ({error:?})", fl!(LOADER, "err-database"))
             }
             SetupError::DeployRecord(error) => {
-                write!(formatter, "{} ({error:?})", gettextrs::gettext("err_deploy_record"))
+                write!(formatter, "{} ({error:?})", fl!(LOADER, "err-deploy-record"))
             }
             SetupError::Boot(error) => {
-                write!(formatter, "{} ({error:?})", gettextrs::gettext("err_boot"))
+                write!(formatter, "{} ({error:?})", fl!(LOADER, "err-boot"))
             }
             SetupError::BootPlugin(error) => {
-                write!(formatter, "{} ({error:?})", gettextrs::gettext("err_boot_plugin"))
+                write!(formatter, "{} ({error:?})", fl!(LOADER, "err-boot-plugin"))
             }
             SetupError::Io(kind) => {
-                write!(formatter, "{} ({kind:?})", gettextrs::gettext("err_io"))
+                write!(formatter, "{} ({kind:?})", fl!(LOADER, "err-io"))
             }
-            SetupError::MetaMalformed => formatter.write_str(&gettextrs::gettext("err_meta_malformed")),
-            SetupError::NoSpaceLeft => formatter.write_str(&gettextrs::gettext("err_no_space_left")),
-            SetupError::NotBlockDevice => formatter.write_str(&gettextrs::gettext("err_not_block_device")),
-            SetupError::MkfsFailed => formatter.write_str(&gettextrs::gettext("err_mkfs_failed")),
-            SetupError::WipeFailed => formatter.write_str(&gettextrs::gettext("err_wipe_failed")),
-            SetupError::PartitionNotReady => formatter.write_str(&gettextrs::gettext("err_partition_not_ready")),
-            SetupError::InvalidPartitionLayout => {
-                formatter.write_str(&gettextrs::gettext("err_invalid_partition_layout"))
-            }
+            SetupError::MetaMalformed => formatter.write_str(&fl!(LOADER, "err-meta-malformed")),
+            SetupError::NoSpaceLeft => formatter.write_str(&fl!(LOADER, "err-no-space-left")),
+            SetupError::NotBlockDevice => formatter.write_str(&fl!(LOADER, "err-not-block-device")),
+            SetupError::MkfsFailed => formatter.write_str(&fl!(LOADER, "err-mkfs-failed")),
+            SetupError::WipeFailed => formatter.write_str(&fl!(LOADER, "err-wipe-failed")),
+            SetupError::PartitionNotReady => formatter.write_str(&fl!(LOADER, "err-partition-not-ready")),
+            SetupError::InvalidPartitionLayout => formatter.write_str(&fl!(LOADER, "err-invalid-partition-layout")),
             SetupError::RereadFailed(errno) => {
-                write!(formatter, "{} ({errno})", gettextrs::gettext("err_reread_failed"))
+                write!(formatter, "{} ({errno})", fl!(LOADER, "err-reread-failed"))
             }
-            SetupError::Unexpected => formatter.write_str(&gettextrs::gettext("err_unexpected")),
+            SetupError::Unexpected => formatter.write_str(&fl!(LOADER, "err-unexpected")),
         }
     }
 }
