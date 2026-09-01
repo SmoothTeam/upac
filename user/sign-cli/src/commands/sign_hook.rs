@@ -10,10 +10,13 @@ use anyhow::{Context, Result};
 
 use clap::Args as ClapArgs;
 
+use i18n_embed_fl::fl;
+
 use upac_pki::generate::{Identity, PemIdentity, SigningIdentity};
 use upac_pki::signature::HookSignature;
 
 use crate::errors::LocalizedPkiError;
+use crate::locale::LOADER;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -30,19 +33,19 @@ pub struct Args {
 pub fn run(args: Args) -> Result<()> {
     let signing_pem = PemIdentity {
         key_pem: read_to_string(&args.key)
-            .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.key.display()))?,
+            .with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.key.display()))?,
         certificate_pem: read_to_string(&args.cert)
-            .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.cert.display()))?,
+            .with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.cert.display()))?,
     };
     let signing = SigningIdentity::from_pem(&signing_pem).map_err(LocalizedPkiError)?;
 
     let hook_bytes =
-        read(&args.hook).with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.hook.display()))?;
+        read(&args.hook).with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.hook.display()))?;
     let signature = HookSignature::sign(&hook_bytes, &signing).map_err(LocalizedPkiError)?;
     let signature_bytes = signature.to_bytes().map_err(LocalizedPkiError)?;
 
     write(&args.signature, signature_bytes)
-        .with_context(|| format!("{}: {}", gettextrs::gettext("err_write"), args.signature.display()))?;
+        .with_context(|| format!("{}: {}", fl!(LOADER, "err-write"), args.signature.display()))?;
 
     Ok(())
 }

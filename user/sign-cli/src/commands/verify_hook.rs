@@ -10,9 +10,12 @@ use anyhow::{Context, Result};
 
 use clap::Args as ClapArgs;
 
+use i18n_embed_fl::fl;
+
 use upac_pki::signature::{HookSignature, RootCertificate};
 
 use crate::errors::LocalizedPkiError;
+use crate::locale::LOADER;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -26,11 +29,11 @@ pub struct Args {
 
 pub fn run(args: Args) -> Result<()> {
     let hook_bytes =
-        read(&args.hook).with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.hook.display()))?;
-    let signature_bytes = read(&args.signature)
-        .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.signature.display()))?;
+        read(&args.hook).with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.hook.display()))?;
+    let signature_bytes =
+        read(&args.signature).with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.signature.display()))?;
     let root_cert_pem = read_to_string(&args.root_cert)
-        .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.root_cert.display()))?;
+        .with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.root_cert.display()))?;
 
     let signature = HookSignature::from_bytes(&signature_bytes).map_err(LocalizedPkiError)?;
     let root_certificate = RootCertificate::from_pem(&root_cert_pem).map_err(LocalizedPkiError)?;
@@ -39,7 +42,7 @@ pub fn run(args: Args) -> Result<()> {
         .verify(&hook_bytes, &root_certificate)
         .map_err(LocalizedPkiError)?;
 
-    println!("{}", gettextrs::gettext("signature_valid"));
+    println!("{}", fl!(LOADER, "signature-valid"));
 
     Ok(())
 }

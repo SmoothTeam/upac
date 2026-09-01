@@ -10,9 +10,12 @@ use anyhow::{Context, Result};
 
 use clap::Args as ClapArgs;
 
+use i18n_embed_fl::fl;
+
 use upac_pki::generate::{Identity, PemIdentity, RootIdentity, generate_signing_cert};
 
 use crate::errors::LocalizedPkiError;
+use crate::locale::LOADER;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -31,9 +34,9 @@ pub struct Args {
 pub fn run(args: Args) -> Result<()> {
     let root_pem = PemIdentity {
         key_pem: read_to_string(&args.root_key)
-            .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.root_key.display()))?,
+            .with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.root_key.display()))?,
         certificate_pem: read_to_string(&args.root_cert)
-            .with_context(|| format!("{}: {}", gettextrs::gettext("err_read"), args.root_cert.display()))?,
+            .with_context(|| format!("{}: {}", fl!(LOADER, "err-read"), args.root_cert.display()))?,
     };
     let root = RootIdentity::from_pem(&root_pem).map_err(LocalizedPkiError)?;
 
@@ -41,9 +44,9 @@ pub fn run(args: Args) -> Result<()> {
     let pem = signing.to_pem().map_err(LocalizedPkiError)?;
 
     write(&args.key_out, &pem.key_pem)
-        .with_context(|| format!("{}: {}", gettextrs::gettext("err_write"), args.key_out.display()))?;
+        .with_context(|| format!("{}: {}", fl!(LOADER, "err-write"), args.key_out.display()))?;
     write(&args.cert_out, &pem.certificate_pem)
-        .with_context(|| format!("{}: {}", gettextrs::gettext("err_write"), args.cert_out.display()))?;
+        .with_context(|| format!("{}: {}", fl!(LOADER, "err-write"), args.cert_out.display()))?;
 
     Ok(())
 }

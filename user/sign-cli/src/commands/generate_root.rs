@@ -10,9 +10,12 @@ use anyhow::{Context, Result};
 
 use clap::Args as ClapArgs;
 
+use i18n_embed_fl::fl;
+
 use upac_pki::generate::{Identity, generate_root};
 
 use crate::errors::LocalizedPkiError;
+use crate::locale::LOADER;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -29,9 +32,9 @@ pub fn run(args: Args) -> Result<()> {
     let pem = root.to_pem().map_err(LocalizedPkiError)?;
 
     write(&args.key_out, &pem.key_pem)
-        .with_context(|| format!("{}: {}", gettextrs::gettext("err_write"), args.key_out.display()))?;
+        .with_context(|| format!("{}: {}", fl!(LOADER, "err-write"), args.key_out.display()))?;
     write(&args.cert_out, &pem.certificate_pem)
-        .with_context(|| format!("{}: {}", gettextrs::gettext("err_write"), args.cert_out.display()))?;
+        .with_context(|| format!("{}: {}", fl!(LOADER, "err-write"), args.cert_out.display()))?;
 
     Ok(())
 }

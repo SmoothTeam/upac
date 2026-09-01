@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Shared source of truth for the CLI binaries under user/ that run on an already-installed
+# system (upac-cli, sign-cli — not setup-cli, which is self-contained and never reads this).
+# Each consuming crate's own build.rs reads this same file and generates a private `I18N_DIR`
+# env var default; a packager can still override it at build time via the I18N_DIR env var
+# without touching this file.
+
+i18n_dir = "/usr/share/upac/i18n"
