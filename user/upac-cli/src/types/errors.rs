@@ -6,6 +6,8 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
+use i18n_embed_fl::fl;
+
 use upac_abi::error::{CError, ErrorDomain, ErrorKind};
 
 use upac_types::states::{
@@ -14,6 +16,8 @@ use upac_types::states::{
     PinStateId, RollbackStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
     SearchMetaStateId, UninstallStateId, UpdateStateId,
 };
+
+use crate::locale::LOADER;
 
 #[derive(Debug)]
 pub struct AbiMismatch {
@@ -26,7 +30,7 @@ impl Display for AbiMismatch {
         write!(
             formatter,
             "{} ({} → {})",
-            gettextrs::gettext("abi_version_mismatch"),
+            fl!(LOADER, "abi-version-mismatch"),
             self.got,
             self.expected
         )
@@ -80,7 +84,7 @@ impl Display for StageName {
             ErrorDomain::SearchInPackageFiles => SearchInPackageFilesStateId::from_stage_index(state).stage_key(),
         };
 
-        write!(formatter, "{}", gettextrs::gettext(key))
+        write!(formatter, "{}", LOADER.get(key))
     }
 }
 
@@ -91,25 +95,25 @@ pub struct LibError {
 
 impl Display for LibError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        let key = match self.error.error {
-            ErrorKind::Unexpected => "err_unexpected",
-            ErrorKind::OutOfMemory => "err_oom",
-            ErrorKind::NotFound => "err_not_found",
-            ErrorKind::AlreadyExists => "err_already_exists",
-            ErrorKind::PermissionDenied => "err_permission_denied",
-            ErrorKind::InvalidPath => "err_invalid_path",
-            ErrorKind::NoSpaceLeft => "err_no_space",
-            ErrorKind::Cancelled => "err_cancelled",
-            ErrorKind::ReadFailed => "err_read",
-            ErrorKind::WriteFailed => "err_write",
-            ErrorKind::NotInitialized => "err_not_initialized",
-            ErrorKind::AbiMismatch => "err_abi_mismatch",
-            ErrorKind::InvalidEntry => "err_invalid_entry",
+        let message = match self.error.error {
+            ErrorKind::Unexpected => fl!(LOADER, "err-unexpected"),
+            ErrorKind::OutOfMemory => fl!(LOADER, "err-oom"),
+            ErrorKind::NotFound => fl!(LOADER, "err-not-found"),
+            ErrorKind::AlreadyExists => fl!(LOADER, "err-already-exists"),
+            ErrorKind::PermissionDenied => fl!(LOADER, "err-permission-denied"),
+            ErrorKind::InvalidPath => fl!(LOADER, "err-invalid-path"),
+            ErrorKind::NoSpaceLeft => fl!(LOADER, "err-no-space"),
+            ErrorKind::Cancelled => fl!(LOADER, "err-cancelled"),
+            ErrorKind::ReadFailed => fl!(LOADER, "err-read"),
+            ErrorKind::WriteFailed => fl!(LOADER, "err-write"),
+            ErrorKind::NotInitialized => fl!(LOADER, "err-not-initialized"),
+            ErrorKind::AbiMismatch => fl!(LOADER, "err-abi-mismatch"),
+            ErrorKind::InvalidEntry => fl!(LOADER, "err-invalid-entry"),
         };
         write!(
             formatter,
             "{} ({:?}: {})",
-            gettextrs::gettext(key),
+            message,
             self.error.domain,
             StageName::from(&self.error)
         )

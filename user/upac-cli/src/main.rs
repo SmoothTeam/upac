@@ -8,13 +8,13 @@ use std::process::ExitCode;
 use std::ptr::addr_of_mut;
 use std::sync::Arc;
 
-use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
-
 use colored::Colorize;
 
 use anyhow::Result;
 
 use clap::Parser;
+
+use i18n_embed_fl::fl;
 
 use upac_abi::hook::CancelToken;
 
@@ -25,6 +25,10 @@ use crate::libcore::Lib;
 use crate::types::CommandContext;
 
 mod libcore;
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
+mod locale;
 mod types;
 
 mod commands {
@@ -59,18 +63,12 @@ enum Command {
 
 // ── Entry points ───────────────────────────────────────────────────────────────
 fn main() -> ExitCode {
-    // SAFETY: called first thing in main, before any other threads or signal handlers exist.
-    unsafe {
-        setlocale(LocaleCategory::LcAll, "");
-    }
-
-    bindtextdomain("upac", env!("LOCALEDIR")).expect("bindtextdomain failed");
-    textdomain("upac").expect("textdomain failed");
+    locale::init();
 
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("{} {err}", format!("{}:", gettextrs::gettext("error")).red().bold());
+            eprintln!("{} {err}", format!("{}:", fl!(locale::LOADER, "error")).red().bold());
             ExitCode::FAILURE
         }
     }

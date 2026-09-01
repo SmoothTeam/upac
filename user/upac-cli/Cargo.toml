@@ -32,22 +32,28 @@ upac-lib   = { workspace = true, optional = true }
 upac-abi   = { workspace = true }
 upac-types = { workspace = true }
 
-libloading = { workspace = true, optional = true }
-gettext-rs = { workspace = true }
-colored    = { workspace = true }
-anyhow     = { workspace = true }
-serde      = { workspace = true }
-clap       = { workspace = true }
-toml       = { workspace = true }
-sha2       = { workspace = true }
-ctrlc      = { workspace = true }
-indicatif = { workspace = true }
+libloading    = { workspace = true, optional = true }
+colored       = { workspace = true }
+anyhow        = { workspace = true }
+serde         = { workspace = true }
+clap          = { workspace = true }
+toml          = { workspace = true }
+sha2          = { workspace = true }
+ctrlc         = { workspace = true }
+indicatif     = { workspace = true }
+i18n-embed    = { workspace = true }
+i18n-embed-fl = { workspace = true }
 
 strum = { version = "0.28.0", features = ["derive"] }
 nix   = { version = "0.31.3", features = ["user"] }
 
 chrono    = { version = "0.4" }
 hex       = { version = "0.4" }
+
+rust-embed = "8.12.0"
+
+[build-dependencies]
+toml = { workspace = true }
 
 [features]
 default = ["dynamic-plugins"]

@@ -12,11 +12,14 @@ use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
+use i18n_embed_fl::fl;
+
 use upac_abi::error::ErrorDomain;
 use upac_abi::request::{CListPackagesRequest, CRequestBase, CUninstallRequest};
 use upac_abi::types::CSlice;
 
 use crate::cancel_token_ptr;
+use crate::locale::LOADER;
 use crate::types::CommandContext;
 use crate::types::abi::{
     borrowed_vec, invoke, invoke_with_response, optional_slice, package_info, request_base, slice_from_cstr,
@@ -110,7 +113,7 @@ impl RemoveMachine {
 
     fn state_resolving_direct(&mut self) -> Result<State> {
         let Some(arch) = self.args.arch.as_deref() else {
-            anyhow::bail!(gettextrs::gettext("err_invalid_entry"));
+            anyhow::bail!(fl!(LOADER, "err-invalid-entry"));
         };
 
         self.resolved = self
@@ -180,7 +183,7 @@ impl RemoveMachine {
 }
 
 fn prompt_choice(name: &str, matches: &[&InstalledEntry]) -> Result<usize> {
-    println!("{} \"{}\":", gettextrs::gettext("multiple_found"), name.bold());
+    println!("{} \"{}\":", fl!(LOADER, "multiple-found"), name.bold());
 
     for (index, (_, arch, arch_sub)) in matches.iter().enumerate() {
         match arch_sub.as_deref() {
@@ -189,7 +192,7 @@ fn prompt_choice(name: &str, matches: &[&InstalledEntry]) -> Result<usize> {
         }
     }
 
-    print!("{} [1-{}]: ", gettextrs::gettext("choose"), matches.len());
+    print!("{} [1-{}]: ", fl!(LOADER, "choose"), matches.len());
     io::stdout().flush()?;
 
     let mut input = String::new();
@@ -198,10 +201,10 @@ fn prompt_choice(name: &str, matches: &[&InstalledEntry]) -> Result<usize> {
     let choice: usize = input
         .trim()
         .parse()
-        .map_err(|_| anyhow::anyhow!(gettextrs::gettext("err_invalid_choice")))?;
+        .map_err(|_| anyhow::anyhow!(fl!(LOADER, "err-invalid-choice")))?;
 
     if choice < 1 || choice > matches.len() {
-        anyhow::bail!(gettextrs::gettext("err_invalid_choice"));
+        anyhow::bail!(fl!(LOADER, "err-invalid-choice"));
     }
 
     Ok(choice - 1)
@@ -211,7 +214,7 @@ fn find_installed(installed: &[InstalledEntry], name: &str) -> Result<(String, O
     let matches: Vec<&InstalledEntry> = installed.iter().filter(|(n, _, _)| n == name).collect();
 
     let entry = match matches.len() {
-        0 => anyhow::bail!("{}: {name}", gettextrs::gettext("err_pkg_not_found")),
+        0 => anyhow::bail!("{}: {name}", fl!(LOADER, "err-pkg-not-found")),
         1 => matches[0],
         _ => matches[prompt_choice(name, &matches)?],
     };
@@ -221,7 +224,7 @@ fn find_installed(installed: &[InstalledEntry], name: &str) -> Result<(String, O
 
 fn cslice_owned(slice: &CSlice) -> Result<String> {
     Ok(unsafe { slice.as_str() }
-        .map_err(|_| anyhow::anyhow!(gettextrs::gettext("err_invalid_entry")))?
+        .map_err(|_| anyhow::anyhow!(fl!(LOADER, "err-invalid-entry")))?
         .to_owned())
 }
 
