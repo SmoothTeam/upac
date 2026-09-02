@@ -13,7 +13,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use upac_types::{FileEntry, FileEntryScope};
 
 use crate::error::SetupError;
-use crate::genesis::{GenesisDatabase, ImportedConfigPaths, ImportedPrefixPaths, PackageUuid};
+use crate::types::{GenesisDatabase, ImportedConfigPaths, ImportedPrefixPaths, PackageUuid};
 
 pub struct InsertFileEntryStage;
 

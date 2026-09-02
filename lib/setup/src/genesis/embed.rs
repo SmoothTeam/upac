@@ -20,9 +20,9 @@ use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::error::SetupError;
-use crate::genesis::{ConfigDigest, ConfigTree, GenesisDatabase, PrefixDigest, PrefixTree};
 use crate::layout::genesis::SCRATCH_FILENAME;
 use crate::target::TargetSysroot;
+use crate::types::{ConfigDigest, ConfigTree, GenesisDatabase, PrefixDigest, PrefixTree};
 
 pub struct EmbedDatabaseStage;
 

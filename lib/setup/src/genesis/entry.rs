@@ -22,8 +22,8 @@ use upac::plugin::boot::resolve_boot_plugin;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::error::SetupError;
-use crate::genesis::{GenesisInput, PrefixDigest};
 use crate::target::TargetSysroot;
+use crate::types::{GenesisInput, PrefixDigest};
 
 pub struct StageBootStage;
 

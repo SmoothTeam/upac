@@ -23,7 +23,7 @@ use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::error::SetupError;
-use crate::genesis::{GenesisInput, ResolvedSourceDir};
+use crate::types::{GenesisInput, ResolvedSourceDir};
 
 const ZIP_MAGIC: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
 const SEVENZIP_MAGIC: [u8; 6] = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];

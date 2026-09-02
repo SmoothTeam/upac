@@ -6,11 +6,11 @@
 use std::os::raw::c_void;
 use std::time::Duration;
 
-use i18n_embed_fl::fl;
-
 use indicatif::{ProgressBar, ProgressStyle};
 
 use upac_abi::hook::{CProgressEvent, HookAck};
+
+use upac_setup::genesis::GenesisStage;
 
 use upac_types::settings::{ProgressSettings, RuntimeSettings};
 
@@ -81,14 +81,7 @@ impl ProgressState {
 
 impl ProgressState {
     fn stage_name(index: u32) -> String {
-        match index {
-            0 => fl!(LOADER, "stage-prepare-source"),
-            1 => fl!(LOADER, "stage-read-meta"),
-            2 => fl!(LOADER, "stage-import-trees"),
-            3 => fl!(LOADER, "stage-write-deploy-record"),
-            4 => fl!(LOADER, "stage-stage-boot"),
-            _ => fl!(LOADER, "stage-unknown"),
-        }
+        LOADER.get(GenesisStage::from_stage_index(index as usize).stage_key())
     }
 
     fn spinner_style(template: &str) -> ProgressStyle {

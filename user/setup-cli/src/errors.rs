@@ -8,15 +8,20 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use i18n_embed_fl::fl;
 
 use upac_setup::error::SetupError;
+use upac_setup::genesis::GenesisStage;
 
 use crate::locale::LOADER;
 
 #[derive(Debug)]
-pub struct LocalizedSetupError(pub SetupError);
+pub struct LocalizedSetupError(pub (GenesisStage, SetupError));
 
 impl Display for LocalizedSetupError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        match &self.0 {
+        let (stage, error) = &self.0;
+
+        write!(formatter, "{}: ", LOADER.get(stage.stage_key()))?;
+
+        match error {
             SetupError::Common(error) => {
                 write!(formatter, "{} ({error:?})", fl!(LOADER, "err-common"))
             }

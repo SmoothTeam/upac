@@ -10,8 +10,8 @@ use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::error::SetupError;
-use crate::genesis::{GenesisInput, ResolvedSourceDir};
 use crate::meta::SourceDir;
+use crate::types::{GenesisInput, ResolvedSourceDir};
 
 pub struct ReadMetaStage;
 

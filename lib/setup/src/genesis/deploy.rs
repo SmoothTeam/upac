@@ -16,8 +16,8 @@ use upac::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::error::SetupError;
-use crate::genesis::{ConfigDigest, GenesisInput, PrefixDigest};
 use crate::target::TargetSysroot;
+use crate::types::{ConfigDigest, GenesisInput, PrefixDigest};
 
 pub struct WriteDeployRecordStage;
 

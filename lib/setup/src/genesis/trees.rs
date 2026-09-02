@@ -17,10 +17,8 @@ use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::error::SetupError;
-use crate::genesis::{
-    ConfigTree, GenesisInput, ImportedConfigPaths, ImportedPrefixPaths, PrefixTree, ResolvedSourceDir,
-};
 use crate::target::TargetSysroot;
+use crate::types::{ConfigTree, GenesisInput, ImportedConfigPaths, ImportedPrefixPaths, PrefixTree, ResolvedSourceDir};
 
 pub struct ImportTreesStage;
 

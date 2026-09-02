@@ -14,7 +14,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use upac_types::PackageMeta;
 
 use crate::error::SetupError;
-use crate::genesis::{GenesisDatabase, PackageUuid};
+use crate::types::{GenesisDatabase, PackageUuid};
 
 pub struct CreateDatabaseStage;
 

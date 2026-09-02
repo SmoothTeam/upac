@@ -27,6 +27,7 @@ workspace = true
 upac-lib   = { workspace = true }
 upac-types = { workspace = true }
 upac-abi   = { workspace = true }
+upac-macro = { workspace = true }
 
 
 composefs  = { workspace = true }
