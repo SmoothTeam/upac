@@ -23,14 +23,14 @@ use crate::mutated::installer::{
     AllowConflictFiles, CommitMessage, InstallError, NewConfigDefaults, NewPrefixDigest, Subject,
 };
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct MergeStage;
 
 impl Stage<InstallError> for MergeStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), InstallError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
         let new_config_defaults = context.take::<NewConfigDefaults>().ok_or(CommonError::MissingResult)?;
         let new_prefix = context.get::<NewPrefixDigest>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
@@ -94,6 +94,6 @@ impl Stage<InstallError> for MergeStage {
             written.push(record.write(&new_record_dir)?);
         }
 
-        Ok((progress, Box::new(written)))
+        Ok((progress, StageResult::Advance, Box::new(written)))
     }
 }

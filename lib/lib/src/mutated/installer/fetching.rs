@@ -14,7 +14,7 @@ pub struct FetchingStage;
 impl Stage<InstallError> for FetchingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), InstallError> {
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
