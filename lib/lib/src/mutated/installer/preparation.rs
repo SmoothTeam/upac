@@ -3,32 +3,69 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::fs::remove_dir_all;
+use std::path::PathBuf;
+
+use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use upac_types::TmpPath;
 
 use crate::errors::CommonError;
-use crate::mutated::installer::InstallError;
+use crate::mutated::installer::{InstallError, PendingPackagePaths, PendingPackages, TotalPackages, UnpackerState};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use crate::plugin::decoder::unpack::PackageUnpacker;
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct PreparationStage;
 
+struct UnpackedPackageDir(PathBuf);
+
+impl RollbackGuard for UnpackedPackageDir {
+    fn rollback(&mut self) -> Result<(), ErrorKind> {
+        let _ = remove_dir_all(&self.0);
+
+        Ok(())
+    }
+}
+
 impl Stage<InstallError> for PreparationStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
-        let package_paths = context.take::<Vec<String>>().ok_or(CommonError::MissingResult)?;
+        let mut pending_paths = context
+            .take::<PendingPackagePaths>()
+            .ok_or(CommonError::MissingResult)?;
+        let mut unpacker = context.take::<UnpackerState>().ok_or(CommonError::MissingResult)?;
+        let mut pending_packages = context.take::<PendingPackages>().ok_or(CommonError::MissingResult)?;
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
+        let total = context.get::<TotalPackages>().ok_or(CommonError::MissingResult)?;
 
-        let mut unpacker = PackageUnpacker::new().map_err(CommonError::Decoder)?;
-        let (packages, declarative_triggers) = unpacker
-            .unpack_all(&package_paths, tmp_path.as_ref(), cancel)
+        let package_path = pending_paths.0.pop_front().ok_or(CommonError::MissingResult)?;
+        let index = pending_packages.0.len();
+
+        let (package, trigger) = unpacker
+            .0
+            .unpack_one(&package_path, index, tmp_path.as_ref(), cancel)
             .map_err(CommonError::Decoder)?;
-        context.put(packages);
-        context.put(declarative_triggers);
 
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        let guard = UnpackedPackageDir(PathBuf::from(&package.temp_package_path));
+
+        pending_packages.0.push_back((package, trigger));
+
+        let remaining = pending_paths.0.len() as u64;
+        let processed = total.0 - remaining;
+        progress = progress.subject(package_path).progress(processed, total.0);
+
+        let result = if pending_paths.0.is_empty() {
+            StageResult::Advance
+        } else {
+            StageResult::Repeat
+        };
+
+        context.put(pending_paths);
+        context.put(unpacker);
+        context.put(pending_packages);
+
+        Ok((progress, result, Box::new(guard)))
     }
 }

@@ -29,8 +29,10 @@ use crate::composefs::repository::ObjectID;
 use crate::database::MemoryDatabase;
 use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
+use crate::errors::CommonError;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
+use crate::plugin::decoder::unpack::PackageUnpacker;
 use crate::scripts::HookStage;
 use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
@@ -57,6 +59,8 @@ pub(crate) struct ResolvedBootEntry {
     pub entry_name: String,
 }
 
+pub(crate) struct PendingPackagePaths(pub VecDeque<String>);
+pub(crate) struct UnpackerState(pub PackageUnpacker);
 pub(crate) struct PendingPackages(pub VecDeque<(PackageTemp, DeclarativeTrigger)>);
 pub(crate) struct TotalPackages(pub u64);
 pub(crate) struct ImportedTree(pub FileSystem<ObjectID>);
@@ -108,15 +112,19 @@ impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
 pub fn run(data: InstallData) -> Result<(), (InstallStateId, InstallError)> {
     let deploy =
         Deploy::new(DeployMode::ReadWrite).map_err(|error| (InstallStateId::Setup, InstallError::from(error)))?;
+    let unpacker = PackageUnpacker::new()
+        .map_err(|error| (InstallStateId::Setup, InstallError::from(CommonError::Decoder(error))))?;
+
+    let total_packages = data.packages.len() as u64;
 
     let mut context = Context::new();
     context.put(deploy);
-    context.put(
-        data.packages
-            .iter()
-            .map(|path| (*path).to_owned())
-            .collect::<Vec<String>>(),
-    );
+    context.put(UnpackerState(unpacker));
+    context.put(PendingPackagePaths(
+        data.packages.iter().map(|path| (*path).to_owned()).collect(),
+    ));
+    context.put(PendingPackages(VecDeque::new()));
+    context.put(TotalPackages(total_packages));
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
