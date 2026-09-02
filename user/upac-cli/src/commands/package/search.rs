@@ -18,6 +18,10 @@ use crate::locale::LOADER;
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, package_info, request_base, slice_from_cstr};
 
+#[cfg(test)]
+#[path = "../../../tests/inline/search.rs"]
+mod tests;
+
 #[derive(ClapArgs)]
 pub struct Args {
     pub query: String,

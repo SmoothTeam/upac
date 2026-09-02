@@ -13,6 +13,10 @@ use crate::commands::display::{PackageField, PackageFormatter};
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, request_base};
 
+#[cfg(test)]
+#[path = "../../../tests/inline/list.rs"]
+mod tests;
+
 #[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]
