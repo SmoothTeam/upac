@@ -17,12 +17,15 @@ pub struct CSetupBase {
 
     pub base: CRequestBase,
 
+    #[optional]
     pub mount_point: CSlice,
     #[non_empty]
     pub source: CSlice,
+    #[optional]
     pub meta_filename: CSlice,
     pub empty_config: bool,
     pub pinned: bool,
+    #[optional]
     pub boot_plugin: CSlice,
 }
 

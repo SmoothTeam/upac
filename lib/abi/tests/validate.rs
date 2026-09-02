@@ -4,13 +4,20 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::mem::size_of;
-use std::ptr::null;
+use std::ptr::{null, null_mut};
 
 use upac_abi::decoder::CDependency;
 use upac_abi::error::ErrorKind;
 use upac_abi::memory::free_cslice;
 use upac_abi::package::{CPackageInfo, CPackageMeta, CVersion};
-use upac_abi::types::{COwned, CSlice};
+use upac_abi::request::CRequestBase;
+use upac_abi::response::{
+    CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
+    CHistoryEntry, CPrefixEntry, CSearchFileEntry,
+};
+use upac_abi::setup::{CBtrfsOptions, CGptLayout, CPartitionMount, CPartitionSpec, CSetupBase};
+use upac_abi::types::{COwned, CSlice, CVec};
+use upac_abi::{DiffFileSource, FileDiffKind, FsKind};
 
 fn valid_version() -> CVersion {
     CVersion {
@@ -109,4 +116,412 @@ fn dependency_validate_rejects_invalid_nested_version() {
         free_cslice(&dependency.name);
         dependency.version.free();
     }
+}
+
+fn valid_diff_common() -> CDiffFileEntryCommon {
+    CDiffFileEntryCommon {
+        struct_size: size_of::<CDiffFileEntryCommon>(),
+        path: CSlice::from_owned(b"/etc/upac.conf".to_vec()),
+        kind: FileDiffKind::Modified,
+    }
+}
+
+#[test]
+fn diff_file_entry_common_validate_ok_for_well_formed() {
+    let common = valid_diff_common();
+
+    assert!(unsafe { common.validate() }.is_ok());
+    unsafe { common.free() };
+}
+
+#[test]
+fn diff_file_entry_common_validate_rejects_wrong_struct_size() {
+    let mut common = valid_diff_common();
+    common.struct_size = 0;
+
+    assert_eq!(unsafe { common.validate() }, Err(ErrorKind::AbiMismatch));
+    unsafe { common.free() };
+}
+
+#[test]
+fn diff_file_entry_common_validate_rejects_empty_path() {
+    let common = CDiffFileEntryCommon {
+        struct_size: size_of::<CDiffFileEntryCommon>(),
+        path: CSlice { ptr: null(), len: 0 },
+        kind: FileDiffKind::Modified,
+    };
+
+    assert_eq!(unsafe { common.validate() }, Err(ErrorKind::InvalidEntry));
+}
+
+fn valid_diff_prefix_file_entry() -> CDiffPrefixFileEntry {
+    CDiffPrefixFileEntry {
+        struct_size: size_of::<CDiffPrefixFileEntry>(),
+        common: valid_diff_common(),
+        source: DiffFileSource::Prefix,
+        package_name: CSlice::from_owned(b"upac".to_vec()),
+        is_user: false,
+    }
+}
+
+#[test]
+fn diff_prefix_file_entry_validate_ok_for_well_formed() {
+    let entry = valid_diff_prefix_file_entry();
+
+    assert!(unsafe { entry.validate() }.is_ok());
+    unsafe { entry.free() };
+}
+
+#[test]
+fn diff_prefix_file_entry_validate_rejects_invalid_nested_common() {
+    let mut entry = valid_diff_prefix_file_entry();
+    entry.common.struct_size = 0;
+
+    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+    unsafe { entry.free() };
+}
+
+fn valid_diff_config_file_entry() -> CDiffConfigFileEntry {
+    CDiffConfigFileEntry {
+        struct_size: size_of::<CDiffConfigFileEntry>(),
+        common: valid_diff_common(),
+        package_name: CSlice { ptr: null(), len: 0 },
+    }
+}
+
+#[test]
+fn diff_config_file_entry_validate_ok_with_no_package_name() {
+    let entry = valid_diff_config_file_entry();
+
+    assert!(unsafe { entry.validate() }.is_ok());
+    unsafe { entry.free() };
+}
+
+#[test]
+fn diff_config_file_entry_validate_rejects_invalid_nested_common() {
+    let mut entry = valid_diff_config_file_entry();
+    entry.common.struct_size = 0;
+
+    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+    unsafe { entry.free() };
+}
+
+fn valid_diff_untracked_file_entry() -> CDiffUntrackedFileEntry {
+    CDiffUntrackedFileEntry {
+        struct_size: size_of::<CDiffUntrackedFileEntry>(),
+        common: valid_diff_common(),
+        source: DiffFileSource::Config,
+    }
+}
+
+#[test]
+fn diff_untracked_file_entry_validate_ok_for_well_formed() {
+    let entry = valid_diff_untracked_file_entry();
+
+    assert!(unsafe { entry.validate() }.is_ok());
+    unsafe { entry.free() };
+}
+
+#[test]
+fn diff_untracked_file_entry_validate_rejects_invalid_nested_common() {
+    let mut entry = valid_diff_untracked_file_entry();
+    entry.common.struct_size = 0;
+
+    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+    unsafe { entry.free() };
+}
+
+fn valid_config_commit_entry() -> CConfigCommitEntry {
+    CConfigCommitEntry {
+        struct_size: size_of::<CConfigCommitEntry>(),
+        config_digest: CSlice::from_owned(b"deadbeef".to_vec()),
+        subject: CSlice::from_owned(b"install".to_vec()),
+        message: CSlice { ptr: null(), len: 0 },
+    }
+}
+
+#[test]
+fn config_commit_entry_validate_ok_for_well_formed() {
+    let entry = valid_config_commit_entry();
+
+    assert!(unsafe { entry.validate() }.is_ok());
+    unsafe { entry.free() };
+}
+
+#[test]
+fn config_commit_entry_validate_rejects_missing_config_digest() {
+    let mut entry = valid_config_commit_entry();
+    unsafe { free_cslice(&entry.config_digest) };
+    entry.config_digest = CSlice { ptr: null(), len: 0 };
+
+    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::InvalidEntry));
+    unsafe { entry.free() };
+}
+
+fn valid_search_file_entry() -> CSearchFileEntry {
+    CSearchFileEntry {
+        struct_size: size_of::<CSearchFileEntry>(),
+        path: CSlice::from_owned(b"/etc/upac.conf".to_vec()),
+        package_name: CSlice::from_owned(b"upac".to_vec()),
+        is_user: false,
+    }
+}
+
+#[test]
+fn search_file_entry_validate_ok_for_well_formed() {
+    let entry = valid_search_file_entry();
+
+    assert!(unsafe { entry.validate() }.is_ok());
+    unsafe { entry.free() };
+}
+
+#[test]
+fn search_file_entry_validate_rejects_missing_path() {
+    let mut entry = valid_search_file_entry();
+    unsafe { free_cslice(&entry.path) };
+    entry.path = CSlice { ptr: null(), len: 0 };
+
+    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::InvalidEntry));
+    unsafe { entry.free() };
+}
+
+fn valid_prefix_entry() -> CPrefixEntry {
+    CPrefixEntry {
+        struct_size: size_of::<CPrefixEntry>(),
+        prefix_digest: CSlice::from_owned(b"deadbeef".to_vec()),
+        subject: CSlice::from_owned(b"install".to_vec()),
+        message: CSlice { ptr: null(), len: 0 },
+        timestamp: 0,
+        working_config: CSlice { ptr: null(), len: 0 },
+    }
+}
+
+#[test]
+fn prefix_entry_validate_ok_for_well_formed() {
+    let entry = valid_prefix_entry();
+
+    assert!(unsafe { entry.validate() }.is_ok());
+    unsafe { entry.free() };
+}
+
+#[test]
+fn prefix_entry_validate_rejects_missing_prefix_digest() {
+    let mut entry = valid_prefix_entry();
+    unsafe { free_cslice(&entry.prefix_digest) };
+    entry.prefix_digest = CSlice { ptr: null(), len: 0 };
+
+    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::InvalidEntry));
+    unsafe { entry.free() };
+}
+
+fn valid_history_entry() -> CHistoryEntry {
+    CHistoryEntry {
+        struct_size: size_of::<CHistoryEntry>(),
+        prefix_digest: CSlice::from_owned(b"deadbeef".to_vec()),
+        subject: CSlice::from_owned(b"install".to_vec()),
+        message: CSlice { ptr: null(), len: 0 },
+        timestamp: 0,
+        working_config: CSlice { ptr: null(), len: 0 },
+        config_history: CVec {
+            ptr: null_mut(),
+            len: 0,
+        },
+    }
+}
+
+#[test]
+fn history_entry_validate_ok_for_well_formed_with_empty_history() {
+    let entry = valid_history_entry();
+
+    assert!(unsafe { entry.validate() }.is_ok());
+    unsafe { entry.free() };
+}
+
+#[test]
+fn history_entry_validate_rejects_an_invalid_config_history_element() {
+    let mut bad_commit = valid_config_commit_entry();
+    bad_commit.struct_size = 0;
+    let mut history = vec![bad_commit];
+
+    let mut entry = valid_history_entry();
+    entry.config_history = CVec {
+        ptr: history.as_mut_ptr(),
+        len: history.len(),
+    };
+
+    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+
+    unsafe {
+        history[0].free();
+        entry.config_history = CVec {
+            ptr: null_mut(),
+            len: 0,
+        };
+        entry.free();
+    }
+}
+
+fn valid_request_base() -> CRequestBase {
+    CRequestBase {
+        struct_size: size_of::<CRequestBase>(),
+        on_hook: None,
+        hook_ctx: null_mut(),
+        cancel_token: null_mut(),
+    }
+}
+
+#[test]
+fn request_base_validate_ok_for_well_formed() {
+    assert!(unsafe { valid_request_base().validate() }.is_ok());
+}
+
+#[test]
+fn request_base_validate_rejects_wrong_struct_size() {
+    let mut base = valid_request_base();
+    base.struct_size = 0;
+
+    assert_eq!(unsafe { base.validate() }, Err(ErrorKind::AbiMismatch));
+}
+
+fn valid_setup_base() -> CSetupBase {
+    CSetupBase {
+        struct_size: size_of::<CSetupBase>(),
+        base: valid_request_base(),
+        mount_point: CSlice { ptr: null(), len: 0 },
+        source: CSlice::from_owned(b"/mnt/source".to_vec()),
+        meta_filename: CSlice { ptr: null(), len: 0 },
+        empty_config: false,
+        pinned: false,
+        boot_plugin: CSlice { ptr: null(), len: 0 },
+    }
+}
+
+#[test]
+fn setup_base_validate_ok_with_all_optionals_absent() {
+    let base = valid_setup_base();
+
+    assert!(unsafe { base.validate() }.is_ok());
+    unsafe { free_cslice(&base.source) };
+}
+
+#[test]
+fn setup_base_validate_rejects_missing_required_source() {
+    let mut base = valid_setup_base();
+    unsafe { free_cslice(&base.source) };
+    base.source = CSlice { ptr: null(), len: 0 };
+
+    assert_eq!(unsafe { base.validate() }, Err(ErrorKind::InvalidEntry));
+}
+
+fn valid_partition_mount() -> CPartitionMount {
+    CPartitionMount {
+        struct_size: size_of::<CPartitionMount>(),
+        mount_path: CSlice::from_owned(b"/boot".to_vec()),
+        device_path: CSlice::from_owned(b"/dev/sda1".to_vec()),
+        fs_kind: FsKind::Ext4,
+    }
+}
+
+#[test]
+fn partition_mount_validate_ok_for_well_formed() {
+    let mount = valid_partition_mount();
+
+    assert!(unsafe { mount.validate() }.is_ok());
+    unsafe {
+        free_cslice(&mount.mount_path);
+        free_cslice(&mount.device_path);
+    }
+}
+
+#[test]
+fn partition_mount_validate_rejects_missing_mount_path() {
+    let mut mount = valid_partition_mount();
+    unsafe { free_cslice(&mount.mount_path) };
+    mount.mount_path = CSlice { ptr: null(), len: 0 };
+
+    assert_eq!(unsafe { mount.validate() }, Err(ErrorKind::InvalidEntry));
+    unsafe { free_cslice(&mount.device_path) };
+}
+
+fn valid_partition_spec() -> CPartitionSpec {
+    CPartitionSpec {
+        struct_size: size_of::<CPartitionSpec>(),
+        mount_path: CSlice::from_owned(b"/boot".to_vec()),
+        size_mib: 512,
+        fs_kind: FsKind::Ext4,
+    }
+}
+
+#[test]
+fn partition_spec_validate_ok_for_well_formed() {
+    let spec = valid_partition_spec();
+
+    assert!(unsafe { spec.validate() }.is_ok());
+    unsafe { free_cslice(&spec.mount_path) };
+}
+
+#[test]
+fn partition_spec_validate_rejects_missing_mount_path() {
+    let mut spec = valid_partition_spec();
+    unsafe { free_cslice(&spec.mount_path) };
+    spec.mount_path = CSlice { ptr: null(), len: 0 };
+
+    assert_eq!(unsafe { spec.validate() }, Err(ErrorKind::InvalidEntry));
+}
+
+fn valid_gpt_layout() -> CGptLayout {
+    CGptLayout {
+        struct_size: size_of::<CGptLayout>(),
+        esp_size_mib: 512,
+        deploy_fs: FsKind::Ext4,
+        deploy_size_mib: 8192,
+        extra_partitions: CVec {
+            ptr: null_mut(),
+            len: 0,
+        },
+        force_wipe: false,
+    }
+}
+
+#[test]
+fn gpt_layout_validate_ok_with_no_extra_partitions() {
+    assert!(unsafe { valid_gpt_layout().validate() }.is_ok());
+}
+
+#[test]
+fn gpt_layout_validate_rejects_an_invalid_extra_partition() {
+    let mut bad_spec = valid_partition_spec();
+    bad_spec.struct_size = 0;
+    let mut specs = vec![bad_spec];
+
+    let mut layout = valid_gpt_layout();
+    layout.extra_partitions = CVec {
+        ptr: specs.as_mut_ptr(),
+        len: specs.len(),
+    };
+
+    assert_eq!(unsafe { layout.validate() }, Err(ErrorKind::AbiMismatch));
+
+    unsafe { free_cslice(&specs[0].mount_path) };
+}
+
+fn valid_btrfs_options() -> CBtrfsOptions {
+    CBtrfsOptions {
+        struct_size: size_of::<CBtrfsOptions>(),
+        node_size: 0,
+        sector_size: 0,
+    }
+}
+
+#[test]
+fn btrfs_options_validate_ok_for_well_formed() {
+    assert!(unsafe { valid_btrfs_options().validate() }.is_ok());
+}
+
+#[test]
+fn btrfs_options_validate_rejects_wrong_struct_size() {
+    let mut options = valid_btrfs_options();
+    options.struct_size = 0;
+
+    assert_eq!(unsafe { options.validate() }, Err(ErrorKind::AbiMismatch));
 }
