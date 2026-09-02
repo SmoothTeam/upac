@@ -11,7 +11,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::errors::CommonError;
 use crate::fs::WrittenFile;
 use crate::layout::mime;
-use crate::mutated::mime::{MimeError, RenderedMime};
+use crate::mutated::mime::{MimeError, PendingWrites, TotalWrites};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
@@ -19,32 +19,34 @@ pub struct WritingStage;
 
 impl Stage<MimeError> for WritingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+        &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
-        let rendered = context.take::<RenderedMime>().ok_or(CommonError::MissingResult)?;
+        let mut pending = context.take::<PendingWrites>().ok_or(CommonError::MissingResult)?;
+        let total = context.get::<TotalWrites>().ok_or(CommonError::MissingResult)?;
 
-        let mut written: Vec<WrittenFile> = Vec::with_capacity(2);
+        let (path, content) = pending.0.pop_front().ok_or(CommonError::MissingResult)?;
 
-        for (path, content) in [
-            (mime::MIME_XML_PATH, rendered.mime_xml.as_bytes()),
-            (mime::DESKTOP_FILE_PATH, rendered.desktop_content.as_bytes()),
-        ] {
-            match WrittenFile::write(Path::new(path), content) {
-                Ok(file) => written.push(file),
-                Err(error) => {
-                    let _ = written.rollback();
-                    return Err(error.into());
-                }
-            }
-        }
+        let written_file = WrittenFile::write(Path::new(path), content.as_bytes())?;
 
-        let _ = Command::new(mime::UPDATE_MIME_DATABASE_BIN)
-            .arg(mime::MIME_DB_DIR)
-            .status();
-        let _ = Command::new(mime::UPDATE_DESKTOP_DATABASE_BIN)
-            .arg(mime::APPLICATIONS_DIR)
-            .status();
+        let remaining = pending.0.len() as u64;
+        let processed = total.0 - remaining;
+        progress = progress.subject(path.to_owned()).progress(processed, total.0);
 
-        Ok((progress, StageResult::Advance, Box::new(written)))
+        let result = if pending.0.is_empty() {
+            let _ = Command::new(mime::UPDATE_MIME_DATABASE_BIN)
+                .arg(mime::MIME_DB_DIR)
+                .status();
+            let _ = Command::new(mime::UPDATE_DESKTOP_DATABASE_BIN)
+                .arg(mime::APPLICATIONS_DIR)
+                .status();
+
+            StageResult::Advance
+        } else {
+            StageResult::Repeat
+        };
+
+        context.put(pending);
+
+        Ok((progress, result, Box::new(vec![written_file])))
     }
 }

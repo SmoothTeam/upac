@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io::Result as IoResult;
 
 use quick_xml::Writer as XmlWriter;
@@ -13,7 +13,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::errors::CommonError;
 use crate::layout::mime;
-use crate::mutated::mime::{DesktopContent, MimeError, RenderedMime};
+use crate::mutated::mime::{DesktopContent, MimeError, PendingWrites, TotalWrites};
 use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::plugin::decoder::manifest::DecoderManifest;
@@ -33,10 +33,13 @@ impl Stage<MimeError> for RenderingStage {
         let mime_type_line = Self::render_mime_type_line(&manifests);
         let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content.0, &mime_type_line)?;
 
-        context.put(RenderedMime {
-            mime_xml,
-            desktop_content,
-        });
+        let pending = VecDeque::from([
+            (mime::MIME_XML_PATH, mime_xml),
+            (mime::DESKTOP_FILE_PATH, desktop_content),
+        ]);
+
+        context.put(PendingWrites(pending));
+        context.put(TotalWrites(2));
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }

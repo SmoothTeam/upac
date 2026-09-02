@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::VecDeque;
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
@@ -25,10 +26,8 @@ mod writing;
 
 pub(crate) struct DesktopContent(pub String);
 
-pub(crate) struct RenderedMime {
-    pub mime_xml: String,
-    pub desktop_content: String,
-}
+pub(crate) struct PendingWrites(pub VecDeque<(&'static str, String)>);
+pub(crate) struct TotalWrites(pub u64);
 
 pub struct MimeData<'a> {
     pub hook_message: Option<HookMessageFn>,
