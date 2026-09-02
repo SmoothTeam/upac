@@ -16,8 +16,8 @@ use upac_types::PackageMeta;
 use crate::error::SetupError;
 use crate::layout::meta::FILENAME;
 
-pub struct SourceDir<'a> {
-    pub path: &'a Path,
+pub struct SourceDir<'src> {
+    pub path: &'src Path,
 }
 
 impl SourceDir<'_> {

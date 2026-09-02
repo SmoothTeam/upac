@@ -22,9 +22,13 @@ use crate::error::SetupError;
 use crate::layout::btrfs::{NODE_SIZE, SECTOR_SIZE};
 use crate::layout::mkfs::{EXT4_BIN, WIPEFS_BIN, XFS_BIN};
 
-pub struct FormatTarget<'a> {
-    pub device_path: &'a Path,
-    pub label: Option<&'a str>,
+#[cfg(test)]
+#[path = "../tests/inline/format.rs"]
+mod tests;
+
+pub struct FormatTarget<'target> {
+    pub device_path: &'target Path,
+    pub label: Option<&'target str>,
 }
 
 impl FormatTarget<'_> {

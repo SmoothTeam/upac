@@ -10,7 +10,7 @@ use upac_abi::hook::CancelToken;
 
 use upac_setup::data::{SetupExistingData, SetupWholeDiskData};
 
-fn existing_data(cancel_token: &CancelToken, mount_point: Option<&str>) -> SetupExistingData<'_> {
+fn existing_data<'data>(cancel_token: &'data CancelToken, mount_point: Option<&'data str>) -> SetupExistingData<'data> {
     SetupExistingData {
         esp_device: "/dev/sda1",
         deploy_device: "/dev/sda2",
@@ -31,7 +31,9 @@ fn existing_data(cancel_token: &CancelToken, mount_point: Option<&str>) -> Setup
     }
 }
 
-fn whole_disk_data(cancel_token: &CancelToken, mount_point: Option<&str>) -> SetupWholeDiskData<'_> {
+fn whole_disk_data<'data>(
+    cancel_token: &'data CancelToken, mount_point: Option<&'data str>,
+) -> SetupWholeDiskData<'data> {
     SetupWholeDiskData {
         device_path: "/dev/sda",
         esp_size_mib: 512,

@@ -14,23 +14,23 @@ use upac_types::{BtrfsOptions, GptLayout, PartitionMount, PartitionSpec};
 
 use crate::layout::mount::DEFAULT_MOUNT_POINT;
 
-pub struct SetupExistingData<'a> {
-    pub esp_device: &'a str,
-    pub deploy_device: &'a str,
+pub struct SetupExistingData<'data> {
+    pub esp_device: &'data str,
+    pub deploy_device: &'data str,
     pub deploy_fs: FsKind,
     pub extra_mounts: Vec<PartitionMount>,
 
-    pub mount_point: Option<&'a str>,
-    pub source: &'a str,
-    pub meta_filename: Option<&'a str>,
+    pub mount_point: Option<&'data str>,
+    pub source: &'data str,
+    pub meta_filename: Option<&'data str>,
     pub empty_config: bool,
     pub pinned: bool,
-    pub boot_plugin: Option<&'a str>,
+    pub boot_plugin: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
 impl SetupExistingData<'_> {
@@ -39,10 +39,10 @@ impl SetupExistingData<'_> {
     }
 }
 
-impl<'a> TryFrom<&'a CSetupExistingRequest> for SetupExistingData<'a> {
+impl<'data> TryFrom<&'data CSetupExistingRequest> for SetupExistingData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSetupExistingRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSetupExistingRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { request.base.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
@@ -68,8 +68,8 @@ impl<'a> TryFrom<&'a CSetupExistingRequest> for SetupExistingData<'a> {
     }
 }
 
-pub struct SetupWholeDiskData<'a> {
-    pub device_path: &'a str,
+pub struct SetupWholeDiskData<'data> {
+    pub device_path: &'data str,
     pub esp_size_mib: u64,
     pub deploy_fs: FsKind,
     pub deploy_size_mib: u64,
@@ -79,17 +79,17 @@ pub struct SetupWholeDiskData<'a> {
     pub node_size: u32,
     pub sector_size: u32,
 
-    pub mount_point: Option<&'a str>,
-    pub source: &'a str,
-    pub meta_filename: Option<&'a str>,
+    pub mount_point: Option<&'data str>,
+    pub source: &'data str,
+    pub meta_filename: Option<&'data str>,
     pub empty_config: bool,
     pub pinned: bool,
-    pub boot_plugin: Option<&'a str>,
+    pub boot_plugin: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
 impl SetupWholeDiskData<'_> {
@@ -98,10 +98,10 @@ impl SetupWholeDiskData<'_> {
     }
 }
 
-impl<'a> TryFrom<&'a CSetupWholeDiskRequest> for SetupWholeDiskData<'a> {
+impl<'data> TryFrom<&'data CSetupWholeDiskRequest> for SetupWholeDiskData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSetupWholeDiskRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSetupWholeDiskRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { request.base.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
