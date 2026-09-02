@@ -11,7 +11,7 @@ use crate::errors::CommonError;
 use crate::layout::{decoders, mime};
 use crate::mutated::mime::{DesktopContent, MimeError};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::plugin::decoder::manifest::load_decoder_manifests;
 
 pub struct PreparingStage;
@@ -27,6 +27,6 @@ impl Stage<MimeError> for PreparingStage {
         context.put(manifests);
         context.put(DesktopContent(desktop_content));
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

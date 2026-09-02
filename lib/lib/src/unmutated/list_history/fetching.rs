@@ -8,7 +8,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::database::record::DeployRecord;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::unmutated::list_history::ListHistoryError;
 
 use upac_types::{ConfigCommitEntry, HistoryEntry};
@@ -43,6 +43,6 @@ impl Stage<ListHistoryError> for FetchingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

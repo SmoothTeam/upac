@@ -17,7 +17,7 @@ use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
 use crate::mutated::uninstaller::{PackageUuidsToRemove, UninstallError};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 pub struct PreparationStage;
 
@@ -51,6 +51,6 @@ impl Stage<UninstallError> for PreparationStage {
         context.put(PackageUuidsToRemove(uuids));
         context.put(declarative_triggers);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

@@ -13,7 +13,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::search::Search;
 use crate::unmutated::search_meta::SearchMetaError;
 
@@ -43,6 +43,6 @@ impl Stage<SearchMetaError> for SearchingStage {
 
         context.put(matches);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

@@ -13,7 +13,7 @@ use crate::errors::CommonError;
 use crate::layout::boot_plugins::{BOOT_PLUGINS_DIR, MANIFEST_EXTENSION};
 use crate::mutated::uninstaller::{NewPrefixDigest, RequestedBootPlugin, ResolvedBootEntry, UninstallError};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::plugin::boot::resolve_boot_plugin;
 
 pub struct CheckoutStage;
@@ -37,6 +37,6 @@ impl Stage<UninstallError> for CheckoutStage {
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

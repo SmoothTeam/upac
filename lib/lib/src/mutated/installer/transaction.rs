@@ -28,7 +28,7 @@ use crate::errors::CommonError;
 use crate::layout::database::{DATABASE_PATH, INSTALLER_SCRATCH_FILENAME};
 use crate::mutated::installer::{InstallError, NewConfigDefaults, NewPrefixDigest};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 pub struct TransactionStage;
 
@@ -105,7 +105,7 @@ impl Stage<InstallError> for TransactionStage {
         context.put(NewPrefixDigest(digest.to_hex()));
         context.put(NewConfigDefaults(config_defaults));
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }
 

@@ -11,7 +11,7 @@ use upac_abi::{FileDiffKind, PackageDiffKind};
 use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::unmutated::diff::{DiffError, DiffSnapshot};
 
 use upac_types::{
@@ -65,7 +65,7 @@ impl Stage<DiffError> for ComparingStage {
         context.put(packages.into_values().collect::<Vec<_>>());
         context.put(unattached_files);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }
 

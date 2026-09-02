@@ -55,11 +55,11 @@ pub trait ConcurrentStage<E>: Send + 'static {
     ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
 }
 
-pub struct NoRollback;
+pub struct NoRollback(pub StageResult);
 
 impl RollbackGuard for NoRollback {
-    fn new_none(_result: StageResult) -> Self {
-        NoRollback
+    fn new_none(result: StageResult) -> Self {
+        NoRollback(result)
     }
 
     fn rollback(&mut self) -> Result<(), ErrorKind> {
@@ -67,6 +67,6 @@ impl RollbackGuard for NoRollback {
     }
 
     fn result(&self) -> StageResult {
-        StageResult::Advance
+        self.0
     }
 }

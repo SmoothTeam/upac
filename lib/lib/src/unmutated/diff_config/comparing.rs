@@ -9,7 +9,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::unmutated::diff_config::{DiffConfigError, DiffConfigSnapshot};
 
 use upac_types::{DiffConfigFileEntry, DiffFileEntryCommon};
@@ -42,6 +42,6 @@ impl Stage<DiffConfigError> for ComparingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

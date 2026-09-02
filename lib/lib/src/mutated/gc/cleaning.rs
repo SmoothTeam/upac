@@ -11,7 +11,7 @@ use crate::deploy::Deploy;
 use crate::errors::CommonError;
 use crate::mutated::gc::GcError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 pub struct CleaningStage;
 
@@ -40,6 +40,6 @@ impl Stage<GcError> for CleaningStage {
         let root_refs: Vec<&str> = roots.iter().map(String::as_str).collect();
         gc(&repository, &root_refs)?;
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

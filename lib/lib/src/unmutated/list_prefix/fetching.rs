@@ -8,7 +8,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::database::record::DeployRecord;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::unmutated::list_prefix::ListPrefixError;
 
 use upac_types::PrefixEntry;
@@ -34,6 +34,6 @@ impl Stage<ListPrefixError> for FetchingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

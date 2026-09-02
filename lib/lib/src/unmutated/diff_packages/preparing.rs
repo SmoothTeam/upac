@@ -13,7 +13,7 @@ use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::unmutated::diff_packages::DiffPackagesError;
 
 use upac_types::{DiffPackagesSnapshot, RequestedPrefixDigestRange};
@@ -50,6 +50,6 @@ impl Stage<DiffPackagesError> for PreparingStage {
 
         context.put(DiffPackagesSnapshot { from, to });
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

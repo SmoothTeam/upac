@@ -8,7 +8,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::errors::CommonError;
 use crate::mutated::rollback::{ResolvedBootEntry, RollbackError};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 pub struct SwapStage;
 
@@ -20,6 +20,6 @@ impl Stage<RollbackError> for SwapStage {
 
         resolved.plugin.set_one_shot(&resolved.entry_name)?;
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

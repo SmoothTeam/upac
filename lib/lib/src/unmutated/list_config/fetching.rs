@@ -10,7 +10,7 @@ use crate::deploy::digest::current_prefix_digest;
 use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::unmutated::list_config::ListConfigError;
 
 use upac_types::{ConfigCommitEntry, RequestedPrefixDigest};
@@ -45,6 +45,6 @@ impl Stage<ListConfigError> for FetchingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

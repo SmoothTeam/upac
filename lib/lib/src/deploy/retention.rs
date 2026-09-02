@@ -16,7 +16,7 @@ use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 impl Deploy {
     pub fn prune_deploys(&self) -> Result<Vec<String>, CommonError> {
@@ -70,6 +70,6 @@ impl<E: From<CommonError> + Send + 'static> Stage<E> for RetentionStage {
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
         deploy.prune_deploys()?;
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

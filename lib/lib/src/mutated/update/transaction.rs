@@ -28,7 +28,7 @@ use crate::errors::CommonError;
 use crate::layout::database::{DATABASE_PATH, UPDATE_SCRATCH_FILENAME};
 use crate::mutated::update::{AllowDowngrade, NewConfigDefaults, NewPrefixDigest, RemovedConfigPaths, UpdateError};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 pub struct TransactionStage;
 
@@ -118,7 +118,7 @@ impl Stage<UpdateError> for TransactionStage {
         context.put(NewConfigDefaults(config_defaults));
         context.put(RemovedConfigPaths(removed_config_paths));
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }
 

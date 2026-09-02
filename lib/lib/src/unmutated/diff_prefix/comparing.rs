@@ -9,7 +9,7 @@ use upac_abi::{DiffFileSource, FileDiffKind};
 use crate::database::attribution::FileAttribute;
 use crate::errors::CommonError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use crate::unmutated::diff_prefix::{DiffPrefixError, DiffPrefixSnapshot};
 
 use upac_types::{DiffFileEntryCommon, DiffPrefixFileEntry};
@@ -42,6 +42,6 @@ impl Stage<DiffPrefixError> for ComparingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }
