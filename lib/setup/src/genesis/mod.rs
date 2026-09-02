@@ -5,15 +5,23 @@
 
 use std::path::{Path, PathBuf};
 
+use composefs::tree::FileSystem;
+
+use uuid::Uuid;
+
 use upac::composefs::repository::ObjectID;
+use upac::database::MemoryDatabase;
 use upac::errors::CommonError;
 use upac::orchestrator::error::OrchestratorError;
 use upac::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 
 use upac_abi::hook::{Message, MessageHook};
 
+use self::database::CreateDatabaseStage;
 use self::deploy::WriteDeployRecordStage;
+use self::embed::EmbedDatabaseStage;
 use self::entry::StageBootStage;
+use self::file_entries::InsertFileEntryStage;
 use self::meta::ReadMetaStage;
 use self::source::PrepareSourceStage;
 use self::trees::ImportTreesStage;
@@ -22,8 +30,11 @@ use crate::data::{SetupExistingData, SetupWholeDiskData};
 use crate::error::SetupError;
 use crate::target::TargetSysroot;
 
+mod database;
 mod deploy;
+mod embed;
 mod entry;
+mod file_entries;
 mod meta;
 mod source;
 mod trees;
@@ -37,6 +48,18 @@ struct GenesisInput {
 }
 
 struct ResolvedSourceDir(PathBuf);
+
+struct PrefixTree(FileSystem<ObjectID>);
+
+struct ConfigTree(FileSystem<ObjectID>);
+
+struct ImportedPrefixPaths(Vec<PathBuf>);
+
+struct ImportedConfigPaths(Vec<PathBuf>);
+
+struct GenesisDatabase(MemoryDatabase);
+
+struct PackageUuid(Uuid);
 
 struct PrefixDigest(ObjectID);
 
@@ -85,6 +108,9 @@ impl SetupExistingData<'_> {
             Box::new(PrepareSourceStage),
             Box::new(ReadMetaStage),
             Box::new(ImportTreesStage),
+            Box::new(CreateDatabaseStage),
+            Box::new(InsertFileEntryStage),
+            Box::new(EmbedDatabaseStage),
             Box::new(WriteDeployRecordStage),
             Box::new(StageBootStage),
         ]);
@@ -119,6 +145,9 @@ impl SetupWholeDiskData<'_> {
             Box::new(PrepareSourceStage),
             Box::new(ReadMetaStage),
             Box::new(ImportTreesStage),
+            Box::new(CreateDatabaseStage),
+            Box::new(InsertFileEntryStage),
+            Box::new(EmbedDatabaseStage),
             Box::new(WriteDeployRecordStage),
             Box::new(StageBootStage),
         ]);

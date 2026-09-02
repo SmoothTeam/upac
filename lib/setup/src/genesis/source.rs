@@ -18,7 +18,7 @@ use zstd::stream::read::Decoder as ZstdDecoder;
 
 use upac::errors::CommonError;
 use upac::orchestrator::Context;
-use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
@@ -109,7 +109,7 @@ impl Stage<SetupError> for PrepareSourceStage {
 
         if metadata(source_path)?.is_dir() {
             context.put(ResolvedSourceDir(source_path.to_path_buf()));
-            return Ok((progress, Box::new(NoRollback)));
+            return Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))));
         }
 
         let archive = SourceArchive::sniff(source_path)?;
@@ -119,6 +119,6 @@ impl Stage<SetupError> for PrepareSourceStage {
         context.put(ResolvedSourceDir(scratch.path().to_path_buf()));
         context.put(scratch);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }

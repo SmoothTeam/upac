@@ -16,7 +16,7 @@ use upac::composefs::repository::ObjectID;
 use upac::errors::CommonError;
 use upac::layout::boot_plugins::{BOOT_PLUGINS_DIR, MANIFEST_EXTENSION};
 use upac::orchestrator::Context;
-use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac::plugin::boot::resolve_boot_plugin;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
@@ -50,7 +50,7 @@ impl Stage<SetupError> for StageBootStage {
         let plugin = resolve_boot_plugin(BOOT_PLUGINS_DIR, MANIFEST_EXTENSION, input.boot_plugin.as_deref())?;
         plugin.set_one_shot(&entry_name)?;
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
     }
 }
 

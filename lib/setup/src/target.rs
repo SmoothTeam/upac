@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::create_dir_all;
+use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 
 use nix::mount::{MsFlags, mount, umount};
@@ -26,7 +27,7 @@ use crate::partition::DiskLayout;
 pub struct TargetSysroot {
     mount_point: PathBuf,
     deploy_dir: PathBuf,
-    repository: Repository<ObjectID>,
+    repository: ManuallyDrop<Repository<ObjectID>>,
     mounted: Vec<PathBuf>,
 }
 
@@ -81,7 +82,7 @@ impl TargetSysroot {
         Ok(Self {
             mount_point,
             deploy_dir,
-            repository,
+            repository: ManuallyDrop::new(repository),
             mounted,
         })
     }
@@ -154,6 +155,9 @@ impl TargetSysroot {
 
 impl Drop for TargetSysroot {
     fn drop(&mut self) {
+        // SAFETY: `self` is being dropped and `repository` is never accessed again.
+        unsafe { ManuallyDrop::drop(&mut self.repository) };
+
         for mount_point in self.mounted.iter().rev() {
             let _ = umount(mount_point);
         }
