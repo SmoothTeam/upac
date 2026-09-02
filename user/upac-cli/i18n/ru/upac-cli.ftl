@@ -40,6 +40,7 @@ stage-open-transaction = Открытие транзакции
 stage-import-package = Импорт пакета
 stage-commit-transaction = Фиксация транзакции
 stage-remove-package = Удаление пакета
+stage-apply-file = Применение файла
 stage-merge = Слияние
 stage-checkout = Переключение
 stage-swap = Подмена

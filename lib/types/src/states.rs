@@ -75,12 +75,14 @@ impl_command_state!(RollbackStateId, Rollback);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum FilesStateId {
     PreHooks = 0,
-    Transaction = 1,
-    Checkout = 2,
-    Swap = 3,
-    PostHooks = 4,
-    Done = 5,
-    Setup = 6,
+    OpenTransaction = 1,
+    ApplyFile = 2,
+    CommitTransaction = 3,
+    Checkout = 4,
+    Swap = 5,
+    PostHooks = 6,
+    Done = 7,
+    Setup = 8,
 }
 
 impl_command_state!(FilesStateId, Files);
