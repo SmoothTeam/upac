@@ -39,6 +39,7 @@ stage-transaction = Transaction
 stage-open-transaction = Opening transaction
 stage-import-package = Importing package
 stage-commit-transaction = Committing transaction
+stage-remove-package = Removing package
 stage-merge = Merge
 stage-checkout = Checkout
 stage-swap = Swap
