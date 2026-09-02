@@ -26,6 +26,10 @@ use crate::types::abi::{
 };
 use crate::types::progress::{ProgressState, on_progress};
 
+#[cfg(test)]
+#[path = "../../../tests/inline/remove.rs"]
+mod tests;
+
 type InstalledEntry = (String, String, Option<String>);
 type ResolvedEntry = (CString, CString, Option<CString>);
 

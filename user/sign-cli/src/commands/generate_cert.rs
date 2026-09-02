@@ -17,6 +17,10 @@ use upac_pki::generate::{Identity, PemIdentity, RootIdentity, generate_signing_c
 use crate::errors::LocalizedPkiError;
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../../tests/inline/generate_cert.rs"]
+mod tests;
+
 #[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]

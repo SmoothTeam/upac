@@ -27,6 +27,10 @@ use upac_abi::response::{
 use crate::locale::LOADER;
 use crate::types::errors::{AbiMismatch, LibError};
 
+#[cfg(test)]
+#[path = "../tests/inline/libcore.rs"]
+mod tests;
+
 #[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
 

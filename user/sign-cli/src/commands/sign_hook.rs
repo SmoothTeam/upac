@@ -18,6 +18,10 @@ use upac_pki::signature::HookSignature;
 use crate::errors::LocalizedPkiError;
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../../tests/inline/sign_hook.rs"]
+mod tests;
+
 #[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]

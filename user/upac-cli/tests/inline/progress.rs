@@ -10,6 +10,7 @@ use upac_abi::error::ErrorDomain;
 use upac_abi::hook::CProgressEvent;
 use upac_abi::types::CSlice;
 
+use crate::locale;
 use crate::types::abi::{empty_slice, slice_from_cstr};
 use crate::types::progress::ProgressState;
 
@@ -26,16 +27,18 @@ fn event(stage: u32, current: u64, total: u64, subject: CSlice) -> CProgressEven
 
 #[test]
 fn apply_with_zero_total_stays_on_spinner() {
+    locale::init_for_test();
     let mut state = ProgressState::new(ErrorDomain::Install);
 
     state.apply(&event(0, 0, 0, empty_slice()));
 
     assert!(!state.is_bar);
-    assert_eq!(state.bar.message(), "stage_pre_hooks");
+    assert_eq!(state.bar.message(), "Pre-hooks");
 }
 
 #[test]
 fn apply_with_nonzero_total_switches_to_bar_and_sets_position() {
+    locale::init_for_test();
     let mut state = ProgressState::new(ErrorDomain::Install);
 
     state.apply(&event(0, 3, 10, empty_slice()));
@@ -47,10 +50,11 @@ fn apply_with_nonzero_total_switches_to_bar_and_sets_position() {
 
 #[test]
 fn apply_includes_subject_in_message_when_present() {
+    locale::init_for_test();
     let mut state = ProgressState::new(ErrorDomain::Install);
     let subject = CString::new("foo.txt").unwrap();
 
     state.apply(&event(0, 0, 0, slice_from_cstr(&subject)));
 
-    assert_eq!(state.bar.message(), "stage_pre_hooks: foo.txt");
+    assert_eq!(state.bar.message(), "Pre-hooks: foo.txt");
 }

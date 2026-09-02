@@ -19,6 +19,10 @@ use upac_types::states::{
 
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../../tests/inline/errors.rs"]
+mod tests;
+
 #[derive(Debug)]
 pub struct AbiMismatch {
     pub got: u32,

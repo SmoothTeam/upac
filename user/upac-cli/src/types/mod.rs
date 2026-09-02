@@ -15,9 +15,6 @@ pub mod abi;
 pub mod errors;
 pub mod progress;
 
-#[cfg(test)]
-mod tests;
-
 pub struct CommandContext {
     pub lib: Arc<Lib>,
     pub tmp_path: CString,

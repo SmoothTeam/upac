@@ -15,6 +15,10 @@ use upac_types::settings::{ProgressSettings, RuntimeSettings};
 
 use crate::types::errors::StageName;
 
+#[cfg(test)]
+#[path = "../../tests/inline/progress.rs"]
+mod tests;
+
 /// # Safety
 /// `ctx` must be a valid, live pointer to a `ProgressState` for the whole duration of the FFI
 /// call that this hook is registered for (guaranteed by construction: callers keep their

@@ -17,6 +17,10 @@ use upac_pki::generate::{Identity, generate_root};
 use crate::errors::LocalizedPkiError;
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../../tests/inline/generate_root.rs"]
+mod tests;
+
 #[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]

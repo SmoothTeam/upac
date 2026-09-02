@@ -17,6 +17,10 @@ use upac_pki::signature::{HookSignature, RootCertificate};
 use crate::errors::LocalizedPkiError;
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../../tests/inline/verify_hook.rs"]
+mod tests;
+
 #[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]

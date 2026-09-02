@@ -11,6 +11,10 @@ use upac_pki::error::PkiError;
 
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../tests/inline/errors.rs"]
+mod tests;
+
 #[derive(Debug)]
 pub struct LocalizedPkiError(pub PkiError);
 

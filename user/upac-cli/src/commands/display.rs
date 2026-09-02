@@ -14,6 +14,10 @@ use upac_types::Version;
 
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../../tests/inline/display.rs"]
+mod tests;
+
 macro_rules! str_field {
     ($field:expr) => {
         <&str>::try_from(&$field).unwrap_or_default()

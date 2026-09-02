@@ -30,3 +30,9 @@ pub fn init() {
 
     let _ = i18n_embed::select(&*LOADER, &assets, &requested_languages);
 }
+
+#[cfg(test)]
+pub(crate) fn init_for_test() {
+    let english = "en".parse().unwrap();
+    let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &[english]);
+}
