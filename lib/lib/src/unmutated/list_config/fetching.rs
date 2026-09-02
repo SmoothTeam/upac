@@ -20,7 +20,7 @@ pub struct FetchingStage;
 impl Stage<ListConfigError> for FetchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), ListConfigError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListConfigError> {
         let requested = context
             .get::<RequestedPrefixDigest>()
             .ok_or(CommonError::MissingResult)?;
@@ -45,6 +45,6 @@ impl Stage<ListConfigError> for FetchingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

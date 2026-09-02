@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use upac::errors::CommonError;
-use upac::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
@@ -25,39 +25,15 @@ impl From<CommonError> for TestError {
     }
 }
 
-struct NoopGuard(StageResult);
-
-impl RollbackGuard for NoopGuard {
-    fn new_none(result: StageResult) -> Self {
-        NoopGuard(result)
-    }
-
-    fn rollback(&mut self) -> Result<(), ErrorKind> {
-        Ok(())
-    }
-
-    fn result(&self) -> StageResult {
-        self.0
-    }
-}
-
 struct TrackingGuard {
     label: &'static str,
     rolled_back: Arc<Mutex<Vec<&'static str>>>,
 }
 
 impl RollbackGuard for TrackingGuard {
-    fn new_none(_result: StageResult) -> Self {
-        unreachable!("tests construct TrackingGuard directly")
-    }
-
     fn rollback(&mut self) -> Result<(), ErrorKind> {
         self.rolled_back.lock().unwrap().push(self.label);
         Ok(())
-    }
-
-    fn result(&self) -> StageResult {
-        StageResult::Advance
     }
 }
 
@@ -70,11 +46,12 @@ struct RecordingStage {
 impl Stage<TestError> for RecordingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), TestError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
         self.ran.lock().unwrap().push(self.label);
 
         Ok((
             progress,
+            StageResult::Advance,
             Box::new(TrackingGuard {
                 label: self.label,
                 rolled_back: Arc::clone(&self.rolled_back),
@@ -90,7 +67,7 @@ struct FailingStage {
 impl Stage<TestError> for FailingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), TestError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
         Err(TestError::Stage(self.label))
     }
 }
@@ -102,9 +79,9 @@ struct MarkerStage {
 impl Stage<TestError> for MarkerStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), TestError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
         self.ran.lock().unwrap().push("a");
-        Ok((progress, Box::new(NoopGuard(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 
@@ -116,7 +93,7 @@ struct RepeatBackToMarkerStage {
 impl Stage<TestError> for RepeatBackToMarkerStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), TestError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
         self.ran.lock().unwrap().push("b");
 
         let result = if self.attempts.fetch_add(1, Ordering::SeqCst) == 0 {
@@ -125,7 +102,7 @@ impl Stage<TestError> for RepeatBackToMarkerStage {
             StageResult::Advance
         };
 
-        Ok((progress, Box::new(NoopGuard(result))))
+        Ok((progress, result, Box::new(NoRollback)))
     }
 }
 
@@ -140,8 +117,8 @@ impl Stage<TestError> for ProvidesStage {
 
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), TestError> {
-        Ok((progress, Box::new(NoopGuard(StageResult::Advance))))
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 
@@ -154,8 +131,8 @@ impl Stage<TestError> for RequiresMarkerStage {
 
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), TestError> {
-        Ok((progress, Box::new(NoopGuard(StageResult::Advance))))
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 

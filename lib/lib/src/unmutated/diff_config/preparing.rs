@@ -23,7 +23,7 @@ pub struct PreparingStage;
 impl Stage<DiffConfigError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffConfigError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffConfigError> {
         let requested = context
             .get::<RequestedConfigDigestRange>()
             .ok_or(CommonError::MissingResult)?;
@@ -56,6 +56,6 @@ impl Stage<DiffConfigError> for PreparingStage {
             to_database,
         });
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

@@ -20,7 +20,7 @@ pub struct FetchingStage;
 impl Stage<ListPackagesError> for FetchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), ListPackagesError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListPackagesError> {
         let prefix_digest = current_prefix_digest()?;
 
         let deploy = Deploy::new(DeployMode::ReadOnly)?;
@@ -32,6 +32,6 @@ impl Stage<ListPackagesError> for FetchingStage {
 
         context.put(database.list_packages_metas()?);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

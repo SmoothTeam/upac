@@ -18,7 +18,7 @@ pub struct FetchingStage;
 impl Stage<ListHistoryError> for FetchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), ListHistoryError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListHistoryError> {
         let deploy = Deploy::new(DeployMode::ReadOnly)?;
 
         let entries: Vec<HistoryEntry> = DeployRecord::read_all(&deploy)?
@@ -43,6 +43,6 @@ impl Stage<ListHistoryError> for FetchingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

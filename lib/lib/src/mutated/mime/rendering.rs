@@ -23,7 +23,7 @@ pub struct RenderingStage;
 impl Stage<MimeError> for RenderingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), MimeError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
         let manifests = context
             .take::<HashMap<String, DecoderManifest>>()
             .ok_or(CommonError::MissingResult)?;
@@ -38,7 +38,7 @@ impl Stage<MimeError> for RenderingStage {
             desktop_content,
         });
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 

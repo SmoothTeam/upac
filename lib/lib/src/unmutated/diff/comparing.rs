@@ -25,7 +25,7 @@ pub struct ComparingStage;
 impl Stage<DiffError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffError> {
         let snapshot = context.take::<DiffSnapshot>().ok_or(CommonError::MissingResult)?;
 
         let mut packages = Self::diff_packages(snapshot.from_packages, snapshot.to_packages);
@@ -65,7 +65,7 @@ impl Stage<DiffError> for ComparingStage {
         context.put(packages.into_values().collect::<Vec<_>>());
         context.put(unattached_files);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 

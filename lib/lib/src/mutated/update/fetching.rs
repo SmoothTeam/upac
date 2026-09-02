@@ -14,7 +14,7 @@ pub struct FetchingStage;
 impl Stage<UpdateError> for FetchingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UpdateError> {
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

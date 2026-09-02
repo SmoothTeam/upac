@@ -19,7 +19,7 @@ pub struct ComparingStage;
 impl Stage<DiffPrefixError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPrefixError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffPrefixError> {
         let snapshot = context.take::<DiffPrefixSnapshot>().ok_or(CommonError::MissingResult)?;
 
         let mut entries = Vec::new();
@@ -42,6 +42,6 @@ impl Stage<DiffPrefixError> for ComparingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

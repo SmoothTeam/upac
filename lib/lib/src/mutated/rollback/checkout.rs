@@ -21,7 +21,7 @@ pub struct CheckoutStage;
 impl Stage<RollbackError> for CheckoutStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), RollbackError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), RollbackError> {
         let target = context.get::<TargetPrefixDigest>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
         let requested = context.get::<RequestedBootPlugin>().ok_or(CommonError::MissingResult)?;
@@ -37,6 +37,6 @@ impl Stage<RollbackError> for CheckoutStage {
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

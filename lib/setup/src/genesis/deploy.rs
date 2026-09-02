@@ -11,7 +11,7 @@ use upac::database::record::DeployRecord;
 use upac::errors::CommonError;
 use upac::fs::WrittenFile;
 use upac::orchestrator::Context;
-use upac::orchestrator::stage::{RollbackGuard, Stage};
+use upac::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
@@ -24,7 +24,7 @@ pub struct WriteDeployRecordStage;
 impl Stage<SetupError> for WriteDeployRecordStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
         let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
         let prefix_digest = context.get::<PrefixDigest>().ok_or(CommonError::MissingResult)?;
@@ -48,6 +48,6 @@ impl Stage<SetupError> for WriteDeployRecordStage {
 
         let guard: Box<dyn RollbackGuard> = Box::new(vec![written_file] as Vec<WrittenFile>);
 
-        Ok((progress, guard))
+        Ok((progress, StageResult::Advance, guard))
     }
 }

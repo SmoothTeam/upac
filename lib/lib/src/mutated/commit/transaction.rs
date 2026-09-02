@@ -17,14 +17,14 @@ use crate::errors::CommonError;
 use crate::layout::deployment::ETC_UPPER_RELATIVE_PATH;
 use crate::mutated::commit::{CommitError, CommitMessage, Subject};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct TransactionStage;
 
 impl Stage<CommitError> for TransactionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), CommitError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), CommitError> {
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
         let subject = context.get::<Subject>().ok_or(CommonError::MissingResult)?;
         let message = context.get::<CommitMessage>().ok_or(CommonError::MissingResult)?;
@@ -55,6 +55,6 @@ impl Stage<CommitError> for TransactionStage {
             written.push(record.write(&current_record_dir)?);
         }
 
-        Ok((progress, Box::new(written)))
+        Ok((progress, StageResult::Advance, Box::new(written)))
     }
 }

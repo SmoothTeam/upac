@@ -19,7 +19,7 @@ pub struct PreparingStage;
 impl Stage<MimeError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), MimeError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
         let manifests = load_decoder_manifests(decoders::DECODERS_DIR, decoders::MANIFEST_EXTENSION)
             .map_err(CommonError::Decoder)?;
         let desktop_content = fs::read_to_string(mime::DESKTOP_FILE_PATH)?;
@@ -27,6 +27,6 @@ impl Stage<MimeError> for PreparingStage {
         context.put(manifests);
         context.put(DesktopContent(desktop_content));
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

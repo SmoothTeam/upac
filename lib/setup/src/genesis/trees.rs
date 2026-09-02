@@ -27,7 +27,7 @@ pub struct ImportTreesStage;
 impl Stage<SetupError> for ImportTreesStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
         let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
         let resolved = context.get::<ResolvedSourceDir>().ok_or(CommonError::MissingResult)?;
@@ -69,6 +69,6 @@ impl Stage<SetupError> for ImportTreesStage {
         context.put(ImportedConfigPaths(imported_config));
         context.put(import_ctx);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

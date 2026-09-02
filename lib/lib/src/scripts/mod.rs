@@ -11,7 +11,7 @@ use upac_types::DeclarativeTrigger;
 
 use crate::errors::CommonError;
 use crate::layout::hooks::{HOOK_EXTENSION, HOOKS_DIR, ROOT_CERT_PATH, SIGNATURE_EXTENSION};
-use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard, Stage};
+use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard, Stage, StageResult};
 use crate::orchestrator::{Context, Orchestrator, ParallelOrchestrator};
 use crate::plugin::decoder::triggers::build_trigger_table;
 use crate::scripts::error::HookError;
@@ -32,7 +32,7 @@ pub struct HookStage {
 impl<E: From<CommonError> + Send + 'static> Stage<E> for HookStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), E> {
         let runtime = context.runtime().map_err(HookError::from).map_err(CommonError::from)?;
 
         let hooks =
@@ -80,6 +80,6 @@ impl<E: From<CommonError> + Send + 'static> Stage<E> for HookStage {
             .run_concurrent(context, cancel)
             .map_err(|(_, error)| error)?;
 
-        Ok((progress, Box::new(Vec::<Primitive>::new())))
+        Ok((progress, StageResult::Advance, Box::new(Vec::<Primitive>::new())))
     }
 }

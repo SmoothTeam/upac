@@ -18,7 +18,7 @@ pub struct CleaningStage;
 impl Stage<GcError> for CleaningStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), GcError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), GcError> {
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
 
         deploy.prune_deploys()?;
@@ -40,6 +40,6 @@ impl Stage<GcError> for CleaningStage {
         let root_refs: Vec<&str> = roots.iter().map(String::as_str).collect();
         gc(&repository, &root_refs)?;
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

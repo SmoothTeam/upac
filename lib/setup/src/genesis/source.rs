@@ -103,13 +103,13 @@ pub struct PrepareSourceStage;
 impl Stage<SetupError> for PrepareSourceStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
         let source_path = Path::new(&input.source);
 
         if metadata(source_path)?.is_dir() {
             context.put(ResolvedSourceDir(source_path.to_path_buf()));
-            return Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))));
+            return Ok((progress, StageResult::Advance, Box::new(NoRollback)));
         }
 
         let archive = SourceArchive::sniff(source_path)?;
@@ -119,6 +119,6 @@ impl Stage<SetupError> for PrepareSourceStage {
         context.put(ResolvedSourceDir(scratch.path().to_path_buf()));
         context.put(scratch);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

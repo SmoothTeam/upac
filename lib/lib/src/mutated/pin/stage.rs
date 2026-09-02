@@ -12,14 +12,14 @@ use crate::deploy::Deploy;
 use crate::errors::CommonError;
 use crate::mutated::pin::{PinError, RequestedPinned, RequestedPrefixDigest};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct SetPinnedStage;
 
 impl Stage<PinError> for SetPinnedStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), PinError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), PinError> {
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
         let prefix_digest = context
             .get::<RequestedPrefixDigest>()
@@ -34,6 +34,6 @@ impl Stage<PinError> for SetPinnedStage {
             written.push(record.write(&record_dir)?);
         }
 
-        Ok((progress, Box::new(written)))
+        Ok((progress, StageResult::Advance, Box::new(written)))
     }
 }

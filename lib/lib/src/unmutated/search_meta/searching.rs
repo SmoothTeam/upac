@@ -22,7 +22,7 @@ pub struct SearchingStage;
 impl Stage<SearchMetaError> for SearchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchMetaError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SearchMetaError> {
         let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
 
         let prefix_digest = current_prefix_digest()?;
@@ -43,6 +43,6 @@ impl Stage<SearchMetaError> for SearchingStage {
 
         context.put(matches);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

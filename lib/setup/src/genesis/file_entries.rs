@@ -6,9 +6,8 @@
 use upac::database::files::FileStoreMut;
 use upac::errors::CommonError;
 use upac::orchestrator::Context;
-use upac::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
-use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use upac_types::{FileEntry, FileEntryScope};
@@ -18,26 +17,10 @@ use crate::genesis::{GenesisDatabase, ImportedConfigPaths, ImportedPrefixPaths, 
 
 pub struct InsertFileEntryStage;
 
-struct InsertFileEntryGuard(StageResult);
-
-impl RollbackGuard for InsertFileEntryGuard {
-    fn new_none(result: StageResult) -> Self {
-        InsertFileEntryGuard(result)
-    }
-
-    fn rollback(&mut self) -> Result<(), ErrorKind> {
-        Ok(())
-    }
-
-    fn result(&self) -> StageResult {
-        self.0
-    }
-}
-
 impl Stage<SetupError> for InsertFileEntryStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let mut prefix_paths = context
             .take::<ImportedPrefixPaths>()
             .ok_or(CommonError::MissingResult)?;
@@ -76,6 +59,6 @@ impl Stage<SetupError> for InsertFileEntryStage {
             StageResult::Repeat
         };
 
-        Ok((progress, Box::new(InsertFileEntryGuard(result))))
+        Ok((progress, result, Box::new(NoRollback)))
     }
 }

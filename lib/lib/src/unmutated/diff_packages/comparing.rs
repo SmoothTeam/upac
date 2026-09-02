@@ -20,7 +20,7 @@ pub struct ComparingStage;
 impl Stage<DiffPackagesError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPackagesError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffPackagesError> {
         let snapshot = context
             .take::<DiffPackagesSnapshot>()
             .ok_or(CommonError::MissingResult)?;
@@ -67,6 +67,6 @@ impl Stage<DiffPackagesError> for ComparingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

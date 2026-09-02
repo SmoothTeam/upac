@@ -15,11 +15,11 @@ pub struct SwapStage;
 impl Stage<FilesError> for SwapStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), FilesError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), FilesError> {
         let resolved = context.take::<ResolvedBootEntry>().ok_or(CommonError::MissingResult)?;
 
         resolved.plugin.set_one_shot(&resolved.entry_name)?;
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

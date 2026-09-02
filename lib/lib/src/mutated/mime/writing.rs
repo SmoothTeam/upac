@@ -13,14 +13,14 @@ use crate::fs::WrittenFile;
 use crate::layout::mime;
 use crate::mutated::mime::{MimeError, RenderedMime};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct WritingStage;
 
 impl Stage<MimeError> for WritingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), MimeError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
         let rendered = context.take::<RenderedMime>().ok_or(CommonError::MissingResult)?;
 
         let mut written: Vec<WrittenFile> = Vec::with_capacity(2);
@@ -45,6 +45,6 @@ impl Stage<MimeError> for WritingStage {
             .arg(mime::APPLICATIONS_DIR)
             .status();
 
-        Ok((progress, Box::new(written)))
+        Ok((progress, StageResult::Advance, Box::new(written)))
     }
 }

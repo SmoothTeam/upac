@@ -23,7 +23,7 @@ pub struct PreparingStage;
 impl Stage<DiffPackagesError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPackagesError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffPackagesError> {
         let requested = context
             .get::<RequestedPrefixDigestRange>()
             .ok_or(CommonError::MissingResult)?;
@@ -50,6 +50,6 @@ impl Stage<DiffPackagesError> for PreparingStage {
 
         context.put(DiffPackagesSnapshot { from, to });
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

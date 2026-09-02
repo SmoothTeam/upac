@@ -21,7 +21,7 @@ pub struct CreateDatabaseStage;
 impl Stage<SetupError> for CreateDatabaseStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let meta = context.take::<PackageMeta>().ok_or(CommonError::MissingResult)?;
 
         let mut database = MemoryDatabase::new_in_memory()?;
@@ -30,6 +30,6 @@ impl Stage<SetupError> for CreateDatabaseStage {
         context.put(GenesisDatabase(database));
         context.put(PackageUuid(uuid));
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

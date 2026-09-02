@@ -18,7 +18,7 @@ pub struct FetchingStage;
 impl Stage<ListPrefixError> for FetchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), ListPrefixError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListPrefixError> {
         let deploy = Deploy::new(DeployMode::ReadOnly)?;
 
         let entries: Vec<PrefixEntry> = DeployRecord::read_all(&deploy)?
@@ -34,6 +34,6 @@ impl Stage<ListPrefixError> for FetchingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

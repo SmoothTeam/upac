@@ -29,7 +29,7 @@ pub struct EmbedDatabaseStage;
 impl Stage<SetupError> for EmbedDatabaseStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let mut prefix_tree = context.take::<PrefixTree>().ok_or(CommonError::MissingResult)?;
         let config_tree = context.take::<ConfigTree>().ok_or(CommonError::MissingResult)?;
         let database = context.take::<GenesisDatabase>().ok_or(CommonError::MissingResult)?;
@@ -56,6 +56,6 @@ impl Stage<SetupError> for EmbedDatabaseStage {
         context.put(PrefixDigest(prefix_digest));
         context.put(ConfigDigest(config_digest));
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

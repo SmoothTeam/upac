@@ -24,7 +24,7 @@ pub struct PreparationStage;
 impl Stage<UninstallError> for PreparationStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
         let targets = context.get::<Targets>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
 
@@ -51,6 +51,6 @@ impl Stage<UninstallError> for PreparationStage {
         context.put(PackageUuidsToRemove(uuids));
         context.put(declarative_triggers);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

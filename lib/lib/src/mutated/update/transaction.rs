@@ -48,7 +48,7 @@ struct UpdatePackageData<'a> {
 impl Stage<UpdateError> for TransactionStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UpdateError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
         let packages = context.take::<Vec<PackageTemp>>().ok_or(CommonError::MissingResult)?;
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
@@ -118,7 +118,7 @@ impl Stage<UpdateError> for TransactionStage {
         context.put(NewConfigDefaults(config_defaults));
         context.put(RemovedConfigPaths(removed_config_paths));
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 

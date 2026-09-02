@@ -46,7 +46,7 @@ struct RemovePackageData<'a> {
 impl Stage<UninstallError> for TransactionStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
         let uuids = context
             .take::<PackageUuidsToRemove>()
             .ok_or(CommonError::MissingResult)?;
@@ -108,7 +108,7 @@ impl Stage<UninstallError> for TransactionStage {
         context.put(NewPrefixDigest(digest.to_hex()));
         context.put(RemovedConfigPaths(removed_config_paths));
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 

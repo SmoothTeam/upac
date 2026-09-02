@@ -36,7 +36,7 @@ use crate::mutated::files::{
     CommitMessage, FilesError, NewPrefixDigest, RequestedFileKind, RequestedFilePackage, RequestedFileScope, Subject,
 };
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct TransactionStage;
 
@@ -61,7 +61,7 @@ struct ConfigFilesData<'a> {
 impl Stage<FilesError> for TransactionStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), FilesError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), FilesError> {
         let files = context.take::<Vec<String>>().ok_or(CommonError::MissingResult)?;
         let file_kind = context.get::<RequestedFileKind>().ok_or(CommonError::MissingResult)?;
         let scope = context.get::<RequestedFileScope>().ok_or(CommonError::MissingResult)?;
@@ -152,7 +152,7 @@ impl Stage<FilesError> for TransactionStage {
 
         context.put(NewPrefixDigest(new_prefix));
 
-        Ok((progress, Box::new(written)))
+        Ok((progress, StageResult::Advance, Box::new(written)))
     }
 }
 

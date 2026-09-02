@@ -30,7 +30,7 @@ pub struct StageBootStage;
 impl Stage<SetupError> for StageBootStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
         let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
         let prefix_digest = context.get::<PrefixDigest>().ok_or(CommonError::MissingResult)?;
@@ -50,7 +50,7 @@ impl Stage<SetupError> for StageBootStage {
         let plugin = resolve_boot_plugin(BOOT_PLUGINS_DIR, MANIFEST_EXTENSION, input.boot_plugin.as_deref())?;
         plugin.set_one_shot(&entry_name)?;
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }
 

@@ -25,7 +25,7 @@ pub struct SearchingStage;
 impl Stage<SearchInMetaError> for SearchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchInMetaError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SearchInMetaError> {
         let identity = context.get::<PackageEntry>().ok_or(CommonError::MissingResult)?;
         let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
 
@@ -52,6 +52,6 @@ impl Stage<SearchInMetaError> for SearchingStage {
 
         context.put(matches);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

@@ -22,14 +22,14 @@ use crate::errors::CommonError;
 use crate::layout::deployment::ETC_UPPER_RELATIVE_PATH;
 use crate::mutated::uninstaller::{CommitMessage, NewPrefixDigest, RemovedConfigPaths, Subject, UninstallError};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct MergeStage;
 
 impl Stage<UninstallError> for MergeStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UninstallError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
         let removed_config_paths = context.take::<RemovedConfigPaths>().ok_or(CommonError::MissingResult)?;
         let new_prefix = context.get::<NewPrefixDigest>().ok_or(CommonError::MissingResult)?;
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
@@ -97,6 +97,6 @@ impl Stage<UninstallError> for MergeStage {
             written.push(record.write(&new_record_dir)?);
         }
 
-        Ok((progress, Box::new(written)))
+        Ok((progress, StageResult::Advance, Box::new(written)))
     }
 }

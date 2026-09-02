@@ -18,21 +18,7 @@ pub enum StageResult {
 }
 
 pub trait RollbackGuard: Send + 'static {
-    fn new_none(result: StageResult) -> Self
-    where
-        Self: Sized;
-
     fn rollback(&mut self) -> Result<(), ErrorKind>;
-
-    fn result(&self) -> StageResult;
-}
-
-pub trait RollbackGuardNew: RollbackGuard {
-    type Data;
-
-    fn new(data: Self::Data, result: StageResult) -> Self
-    where
-        Self: Sized;
 }
 
 pub trait Stage<E>: Any {
@@ -46,27 +32,19 @@ pub trait Stage<E>: Any {
 
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), E>;
 }
 
 pub trait ConcurrentStage<E>: Send + 'static {
     fn run(
         self: Box<Self>, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E>;
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), E>;
 }
 
-pub struct NoRollback(pub StageResult);
+pub struct NoRollback;
 
 impl RollbackGuard for NoRollback {
-    fn new_none(result: StageResult) -> Self {
-        NoRollback(result)
-    }
-
     fn rollback(&mut self) -> Result<(), ErrorKind> {
         Ok(())
-    }
-
-    fn result(&self) -> StageResult {
-        self.0
     }
 }

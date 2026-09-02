@@ -18,7 +18,7 @@ pub struct ReadMetaStage;
 impl Stage<SetupError> for ReadMetaStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
         let resolved = context.get::<ResolvedSourceDir>().ok_or(CommonError::MissingResult)?;
 
@@ -31,6 +31,6 @@ impl Stage<SetupError> for ReadMetaStage {
 
         context.put(meta);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

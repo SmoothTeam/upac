@@ -10,14 +10,14 @@ use crate::deploy::Deploy;
 use crate::errors::CommonError;
 use crate::mutated::rollback::{RequestedConfigDigest, RollbackError, TargetPrefixDigest};
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{RollbackGuard, Stage};
+use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct MergeStage;
 
 impl Stage<RollbackError> for MergeStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), RollbackError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), RollbackError> {
         let requested = context
             .get::<RequestedConfigDigest>()
             .ok_or(CommonError::MissingResult)?;
@@ -36,6 +36,6 @@ impl Stage<RollbackError> for MergeStage {
 
         context.put(TargetPrefixDigest(prefix_digest));
 
-        Ok((progress, Box::new(written)))
+        Ok((progress, StageResult::Advance, Box::new(written)))
     }
 }

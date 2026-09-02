@@ -26,7 +26,7 @@ pub struct SearchingStage;
 impl Stage<SearchInPackageFilesError> for SearchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchInPackageFilesError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SearchInPackageFilesError> {
         let identity = context.get::<PackageEntry>().ok_or(CommonError::MissingResult)?;
         let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
 
@@ -57,6 +57,6 @@ impl Stage<SearchInPackageFilesError> for SearchingStage {
 
         context.put(matches);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

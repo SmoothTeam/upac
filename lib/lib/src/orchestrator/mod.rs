@@ -208,7 +208,7 @@ where
     ) -> Result<StageResult, (usize, E)> {
         let progress = ProgressEventBuilder::new(index as u32);
 
-        let (progress, guard) = match stage.run(context, cancel, progress) {
+        let (progress, result, guard) = match stage.run(context, cancel, progress) {
             Ok(outcome) => outcome,
             Err(error) => {
                 context.unwind();
@@ -217,8 +217,6 @@ where
         };
 
         context.send_progress(&progress);
-
-        let result = guard.result();
         context.rollback.push(guard);
 
         Ok(result)
@@ -273,7 +271,7 @@ where
 
         while let Some(outcome) = set.join_next().await {
             match outcome {
-                Ok(Ok((progress, guard))) => {
+                Ok(Ok((progress, _result, guard))) => {
                     context.send_progress(&progress);
                     context.rollback.push(guard);
                 }

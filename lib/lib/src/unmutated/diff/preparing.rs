@@ -26,7 +26,7 @@ pub struct PreparingStage;
 impl Stage<DiffError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffError> {
         let requested_prefix = context
             .get::<RequestedPrefixDigestRange>()
             .ok_or(CommonError::MissingResult)?;
@@ -89,6 +89,6 @@ impl Stage<DiffError> for PreparingStage {
             to_database,
         });
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

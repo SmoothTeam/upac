@@ -18,7 +18,7 @@ pub struct PreparationStage;
 impl Stage<UpdateError> for PreparationStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), UpdateError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
         let package_paths = context.take::<Vec<String>>().ok_or(CommonError::MissingResult)?;
         let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
 
@@ -29,6 +29,6 @@ impl Stage<UpdateError> for PreparationStage {
         context.put(packages);
         context.put(declarative_triggers);
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

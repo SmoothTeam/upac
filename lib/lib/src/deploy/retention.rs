@@ -66,10 +66,10 @@ pub struct RetentionStage;
 impl<E: From<CommonError> + Send + 'static> Stage<E> for RetentionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), E> {
         let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
         deploy.prune_deploys()?;
 
-        Ok((progress, Box::new(NoRollback::new_none(StageResult::Advance))))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

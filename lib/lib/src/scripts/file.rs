@@ -10,7 +10,7 @@ use serde::Deserialize;
 use upac_abi::hook::ProgressEventBuilder;
 
 use crate::errors::CommonError;
-use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard};
+use crate::orchestrator::stage::{ConcurrentStage, RollbackGuard, StageResult};
 use crate::scripts::error::HookError;
 use crate::scripts::pipeline::{Operation, PipelineTrigger, Timing};
 use crate::scripts::primitive::{Primitive, Step};
@@ -53,7 +53,7 @@ impl HookFile {
 impl<E: From<CommonError>> ConcurrentStage<E> for HookFile {
     fn run(
         self: Box<Self>, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), E> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), E> {
         let HookFile { critical, steps, .. } = *self;
 
         let mut executed: Vec<Primitive> = Vec::with_capacity(steps.len());
@@ -73,6 +73,6 @@ impl<E: From<CommonError>> ConcurrentStage<E> for HookFile {
             }
         }
 
-        Ok((progress, Box::new(executed)))
+        Ok((progress, StageResult::Advance, Box::new(executed)))
     }
 }
