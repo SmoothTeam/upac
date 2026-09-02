@@ -9,6 +9,10 @@ use clap::builder::PossibleValue;
 use upac_abi::FsKind as FsKindAbi;
 use upac_types::{PartitionMount, PartitionSpec};
 
+#[cfg(test)]
+#[path = "../tests/inline/types.rs"]
+mod tests;
+
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub struct FsKind(pub FsKindAbi);

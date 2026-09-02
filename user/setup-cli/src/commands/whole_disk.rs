@@ -21,6 +21,10 @@ use crate::locale::LOADER;
 use crate::progress::{ProgressState, on_progress};
 use crate::types::{FsKind, parse_extra_partition, parse_size_mib};
 
+#[cfg(test)]
+#[path = "../../tests/inline/whole_disk.rs"]
+mod tests;
+
 #[derive(ClapArgs)]
 pub struct Args {
     #[arg(long)]

@@ -12,6 +12,10 @@ use upac_setup::genesis::GenesisStage;
 
 use crate::locale::LOADER;
 
+#[cfg(test)]
+#[path = "../tests/inline/errors.rs"]
+mod tests;
+
 #[derive(Debug)]
 pub struct LocalizedSetupError(pub (GenesisStage, SetupError));
 

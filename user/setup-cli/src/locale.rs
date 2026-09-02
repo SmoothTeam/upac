@@ -20,3 +20,9 @@ pub fn init() {
     let requested_languages = DesktopLanguageRequester::requested_languages();
     let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &requested_languages);
 }
+
+#[cfg(test)]
+pub(crate) fn init_for_test() {
+    let english = "en".parse().unwrap();
+    let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &[english]);
+}
