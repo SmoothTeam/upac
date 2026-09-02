@@ -16,6 +16,10 @@ use upac_types::PackageMeta;
 use crate::error::SetupError;
 use crate::types::{GenesisDatabase, PackageUuid};
 
+#[cfg(test)]
+#[path = "../../tests/inline/database.rs"]
+mod tests;
+
 pub struct CreateDatabaseStage;
 
 impl Stage<SetupError> for CreateDatabaseStage {

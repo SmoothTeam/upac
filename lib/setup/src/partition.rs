@@ -19,6 +19,10 @@ use crate::error::SetupError;
 use crate::format::FormatTarget;
 use crate::layout::partition::{SETTLE_ATTEMPTS, SETTLE_INTERVAL_MS};
 
+#[cfg(test)]
+#[path = "../tests/inline/partition.rs"]
+mod tests;
+
 macro_rules! mib_to_sectors {
     ($size_mib:expr, $sector_size:expr) => {
         $size_mib * 1024 * 1024 / $sector_size

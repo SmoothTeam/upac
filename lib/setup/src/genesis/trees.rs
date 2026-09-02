@@ -20,6 +20,10 @@ use crate::error::SetupError;
 use crate::target::TargetSysroot;
 use crate::types::{ConfigTree, GenesisInput, ImportedConfigPaths, ImportedPrefixPaths, PrefixTree, ResolvedSourceDir};
 
+#[cfg(test)]
+#[path = "../../tests/inline/trees.rs"]
+mod tests;
+
 pub struct ImportTreesStage;
 
 impl Stage<SetupError> for ImportTreesStage {

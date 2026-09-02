@@ -25,6 +25,10 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::error::SetupError;
 use crate::types::{GenesisInput, ResolvedSourceDir};
 
+#[cfg(test)]
+#[path = "../../tests/inline/source.rs"]
+mod tests;
+
 const ZIP_MAGIC: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
 const SEVENZIP_MAGIC: [u8; 6] = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
 const ZSTD_MAGIC: [u8; 4] = [0x28, 0xB5, 0x2F, 0xFD];

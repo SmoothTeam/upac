@@ -24,6 +24,10 @@ use crate::layout::genesis::SCRATCH_FILENAME;
 use crate::target::TargetSysroot;
 use crate::types::{ConfigDigest, ConfigTree, GenesisDatabase, PrefixDigest, PrefixTree};
 
+#[cfg(test)]
+#[path = "../../tests/inline/embed.rs"]
+mod tests;
+
 pub struct EmbedDatabaseStage;
 
 impl Stage<SetupError> for EmbedDatabaseStage {

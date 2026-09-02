@@ -15,6 +15,10 @@ use upac_types::{FileEntry, FileEntryScope};
 use crate::error::SetupError;
 use crate::types::{GenesisDatabase, ImportedConfigPaths, ImportedPrefixPaths, PackageUuid};
 
+#[cfg(test)]
+#[path = "../../tests/inline/file_entries.rs"]
+mod tests;
+
 pub struct InsertFileEntryStage;
 
 impl Stage<SetupError> for InsertFileEntryStage {

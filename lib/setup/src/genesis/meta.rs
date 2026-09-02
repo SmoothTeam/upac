@@ -13,6 +13,10 @@ use crate::error::SetupError;
 use crate::meta::SourceDir;
 use crate::types::{GenesisInput, ResolvedSourceDir};
 
+#[cfg(test)]
+#[path = "../../tests/inline/meta.rs"]
+mod tests;
+
 pub struct ReadMetaStage;
 
 impl Stage<SetupError> for ReadMetaStage {

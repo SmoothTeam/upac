@@ -19,6 +19,10 @@ use crate::error::SetupError;
 use crate::target::TargetSysroot;
 use crate::types::{ConfigDigest, GenesisInput, PrefixDigest};
 
+#[cfg(test)]
+#[path = "../../tests/inline/deploy.rs"]
+mod tests;
+
 pub struct WriteDeployRecordStage;
 
 impl Stage<SetupError> for WriteDeployRecordStage {
