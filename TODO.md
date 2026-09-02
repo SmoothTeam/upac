@@ -15,3 +15,10 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   `database/{files,meta,triggers}.rs` (check whether `database_record.rs`'s existing fixture
   already exercises them first), `plugin/decoder/error.rs`, `plugin/decoder/unpack.rs`
   (`unpack_one` against a small real archive). None need real hardware/mount.
+
+## upac-types
+
+- `settings.rs`'s `RuntimeSettings::load()`/`GcSettings::default()`/`ProgressSettings::default()`
+  and `decoder.rs`'s `read_to_string` have no tests. `codec.rs` needs a closer read to confirm
+  whether its helpers are already adequately covered indirectly (via every `RedbCodec`-derived
+  struct's own round-trip tests) or need a direct test too.
