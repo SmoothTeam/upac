@@ -90,9 +90,11 @@ impl_command_state!(FilesStateId, Files);
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum GcStateId {
-    Cleaning = 0,
-    Done = 1,
-    Setup = 2,
+    Pruning = 0,
+    CollectRoots = 1,
+    Cleaning = 2,
+    Done = 3,
+    Setup = 4,
 }
 
 impl_command_state!(GcStateId, Gc);
