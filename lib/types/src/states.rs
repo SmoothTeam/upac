@@ -205,13 +205,15 @@ pub enum UpdateStateId {
     PreHooks = 0,
     Fetching = 1,
     Preparation = 2,
-    Transaction = 3,
-    Merge = 4,
-    Checkout = 5,
-    Swap = 6,
-    PostHooks = 7,
-    Done = 8,
-    Setup = 9,
+    OpenTransaction = 3,
+    ImportPackage = 4,
+    CommitTransaction = 5,
+    Merge = 6,
+    Checkout = 7,
+    Swap = 8,
+    PostHooks = 9,
+    Done = 10,
+    Setup = 11,
 }
 
 impl_command_state!(UpdateStateId, Update);

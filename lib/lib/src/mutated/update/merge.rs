@@ -30,7 +30,7 @@ pub struct MergeStage;
 
 impl Stage<UpdateError> for MergeStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
+        &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
         let new_config_defaults = context.take::<NewConfigDefaults>().ok_or(CommonError::MissingResult)?;
         let removed_config_paths = context.take::<RemovedConfigPaths>().ok_or(CommonError::MissingResult)?;
@@ -54,16 +54,8 @@ impl Stage<UpdateError> for MergeStage {
         apply_overlay_upper(&repository, &mut live, &etc_upper_dir, &mut import_ctx)?;
 
         let mut new = base.clone();
-        let removed_total = removed_config_paths.0.len() as u64;
 
-        for (index, path) in removed_config_paths.0.iter().enumerate() {
-            if cancel.is_cancelled() {
-                return Err(CommonError::Cancelled.into());
-            }
-
-            progress = progress.subject(path.clone()).progress(index as u64, removed_total);
-            context.send_progress(&progress);
-
+        for path in &removed_config_paths.0 {
             FileHandle::new(path).remove_in_tree(&mut new)?;
         }
         apply_tree_overlay(&mut new, &new_config_defaults.0)?;

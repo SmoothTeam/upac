@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::VecDeque;
 use std::os::raw::c_void;
 
 use composefs::tree::FileSystem;
@@ -11,16 +12,21 @@ use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CUpdateRequest;
 
+use upac_types::{DeclarativeTrigger, PackageTemp};
+
 pub use self::error::UpdateError;
 
 use self::checkout::CheckoutStage;
+use self::commit::CommitTransactionStage;
 use self::fetching::FetchingStage;
+use self::import::ImportPackageStage;
 use self::merge::MergeStage;
+use self::open::OpenTransactionStage;
 use self::preparation::PreparationStage;
 use self::swap::SwapStage;
-use self::transaction::TransactionStage;
 
 use crate::composefs::repository::ObjectID;
+use crate::database::MemoryDatabase;
 use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
@@ -31,12 +37,14 @@ use upac_types::TmpPath;
 use upac_types::states::UpdateStateId;
 
 mod checkout;
+mod commit;
 mod error;
 mod fetching;
+mod import;
 mod merge;
+mod open;
 mod preparation;
 mod swap;
-mod transaction;
 
 pub(crate) struct NewPrefixDigest(pub String);
 pub(crate) struct NewConfigDefaults(pub FileSystem<ObjectID>);
@@ -50,6 +58,13 @@ pub(crate) struct ResolvedBootEntry {
 }
 pub(crate) struct AllowDowngrade(pub bool);
 pub(crate) struct AllowConflictFiles(pub bool);
+
+pub(crate) struct PendingPackages(pub VecDeque<(PackageTemp, DeclarativeTrigger)>);
+pub(crate) struct TotalPackages(pub u64);
+pub(crate) struct ImportedTree(pub FileSystem<ObjectID>);
+pub(crate) struct ImportedConfigDefaults(pub FileSystem<ObjectID>);
+pub(crate) struct ImportedDatabase(pub MemoryDatabase);
+pub(crate) struct ImportedRemovedConfigPaths(pub Vec<String>);
 
 pub struct UpdateData<'a> {
     pub packages: Vec<&'a str>,
@@ -131,7 +146,9 @@ fn assemble() -> SequentialOrchestrator<UpdateError> {
         }),
         Box::new(FetchingStage),
         Box::new(PreparationStage),
-        Box::new(TransactionStage),
+        Box::new(OpenTransactionStage),
+        Box::new(ImportPackageStage),
+        Box::new(CommitTransactionStage),
         Box::new(MergeStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),
