@@ -46,7 +46,9 @@ impl Stage<SetupError> for EmbedDatabaseStage {
         let database_scratch_path = temp_dir().join(SCRATCH_FILENAME);
         write(&database_scratch_path, &database_bytes)?;
 
-        FileHandle::new(DATABASE_PATH).insert_file(
+        let database_handle = FileHandle::new(DATABASE_PATH);
+        database_handle.ensure_parents_in_tree(&mut prefix_tree.0)?;
+        database_handle.insert_file(
             repository,
             &mut prefix_tree.0,
             &File::open(&database_scratch_path)?,

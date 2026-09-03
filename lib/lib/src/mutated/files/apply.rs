@@ -117,6 +117,7 @@ impl ApplyFileStage {
         let stat = stat_from_metadata(&metadata);
         let handle = FileHandle::new(path);
 
+        handle.ensure_parents_in_tree(tree)?;
         handle.remove_in_tree(tree)?;
 
         if metadata.is_symlink() {

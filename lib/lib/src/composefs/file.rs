@@ -47,6 +47,25 @@ impl FileHandle {
         Ok(())
     }
 
+    pub fn ensure_parents_in_tree(&self, tree: &mut FileSystem<ObjectID>) -> Result<(), RepoError> {
+        let Some(parent) = self.path.parent() else {
+            return Ok(());
+        };
+
+        let mut current = PathBuf::new();
+
+        for component in parent.components() {
+            current.push(component);
+
+            let ancestor = FileHandle::new(current.clone());
+            if ancestor.stat_in_tree(tree).is_err() {
+                ancestor.insert_in_tree(tree, Stat::uninitialized())?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn update_in_tree(&self, tree: &mut FileSystem<ObjectID>, stat: Stat) -> Result<(), RepoError> {
         tree.root.get_directory_mut(self.path.as_os_str())?.stat = stat;
 
