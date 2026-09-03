@@ -206,6 +206,8 @@ where
     fn run_stage(
         stage: &dyn Stage<E>, index: usize, context: &mut Context, cancel: &CancelToken,
     ) -> Result<StageResult, (usize, E)> {
+        context.send_progress(&ProgressEventBuilder::new(index as u32));
+
         let progress = ProgressEventBuilder::new(index as u32);
 
         let (progress, result, guard) = match stage.run(context, cancel, progress) {

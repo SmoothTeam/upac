@@ -52,6 +52,7 @@ impl Stage<InstallError> for ImportPackageStage {
                 &usr_source,
                 &mut import_ctx,
                 cancel,
+                &mut |_| {},
             )?
         } else {
             Vec::new()
@@ -65,6 +66,7 @@ impl Stage<InstallError> for ImportPackageStage {
                 &config_source,
                 &mut import_ctx,
                 cancel,
+                &mut |_| {},
             )?
         } else {
             Vec::new()

@@ -276,7 +276,14 @@ fn import_directory_inserts_files_dirs_and_symlinks() {
 
     let cancel = CancelToken::new();
     let mut imported = handle
-        .import_directory(&repository, &mut tree, source_dir.path(), &mut ctx, &cancel)
+        .import_directory(
+            &repository,
+            &mut tree,
+            source_dir.path(),
+            &mut ctx,
+            &cancel,
+            &mut |_| {},
+        )
         .unwrap();
     imported.sort();
 

@@ -193,7 +193,7 @@ impl FileHandle {
 
     pub fn import_directory(
         &self, repository: &Repository<ObjectID>, tree: &mut FileSystem<ObjectID>, source_dir: &Path,
-        ctx: &mut ImportContext, cancel: &CancelToken,
+        ctx: &mut ImportContext, cancel: &CancelToken, on_entry: &mut dyn FnMut(&Path),
     ) -> Result<Vec<PathBuf>, RepoError> {
         let mut imported = Vec::new();
 
@@ -211,13 +211,15 @@ impl FileHandle {
 
             if metadata.is_dir() {
                 target.insert_in_tree(tree, stat)?;
-                let nested = target.import_directory(repository, tree, &source_path, ctx, cancel)?;
+                let nested = target.import_directory(repository, tree, &source_path, ctx, cancel, on_entry)?;
                 imported.extend(nested.into_iter().map(|relative| name.join(relative)));
             } else if metadata.is_symlink() {
                 target.symlink_in_tree(tree, read_link(&source_path)?, stat)?;
+                on_entry(&name);
                 imported.push(name);
             } else {
                 target.insert_file(repository, tree, &File::open(&source_path)?, stat, ctx)?;
+                on_entry(&name);
                 imported.push(name);
             }
         }
