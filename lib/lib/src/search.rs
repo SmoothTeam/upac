@@ -5,6 +5,10 @@
 
 use regex::Regex;
 
+#[cfg(test)]
+#[path = "../tests/inline/search.rs"]
+mod tests;
+
 pub enum Search {
     Substring(String),
     Regex(Regex),

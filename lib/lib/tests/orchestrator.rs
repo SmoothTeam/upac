@@ -8,6 +8,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use upac::errors::CommonError;
+use upac::lock::LockError;
+use upac::orchestrator::error::OrchestratorError;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac::orchestrator::{Context, Orchestrator, SequentialOrchestrator};
 use upac_abi::error::ErrorKind;
@@ -276,4 +278,126 @@ fn context_runtime_is_lazily_created_and_reused() {
     let second = context.runtime().unwrap();
 
     assert!(Arc::ptr_eq(&first, &second));
+}
+
+struct RepeatNTimesStage {
+    repeat_count: usize,
+    attempts: Arc<Mutex<usize>>,
+}
+
+impl Stage<TestError> for RepeatNTimesStage {
+    fn run(
+        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
+        let mut attempts = self.attempts.lock().unwrap();
+        *attempts += 1;
+
+        let result = if *attempts <= self.repeat_count {
+            StageResult::Repeat
+        } else {
+            StageResult::Advance
+        };
+
+        Ok((progress, result, Box::new(NoRollback)))
+    }
+}
+
+#[test]
+fn run_concurrent_repeats_the_same_stage_until_it_advances() {
+    let attempts = Arc::new(Mutex::new(0));
+
+    let orchestrator: SequentialOrchestrator<TestError> =
+        SequentialOrchestrator::new(vec![Box::new(RepeatNTimesStage {
+            repeat_count: 3,
+            attempts: Arc::clone(&attempts),
+        })]);
+    let mut context = Context::new();
+    let cancel = CancelToken::new();
+
+    let result = orchestrator.run_concurrent(&mut context, &cancel);
+
+    assert_eq!(result, Ok(()));
+    assert_eq!(*attempts.lock().unwrap(), 4);
+}
+
+struct NeverRunStage;
+
+struct RepeatBackToUnreachedStage;
+
+impl Stage<TestError> for RepeatBackToUnreachedStage {
+    fn run(
+        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
+        Ok((
+            progress,
+            StageResult::RepeatBack(TypeId::of::<NeverRunStage>()),
+            Box::new(NoRollback),
+        ))
+    }
+}
+
+#[test]
+fn run_concurrent_fails_with_stage_not_found_when_repeat_back_targets_an_unreached_stage() {
+    let orchestrator: SequentialOrchestrator<TestError> =
+        SequentialOrchestrator::new(vec![Box::new(RepeatBackToUnreachedStage)]);
+    let mut context = Context::new();
+    let cancel = CancelToken::new();
+
+    let result = orchestrator.run_concurrent(&mut context, &cancel);
+
+    assert_eq!(result, Err((0, TestError::Common(CommonError::StageNotFound))));
+}
+
+struct CancellingStage {
+    cancel_token: Arc<CancelToken>,
+    ran: Arc<Mutex<Vec<&'static str>>>,
+}
+
+impl Stage<TestError> for CancellingStage {
+    fn run(
+        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
+        self.ran.lock().unwrap().push("cancelling");
+        self.cancel_token.cancel();
+
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+    }
+}
+
+#[test]
+fn run_concurrent_returns_cancelled_error_when_cancelled_between_stages() {
+    let ran = Arc::new(Mutex::new(Vec::new()));
+    let cancel = Arc::new(CancelToken::new());
+
+    let orchestrator: SequentialOrchestrator<TestError> = SequentialOrchestrator::new(vec![
+        Box::new(CancellingStage {
+            cancel_token: Arc::clone(&cancel),
+            ran: Arc::clone(&ran),
+        }),
+        Box::new(RecordingStage {
+            label: "never",
+            ran: Arc::clone(&ran),
+            rolled_back: Arc::new(Mutex::new(Vec::new())),
+        }),
+    ]);
+    let mut context = Context::new();
+
+    let result = orchestrator.run_concurrent(&mut context, &cancel);
+
+    assert_eq!(result, Err((1, TestError::Common(CommonError::Cancelled))));
+    assert_eq!(*ran.lock().unwrap(), vec!["cancelling"]);
+}
+
+#[test]
+fn orchestrator_error_from_lock_error_is_the_setup_variant() {
+    let error: OrchestratorError<TestError> = LockError::Busy.into();
+
+    assert!(matches!(error, OrchestratorError::Setup(LockError::Busy)));
+}
+
+#[test]
+fn orchestrator_error_from_stage_tuple_is_the_stage_variant() {
+    let error: OrchestratorError<TestError> = (3usize, TestError::Stage("x")).into();
+
+    assert!(matches!(error, OrchestratorError::Stage(3, TestError::Stage("x"))));
 }
