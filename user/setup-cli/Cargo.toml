@@ -42,6 +42,9 @@ i18n-embed-fl = { workspace = true }
 
 rust-embed = "8.12.0"
 
+[build-dependencies]
+toml = { workspace = true }
+
 [dev-dependencies]
 upac-lib = { workspace = true }
 nix      = { workspace = true }

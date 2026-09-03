@@ -14,17 +14,9 @@ filename = "meta.toml"
 [mount]
 default_mount_point = "/mnt/upac-setup"
 
-# btrfs.node_size/sector_size are mkfs.btrfs's own tunables (metadata b-tree
-# node size / minimum I/O unit), matching mkfs.btrfs's own defaults —
-# overridable per request via CSetupWholeDiskRequest.node_size/sector_size
-# (0 ⇒ use these defaults).
-[btrfs]
-node_size = 16384
-sector_size = 4096
-
 # mkfs.ext4_bin/xfs_bin are the mkfs binaries shelled out to for ext4/xfs
-# formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs —
-# see [btrfs]). mkfs.wipefs_bin clears a partition's existing filesystem
+# formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs).
+# mkfs.wipefs_bin clears a partition's existing filesystem
 # signature before formatting, only when the request explicitly opts into it
 # (CSetupWholeDiskRequest.gpt.force_wipe) — never run silently.
 [mkfs]

@@ -38,6 +38,7 @@ pub enum SetupError {
     WipeFailed,
     PartitionNotReady,
     InvalidPartitionLayout,
+    InvalidFormatParams,
     RereadFailed(Errno),
     Unexpected,
 }

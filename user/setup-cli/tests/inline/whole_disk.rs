@@ -14,13 +14,13 @@ use super::{Args, run};
 fn valid_args() -> Args {
     Args {
         device: Some("/dev/sda".to_owned()),
-        esp_size_mib: Some(512),
-        deploy_fs: Some(FsKind(FsKindAbi::Ext4)),
+        esp_size_mib: 512,
+        deploy_fs: FsKind(FsKindAbi::Ext4),
         deploy_size_mib: Some(8192),
         extra_partitions: Vec::new(),
         force_wipe: false,
-        node_size: 0,
-        sector_size: 0,
+        node_size: 16384,
+        sector_size: 4096,
 
         mount_point: None,
         source: Some("/mnt/source".to_owned()),
@@ -46,40 +46,6 @@ fn missing_device_bails_before_touching_the_disk() {
     .unwrap_err();
 
     assert_eq!(error.to_string(), "Missing required argument: --device");
-}
-
-#[test]
-fn missing_esp_size_bails_before_touching_the_disk() {
-    locale::init_for_test();
-    let cancel_token = CancelToken::new();
-
-    let error = run(
-        Args {
-            esp_size_mib: None,
-            ..valid_args()
-        },
-        &cancel_token,
-    )
-    .unwrap_err();
-
-    assert_eq!(error.to_string(), "Missing required argument: --esp-size");
-}
-
-#[test]
-fn missing_deploy_fs_bails_before_touching_the_disk() {
-    locale::init_for_test();
-    let cancel_token = CancelToken::new();
-
-    let error = run(
-        Args {
-            deploy_fs: None,
-            ..valid_args()
-        },
-        &cancel_token,
-    )
-    .unwrap_err();
-
-    assert_eq!(error.to_string(), "Missing required argument: --deploy-fs");
 }
 
 #[test]

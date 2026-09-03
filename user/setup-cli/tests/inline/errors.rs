@@ -140,6 +140,10 @@ fn no_payload_variants_use_their_fixed_localized_message() {
             SetupError::InvalidPartitionLayout,
             "Requested partition sizes don't fit on the disk",
         ),
+        (
+            SetupError::InvalidFormatParams,
+            "Invalid filesystem formatting parameters",
+        ),
         (SetupError::Unexpected, "Unexpected error"),
     ];
 

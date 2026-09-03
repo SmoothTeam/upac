@@ -5,18 +5,19 @@
 
 use anyhow::{Result, bail};
 
-use clap::Args as ClapArgs;
+use clap::{Args as ClapArgs, ValueEnum};
 
 use i18n_embed_fl::fl;
 
+use upac_abi::FsKind as FsKindAbi;
 use upac_abi::hook::CancelToken;
 
 use upac_setup::data::SetupWholeDiskData;
-use upac_setup::layout::btrfs::{NODE_SIZE, SECTOR_SIZE};
 
 use upac_types::PartitionSpec;
 
 use crate::errors::LocalizedSetupError;
+use crate::layout::disk_defaults;
 use crate::locale::LOADER;
 use crate::progress::{ProgressState, on_progress};
 use crate::types::{FsKind, parse_extra_partition, parse_size_mib};
@@ -29,19 +30,19 @@ mod tests;
 pub struct Args {
     #[arg(long)]
     pub device: Option<String>,
-    #[arg(long = "esp-size", value_parser = parse_size_mib)]
-    pub esp_size_mib: Option<u64>,
-    #[arg(long, value_enum)]
-    pub deploy_fs: Option<FsKind>,
+    #[arg(long = "esp-size", value_parser = parse_size_mib, default_value_t = u64::from(disk_defaults::ESP_SIZE_MIB))]
+    pub esp_size_mib: u64,
+    #[arg(long, value_enum, default_value_t = FsKind::from_str(disk_defaults::DEPLOY_FS, false).unwrap_or(FsKind(FsKindAbi::Btrfs)))]
+    pub deploy_fs: FsKind,
     #[arg(long = "deploy-size", value_parser = parse_size_mib)]
     pub deploy_size_mib: Option<u64>,
     #[arg(long = "extra-partition", value_parser = parse_extra_partition)]
     pub extra_partitions: Vec<PartitionSpec>,
     #[arg(long)]
     pub force_wipe: bool,
-    #[arg(long, default_value_t = NODE_SIZE)]
+    #[arg(long, default_value_t = disk_defaults::NODE_SIZE)]
     pub node_size: u32,
-    #[arg(long, default_value_t = SECTOR_SIZE)]
+    #[arg(long, default_value_t = disk_defaults::SECTOR_SIZE)]
     pub sector_size: u32,
 
     #[arg(long)]
@@ -62,12 +63,6 @@ pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
     let Some(device) = args.device.as_deref() else {
         bail!(fl!(LOADER, "err-missing-device"));
     };
-    let Some(esp_size_mib) = args.esp_size_mib else {
-        bail!(fl!(LOADER, "err-missing-esp-size"));
-    };
-    let Some(deploy_fs) = args.deploy_fs else {
-        bail!(fl!(LOADER, "err-missing-deploy-fs"));
-    };
     let Some(deploy_size_mib) = args.deploy_size_mib else {
         bail!(fl!(LOADER, "err-missing-deploy-size"));
     };
@@ -79,8 +74,8 @@ pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
 
     let data = SetupWholeDiskData {
         device_path: device,
-        esp_size_mib,
-        deploy_fs: deploy_fs.into(),
+        esp_size_mib: args.esp_size_mib,
+        deploy_fs: args.deploy_fs.into(),
         deploy_size_mib,
         extra_partitions: args.extra_partitions,
         force_wipe: args.force_wipe,

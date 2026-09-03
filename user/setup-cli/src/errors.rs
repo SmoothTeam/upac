@@ -57,6 +57,7 @@ impl Display for LocalizedSetupError {
             SetupError::WipeFailed => formatter.write_str(&fl!(LOADER, "err-wipe-failed")),
             SetupError::PartitionNotReady => formatter.write_str(&fl!(LOADER, "err-partition-not-ready")),
             SetupError::InvalidPartitionLayout => formatter.write_str(&fl!(LOADER, "err-invalid-partition-layout")),
+            SetupError::InvalidFormatParams => formatter.write_str(&fl!(LOADER, "err-invalid-format-params")),
             SetupError::RereadFailed(errno) => {
                 write!(formatter, "{} ({errno})", fl!(LOADER, "err-reread-failed"))
             }

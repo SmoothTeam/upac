@@ -17,11 +17,10 @@ err-partition-not-ready = Устройство раздела не появил�
 err-unexpected = Непредвиденная ошибка
 
 err-missing-device = Отсутствует обязательный аргумент: --device
-err-missing-esp-size = Отсутствует обязательный аргумент: --esp-size
-err-missing-deploy-fs = Отсутствует обязательный аргумент: --deploy-fs
 err-missing-deploy-size = Отсутствует обязательный аргумент: --deploy-size
 err-missing-source = Отсутствует обязательный аргумент: --source
 err-invalid-partition-layout = Запрошенные размеры разделов не помещаются на диск
+err-invalid-format-params = Некорректные параметры форматирования файловой системы
 err-reread-failed = Не удалось перечитать таблицу разделов (устройство занято?)
 
 stage-prepare-source = Подготовка источника

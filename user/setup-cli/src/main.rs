@@ -23,6 +23,9 @@ mod commands {
 
 mod errors;
 mod locale;
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
 mod progress;
 mod types;
 

@@ -17,11 +17,10 @@ err-partition-not-ready = Partition device did not appear in time after partitio
 err-unexpected = Unexpected error
 
 err-missing-device = Missing required argument: --device
-err-missing-esp-size = Missing required argument: --esp-size
-err-missing-deploy-fs = Missing required argument: --deploy-fs
 err-missing-deploy-size = Missing required argument: --deploy-size
 err-missing-source = Missing required argument: --source
 err-invalid-partition-layout = Requested partition sizes don't fit on the disk
+err-invalid-format-params = Invalid filesystem formatting parameters
 err-reread-failed = Failed to reread the partition table (device busy?)
 
 stage-prepare-source = Preparing source

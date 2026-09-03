@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+# disk_defaults are up-sp's own compiled-in fallback values for whole-disk mode's
+# --esp-size/--deploy-fs/--node-size/--sector-size flags. Deliberately separate from
+# upac-setup's own lib.toml (which no longer has an opinion on these at all) — the CLI's
+# defaults are a CLI-only policy decision, not something the library should know or care about.
+[disk_defaults]
+esp_size_mib = 256
+deploy_fs = "btrfs"
+node_size = 16384
+sector_size = 4096
