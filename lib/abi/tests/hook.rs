@@ -9,6 +9,13 @@ use std::ptr::{addr_of_mut, null_mut};
 
 use upac_abi::hook::{CProgressEvent, CancelToken, HookAck, Message, MessageHook, ProgressEventBuilder};
 
+unsafe extern "C" fn record_stage_and_retry(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck {
+    unsafe {
+        *ctx.cast::<u32>() = (*event).stage;
+    }
+    HookAck::Retry
+}
+
 #[test]
 fn cancel_token_starts_not_cancelled() {
     let token = CancelToken::new();
@@ -78,13 +85,6 @@ fn message_send_with_no_hook_returns_delivered() {
     let event = ProgressEventBuilder::new(0).build();
 
     assert_eq!(message.send(&event), HookAck::Delivered);
-}
-
-unsafe extern "C" fn record_stage_and_retry(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck {
-    unsafe {
-        *ctx.cast::<u32>() = (*event).stage;
-    }
-    HookAck::Retry
 }
 
 #[test]
