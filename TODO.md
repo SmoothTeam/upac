@@ -10,9 +10,10 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
 
 ## upac-lib
 
-- No tests for `errors.rs` (`CommonError` → `ErrorKind`), `lock.rs` (unix-socket-bind exclusive
-  lock), `search.rs` (`Search::new`), `database/attribution.rs` (`FileAttribute::attribute_file`),
-  `database/{files,meta,triggers}.rs` (check whether `database_record.rs`'s existing fixture
-  already exercises them first), `plugin/decoder/error.rs`, `plugin/decoder/unpack.rs`
-  (`unpack_one` against a small real archive). None need real hardware/mount.
+Test-coverage pass in progress, going file by file through the non-command core first
+(`errors.rs`/`lock.rs`/`search.rs`/`fs.rs`/`orchestrator/*`/`database/*` done), commands
+(`mutated`/`unmutated`) last. Remaining core files not yet visited: `deploy/{error,retention,mod}.rs`
+(`esp.rs` skipped — real mount), `scripts/{error,file,load,pipeline,primitive}.rs`,
+`plugin/decoder/{error,unpack,mod}.rs`, `plugin/boot/{error,manifest,mod}.rs`,
+`composefs/{diff,error,mod}.rs`, `config/mod.rs`, `boot/{error,mod}.rs`.
 
