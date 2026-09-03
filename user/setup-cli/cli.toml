@@ -12,3 +12,14 @@ esp_size_mib = 256
 deploy_fs = "btrfs"
 node_size = 16384
 sector_size = 4096
+
+# up-sp's own compiled-in progress-bar styling. Deliberately NOT read from
+# upac_types::settings::RuntimeSettings (that reads /etc/upac.d/upac.toml at runtime, which
+# doesn't exist yet during bootstrap) — tick_chars is plain ASCII on purpose, since up-sp runs on
+# a bare Linux console (live media) whose font typically lacks the Unicode Braille glyphs
+# indicatif uses by default.
+[progress]
+spinner_template = "{spinner:.cyan} {msg}"
+bar_template = "{spinner:.cyan} [{bar:32.cyan/blue}] {pos}/{len} {msg}"
+tick_chars = '-\|/ '
+tick_interval_ms = 100
