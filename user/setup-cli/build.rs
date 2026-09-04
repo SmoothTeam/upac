@@ -10,9 +10,11 @@ use std::path::Path;
 
 use toml::{Value, from_str};
 
+const SECTIONS: &[&str] = &["disk_defaults", "progress"];
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest = var("CARGO_MANIFEST_DIR")?;
-    let source = Path::new(&manifest).join("cli.toml");
+    let source = Path::new(&manifest).join("../cli.toml");
 
     println!("cargo:rerun-if-changed={}", source.display());
 
@@ -21,13 +23,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut generated = String::new();
 
-    let sections = config.as_table().ok_or("cli.toml: root must be a table")?;
-    for (section, entries) in sections {
+    for section in SECTIONS {
+        let entries = config
+            .get(section)
+            .and_then(Value::as_table)
+            .ok_or_else(|| format!("cli.toml: [{section}] must be a table"))?;
+
         generated.push_str(&format!("pub mod {section} {{\n"));
 
-        let entries = entries
-            .as_table()
-            .ok_or_else(|| format!("cli.toml: [{section}] must be a table"))?;
         for (key, value) in entries {
             let key = key.to_uppercase();
 
