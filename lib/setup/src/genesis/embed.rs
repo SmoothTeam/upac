@@ -5,6 +5,7 @@
 
 use std::env::temp_dir;
 use std::fs::{File, write};
+use std::path::Path;
 
 use composefs::generic_tree::Stat;
 use composefs::repository::ImportContext;
@@ -46,8 +47,21 @@ impl Stage<SetupError> for EmbedDatabaseStage {
         let database_scratch_path = temp_dir().join(SCRATCH_FILENAME);
         write(&database_scratch_path, &database_bytes)?;
 
+        let mut ancestors: Vec<&Path> = Path::new(DATABASE_PATH)
+            .ancestors()
+            .skip(1)
+            .filter(|ancestor| !ancestor.as_os_str().is_empty())
+            .collect();
+        ancestors.reverse();
+
+        for ancestor in ancestors {
+            let handle = FileHandle::new(ancestor);
+            if handle.stat_in_tree(&prefix_tree.0).is_err() {
+                handle.insert_in_tree(&mut prefix_tree.0, Stat::uninitialized())?;
+            }
+        }
+
         let database_handle = FileHandle::new(DATABASE_PATH);
-        database_handle.ensure_parents_in_tree(&mut prefix_tree.0)?;
         database_handle.insert_file(
             repository,
             &mut prefix_tree.0,

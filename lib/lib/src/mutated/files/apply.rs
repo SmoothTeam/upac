@@ -7,6 +7,7 @@ use std::fs::{File, copy, create_dir_all, read_link, remove_file, symlink_metada
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
+use composefs::generic_tree::Stat;
 use composefs::repository::{ImportContext, Repository};
 use composefs::tree::FileSystem;
 
@@ -117,7 +118,20 @@ impl ApplyFileStage {
         let stat = stat_from_metadata(&metadata);
         let handle = FileHandle::new(path);
 
-        handle.ensure_parents_in_tree(tree)?;
+        let mut ancestors: Vec<&Path> = source_path
+            .ancestors()
+            .skip(1)
+            .filter(|ancestor| !ancestor.as_os_str().is_empty())
+            .collect();
+        ancestors.reverse();
+
+        for ancestor in ancestors {
+            let ancestor_handle = FileHandle::new(ancestor);
+            if ancestor_handle.stat_in_tree(tree).is_err() {
+                ancestor_handle.insert_in_tree(tree, Stat::uninitialized())?;
+            }
+        }
+
         handle.remove_in_tree(tree)?;
 
         if metadata.is_symlink() {
