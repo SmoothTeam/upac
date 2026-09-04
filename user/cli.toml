@@ -17,8 +17,8 @@ i18n_dir = "/usr/share/upac/i18n"
 # upac-setup's own lib.toml (which no longer has an opinion on these at all) — the CLI's
 # defaults are a CLI-only policy decision, not something the library should know or care about.
 [disk_defaults]
-esp_size_mib = 256
 deploy_fs = "btrfs"
+esp_size_mib = 256
 node_size = 16384
 sector_size = 4096
 
