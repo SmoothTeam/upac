@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::create_dir_all;
+use std::fs::{create_dir_all, remove_dir};
 use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 
@@ -180,8 +180,15 @@ impl Drop for TargetSysroot {
         // SAFETY: `self` is being dropped and `repository` is never accessed again.
         unsafe { ManuallyDrop::drop(&mut self.repository) };
 
-        for mount_point in self.mounted.iter().rev() {
+        let Some((base, nested)) = self.mounted.split_first() else {
+            return;
+        };
+
+        for mount_point in nested.iter().rev() {
             let _ = umount(mount_point);
+            let _ = remove_dir(mount_point);
         }
+
+        let _ = umount(base);
     }
 }
