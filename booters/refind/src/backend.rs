@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::fs::OpenOptions;
+use std::os::fd::AsRawFd;
+use std::os::raw::c_long;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::str::FromStr;
 
@@ -11,22 +14,23 @@ use efivar::efi::{Variable, VariableFlags};
 
 use uuid::Uuid;
 
+use nix::{ioctl_read, ioctl_write_ptr};
+
 use upac_abi::boot::Booter;
 
+use crate::boot::EFIVARFS_PATH;
 use crate::error::RefindError;
 use crate::refind::{PREVIOUS_BOOT_GUID, PREVIOUS_BOOT_VAR};
+
+const FS_IMMUTABLE_FL: c_long = 0x0000_0010;
+
+ioctl_read!(fs_ioc_getflags, b'f', 1, c_long);
+ioctl_write_ptr!(fs_ioc_setflags, b'f', 2, c_long);
 
 pub struct Refind {
     manager: Box<dyn VarManager>,
 }
 
-/// rEFInd has a single variable, `PreviousBoot`, for both one-shot selection and persisting the
-/// confirmed choice — it writes the variable itself before every launch, so a successful boot
-/// through the requested entry already re-records it as `PreviousBoot`. `set_one_shot` and
-/// `confirm_boot` therefore perform the identical write; there is no separate persistent-default
-/// variable to distinguish them, unlike systemd-boot's `LoaderEntryOneShot`/`LoaderEntryDefault`.
-/// Only takes effect if `refind.conf`'s `default_selection` starts with `+` — outside this
-/// plugin's control, see `booter.toml`.
 impl Booter for Refind {
     type Error = RefindError;
 
@@ -63,10 +67,32 @@ impl Refind {
         let guid = Uuid::from_str(PREVIOUS_BOOT_GUID)?;
         let variable = Variable::new_with_vendor(PREVIOUS_BOOT_VAR, guid);
 
+        Self::clear_immutable(&variable);
+
         self.manager
             .write(&variable, VariableFlags::default(), &encode_utf16_null(entry_name))?;
 
         Ok(())
+    }
+
+    fn clear_immutable(variable: &Variable) {
+        let Ok(file) = OpenOptions::new()
+            .read(true)
+            .open(format!("{EFIVARFS_PATH}/{variable}"))
+        else {
+            return;
+        };
+        let fd = file.as_raw_fd();
+
+        let mut flags: c_long = 0;
+        if unsafe { fs_ioc_getflags(fd, &mut flags) }.is_err() {
+            return;
+        }
+
+        if flags & FS_IMMUTABLE_FL != 0 {
+            flags &= !FS_IMMUTABLE_FL;
+            let _ = unsafe { fs_ioc_setflags(fd, &flags) };
+        }
     }
 }
 
