@@ -29,6 +29,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 upac-abi = { workspace = true }
+
+nix      = { workspace = true, features = ["ioctl"] }
 efivar   = { workspace = true }
 uuid     = { workspace = true }
 
