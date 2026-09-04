@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::io::ErrorKind;
 
 use serde::Deserialize;
 
@@ -21,7 +22,13 @@ pub fn load_boot_plugin_manifests(
 ) -> Result<HashMap<String, BootPluginManifest>, BootPluginError> {
     let mut manifests = HashMap::new();
 
-    for entry in fs::read_dir(boot_plugins_dir)? {
+    let dir = match fs::read_dir(boot_plugins_dir) {
+        Ok(dir) => dir,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(manifests),
+        Err(error) => return Err(error.into()),
+    };
+
+    for entry in dir {
         let path = entry?.path();
 
         if path.extension().and_then(|extension| extension.to_str()) != Some(manifest_extension) {

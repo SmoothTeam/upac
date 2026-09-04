@@ -24,7 +24,7 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-upac-lib   = { workspace = true }
+upac-lib   = { workspace = true, features = ["builtin-all-booters"] }
 upac-types = { workspace = true }
 upac-abi   = { workspace = true }
 upac-macro = { workspace = true }
