@@ -25,11 +25,21 @@ formally drop it and fix the doc to match the single-slot design `lib.toml`'s ow
 argues for).
 
 Genesis (`up-sp`) now installs the actual bootloader binary onto a fresh ESP for systemd-boot and
-rEFInd (`StageBootStage::install_loader_binary`, `lib/setup/lib.toml`'s `[genesis]` source paths) —
-confirmed working via a live VM test for systemd-boot; rEFInd wired the same way but not yet
-VM-verified. grub is NOT handled — a real `grub-install`-equivalent (target-specific generated
-`grubx64.efi`, not a plain file copy) is out of scope for now; either shell out to `grub-install`
-against the mounted ESP, or explicitly document grub as unsupported for genesis whole-disk mode.
+rEFInd (`StageBootStage::run`, `lib/setup/lib.toml`'s `[genesis]` source paths) — confirmed working
+via a live VM test for systemd-boot; rEFInd wired the same way but not yet VM-verified. grub is NOT
+handled — a real `grub-install`-equivalent (target-specific generated `grubx64.efi`, not a plain
+file copy) is out of scope for now; either shell out to `grub-install` against the mounted ESP, or
+explicitly document grub as unsupported for genesis whole-disk mode.
+
+`StageBootStage` picks which ESP loader binary to copy via a `match input.boot_plugin.as_deref()`
+against literal `"systemd-boot"`/`"refind"` strings — this bypasses the actual dynamic boot-plugin
+system (`resolve_boot_plugin`/`BootPluginManifest`/`static_plugins`), which is supposed to be the
+one place plugin names are known. Adding a 5th booter plugin would require editing this match by
+hand instead of just dropping in a new plugin. The correct fix is extending the `Booter` ABI itself
+with a 4th function (e.g. `esp_loader_source() -> CSlice`, empty for uki/grub) so genesis asks the
+already-resolved plugin for its own install-time source path instead of hardcoding names — but that
+means bumping `BOOT_ABI_VERSION` and touching all 4 `booters/*` crates, so deliberately deferred;
+the hardcoded match stays as a known, scoped limitation until then.
 
 **Genesis-produced disks don't actually boot into the installed system yet** — found via a live
 QEMU/OVMF test (systemd-boot now starts, finds the BLS entry, loads kernel+initramfs — that part
