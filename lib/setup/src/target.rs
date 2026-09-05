@@ -155,16 +155,13 @@ impl TargetSysroot {
 
 #[cfg(test)]
 impl TargetSysroot {
-    /// Builds a `TargetSysroot` over a plain directory — no `mount()`, no root required. Only
-    /// `deploy_dir`/`next_seq_path`/`repository` are meaningful on the result; `Drop` has nothing
-    /// to unmount since `mounted` stays empty.
     pub(crate) fn for_testing(mount_point: PathBuf) -> Result<Self, SetupError> {
         create_dir_all(&mount_point)?;
 
         let deploy_dir = mount_point.join(DEPLOYS_DIR);
         create_dir_all(&deploy_dir)?;
 
-        let (repository, _freshly_initialized) = repository::init(&mount_point.join(REPO_DIR))?;
+        let (repository, _freshly_initialized) = repository::init_insecure(&mount_point.join(REPO_DIR))?;
 
         Ok(Self {
             mount_point,
