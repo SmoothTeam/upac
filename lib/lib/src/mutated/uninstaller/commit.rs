@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::{File, write};
+use std::path::Path;
 
 use composefs::fsverity::FsVerityHashValue;
 use composefs::generic_tree::Stat;
@@ -18,13 +19,12 @@ use crate::composefs::file::FileHandle;
 use crate::composefs::repository::commit_tree;
 use crate::database::InMemory;
 use crate::deploy::Deploy;
-use crate::errors::CommonError;
 use crate::layout::database::{DATABASE_PATH, UNINSTALL_SCRATCH_FILENAME};
 use crate::mutated::uninstaller::{
     NewPrefixDigest, RemovedConfigPaths, UninstallError, WorkingDatabase, WorkingRemovedConfigPaths, WorkingTree,
 };
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct CommitTransactionStage;
 
@@ -32,19 +32,18 @@ impl Stage<UninstallError> for CommitTransactionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
-        let tree = context.take::<WorkingTree>().ok_or(CommonError::MissingResult)?;
-        let database = context.take::<WorkingDatabase>().ok_or(CommonError::MissingResult)?;
-        let removed_config_paths = context
-            .take::<WorkingRemovedConfigPaths>()
-            .ok_or(CommonError::MissingResult)?;
-        let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let working_tree = ctx_take!(context, WorkingTree);
+        let working_database = ctx_take!(context, WorkingDatabase);
+        let removed_config_paths = ctx_take!(context, WorkingRemovedConfigPaths);
+
+        let tmp_path = ctx_get!(context, TmpPath);
+        let deploy = ctx_get!(context, Deploy);
 
         let repository = deploy.open_repository()?;
-        let mut tree = tree.0;
+        let mut tree = working_tree.0;
 
-        let database_bytes = database.0.into_bytes()?;
-        let database_scratch_path = format!("{}/{UNINSTALL_SCRATCH_FILENAME}", tmp_path.as_ref());
+        let database_bytes = working_database.0.into_bytes()?;
+        let database_scratch_path = Path::new(tmp_path.as_ref()).join(UNINSTALL_SCRATCH_FILENAME);
         write(&database_scratch_path, &database_bytes).map_err(RepoError::from)?;
 
         FileHandle::new(DATABASE_PATH).insert_file(

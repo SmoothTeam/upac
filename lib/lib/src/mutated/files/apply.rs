@@ -27,8 +27,8 @@ use crate::mutated::files::{
     EtcUpperDir, FilesError, PendingFiles, RequestedFileKind, RequestedFileScope, TargetUuid, TotalFiles,
     WorkingDatabase, WorkingTree,
 };
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct ApplyFileStage;
 
@@ -36,18 +36,19 @@ impl Stage<FilesError> for ApplyFileStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), FilesError> {
-        let mut pending = context.take::<PendingFiles>().ok_or(CommonError::MissingResult)?;
-        let mut tree = context.take::<WorkingTree>().ok_or(CommonError::MissingResult)?;
-        let mut database = context.take::<WorkingDatabase>().ok_or(CommonError::MissingResult)?;
-        let mut import_ctx = context.take::<ImportContext>().ok_or(CommonError::MissingResult)?;
-        let etc_upper_dir = context.get::<EtcUpperDir>().ok_or(CommonError::MissingResult)?;
-        let uuid = context.get::<TargetUuid>().ok_or(CommonError::MissingResult)?;
-        let file_kind = context.get::<RequestedFileKind>().ok_or(CommonError::MissingResult)?;
-        let scope = context.get::<RequestedFileScope>().ok_or(CommonError::MissingResult)?;
-        let total = context.get::<TotalFiles>().ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let mut pending_files = ctx_take!(context, PendingFiles);
+        let mut woking_files_tree = ctx_take!(context, WorkingTree);
+        let mut woking_database = ctx_take!(context, WorkingDatabase);
+        let mut import_ctx = ctx_take!(context, ImportContext);
 
-        let path = pending.0.pop_front().ok_or(CommonError::MissingResult)?;
+        let config_upper_dir = ctx_get!(context, EtcUpperDir);
+        let uuid = ctx_get!(context, TargetUuid);
+        let file_kind = ctx_get!(context, RequestedFileKind);
+        let scope = ctx_get!(context, RequestedFileScope);
+        let total_files = ctx_get!(context, TotalFiles);
+        let deploy = ctx_get!(context, Deploy);
+
+        let path = pending_files.0.pop_front().ok_or(CommonError::MissingResult)?;
 
         match scope.0 {
             DiffFileSource::Prefix => {
@@ -55,12 +56,12 @@ impl Stage<FilesError> for ApplyFileStage {
 
                 match file_kind.0 {
                     FileDiffKind::Removed => {
-                        FileHandle::new(&path).remove_in_tree(&mut tree.0)?;
-                        database.0.remove_user_file(uuid.0, &path)?;
+                        FileHandle::new(&path).remove_in_tree(&mut woking_files_tree.0)?;
+                        woking_database.0.remove_user_file(uuid.0, &path)?;
                     }
                     FileDiffKind::Added | FileDiffKind::Modified => {
-                        Self::add_file(&path, &repository, &mut tree.0, &mut import_ctx)?;
-                        database.0.insert_package_file(
+                        Self::add_file(&path, &repository, &mut woking_files_tree.0, &mut import_ctx)?;
+                        woking_database.0.insert_package_file(
                             uuid.0,
                             &FileEntry {
                                 path: path.clone(),
@@ -73,12 +74,12 @@ impl Stage<FilesError> for ApplyFileStage {
             }
             DiffFileSource::Config => match file_kind.0 {
                 FileDiffKind::Removed => {
-                    remove_file(etc_upper_dir.0.join(&path)).map_err(RepoError::from)?;
-                    database.0.remove_user_file(uuid.0, &path)?;
+                    remove_file(config_upper_dir.0.join(&path)).map_err(RepoError::from)?;
+                    woking_database.0.remove_user_file(uuid.0, &path)?;
                 }
                 FileDiffKind::Added | FileDiffKind::Modified => {
-                    Self::add_config_file(&path, &etc_upper_dir.0)?;
-                    database.0.insert_package_file(
+                    Self::add_config_file(&path, &config_upper_dir.0)?;
+                    woking_database.0.insert_package_file(
                         uuid.0,
                         &FileEntry {
                             path: path.clone(),
@@ -90,19 +91,19 @@ impl Stage<FilesError> for ApplyFileStage {
             },
         }
 
-        let remaining = pending.0.len() as u64;
-        let processed = total.0 - remaining;
-        progress = progress.subject(path).progress(processed, total.0);
+        let remaining = pending_files.0.len() as u64;
+        let processed = total_files.0 - remaining;
+        progress = progress.subject(path).progress(processed, total_files.0);
 
-        let result = if pending.0.is_empty() {
+        let result = if pending_files.0.is_empty() {
             StageResult::Advance
         } else {
             StageResult::Repeat
         };
 
-        context.put(pending);
-        context.put(tree);
-        context.put(database);
+        context.put(pending_files);
+        context.put(woking_files_tree);
+        context.put(woking_database);
         context.put(import_ctx);
 
         Ok((progress, result, Box::new(NoRollback)))

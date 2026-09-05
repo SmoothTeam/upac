@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use composefs::repository::ImportContext;
 
@@ -11,7 +11,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use upac_types::{FileEntry, FileEntryScope};
 
-use crate::composefs::file::FileHandle;
+use crate::composefs::file::{FileHandle, import_if_dir};
 use crate::database::files::{FileStore, FileStoreMut};
 use crate::database::meta::{MetaStore, MetaStoreMut};
 use crate::database::triggers::TriggerStoreMut;
@@ -21,8 +21,8 @@ use crate::mutated::update::{
     AllowDowngrade, ImportedConfigDefaults, ImportedDatabase, ImportedRemovedConfigPaths, ImportedTree,
     PendingPackages, TotalPackages, UpdateError,
 };
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct ImportPackageStage;
 
@@ -30,19 +30,16 @@ impl Stage<UpdateError> for ImportPackageStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
-        let mut pending = context.take::<PendingPackages>().ok_or(CommonError::MissingResult)?;
-        let mut tree = context.take::<ImportedTree>().ok_or(CommonError::MissingResult)?;
-        let mut config_defaults = context
-            .take::<ImportedConfigDefaults>()
-            .ok_or(CommonError::MissingResult)?;
-        let mut database = context.take::<ImportedDatabase>().ok_or(CommonError::MissingResult)?;
-        let mut removed_config_paths = context
-            .take::<ImportedRemovedConfigPaths>()
-            .ok_or(CommonError::MissingResult)?;
-        let mut import_ctx = context.take::<ImportContext>().ok_or(CommonError::MissingResult)?;
-        let total = context.get::<TotalPackages>().ok_or(CommonError::MissingResult)?;
-        let allow_downgrade = context.get::<AllowDowngrade>().ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let mut pending = ctx_take!(context, PendingPackages);
+        let mut tree = ctx_take!(context, ImportedTree);
+        let mut config_defaults = ctx_take!(context, ImportedConfigDefaults);
+        let mut database = ctx_take!(context, ImportedDatabase);
+        let mut removed_config_paths = ctx_take!(context, ImportedRemovedConfigPaths);
+        let mut import_ctx = ctx_take!(context, ImportContext);
+
+        let total = ctx_get!(context, TotalPackages);
+        let allow_downgrade = ctx_get!(context, AllowDowngrade);
+        let deploy = ctx_get!(context, Deploy);
 
         let (package, trigger) = pending.0.pop_front().ok_or(CommonError::MissingResult)?;
 
@@ -79,32 +76,16 @@ impl Stage<UpdateError> for ImportPackageStage {
         let source_root = Path::new(&package.temp_package_path);
 
         let usr_source = source_root.join("usr");
-        let imported = if usr_source.is_dir() {
-            FileHandle::new(PathBuf::new()).import_directory(
-                &repository,
-                &mut tree.0,
-                &usr_source,
-                &mut import_ctx,
-                cancel,
-                &mut |_| {},
-            )?
-        } else {
-            Vec::new()
-        };
+        let imported = import_if_dir!(&repository, &mut tree.0, &usr_source, &mut import_ctx, cancel);
 
         let config_source = source_root.join("etc");
-        let imported_config = if config_source.is_dir() {
-            FileHandle::new(PathBuf::new()).import_directory(
-                &repository,
-                &mut config_defaults.0,
-                &config_source,
-                &mut import_ctx,
-                cancel,
-                &mut |_| {},
-            )?
-        } else {
-            Vec::new()
-        };
+        let imported_config = import_if_dir!(
+            &repository,
+            &mut config_defaults.0,
+            &config_source,
+            &mut import_ctx,
+            cancel
+        );
 
         database.0.update_package_meta(&package.meta)?;
         database.0.set_declarative_triggers(uuid, &trigger)?;

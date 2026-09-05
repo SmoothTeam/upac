@@ -5,10 +5,9 @@
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::errors::CommonError;
 use crate::mutated::installer::{InstallError, ResolvedBootEntry};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_take};
 
 pub struct SwapStage;
 
@@ -16,7 +15,7 @@ impl Stage<InstallError> for SwapStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
-        let resolved = context.take::<ResolvedBootEntry>().ok_or(CommonError::MissingResult)?;
+        let resolved = ctx_take!(context, ResolvedBootEntry);
 
         resolved.plugin.set_one_shot(&resolved.entry_name)?;
 

@@ -12,8 +12,8 @@ use crate::errors::CommonError;
 use crate::fs::WrittenFile;
 use crate::layout::mime;
 use crate::mutated::mime::{MimeError, PendingWrites, TotalWrites};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct WritingStage;
 
@@ -21,8 +21,9 @@ impl Stage<MimeError> for WritingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
-        let mut pending = context.take::<PendingWrites>().ok_or(CommonError::MissingResult)?;
-        let total = context.get::<TotalWrites>().ok_or(CommonError::MissingResult)?;
+        let mut pending = ctx_take!(context, PendingWrites);
+
+        let total = ctx_get!(context, TotalWrites);
 
         let (path, content) = pending.0.pop_front().ok_or(CommonError::MissingResult)?;
 

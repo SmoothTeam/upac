@@ -51,6 +51,23 @@ impl DeployRecord {
         Ok(WrittenFile::write(&deploy_dir.join(RECORD_FILENAME), &content)?)
     }
 
+    pub fn update_working_config(
+        &mut self, deploy_dir: &Path, new_config_digest: String, subject: String, message: Option<String>,
+    ) -> Result<Option<WrittenFile>, DeployRecordError> {
+        if self.working_config == new_config_digest {
+            return Ok(None);
+        }
+
+        self.working_config = new_config_digest.clone();
+        self.config_history.push(ConfigHistoryEntry {
+            config_digest: new_config_digest,
+            subject,
+            message,
+        });
+
+        Ok(Some(self.write(deploy_dir)?))
+    }
+
     pub fn now_secs() -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

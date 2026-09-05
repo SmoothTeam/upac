@@ -20,6 +20,24 @@ use upac_abi::hook::CancelToken;
 use crate::composefs::error::RepoError;
 use crate::composefs::repository::ObjectID;
 
+macro_rules! import_if_dir {
+    ($repository:expr, $tree:expr, $source:expr, $import_ctx:expr, $cancel:expr) => {
+        if $source.is_dir() {
+            $crate::composefs::file::FileHandle::new(::std::path::PathBuf::new()).import_directory(
+                $repository,
+                $tree,
+                $source,
+                $import_ctx,
+                $cancel,
+                &mut |_| {},
+            )?
+        } else {
+            Vec::new()
+        }
+    };
+}
+pub(crate) use import_if_dir;
+
 pub struct FileHandle {
     path: PathBuf,
 }

@@ -69,6 +69,24 @@ macro_rules! run_unmutated {
 }
 pub(crate) use run_unmutated;
 
+macro_rules! ctx_get {
+    ($context:expr, $ty:ty) => {
+        $context
+            .get::<$ty>()
+            .ok_or($crate::errors::CommonError::MissingResult)?
+    };
+}
+pub(crate) use ctx_get;
+
+macro_rules! ctx_take {
+    ($context:expr, $ty:ty) => {
+        $context
+            .take::<$ty>()
+            .ok_or($crate::errors::CommonError::MissingResult)?
+    };
+}
+pub(crate) use ctx_take;
+
 pub type StagePipelineError = TypeId;
 
 pub struct Context {

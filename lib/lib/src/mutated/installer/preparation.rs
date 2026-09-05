@@ -13,32 +13,23 @@ use upac_types::TmpPath;
 
 use crate::errors::CommonError;
 use crate::mutated::installer::{InstallError, PendingPackagePaths, PendingPackages, TotalPackages, UnpackerState};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct PreparationStage;
 
 struct UnpackedPackageDir(PathBuf);
 
-impl RollbackGuard for UnpackedPackageDir {
-    fn rollback(&mut self) -> Result<(), ErrorKind> {
-        let _ = remove_dir_all(&self.0);
-
-        Ok(())
-    }
-}
-
 impl Stage<InstallError> for PreparationStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
-        let mut pending_paths = context
-            .take::<PendingPackagePaths>()
-            .ok_or(CommonError::MissingResult)?;
-        let mut unpacker = context.take::<UnpackerState>().ok_or(CommonError::MissingResult)?;
-        let mut pending_packages = context.take::<PendingPackages>().ok_or(CommonError::MissingResult)?;
-        let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
-        let total = context.get::<TotalPackages>().ok_or(CommonError::MissingResult)?;
+        let mut pending_paths = ctx_take!(context, PendingPackagePaths);
+        let mut unpacker = ctx_take!(context, UnpackerState);
+        let mut pending_packages = ctx_take!(context, PendingPackages);
+
+        let tmp_path = ctx_get!(context, TmpPath);
+        let total_packages = ctx_get!(context, TotalPackages);
 
         let package_path = pending_paths.0.pop_front().ok_or(CommonError::MissingResult)?;
         let index = pending_packages.0.len();
@@ -53,8 +44,8 @@ impl Stage<InstallError> for PreparationStage {
         pending_packages.0.push_back((package, trigger));
 
         let remaining = pending_paths.0.len() as u64;
-        let processed = total.0 - remaining;
-        progress = progress.subject(package_path).progress(processed, total.0);
+        let processed = total_packages.0 - remaining;
+        progress = progress.subject(package_path).progress(processed, total_packages.0);
 
         let result = if pending_paths.0.is_empty() {
             StageResult::Advance
@@ -67,5 +58,13 @@ impl Stage<InstallError> for PreparationStage {
         context.put(pending_packages);
 
         Ok((progress, result, Box::new(guard)))
+    }
+}
+
+impl RollbackGuard for UnpackedPackageDir {
+    fn rollback(&mut self) -> Result<(), ErrorKind> {
+        let _ = remove_dir_all(&self.0);
+
+        Ok(())
     }
 }

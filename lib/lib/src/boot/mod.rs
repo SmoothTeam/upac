@@ -16,7 +16,7 @@ use composefs_boot::write_boot::write_boot_simple;
 use self::error::BootError;
 
 use crate::composefs::repository::ObjectID;
-use crate::layout::boot::UPAC_TO_SLOT;
+use crate::layout::boot::UPAC_UKI_TO_SLOT;
 
 pub mod error;
 
@@ -34,7 +34,7 @@ pub fn write_boot_entry(
 
     let entry_name = match &entry {
         BootEntry::Type1(_) | BootEntry::UsrLibModulesVmLinuz(_) => prefix_digest.to_owned(),
-        BootEntry::Type2(_) => UPAC_TO_SLOT.to_owned(),
+        BootEntry::Type2(_) => UPAC_UKI_TO_SLOT.to_owned(),
     };
 
     let karg = ComposefsCmdline::new_v2(digest, false);

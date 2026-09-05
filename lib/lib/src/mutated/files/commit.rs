@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::{File, create_dir_all, write};
+use std::path::Path;
 
 use composefs::fsverity::FsVerityHashValue;
 use composefs::generic_tree::Stat;
@@ -21,11 +22,10 @@ use crate::database::error::DeployRecordError;
 use crate::database::record::DeployRecord;
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
-use crate::errors::CommonError;
 use crate::layout::database::{DATABASE_PATH, FILES_SCRATCH_FILENAME};
 use crate::mutated::files::{CommitMessage, FilesError, NewPrefixDigest, Subject, WorkingDatabase, WorkingTree};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct CommitTransactionStage;
 
@@ -33,19 +33,20 @@ impl Stage<FilesError> for CommitTransactionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), FilesError> {
-        let tree = context.take::<WorkingTree>().ok_or(CommonError::MissingResult)?;
-        let database = context.take::<WorkingDatabase>().ok_or(CommonError::MissingResult)?;
-        let mut import_ctx = context.take::<ImportContext>().ok_or(CommonError::MissingResult)?;
-        let tmp_path = context.get::<TmpPath>().ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
-        let subject = context.get::<Subject>().ok_or(CommonError::MissingResult)?;
-        let message = context.get::<CommitMessage>().ok_or(CommonError::MissingResult)?;
+        let working_tree = ctx_take!(context, WorkingTree);
+        let working_database = ctx_take!(context, WorkingDatabase);
+        let mut import_ctx = ctx_take!(context, ImportContext);
+
+        let tmp_path = ctx_get!(context, TmpPath);
+        let deploy = ctx_get!(context, Deploy);
+        let subject = ctx_get!(context, Subject);
+        let message = ctx_get!(context, CommitMessage);
 
         let repository = deploy.open_repository()?;
-        let mut tree = tree.0;
+        let mut tree = working_tree.0;
 
-        let database_bytes = database.0.into_bytes()?;
-        let database_scratch_path = format!("{}/{FILES_SCRATCH_FILENAME}", tmp_path.as_ref());
+        let database_bytes = working_database.0.into_bytes()?;
+        let database_scratch_path = Path::new(tmp_path.as_ref()).join(FILES_SCRATCH_FILENAME);
         write(&database_scratch_path, &database_bytes).map_err(RepoError::from)?;
 
         FileHandle::new(DATABASE_PATH).insert_file(

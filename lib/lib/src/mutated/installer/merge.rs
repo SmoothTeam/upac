@@ -14,16 +14,15 @@ use crate::composefs::overlay::{apply_overlay_upper, apply_tree_overlay};
 use crate::composefs::repository::commit_tree;
 use crate::config::merge::merge_config;
 use crate::database::error::DeployRecordError;
-use crate::database::record::{ConfigHistoryEntry, DeployRecord};
+use crate::database::record::DeployRecord;
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
-use crate::errors::CommonError;
-use crate::layout::deployment::ETC_UPPER_RELATIVE_PATH;
+use crate::layout::deployment::CONFIG_DIR_NAME;
 use crate::mutated::installer::{
     AllowConflictFiles, CommitMessage, InstallError, NewConfigDefaults, NewPrefixDigest, Subject,
 };
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct MergeStage;
 
@@ -31,30 +30,41 @@ impl Stage<InstallError> for MergeStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
-        let new_config_defaults = context.take::<NewConfigDefaults>().ok_or(CommonError::MissingResult)?;
-        let new_prefix = context.get::<NewPrefixDigest>().ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
-        let subject = context.get::<Subject>().ok_or(CommonError::MissingResult)?;
-        let message = context.get::<CommitMessage>().ok_or(CommonError::MissingResult)?;
-        let allow_conflict_files = context.get::<AllowConflictFiles>().ok_or(CommonError::MissingResult)?;
+        let new_config_defaults = ctx_take!(context, NewConfigDefaults);
+
+        let new_prefix = ctx_get!(context, NewPrefixDigest);
+        let deploy = ctx_get!(context, Deploy);
+        let subject = ctx_get!(context, Subject);
+        let message = ctx_get!(context, CommitMessage);
+        let allow_conflict_files = ctx_get!(context, AllowConflictFiles);
 
         let repository = deploy.open_repository()?;
 
         let current_prefix = current_prefix_digest()?;
         let current_record_dir = deploy.deploy(&current_prefix);
-        let current_record = DeployRecord::read(&current_record_dir)?;
+        let current_deploy_record = DeployRecord::read(&current_record_dir)?;
 
-        let base = deploy.open_tree(&current_record.working_config)?;
+        let base_config_layout = deploy.open_tree(&current_deploy_record.working_config)?;
 
-        let mut live = base.clone();
-        let etc_upper_dir = current_record_dir.join(ETC_UPPER_RELATIVE_PATH);
+        let mut live_config_layout = base_config_layout.clone();
+
+        let config_upper_dir = current_record_dir.join(CONFIG_DIR_NAME).join("upper");
+
         let mut import_ctx = ImportContext::default();
-        apply_overlay_upper(&repository, &mut live, &etc_upper_dir, &mut import_ctx)?;
 
-        let mut new = base.clone();
-        apply_tree_overlay(&mut new, &new_config_defaults.0)?;
+        apply_overlay_upper(&repository, &mut live_config_layout, &config_upper_dir, &mut import_ctx)?;
 
-        let merge_result = merge_config(&base, &new, &live, allow_conflict_files.0)?;
+        let mut new_config_layout = base_config_layout.clone();
+
+        apply_tree_overlay(&mut new_config_layout, &new_config_defaults.0)?;
+
+        let merge_result = merge_config(
+            &base_config_layout,
+            &new_config_layout,
+            &live_config_layout,
+            allow_conflict_files.0,
+        )?;
+
         let new_config_digest = commit_tree(&repository, merge_result.tree)?.to_hex();
 
         let conflicts_total = merge_result.conflicts.len() as u64;
@@ -64,7 +74,7 @@ impl Stage<InstallError> for MergeStage {
         }
 
         let new_record_dir = deploy.deploy(&new_prefix.0);
-        let mut record = match DeployRecord::read(&new_record_dir) {
+        let mut record_deploy = match DeployRecord::read(&new_record_dir) {
             Ok(existing) => existing,
             Err(DeployRecordError::NotFound) => {
                 create_dir_all(&new_record_dir).map_err(DeployRecordError::from)?;
@@ -84,15 +94,12 @@ impl Stage<InstallError> for MergeStage {
         };
 
         let mut written = Vec::new();
-        if record.working_config != new_config_digest {
-            record.working_config = new_config_digest.clone();
-            record.config_history.push(ConfigHistoryEntry {
-                config_digest: new_config_digest,
-                subject: subject.0.clone(),
-                message: message.0.clone(),
-            });
-            written.push(record.write(&new_record_dir)?);
-        }
+        written.extend(record_deploy.update_working_config(
+            &new_record_dir,
+            new_config_digest,
+            subject.0.clone(),
+            message.0.clone(),
+        )?);
 
         Ok((progress, StageResult::Advance, Box::new(written)))
     }

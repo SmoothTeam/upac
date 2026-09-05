@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{create_dir_all, read_dir, remove_dir};
+use std::cmp::Reverse;
+use std::collections::HashSet;
+use std::fs::{create_dir_all, read_dir, remove_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
 use composefs::repository::Repository;
@@ -20,8 +22,13 @@ use rsmount::tables::MountInfo;
 
 use self::error::SysrootError;
 
+use upac_types::settings::RuntimeSettings;
+
 use crate::composefs::error::RepoError;
 use crate::composefs::repository::{self, ObjectID};
+use crate::database::record::DeployRecord;
+use crate::deploy::digest::current_prefix_digest;
+use crate::errors::CommonError;
 use crate::layout::deployment::{DEPLOYS_DIR, NEXT_SEQ_PATH, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
 
 pub mod digest;
@@ -109,6 +116,49 @@ impl Deploy {
         }
 
         Ok(digests)
+    }
+
+    pub fn prune_deploys(&self) -> Result<Vec<String>, CommonError> {
+        let retention_depth = RuntimeSettings::load().gc.retention_depth as usize;
+
+        let mut deploy_records = DeployRecord::read_all(self)?;
+        deploy_records.sort_by_key(|record| Reverse(record.seq));
+
+        let mut pinned_deploys: HashSet<&String> = HashSet::new();
+
+        if let Ok(current_deploy_name) = current_prefix_digest()
+            && let Some(index) = deploy_records
+                .iter()
+                .position(|record| record.prefix_digest == current_deploy_name)
+        {
+            pinned_deploys.insert(&deploy_records[index].prefix_digest);
+
+            if let Some(previous) = deploy_records.get(index + 1) {
+                pinned_deploys.insert(&previous.prefix_digest);
+            }
+        }
+
+        for record in &deploy_records {
+            if record.pinned {
+                pinned_deploys.insert(&record.prefix_digest);
+            }
+        }
+
+        for record in deploy_records.iter().take(retention_depth) {
+            pinned_deploys.insert(&record.prefix_digest);
+        }
+
+        let mut removed_deploys_names = Vec::new();
+        for record in &deploy_records {
+            if pinned_deploys.contains(&record.prefix_digest) {
+                continue;
+            }
+
+            remove_dir_all(self.deploy(&record.prefix_digest)).map_err(RepoError::from)?;
+            removed_deploys_names.push(record.prefix_digest.clone());
+        }
+
+        Ok(removed_deploys_names)
     }
 
     pub fn repo(&self) -> &Path {

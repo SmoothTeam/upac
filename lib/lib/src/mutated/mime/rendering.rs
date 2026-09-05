@@ -11,11 +11,10 @@ use quick_xml::events::{BytesDecl, BytesText, Event};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::errors::CommonError;
 use crate::layout::mime;
 use crate::mutated::mime::{DesktopContent, MimeError, PendingWrites, TotalWrites};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_take};
 use crate::plugin::decoder::manifest::DecoderManifest;
 
 pub struct RenderingStage;
@@ -24,10 +23,8 @@ impl Stage<MimeError> for RenderingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
-        let manifests = context
-            .take::<HashMap<String, DecoderManifest>>()
-            .ok_or(CommonError::MissingResult)?;
-        let desktop_content = context.take::<DesktopContent>().ok_or(CommonError::MissingResult)?;
+        let manifests = ctx_take!(context, HashMap<String, DecoderManifest>);
+        let desktop_content = ctx_take!(context, DesktopContent);
 
         let mime_xml = Self::render_mime_xml(&manifests)?;
         let mime_type_line = Self::render_mime_type_line(&manifests);

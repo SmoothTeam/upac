@@ -13,7 +13,7 @@ use upac_abi::request::CGcRequest;
 pub use self::error::GcError;
 
 use self::cleaning::CleaningStage;
-use self::collect_roots::CollectRootsStage;
+use self::collect::CollectRootsStage;
 use self::pruning::PruneStage;
 
 use crate::deploy::{Deploy, DeployMode};
@@ -21,7 +21,7 @@ use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mut
 use upac_types::states::GcStateId;
 
 mod cleaning;
-mod collect_roots;
+mod collect;
 mod error;
 mod pruning;
 

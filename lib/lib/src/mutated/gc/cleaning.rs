@@ -7,10 +7,9 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::composefs::repository::gc;
 use crate::deploy::Deploy;
-use crate::errors::CommonError;
 use crate::mutated::gc::{CollectedRoots, GcError};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_take};
 
 pub struct CleaningStage;
 
@@ -18,8 +17,8 @@ impl Stage<GcError> for CleaningStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), GcError> {
-        let roots = context.take::<CollectedRoots>().ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let roots = ctx_take!(context, CollectedRoots);
+        let deploy = ctx_take!(context, Deploy);
 
         let repository = deploy.open_repository()?;
         let root_refs: Vec<&str> = roots.0.iter().map(String::as_str).collect();

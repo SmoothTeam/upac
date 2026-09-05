@@ -13,11 +13,10 @@ use crate::composefs::file::FileHandle;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
-use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
 use crate::mutated::installer::{ImportedConfigDefaults, ImportedDatabase, ImportedTree, InstallError};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get};
 
 pub struct OpenTransactionStage;
 
@@ -25,7 +24,7 @@ impl Stage<InstallError> for OpenTransactionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let deploy = ctx_get!(context, Deploy);
 
         let current_prefix = current_prefix_digest()?;
         let repository = deploy.open_repository()?;

@@ -15,8 +15,8 @@ use crate::errors::CommonError;
 use crate::mutated::uninstaller::{
     PendingUuids, Purge, TotalPackages, UninstallError, WorkingDatabase, WorkingRemovedConfigPaths, WorkingTree,
 };
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct RemovePackageStage;
 
@@ -24,24 +24,23 @@ impl Stage<UninstallError> for RemovePackageStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
-        let mut pending = context.take::<PendingUuids>().ok_or(CommonError::MissingResult)?;
-        let mut tree = context.take::<WorkingTree>().ok_or(CommonError::MissingResult)?;
-        let mut database = context.take::<WorkingDatabase>().ok_or(CommonError::MissingResult)?;
-        let mut removed_config_paths = context
-            .take::<WorkingRemovedConfigPaths>()
-            .ok_or(CommonError::MissingResult)?;
-        let total = context.get::<TotalPackages>().ok_or(CommonError::MissingResult)?;
-        let purge = context.get::<Purge>().ok_or(CommonError::MissingResult)?;
+        let mut pending = ctx_take!(context, PendingUuids);
+        let mut woking_tree = ctx_take!(context, WorkingTree);
+        let mut woking_database = ctx_take!(context, WorkingDatabase);
+        let mut removed_config_paths = ctx_take!(context, WorkingRemovedConfigPaths);
+
+        let total_packages = ctx_get!(context, TotalPackages);
+        let purge = ctx_get!(context, Purge);
 
         let uuid = pending.0.pop_front().ok_or(CommonError::MissingResult)?;
 
-        let subject = database
+        let subject = woking_database
             .0
             .get_package_meta(uuid)?
             .map(|meta| meta.name)
             .unwrap_or_default();
 
-        let files = database.0.list_package_files(uuid)?;
+        let files = woking_database.0.list_package_files(uuid)?;
 
         for entry in files {
             if entry.is_user && !purge.0 {
@@ -50,7 +49,7 @@ impl Stage<UninstallError> for RemovePackageStage {
 
             match entry.scope {
                 FileEntryScope::Prefix => {
-                    FileHandle::new(&entry.path).remove_in_tree(&mut tree.0)?;
+                    FileHandle::new(&entry.path).remove_in_tree(&mut woking_tree.0)?;
                 }
                 FileEntryScope::Config => {
                     removed_config_paths.0.push(entry.path.clone());
@@ -58,24 +57,24 @@ impl Stage<UninstallError> for RemovePackageStage {
             }
 
             if entry.is_user {
-                database.0.remove_user_file(uuid, &entry.path)?;
+                woking_database.0.remove_user_file(uuid, &entry.path)?;
             } else {
-                database.0.remove_package_file(uuid, &entry.path)?;
+                woking_database.0.remove_package_file(uuid, &entry.path)?;
             }
         }
 
-        let meta = database
+        let meta = woking_database
             .0
             .get_package_meta(uuid)?
             .ok_or(UninstallError::PackageNotFound)?;
-        database
+        woking_database
             .0
             .remove_package_meta(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
-        database.0.remove_declarative_triggers(uuid)?;
+        woking_database.0.remove_declarative_triggers(uuid)?;
 
         let remaining = pending.0.len() as u64;
-        let processed = total.0 - remaining;
-        progress = progress.subject(subject).progress(processed, total.0);
+        let processed = total_packages.0 - remaining;
+        progress = progress.subject(subject).progress(processed, total_packages.0);
 
         let result = if pending.0.is_empty() {
             StageResult::Advance
@@ -84,8 +83,8 @@ impl Stage<UninstallError> for RemovePackageStage {
         };
 
         context.put(pending);
-        context.put(tree);
-        context.put(database);
+        context.put(woking_tree);
+        context.put(woking_database);
         context.put(removed_config_paths);
 
         Ok((progress, result, Box::new(NoRollback)))

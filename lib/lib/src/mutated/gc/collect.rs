@@ -9,8 +9,8 @@ use crate::database::record::DeployRecord;
 use crate::deploy::Deploy;
 use crate::errors::CommonError;
 use crate::mutated::gc::{CollectedRoots, GcError, PendingDeploys, TotalDeploys};
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct CollectRootsStage;
 
@@ -18,12 +18,13 @@ impl Stage<GcError> for CollectRootsStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), GcError> {
-        let mut pending = context.take::<PendingDeploys>().ok_or(CommonError::MissingResult)?;
-        let mut roots = context.take::<CollectedRoots>().ok_or(CommonError::MissingResult)?;
-        let total = context.get::<TotalDeploys>().ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let mut pending_deploys = ctx_take!(context, PendingDeploys);
+        let mut roots = ctx_take!(context, CollectedRoots);
 
-        let prefix_digest = pending.0.pop_front().ok_or(CommonError::MissingResult)?;
+        let total_deploys = ctx_get!(context, TotalDeploys);
+        let deploy = ctx_get!(context, Deploy);
+
+        let prefix_digest = pending_deploys.0.pop_front().ok_or(CommonError::MissingResult)?;
 
         let record = DeployRecord::read(&deploy.deploy(&prefix_digest))?;
 
@@ -35,19 +36,19 @@ impl Stage<GcError> for CollectRootsStage {
             roots.0.push(entry.config_digest);
         }
 
-        let remaining = pending.0.len() as u64;
-        let processed = total.0 - remaining;
-        progress = progress.subject(prefix_digest).progress(processed, total.0);
+        let remaining = pending_deploys.0.len() as u64;
+        let processed = total_deploys.0 - remaining;
+        progress = progress.subject(prefix_digest).progress(processed, total_deploys.0);
 
-        let result = if pending.0.is_empty() {
+        let stage_result = if pending_deploys.0.is_empty() {
             StageResult::Advance
         } else {
             StageResult::Repeat
         };
 
-        context.put(pending);
+        context.put(pending_deploys);
         context.put(roots);
 
-        Ok((progress, result, Box::new(NoRollback)))
+        Ok((progress, stage_result, Box::new(NoRollback)))
     }
 }

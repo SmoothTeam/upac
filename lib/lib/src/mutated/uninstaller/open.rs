@@ -11,14 +11,13 @@ use crate::composefs::file::FileHandle;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::Deploy;
 use crate::deploy::digest::current_prefix_digest;
-use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
 use crate::mutated::uninstaller::{
     PackageUuidsToRemove, PendingUuids, TotalPackages, UninstallError, WorkingDatabase, WorkingRemovedConfigPaths,
     WorkingTree,
 };
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get, ctx_take};
 
 pub struct OpenTransactionStage;
 
@@ -26,10 +25,9 @@ impl Stage<UninstallError> for OpenTransactionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
-        let uuids = context
-            .take::<PackageUuidsToRemove>()
-            .ok_or(CommonError::MissingResult)?;
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
+        let uuids = ctx_take!(context, PackageUuidsToRemove);
+
+        let deploy = ctx_get!(context, Deploy);
 
         let current_prefix = current_prefix_digest()?;
         let repository = deploy.open_repository()?;

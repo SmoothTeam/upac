@@ -11,12 +11,12 @@ use crate::deploy::error::SysrootError;
 use crate::layout::boot::{ESP_MOUNT_FALLBACK, ESP_MOUNT_PRIMARY};
 
 pub fn find_esp_mount() -> Result<PathBuf, SysrootError> {
-    let mut table = MountInfo::new()?;
-    table.import_mountinfo()?;
+    let mut mount_table = MountInfo::new()?;
+    mount_table.import_mountinfo()?;
 
-    for candidate in [ESP_MOUNT_PRIMARY, ESP_MOUNT_FALLBACK] {
-        if table.find_target(candidate).is_some() {
-            return Ok(PathBuf::from(candidate));
+    for candidate_for_mount in [ESP_MOUNT_PRIMARY, ESP_MOUNT_FALLBACK] {
+        if mount_table.find_target(candidate_for_mount).is_some() {
+            return Ok(PathBuf::from(candidate_for_mount));
         }
     }
 
