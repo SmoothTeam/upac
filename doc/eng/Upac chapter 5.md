@@ -74,7 +74,7 @@ Input: a ready-made image D', already sitting in the repository directory: `imag
 Output: a system snapshot ready for a one-shot boot.
 It links operations (see **§5.4**) with booting (see **§5.2**).
 
-1. Merging the `/etc` directory (see **§5.1**): merge seals the `etc-digest` directory for D' and declares it `working_etc`. The layer of undocumented user edits, upper (`etc-upper/`), starts out empty;
+1. Merging the `/etc` directory (see **§5.1**): merge seals the `etc-digest` directory for D' and declares it `working_etc`. The layer of undocumented user edits, upper (`etc/`), starts out empty;
 2. Persistent partitions/directories (`/var`, `/home`) — real, mounted as-is, untouched;
 3. Writing the boot entry with `composefs.digest=D'`:
    - UKI-direct — assemble and sign the UKI, write it into the inactive `upac-to.efi` slot;
