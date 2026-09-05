@@ -24,13 +24,45 @@ Real unfinished A/B swap, not just a stale doc — needs a decision (implement t
 formally drop it and fix the doc to match the single-slot design `lib.toml`'s own comment already
 argues for).
 
-Genesis (`up-sp`) never installs the actual bootloader binary (`systemd-bootx64.efi`) onto a fresh
-ESP or registers an EFI NVRAM Boot#### entry — `StageBootStage`/`write_boot_entry`/
-`resolve_boot_plugin().set_one_shot()` only ever manage an *existing* boot chain (works for
-install/update on an already-installed system, since the bootloader is already on the ESP from a
-prior run). On a brand-new disk this leaves the VM/machine with nothing for firmware to execute at
-boot, even though every other genesis artifact (composefs repo, deploy record, BLS entry) is
-written correctly — confirmed via a live VM test. Needs a new genesis step that copies the
-bootloader binary from the source tree onto the ESP (`/EFI/BOOT/BOOTX64.EFI` and/or
-`/EFI/systemd/systemd-bootx64.efi`) and/or registers the NVRAM entry.
+Genesis (`up-sp`) now installs the actual bootloader binary onto a fresh ESP for systemd-boot and
+rEFInd (`StageBootStage::install_loader_binary`, `lib/setup/lib.toml`'s `[genesis]` source paths) —
+confirmed working via a live VM test for systemd-boot; rEFInd wired the same way but not yet
+VM-verified. grub is NOT handled — a real `grub-install`-equivalent (target-specific generated
+`grubx64.efi`, not a plain file copy) is out of scope for now; either shell out to `grub-install`
+against the mounted ESP, or explicitly document grub as unsupported for genesis whole-disk mode.
+
+**Genesis-produced disks don't actually boot into the installed system yet** — found via a live
+QEMU/OVMF test (systemd-boot now starts, finds the BLS entry, loads kernel+initramfs — that part
+works after the bootloader-binary fix above). Two separate gaps, both required:
+1. `partition.rs`'s `LINUX_PARTITION_TYPE_GUID` (`0fc63daf-8483-4772-8e79-3d69d8477de4`, generic
+   "Linux filesystem data") should be the discoverable-root GUID
+   (`4f68bce3-e8cd-4db1-96e7-fbcaf984b709`, "Linux root x86-64") so `systemd-gpt-auto-generator`
+   can find the deploy partition at all instead of hanging on `/dev/gpt-auto-root`.
+2. Even with (1) fixed, a plain partition mount isn't how composefs systems boot — nothing in this
+   project resolves `composefs.digest=<hash>` (the kernel cmdline param `write_boot_entry` already
+   writes) against the on-disk repository, mounts the erofs image with fs-verity, and overlays
+   `state/deploy/<digest>/etc/`. **Found a real, existing upstream tool for exactly this**:
+   `composefs-setup-root` (crates.io, same `composefs-rs` project/version as our `composefs`/
+   `composefs-boot` deps) — a Rust binary, not something we'd write ourselves. Our on-disk layout
+   already matches its hardcoded expectations (`composefs/`, `state/deploy/<digest>/`) after
+   renaming `etc-upper` → `etc` (done, `lib.toml`'s `config_dir_name`). What's still missing: the
+   actual boot-time integration — the live VM's initramfs is systemd-based (mkinitcpio's `systemd`
+   hook, not classic busybox-style hooks), so this needs a systemd unit ordered between
+   `sysroot.mount` and `initrd-switch-root.target` (same role as ostree's
+   `ostree-prepare-root.service`), not a classic mkinitcpio hook script. Also unresolved: whether
+   upac needs to ship/package this integration itself, or whether it's expected to already exist
+   on the source distro (same assumption as the systemd-boot/rEFInd binary copy above) — needs
+   checking whether Arch/AUR already has a package for this.
+
+**Genesis tracks the entire bootstrapped system as a single synthetic "rootfs" package**, not
+per-package (`ReadMetaStage` reads one `meta.toml`, `ImportTreesStage` imports all of source's
+`usr`/`etc` wholesale). Found while reasoning about the `composefs-setup-root` hook: if it needs to
+already be installed on the source system (via pacman) for genesis to pick it up, its files still
+end up attributed to the one fake "rootfs" package in our database — no real per-package
+provenance for anything baked into the source image, unlike a `pacstrap`-then-`up install` flow
+would give. Decision made: genesis should eventually be rewritten to install real, individually
+decoded packages through the same pipeline `up install` uses, instead of importing a pre-built
+directory wholesale — no special-casing even for the kernel package. This is a genesis rewrite, not
+a patch; deliberately deferred until after a dedicated code-cleanup/macro-consolidation pass
+(reduce duplicated lines, extract shared macros) elsewhere in the codebase first.
 

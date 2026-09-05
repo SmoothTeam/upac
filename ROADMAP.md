@@ -54,7 +54,21 @@ Remaining work, not near-term:
 - **Packaging pipeline.** Decoder manifest TOML files exist for all 4 decoders
 (`decoders/{alpm,deb,rpm,xbps}/upac-*.toml`), but there's no PKGBUILD/spec/etc packaging, Mime types for alpm/xbps (`application/x-alpm-package`/`application/x-xbps-package`) are unofficial and vendor-prefixed (no shared-mime-info registration exists for either format, unlike deb/rpm). `up mime sync` (populates desktop/mime-type integration from installed decoder manifests) is already fully implemented — see §1 — this item is just "no decoder is actually packaged/installed yet for it to sync against."
 
-## 5. Bootstrap / installer concerns — **done**.
+## 5. Bootstrap / installer concerns — **pipeline done, boot-to-a-working-system not yet proven**.
+
+**Correction (found via a live QEMU/VM boot test, not just reading the code):** everything
+genesis writes to disk (composefs repo objects, deploy record, BLS boot entry, and — after this
+session's fix — the bootloader binary itself on the ESP) is correct and verified present on disk.
+But the resulting disk does not actually boot into the installed system yet: `systemd-gpt-auto-generator`
+hangs forever on `/dev/gpt-auto-root`, because `partition.rs`'s `LINUX_PARTITION_TYPE_GUID`
+(`0fc63daf-...`, generic "Linux filesystem data") is not the discoverable-root GUID
+(`4f68bce3-...`, "Linux root x86-64") systemd's root-autodetection looks for. Even fixing that
+GUID only gets partition auto-mount working — composefs systems don't boot by mounting a partition
+as `/` directly; the kernel cmdline's `composefs.digest=` needs a dedicated initramfs hook (dracut
+module or mkinitcpio hook, matching how real composefs distros do it) to actually resolve the
+digest against the on-disk repository, mount the erofs image with fs-verity, and overlay
+`state/deploy/<digest>/etc/` on top. **This hook does not exist anywhere in the project** —
+tracked as a new, unstarted, non-trivial subsystem in `TODO.md`.
 
 - **Own crate, `lib/setup` (`upac-setup`)** — partitioning/formatting a blank disk and running a system's first deploy, statically linked (no dlopen). Has a full C-ABI request surface (`CSetupExistingRequest`/`CSetupWholeDiskRequest`) for structural consistency, but `up-sp` bypasses it — builds `SetupExistingData`/`SetupWholeDiskData` as plain struct literals and calls `.run()` directly.
 - **No separate "empty seed" deploy.** The first deploy already contains upac itself as a normal installed package, since the package-database write is decoupled from the decoder-plugin machinery — genesis imports a pre-built `source_dir` straight into the DB and composefs trees.
