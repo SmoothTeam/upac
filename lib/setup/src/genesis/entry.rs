@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::File;
+use std::fs::{File, copy, create_dir_all};
 use std::io::Read;
 
 use composefs::erofs::reader::erofs_to_filesystem;
@@ -13,7 +13,6 @@ use composefs::tree::FileSystem;
 
 use upac::boot::write_boot_entry;
 use upac::composefs::repository::ObjectID;
-use upac::errors::CommonError;
 use upac::layout::boot_plugins::{BOOT_PLUGINS_DIR, MANIFEST_EXTENSION};
 use upac::orchestrator::Context;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
@@ -21,9 +20,12 @@ use upac::plugin::boot::resolve_boot_plugin;
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
+use super::ctx_get;
+
 use crate::error::SetupError;
+use crate::layout::genesis::{ESP_FALLBACK_LOADER, REFIND_SOURCE, SYSTEMD_BOOT_SOURCE};
 use crate::target::TargetSysroot;
-use crate::types::{GenesisInput, PrefixDigest};
+use crate::types::{GenesisInput, PrefixDigest, ResolvedSourceDir};
 
 pub struct StageBootStage;
 
@@ -31,12 +33,28 @@ impl Stage<SetupError> for StageBootStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
-        let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
-        let prefix_digest = context.get::<PrefixDigest>().ok_or(CommonError::MissingResult)?;
+        let target = ctx_get!(context, TargetSysroot);
+        let input = ctx_get!(context, GenesisInput);
+        let prefix_digest = ctx_get!(context, PrefixDigest);
+        let resolved = ctx_get!(context, ResolvedSourceDir);
 
         let repository = target.repository();
         let prefix_digest_hex = prefix_digest.0.to_hex();
+
+        let candidate = match input.boot_plugin.as_deref() {
+            Some("systemd-boot") => Some(SYSTEMD_BOOT_SOURCE),
+            Some("refind") => Some(REFIND_SOURCE),
+            _ => None,
+        };
+
+        if let Some(candidate) = candidate {
+            let source = resolved.0.join(candidate);
+            let destination = target.esp_mount_point().join(ESP_FALLBACK_LOADER);
+            if let Some(parent) = destination.parent() {
+                create_dir_all(parent)?;
+            }
+            copy(&source, &destination)?;
+        }
 
         let prefix_tree = Self::reopen_tree(repository, &prefix_digest_hex)?;
         let entry_name = write_boot_entry(

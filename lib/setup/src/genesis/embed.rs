@@ -13,12 +13,13 @@ use composefs::repository::ImportContext;
 use upac::composefs::file::FileHandle;
 use upac::composefs::repository::commit_tree;
 use upac::database::InMemory;
-use upac::errors::CommonError;
 use upac::layout::database::DATABASE_PATH;
 use upac::orchestrator::Context;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use super::{ctx_get, ctx_take};
 
 use crate::error::SetupError;
 use crate::layout::genesis::SCRATCH_FILENAME;
@@ -35,12 +36,13 @@ impl Stage<SetupError> for EmbedDatabaseStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let mut prefix_tree = context.take::<PrefixTree>().ok_or(CommonError::MissingResult)?;
-        let config_tree = context.take::<ConfigTree>().ok_or(CommonError::MissingResult)?;
-        let database = context.take::<GenesisDatabase>().ok_or(CommonError::MissingResult)?;
-        let mut import_ctx = context.take::<ImportContext>().ok_or(CommonError::MissingResult)?;
+        let mut prefix_tree = ctx_take!(context, PrefixTree);
+        let config_tree = ctx_take!(context, ConfigTree);
+        let database = ctx_take!(context, GenesisDatabase);
+        let mut import_ctx = ctx_take!(context, ImportContext);
 
-        let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
+        let target = ctx_get!(context, TargetSysroot);
+
         let repository = target.repository();
 
         let database_bytes = database.0.into_bytes()?;

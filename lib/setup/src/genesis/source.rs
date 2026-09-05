@@ -16,11 +16,12 @@ use xz2::read::XzDecoder;
 use zip::ZipArchive;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac::errors::CommonError;
 use upac::orchestrator::Context;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use super::ctx_get;
 
 use crate::error::SetupError;
 use crate::types::{GenesisInput, ResolvedSourceDir};
@@ -108,7 +109,8 @@ impl Stage<SetupError> for PrepareSourceStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
+        let input = ctx_get!(context, GenesisInput);
+
         let source_path = Path::new(&input.source);
 
         if metadata(source_path)?.is_dir() {

@@ -35,5 +35,16 @@ settle_interval_ms = 100
 # genesis.scratch_filename is where the freshly-built package database is
 # written (under the OS temp dir) before being embedded into the new /usr
 # tree — purely transient, read back once right after the write.
+#
+# *_source are the fixed, package-convention paths (source-tree-relative) where each supported
+# bootloader ships its own EFI binary — systemd's own packaging always installs to
+# lib/systemd/boot/efi/, rEFInd's own packaging always installs to share/refind/. Checked in this
+# order (first one found in the source tree wins) since a fresh ESP has no bootloader binary at
+# all yet — install/update never need this, the binary is already on the ESP from genesis.
+# esp_fallback_loader is the fixed "removable media" path UEFI firmware always tries when NVRAM
+# has no Boot#### entries at all, which is exactly genesis's situation on a brand-new disk.
 [genesis]
 scratch_filename = "genesis-packages.redb"
+systemd_boot_source = "usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+refind_source = "usr/share/refind/refind_x64.efi"
+esp_fallback_loader = "EFI/BOOT/BOOTX64.EFI"

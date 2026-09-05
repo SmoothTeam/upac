@@ -17,7 +17,7 @@ use self::database::CreateDatabaseStage;
 use self::deploy::WriteDeployRecordStage;
 use self::embed::EmbedDatabaseStage;
 use self::entry::StageBootStage;
-use self::file_entries::InsertFileEntryStage;
+use self::files::InsertFileEntryStage;
 use self::meta::ReadMetaStage;
 use self::source::PrepareSourceStage;
 use self::trees::ImportTreesStage;
@@ -31,10 +31,24 @@ mod database;
 mod deploy;
 mod embed;
 mod entry;
-mod file_entries;
+mod files;
 mod meta;
 mod source;
 mod trees;
+
+macro_rules! ctx_get {
+    ($context:expr, $ty:ty) => {
+        $context.get::<$ty>().ok_or(upac::errors::CommonError::MissingResult)?
+    };
+}
+pub(crate) use ctx_get;
+
+macro_rules! ctx_take {
+    ($context:expr, $ty:ty) => {
+        $context.take::<$ty>().ok_or(upac::errors::CommonError::MissingResult)?
+    };
+}
+pub(crate) use ctx_take;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]

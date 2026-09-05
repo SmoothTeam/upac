@@ -31,6 +31,7 @@ macro_rules! mib_to_sectors {
 
 const ESP_PARTITION_TYPE_GUID: Uuid = uuid!("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
 const LINUX_PARTITION_TYPE_GUID: Uuid = uuid!("0fc63daf-8483-4772-8e79-3d69d8477de4");
+const LINUX_ROOT_X86_64_GUID: Uuid = uuid!("4f68bce3-e8cd-4db1-96e7-fbcaf984b709");
 
 #[repr(transparent)]
 struct GptTable(GPT);
@@ -108,7 +109,7 @@ impl DiskLayout {
         let deploy_partition = next_number;
         gpt.insert_partition(
             deploy_partition,
-            LINUX_PARTITION_TYPE_GUID,
+            LINUX_ROOT_X86_64_GUID,
             "upac-deploy",
             mib_to_sectors!(deploy_size_mib, sector_size),
         )?;

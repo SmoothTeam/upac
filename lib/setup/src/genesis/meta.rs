@@ -3,11 +3,12 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac::errors::CommonError;
 use upac::orchestrator::Context;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use super::ctx_get;
 
 use crate::error::SetupError;
 use crate::meta::SourceDir;
@@ -23,8 +24,8 @@ impl Stage<SetupError> for ReadMetaStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
-        let resolved = context.get::<ResolvedSourceDir>().ok_or(CommonError::MissingResult)?;
+        let input = ctx_get!(context, GenesisInput);
+        let resolved = ctx_get!(context, ResolvedSourceDir);
 
         let source = SourceDir { path: &resolved.0 };
 

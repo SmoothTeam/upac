@@ -8,12 +8,13 @@ use std::fs::create_dir_all;
 use composefs::fsverity::FsVerityHashValue;
 
 use upac::database::record::DeployRecord;
-use upac::errors::CommonError;
 use upac::fs::WrittenFile;
 use upac::orchestrator::Context;
 use upac::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use super::ctx_get;
 
 use crate::error::SetupError;
 use crate::target::TargetSysroot;
@@ -29,10 +30,10 @@ impl Stage<SetupError> for WriteDeployRecordStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
-        let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
-        let prefix_digest = context.get::<PrefixDigest>().ok_or(CommonError::MissingResult)?;
-        let config_digest = context.get::<ConfigDigest>().ok_or(CommonError::MissingResult)?;
+        let target = ctx_get!(context, TargetSysroot);
+        let input = ctx_get!(context, GenesisInput);
+        let prefix_digest = ctx_get!(context, PrefixDigest);
+        let config_digest = ctx_get!(context, ConfigDigest);
 
         let prefix_digest_hex = prefix_digest.0.to_hex();
         let deploy_dir = target.deploy_dir(&prefix_digest_hex);

@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac::database::files::FileStoreMut;
-use upac::errors::CommonError;
 use upac::orchestrator::Context;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use upac_types::{FileEntry, FileEntryScope};
+
+use super::{ctx_get, ctx_take};
 
 use crate::error::SetupError;
 use crate::types::{GenesisDatabase, ImportedConfigPaths, ImportedPrefixPaths, PackageUuid};
@@ -25,14 +26,11 @@ impl Stage<SetupError> for InsertFileEntryStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let mut prefix_paths = context
-            .take::<ImportedPrefixPaths>()
-            .ok_or(CommonError::MissingResult)?;
-        let mut config_paths = context
-            .take::<ImportedConfigPaths>()
-            .ok_or(CommonError::MissingResult)?;
-        let mut database = context.take::<GenesisDatabase>().ok_or(CommonError::MissingResult)?;
-        let uuid = context.get::<PackageUuid>().ok_or(CommonError::MissingResult)?;
+        let mut prefix_paths = ctx_take!(context, ImportedPrefixPaths);
+        let mut config_paths = ctx_take!(context, ImportedConfigPaths);
+        let mut database = ctx_take!(context, GenesisDatabase);
+
+        let uuid = ctx_get!(context, PackageUuid);
 
         let next = if let Some(path) = prefix_paths.0.pop() {
             Some((FileEntryScope::Prefix, path))

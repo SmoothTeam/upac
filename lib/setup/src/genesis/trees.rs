@@ -12,11 +12,12 @@ use composefs::repository::ImportContext;
 use composefs::tree::FileSystem;
 
 use upac::composefs::file::FileHandle;
-use upac::errors::CommonError;
 use upac::orchestrator::Context;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use super::ctx_get;
 
 use crate::error::SetupError;
 use crate::target::TargetSysroot;
@@ -55,9 +56,9 @@ impl Stage<SetupError> for ImportTreesStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
-        let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
-        let resolved = context.get::<ResolvedSourceDir>().ok_or(CommonError::MissingResult)?;
+        let target = ctx_get!(context, TargetSysroot);
+        let input = ctx_get!(context, GenesisInput);
+        let resolved = ctx_get!(context, ResolvedSourceDir);
 
         let repository = target.repository();
         let mut import_ctx = ImportContext::default();
