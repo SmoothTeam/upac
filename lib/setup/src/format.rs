@@ -19,21 +19,42 @@ use uuid::Uuid;
 use upac_abi::FsKind;
 
 use crate::error::SetupError;
-use crate::layout::btrfs::{NODE_SIZE, SECTOR_SIZE};
-use crate::layout::mkfs::{EXT4_BIN, XFS_BIN};
+use crate::layout::mkfs::{EXT4_BIN, WIPEFS_BIN, XFS_BIN};
 
-pub struct FormatTarget<'a> {
-    pub device_path: &'a Path,
-    pub label: Option<&'a str>,
+#[cfg(test)]
+#[path = "../tests/inline/format.rs"]
+mod tests;
+
+pub struct FormatTarget<'target> {
+    pub device_path: &'target Path,
+    pub label: Option<&'target str>,
 }
 
 impl FormatTarget<'_> {
-    pub fn format(&self, fs_kind: FsKind, node_size: u32, sector_size: u32) -> Result<(), SetupError> {
+    pub fn format(
+        &self, fs_kind: FsKind, node_size: u32, sector_size: u32, force_wipe: bool,
+    ) -> Result<(), SetupError> {
+        if force_wipe {
+            self.wipe_signature()?;
+        }
+
         match fs_kind {
             FsKind::Ext4 => self.format_ext4(),
             FsKind::Btrfs => self.format_btrfs(node_size, sector_size),
             FsKind::Xfs => self.format_xfs(),
         }
+    }
+
+    pub fn wipe_signature(&self) -> Result<(), SetupError> {
+        let status = Command::new(WIPEFS_BIN)
+            .args(["-a", &self.device_path.to_string_lossy()])
+            .status()?;
+
+        if !status.success() {
+            return Err(SetupError::WipeFailed);
+        }
+
+        Ok(())
     }
 
     pub fn format_esp(&self) -> Result<(), SetupError> {
@@ -50,8 +71,9 @@ impl FormatTarget<'_> {
     }
 
     pub fn format_btrfs(&self, node_size: u32, sector_size: u32) -> Result<(), SetupError> {
-        let node_size = if node_size == 0 { NODE_SIZE } else { node_size };
-        let sector_size = if sector_size == 0 { SECTOR_SIZE } else { sector_size };
+        if node_size == 0 || sector_size == 0 {
+            return Err(SetupError::InvalidFormatParams);
+        }
 
         let total_bytes = device_size(self.device_path)?;
         let total_bytes = total_bytes / u64::from(sector_size) * u64::from(sector_size);

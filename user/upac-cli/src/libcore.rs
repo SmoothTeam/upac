@@ -6,6 +6,8 @@
 // ── Imports ─────────────────────────────────────────────────────────────────
 use anyhow::Result;
 
+use i18n_embed_fl::fl;
+
 use nix::unistd::Uid;
 
 use upac_abi::error::CError;
@@ -22,7 +24,12 @@ use upac_abi::response::{
     CSearchInPackageFilesResponse, CSearchMetaResponse,
 };
 
+use crate::locale::LOADER;
 use crate::types::errors::{AbiMismatch, LibError};
+
+#[cfg(test)]
+#[path = "../tests/inline/libcore.rs"]
+mod tests;
 
 #[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
@@ -234,7 +241,7 @@ impl Lib {
     /// `self.rw` directly, so the check can't be forgotten at a new call site.
     pub fn require_write(&self) -> Result<&RwSymbols> {
         if !Uid::effective().is_root() {
-            anyhow::bail!(gettextrs::gettext("err_requires_root"));
+            anyhow::bail!(fl!(LOADER, "err-requires-root"));
         }
 
         Ok(&self.rw)

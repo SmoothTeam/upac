@@ -7,14 +7,14 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::mutated::installer::InstallError;
 use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 pub struct FetchingStage;
 
 impl Stage<InstallError> for FetchingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), InstallError> {
-        Ok((progress, Box::new(NoRollback)))
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

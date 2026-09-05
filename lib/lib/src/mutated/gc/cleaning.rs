@@ -6,40 +6,24 @@
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::composefs::repository::gc;
-use crate::database::record::DeployRecord;
 use crate::deploy::Deploy;
-use crate::errors::CommonError;
-use crate::mutated::gc::GcError;
-use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::mutated::gc::{CollectedRoots, GcError};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_take};
 
 pub struct CleaningStage;
 
 impl Stage<GcError> for CleaningStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), GcError> {
-        let deploy = context.get::<Deploy>().ok_or(CommonError::MissingResult)?;
-
-        deploy.prune_deploys()?;
-
-        let mut roots = Vec::new();
-        for prefix_digest in deploy.deploys()? {
-            let record = DeployRecord::read(&deploy.deploy(&prefix_digest))?;
-
-            roots.push(record.prefix_digest);
-            if !record.working_config.is_empty() {
-                roots.push(record.working_config);
-            }
-            for entry in record.config_history {
-                roots.push(entry.config_digest);
-            }
-        }
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), GcError> {
+        let roots = ctx_take!(context, CollectedRoots);
+        let deploy = ctx_take!(context, Deploy);
 
         let repository = deploy.open_repository()?;
-        let root_refs: Vec<&str> = roots.iter().map(String::as_str).collect();
+        let root_refs: Vec<&str> = roots.0.iter().map(String::as_str).collect();
         gc(&repository, &root_refs)?;
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

@@ -3,7 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::create_dir_all;
+use std::fs::{create_dir_all, remove_dir};
+use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 
 use nix::mount::{MsFlags, mount, umount};
@@ -26,7 +27,7 @@ use crate::partition::DiskLayout;
 pub struct TargetSysroot {
     mount_point: PathBuf,
     deploy_dir: PathBuf,
-    repository: Repository<ObjectID>,
+    repository: ManuallyDrop<Repository<ObjectID>>,
     mounted: Vec<PathBuf>,
 }
 
@@ -81,7 +82,7 @@ impl TargetSysroot {
         Ok(Self {
             mount_point,
             deploy_dir,
-            repository,
+            repository: ManuallyDrop::new(repository),
             mounted,
         })
     }
@@ -92,6 +93,7 @@ impl TargetSysroot {
             data.esp_size_mib,
             data.deploy_size_mib,
             &data.extra_partitions,
+            data.force_wipe,
         )?;
 
         let esp_path = layout.esp_path();
@@ -106,7 +108,7 @@ impl TargetSysroot {
             device_path: &deploy_path,
             label: Some("upac-deploy"),
         }
-        .format(data.deploy_fs, data.node_size, data.sector_size)?;
+        .format(data.deploy_fs, data.node_size, data.sector_size, data.force_wipe)?;
 
         let extra_paths = layout.extra_paths();
         let mut extra_mounts = Vec::with_capacity(data.extra_partitions.len());
@@ -116,7 +118,7 @@ impl TargetSysroot {
                 device_path: path,
                 label: Some(&spec.mount_path),
             }
-            .format(spec.fs_kind, 0, 0)?;
+            .format(spec.fs_kind, 0, 0, data.force_wipe)?;
 
             extra_mounts.push(PartitionMount {
                 mount_path: spec.mount_path.clone(),
@@ -151,10 +153,42 @@ impl TargetSysroot {
     }
 }
 
+#[cfg(test)]
+impl TargetSysroot {
+    /// Builds a `TargetSysroot` over a plain directory — no `mount()`, no root required. Only
+    /// `deploy_dir`/`next_seq_path`/`repository` are meaningful on the result; `Drop` has nothing
+    /// to unmount since `mounted` stays empty.
+    pub(crate) fn for_testing(mount_point: PathBuf) -> Result<Self, SetupError> {
+        create_dir_all(&mount_point)?;
+
+        let deploy_dir = mount_point.join(DEPLOYS_DIR);
+        create_dir_all(&deploy_dir)?;
+
+        let (repository, _freshly_initialized) = repository::init(&mount_point.join(REPO_DIR))?;
+
+        Ok(Self {
+            mount_point,
+            deploy_dir,
+            repository: ManuallyDrop::new(repository),
+            mounted: Vec::new(),
+        })
+    }
+}
+
 impl Drop for TargetSysroot {
     fn drop(&mut self) {
-        for mount_point in self.mounted.iter().rev() {
+        // SAFETY: `self` is being dropped and `repository` is never accessed again.
+        unsafe { ManuallyDrop::drop(&mut self.repository) };
+
+        let Some((base, nested)) = self.mounted.split_first() else {
+            return;
+        };
+
+        for mount_point in nested.iter().rev() {
             let _ = umount(mount_point);
+            let _ = remove_dir(mount_point);
         }
+
+        let _ = umount(base);
     }
 }

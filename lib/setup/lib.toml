@@ -14,23 +14,37 @@ filename = "meta.toml"
 [mount]
 default_mount_point = "/mnt/upac-setup"
 
-# btrfs.node_size/sector_size are mkfs.btrfs's own tunables (metadata b-tree
-# node size / minimum I/O unit), matching mkfs.btrfs's own defaults —
-# overridable per request via CSetupWholeDiskRequest.node_size/sector_size
-# (0 ⇒ use these defaults).
-[btrfs]
-node_size = 16384
-sector_size = 4096
-
 # mkfs.ext4_bin/xfs_bin are the mkfs binaries shelled out to for ext4/xfs
-# formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs —
-# see [btrfs]).
+# formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs).
+# mkfs.wipefs_bin clears a partition's existing filesystem
+# signature before formatting, only when the request explicitly opts into it
+# (CSetupWholeDiskRequest.gpt.force_wipe) — never run silently.
 [mkfs]
 ext4_bin = "mkfs.ext4"
 xfs_bin = "mkfs.xfs"
+wipefs_bin = "wipefs"
+
+# partition.settle_attempts/settle_interval_ms bound how long DiskLayout::create waits for the
+# kernel (via udev) to create the new partition device nodes after BLKRRPART, before giving up —
+# the ioctl itself is synchronous, but the /dev/vdaN nodes it triggers are created by udev
+# asynchronously afterward.
+[partition]
+settle_attempts = 50
+settle_interval_ms = 100
 
 # genesis.scratch_filename is where the freshly-built package database is
 # written (under the OS temp dir) before being embedded into the new /usr
 # tree — purely transient, read back once right after the write.
+#
+# *_source are the fixed, package-convention paths (source-tree-relative) where each supported
+# bootloader ships its own EFI binary — systemd's own packaging always installs to
+# lib/systemd/boot/efi/, rEFInd's own packaging always installs to share/refind/. Checked in this
+# order (first one found in the source tree wins) since a fresh ESP has no bootloader binary at
+# all yet — install/update never need this, the binary is already on the ESP from genesis.
+# esp_fallback_loader is the fixed "removable media" path UEFI firmware always tries when NVRAM
+# has no Boot#### entries at all, which is exactly genesis's situation on a brand-new disk.
 [genesis]
 scratch_filename = "genesis-packages.redb"
+systemd_boot_source = "usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+refind_source = "usr/share/refind/refind_x64.efi"
+esp_fallback_loader = "EFI/BOOT/BOOTX64.EFI"

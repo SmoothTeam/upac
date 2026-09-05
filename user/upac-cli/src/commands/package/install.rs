@@ -10,10 +10,13 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
+use i18n_embed_fl::fl;
+
 use upac_abi::error::ErrorDomain;
 use upac_abi::request::{CInstallRequest, CRequestBase};
 
 use crate::cancel_token_ptr;
+use crate::locale::LOADER;
 use crate::types::CommandContext;
 use crate::types::abi::{borrowed_vec, invoke, optional_slice, slice_from_cstr};
 use crate::types::progress::{ProgressState, on_progress};
@@ -41,8 +44,8 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let mut paths = Vec::with_capacity(args.files.len());
     for file_path in &args.files {
-        let absolute = canonicalize(file_path)
-            .map_err(|_| anyhow::anyhow!("{}: {file_path}", gettextrs::gettext("err_not_found")))?;
+        let absolute =
+            canonicalize(file_path).map_err(|_| anyhow::anyhow!("{}: {file_path}", fl!(LOADER, "err-not-found")))?;
         paths.push(CString::new(absolute.to_string_lossy().as_ref())?);
     }
 

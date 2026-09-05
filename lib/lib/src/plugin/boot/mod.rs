@@ -71,16 +71,31 @@ pub fn resolve_boot_plugin(
 
     match requested {
         Some(name) => {
-            let manifest = manifests
-                .get(name)
-                .ok_or_else(|| BootPluginError::UnknownName(name.to_owned()))?;
+            if let Some(manifest) = manifests.get(name) {
+                return BootPlugin::load(&manifest.library);
+            }
 
-            BootPlugin::load(&manifest.library)
+            #[cfg(feature = "builtin-booters")]
+            if let Some((_, plugin)) = static_plugins()
+                .into_iter()
+                .find(|(plugin_name, _)| *plugin_name == name)
+            {
+                return Ok(plugin);
+            }
+
+            Err(BootPluginError::UnknownName(name.to_owned()))
         }
         None => {
             let mut claimants = Vec::new();
             for manifest in manifests.values() {
                 let plugin = BootPlugin::load(&manifest.library)?;
+                if plugin.probes() {
+                    claimants.push(plugin);
+                }
+            }
+
+            #[cfg(feature = "builtin-booters")]
+            for (_, plugin) in static_plugins() {
                 if plugin.probes() {
                     claimants.push(plugin);
                 }

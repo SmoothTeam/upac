@@ -1,0 +1,83 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+use std::env::temp_dir;
+use std::fs::{File, write};
+use std::path::Path;
+
+use composefs::generic_tree::Stat;
+use composefs::repository::ImportContext;
+
+use upac::composefs::file::FileHandle;
+use upac::composefs::repository::commit_tree;
+use upac::database::InMemory;
+use upac::layout::database::DATABASE_PATH;
+use upac::orchestrator::Context;
+use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+
+use super::{ctx_get, ctx_take};
+
+use crate::error::SetupError;
+use crate::layout::genesis::SCRATCH_FILENAME;
+use crate::target::TargetSysroot;
+use crate::types::{ConfigDigest, ConfigTree, GenesisDatabase, PrefixDigest, PrefixTree};
+
+#[cfg(test)]
+#[path = "../../tests/inline/embed.rs"]
+mod tests;
+
+pub struct EmbedDatabaseStage;
+
+impl Stage<SetupError> for EmbedDatabaseStage {
+    fn run(
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+        let mut prefix_tree = ctx_take!(context, PrefixTree);
+        let config_tree = ctx_take!(context, ConfigTree);
+        let database = ctx_take!(context, GenesisDatabase);
+        let mut import_ctx = ctx_take!(context, ImportContext);
+
+        let target = ctx_get!(context, TargetSysroot);
+
+        let repository = target.repository();
+
+        let database_bytes = database.0.into_bytes()?;
+        let database_scratch_path = temp_dir().join(SCRATCH_FILENAME);
+        write(&database_scratch_path, &database_bytes)?;
+
+        let mut ancestors: Vec<&Path> = Path::new(DATABASE_PATH)
+            .ancestors()
+            .skip(1)
+            .filter(|ancestor| !ancestor.as_os_str().is_empty())
+            .collect();
+        ancestors.reverse();
+
+        for ancestor in ancestors {
+            let handle = FileHandle::new(ancestor);
+            if handle.stat_in_tree(&prefix_tree.0).is_err() {
+                handle.insert_in_tree(&mut prefix_tree.0, Stat::uninitialized())?;
+            }
+        }
+
+        let database_handle = FileHandle::new(DATABASE_PATH);
+        database_handle.insert_file(
+            repository,
+            &mut prefix_tree.0,
+            &File::open(&database_scratch_path)?,
+            Stat::uninitialized(),
+            &mut import_ctx,
+        )?;
+
+        let prefix_digest = commit_tree(repository, prefix_tree.0)?;
+        let config_digest = commit_tree(repository, config_tree.0)?;
+
+        context.put(PrefixDigest(prefix_digest));
+        context.put(ConfigDigest(config_digest));
+
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+    }
+}

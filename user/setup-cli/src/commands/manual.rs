@@ -31,7 +31,7 @@ pub struct Args {
     #[arg(long)]
     pub mount_point: Option<String>,
     #[arg(long)]
-    pub source_dir: String,
+    pub source: String,
     #[arg(long)]
     pub meta_filename: Option<String>,
     #[arg(long)]
@@ -52,7 +52,7 @@ pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
         extra_mounts: args.extra_mounts,
 
         mount_point: args.mount_point.as_deref(),
-        source_dir: &args.source_dir,
+        source: &args.source,
         meta_filename: args.meta_filename.as_deref(),
         empty_config: args.empty_config,
         pinned: args.pinned,

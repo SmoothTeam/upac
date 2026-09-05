@@ -36,7 +36,7 @@ This paragraph describes what physically resides on the disks of a deployed syst
 │   │       └── refs/<name>
 │   └── state/deploy/<usr-digest>/                   (12)
 │       ├── meta.json                                (12)
-│       └── etc-upper/{upper, work}                  (13)
+│       └── etc/{upper, work}                        (13)
 │
 ├── /var partition    →  /var                        (14)
 └── /home partition   →  /home                       (15)
@@ -56,7 +56,7 @@ This paragraph describes what physically resides on the disks of a deployed syst
 - **(10)** `refs/<name>` — a human-readable named pointer to an image;
 - **(11)** `streams/` — splitstreams: imported layers/commits, also symlinks into `objects/`, with their own refs added;
 - **(12)** `state/deploy/<usr-digest>/` — a deploy record, in which the **key = `usr-digest`**. It holds `meta.json` inside.
-- **(13)** `etc-upper/upper` — **live `/etc`**: edits not included in the deploy, as the overlayfs upper layer over the current `working_etc`. It is sealed into `etc-digest` when `/usr` changes or on `upac commit`;
-- **(14)** `etc-upper/work` — **live `/etc`**: `work` — the overlayfs service directory;
+- **(13)** `etc/upper` — **live `/etc`**: edits not included in the deploy, as the overlayfs upper layer over the current `working_etc`. It is sealed into `etc-digest` when `/usr` changes or on `upac commit`;
+- **(14)** `etc/work` — **live `/etc`**: `work` — the overlayfs service directory;
 - **(15)** `/var` — the directory is placed on a separate disk partition, thanks to which all changing data, logs, and databases are preserved directly and are not lost on a system rollback;
 - **(16)** `/home` — user data: a separate directory holding user data, outside of versioning.

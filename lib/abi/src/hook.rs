@@ -3,8 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_void;
+use std::ptr::null;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use crate::types::CSlice;
@@ -31,7 +33,7 @@ pub struct CProgressEvent {
 pub struct ProgressEventBuilder {
     stage: u32,
     phase: u32,
-    subject: Option<String>,
+    subject: Option<CString>,
     current: u64,
     total: u64,
 }
@@ -57,7 +59,7 @@ impl ProgressEventBuilder {
     }
 
     pub fn subject(mut self, subject: impl Into<String>) -> Self {
-        self.subject = Some(subject.into());
+        self.subject = CString::new(subject.into()).ok();
         self
     }
 
@@ -68,11 +70,19 @@ impl ProgressEventBuilder {
     }
 
     pub fn build(&self) -> CProgressEvent {
+        let subject = match &self.subject {
+            Some(subject) => CSlice {
+                ptr: subject.as_ptr().cast(),
+                len: subject.as_bytes().len(),
+            },
+            None => CSlice { ptr: null(), len: 0 },
+        };
+
         CProgressEvent {
             struct_size: size_of::<CProgressEvent>(),
             stage: self.stage,
             phase: self.phase,
-            subject: CSlice::from_slice(self.subject.as_deref().map(str::as_bytes)),
+            subject,
             current: self.current,
             total: self.total,
         }

@@ -5,19 +5,27 @@
 
 use std::fmt::{Display, Formatter};
 
+use i18n_embed_fl::fl;
+
 use upac_pki::error::PkiError;
+
+use crate::locale::LOADER;
+
+#[cfg(test)]
+#[path = "../tests/inline/errors.rs"]
+mod tests;
 
 #[derive(Debug)]
 pub struct LocalizedPkiError(pub PkiError);
 
 impl Display for LocalizedPkiError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        let key = match self.0 {
-            PkiError::Malformed => "err_malformed",
-            PkiError::InvalidSignature => "err_invalid_signature",
-            PkiError::Generation => "err_generation",
+        let message = match self.0 {
+            PkiError::Malformed => fl!(LOADER, "err-malformed"),
+            PkiError::InvalidSignature => fl!(LOADER, "err-invalid-signature"),
+            PkiError::Generation => fl!(LOADER, "err-generation"),
         };
-        formatter.write_str(&gettextrs::gettext(key))
+        formatter.write_str(&message)
     }
 }
 

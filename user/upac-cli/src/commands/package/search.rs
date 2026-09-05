@@ -9,11 +9,18 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
+use i18n_embed_fl::fl;
+
 use upac_abi::request::{CSearchInMetaRequest, CSearchMetaRequest};
 
 use crate::commands::display::{PackageField, PackageFormatter};
+use crate::locale::LOADER;
 use crate::types::CommandContext;
 use crate::types::abi::{invoke_with_response, package_info, request_base, slice_from_cstr};
+
+#[cfg(test)]
+#[path = "../../../tests/inline/search.rs"]
+mod tests;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -55,7 +62,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     match args.package.as_deref() {
         Some(package) => {
             let Some(arch) = args.package_arch.as_deref() else {
-                anyhow::bail!(gettextrs::gettext("err_invalid_entry"));
+                anyhow::bail!(fl!(LOADER, "err-invalid-entry"));
             };
 
             let package_name = CString::new(package)?;

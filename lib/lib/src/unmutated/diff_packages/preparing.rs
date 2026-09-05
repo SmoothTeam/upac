@@ -10,10 +10,9 @@ use crate::database::meta::MetaStore;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::digest::current_prefix_digest;
 use crate::deploy::{Deploy, DeployMode};
-use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
-use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get};
 use crate::unmutated::diff_packages::DiffPackagesError;
 
 use upac_types::{DiffPackagesSnapshot, RequestedPrefixDigestRange};
@@ -23,10 +22,8 @@ pub struct PreparingStage;
 impl Stage<DiffPackagesError> for PreparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffPackagesError> {
-        let requested = context
-            .get::<RequestedPrefixDigestRange>()
-            .ok_or(CommonError::MissingResult)?;
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffPackagesError> {
+        let requested = ctx_get!(context, RequestedPrefixDigestRange);
 
         let from_prefix_digest = match &requested.from {
             Some(prefix_digest) => prefix_digest.clone(),
@@ -50,6 +47,6 @@ impl Stage<DiffPackagesError> for PreparingStage {
 
         context.put(DiffPackagesSnapshot { from, to });
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

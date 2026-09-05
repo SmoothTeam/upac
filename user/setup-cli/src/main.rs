@@ -8,11 +8,11 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 
-use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
-
 use clap::{Parser, Subcommand};
 
 use colored::Colorize;
+
+use i18n_embed_fl::fl;
 
 use upac_abi::hook::CancelToken;
 
@@ -23,6 +23,9 @@ mod commands {
 
 mod errors;
 mod locale;
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
 mod progress;
 mod types;
 
@@ -46,19 +49,12 @@ enum Command {
 
 // ── Entry points ───────────────────────────────────────────────────────────────
 fn main() -> ExitCode {
-    // SAFETY: called first thing in main, before any other threads or signal handlers exist.
-    unsafe {
-        setlocale(LocaleCategory::LcAll, "");
-    }
-
-    let locale_dir = locale::extract().expect("failed to extract embedded locale data");
-    bindtextdomain("upac-setup", &locale_dir).expect("bindtextdomain failed");
-    textdomain("upac-setup").expect("textdomain failed");
+    locale::init();
 
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("{} {err}", format!("{}:", gettextrs::gettext("error")).red().bold());
+            eprintln!("{} {err}", format!("{}:", fl!(locale::LOADER, "error")).red().bold());
             ExitCode::FAILURE
         }
     }

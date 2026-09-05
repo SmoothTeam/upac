@@ -3,7 +3,13 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::VecDeque;
 use std::os::raw::c_void;
+use std::path::PathBuf;
+
+use composefs::tree::FileSystem;
+
+use uuid::Uuid;
 
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
@@ -13,10 +19,14 @@ use upac_abi::{DiffFileSource, FileDiffKind};
 
 pub use self::error::FilesError;
 
+use self::apply::ApplyFileStage;
 use self::checkout::CheckoutStage;
+use self::commit::CommitTransactionStage;
+use self::open::OpenTransactionStage;
 use self::swap::SwapStage;
-use self::transaction::TransactionStage;
 
+use crate::composefs::repository::ObjectID;
+use crate::database::MemoryDatabase;
 use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
@@ -26,10 +36,12 @@ use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
 use upac_types::states::FilesStateId;
 
+mod apply;
 mod checkout;
+mod commit;
 mod error;
+mod open;
 mod swap;
-mod transaction;
 
 pub(crate) struct RequestedFileKind(pub FileDiffKind);
 pub(crate) struct RequestedFileScope(pub DiffFileSource);
@@ -46,6 +58,13 @@ pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
 }
+
+pub(crate) struct PendingFiles(pub VecDeque<String>);
+pub(crate) struct TotalFiles(pub u64);
+pub(crate) struct WorkingTree(pub FileSystem<ObjectID>);
+pub(crate) struct WorkingDatabase(pub MemoryDatabase);
+pub(crate) struct TargetUuid(pub Uuid);
+pub(crate) struct EtcUpperDir(pub PathBuf);
 
 pub struct FilesPackage<'a> {
     pub name: &'a str,
@@ -152,7 +171,9 @@ fn assemble() -> SequentialOrchestrator<FilesError> {
         Box::new(HookStage {
             trigger: PipelineTrigger::pre(Operation::Files),
         }),
-        Box::new(TransactionStage),
+        Box::new(OpenTransactionStage),
+        Box::new(ApplyFileStage),
+        Box::new(CommitTransactionStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),
         Box::new(HookStage {

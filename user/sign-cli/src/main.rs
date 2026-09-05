@@ -8,11 +8,11 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 
-use gettextrs::{LocaleCategory, bindtextdomain, setlocale, textdomain};
-
 use clap::Parser;
 
 use colored::Colorize;
+
+use i18n_embed_fl::fl;
 
 mod commands {
     pub mod generate_cert;
@@ -22,6 +22,10 @@ mod commands {
 }
 
 mod errors;
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
+mod locale;
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 #[derive(Parser)]
@@ -35,15 +39,12 @@ enum Command {
 
 // ── Entry points ───────────────────────────────────────────────────────────────
 fn main() -> ExitCode {
-    unsafe { setlocale(LocaleCategory::LcAll, "") };
-
-    bindtextdomain("upac-sign", env!("LOCALEDIR")).expect("bindtextdomain failed");
-    textdomain("upac-sign").expect("textdomain failed");
+    locale::init();
 
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("{} {err}", format!("{}:", gettextrs::gettext("error")).red().bold());
+            eprintln!("{} {err}", format!("{}:", fl!(locale::LOADER, "error")).red().bold());
             ExitCode::FAILURE
         }
     }

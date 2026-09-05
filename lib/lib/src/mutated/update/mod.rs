@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::VecDeque;
 use std::os::raw::c_void;
 
 use composefs::tree::FileSystem;
@@ -11,32 +12,41 @@ use upac_abi::error::ErrorKind;
 use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::request::CUpdateRequest;
 
+use upac_types::{DeclarativeTrigger, PackageTemp};
+
 pub use self::error::UpdateError;
 
 use self::checkout::CheckoutStage;
+use self::commit::CommitTransactionStage;
 use self::fetching::FetchingStage;
+use self::import::ImportPackageStage;
 use self::merge::MergeStage;
+use self::open::OpenTransactionStage;
 use self::preparation::PreparationStage;
 use self::swap::SwapStage;
-use self::transaction::TransactionStage;
 
 use crate::composefs::repository::ObjectID;
+use crate::database::MemoryDatabase;
 use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
+use crate::errors::CommonError;
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use crate::plugin::boot::BootPlugin;
+use crate::plugin::decoder::unpack::PackageUnpacker;
 use crate::scripts::HookStage;
 use crate::scripts::pipeline::{Operation, PipelineTrigger};
 use upac_types::TmpPath;
 use upac_types::states::UpdateStateId;
 
 mod checkout;
+mod commit;
 mod error;
 mod fetching;
+mod import;
 mod merge;
+mod open;
 mod preparation;
 mod swap;
-mod transaction;
 
 pub(crate) struct NewPrefixDigest(pub String);
 pub(crate) struct NewConfigDefaults(pub FileSystem<ObjectID>);
@@ -50,6 +60,15 @@ pub(crate) struct ResolvedBootEntry {
 }
 pub(crate) struct AllowDowngrade(pub bool);
 pub(crate) struct AllowConflictFiles(pub bool);
+
+pub(crate) struct PendingPackagePaths(pub VecDeque<String>);
+pub(crate) struct UnpackerState(pub PackageUnpacker);
+pub(crate) struct PendingPackages(pub VecDeque<(PackageTemp, DeclarativeTrigger)>);
+pub(crate) struct TotalPackages(pub u64);
+pub(crate) struct ImportedTree(pub FileSystem<ObjectID>);
+pub(crate) struct ImportedConfigDefaults(pub FileSystem<ObjectID>);
+pub(crate) struct ImportedDatabase(pub MemoryDatabase);
+pub(crate) struct ImportedRemovedConfigPaths(pub Vec<String>);
 
 pub struct UpdateData<'a> {
     pub packages: Vec<&'a str>,
@@ -98,15 +117,19 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
 pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
     let deploy =
         Deploy::new(DeployMode::ReadWrite).map_err(|error| (UpdateStateId::Setup, UpdateError::from(error)))?;
+    let unpacker = PackageUnpacker::new()
+        .map_err(|error| (UpdateStateId::Setup, UpdateError::from(CommonError::Decoder(error))))?;
+
+    let total_packages = data.packages.len() as u64;
 
     let mut context = Context::new();
     context.put(deploy);
-    context.put(
-        data.packages
-            .iter()
-            .map(|path| (*path).to_owned())
-            .collect::<Vec<String>>(),
-    );
+    context.put(UnpackerState(unpacker));
+    context.put(PendingPackagePaths(
+        data.packages.iter().map(|path| (*path).to_owned()).collect(),
+    ));
+    context.put(PendingPackages(VecDeque::new()));
+    context.put(TotalPackages(total_packages));
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
@@ -131,7 +154,9 @@ fn assemble() -> SequentialOrchestrator<UpdateError> {
         }),
         Box::new(FetchingStage),
         Box::new(PreparationStage),
-        Box::new(TransactionStage),
+        Box::new(OpenTransactionStage),
+        Box::new(ImportPackageStage),
+        Box::new(CommitTransactionStage),
         Box::new(MergeStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),

@@ -10,7 +10,14 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use upac_abi::hook::{CProgressEvent, HookAck};
 
-use upac_types::settings::{ProgressSettings, RuntimeSettings};
+use upac_setup::genesis::GenesisStage;
+
+use crate::layout::progress;
+use crate::locale::LOADER;
+
+#[cfg(test)]
+#[path = "../tests/inline/progress.rs"]
+mod tests;
 
 /// # Safety
 /// `ctx` must be a valid, live pointer to a `ProgressState` for the whole duration of the call
@@ -27,22 +34,15 @@ pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_v
 pub struct ProgressState {
     bar: ProgressBar,
     is_bar: bool,
-    settings: ProgressSettings,
 }
 
 impl ProgressState {
     pub fn new() -> Self {
-        let settings = RuntimeSettings::load().progress;
-
         let bar = ProgressBar::new_spinner();
-        bar.set_style(Self::spinner_style(&settings.spinner_template));
-        bar.enable_steady_tick(Duration::from_millis(settings.tick_interval_ms));
+        bar.set_style(Self::spinner_style());
+        bar.enable_steady_tick(Duration::from_millis(u64::from(progress::TICK_INTERVAL_MS)));
 
-        ProgressState {
-            bar,
-            is_bar: false,
-            settings,
-        }
+        ProgressState { bar, is_bar: false }
     }
 
     pub fn ctx_ptr(&mut self) -> *mut c_void {
@@ -59,7 +59,7 @@ impl ProgressState {
 
         if event.total > 0 {
             if !self.is_bar {
-                self.bar.set_style(Self::bar_style(&self.settings.bar_template));
+                self.bar.set_style(Self::bar_style());
                 self.is_bar = true;
             }
             self.bar.set_length(event.total);
@@ -77,22 +77,19 @@ impl ProgressState {
 
 impl ProgressState {
     fn stage_name(index: u32) -> String {
-        let key = match index {
-            0 => "stage_read_meta",
-            1 => "stage_import_trees",
-            2 => "stage_write_deploy_record",
-            3 => "stage_stage_boot",
-            _ => "stage_unknown",
-        };
-        gettextrs::gettext(key)
+        LOADER.get(GenesisStage::from_stage_index(index as usize).stage_key())
     }
 
-    fn spinner_style(template: &str) -> ProgressStyle {
-        ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_spinner())
+    fn spinner_style() -> ProgressStyle {
+        ProgressStyle::with_template(progress::SPINNER_TEMPLATE)
+            .unwrap_or_else(|_| ProgressStyle::default_spinner())
+            .tick_chars(progress::TICK_CHARS)
     }
 
-    fn bar_style(template: &str) -> ProgressStyle {
-        ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_bar())
+    fn bar_style() -> ProgressStyle {
+        ProgressStyle::with_template(progress::BAR_TEMPLATE)
+            .unwrap_or_else(|_| ProgressStyle::default_bar())
+            .tick_chars(progress::TICK_CHARS)
     }
 }
 

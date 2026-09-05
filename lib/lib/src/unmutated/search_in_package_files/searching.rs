@@ -12,10 +12,9 @@ use crate::database::meta::MetaStore;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::digest::current_prefix_digest;
 use crate::deploy::{Deploy, DeployMode};
-use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
-use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get};
 use crate::search::Search;
 use crate::unmutated::search_in_package_files::SearchInPackageFilesError;
 
@@ -26,9 +25,9 @@ pub struct SearchingStage;
 impl Stage<SearchInPackageFilesError> for SearchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SearchInPackageFilesError> {
-        let identity = context.get::<PackageEntry>().ok_or(CommonError::MissingResult)?;
-        let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SearchInPackageFilesError> {
+        let identity = ctx_get!(context, PackageEntry);
+        let search = ctx_get!(context, Search);
 
         let prefix_digest = current_prefix_digest()?;
 
@@ -57,6 +56,6 @@ impl Stage<SearchInPackageFilesError> for SearchingStage {
 
         context.put(matches);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

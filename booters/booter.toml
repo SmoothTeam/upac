@@ -9,14 +9,23 @@
 # here is a Cargo dependency between plugins, just a shared data file.
 #
 # efi_sysfs_path is the fixed Linux kernel sysfs mount point for UEFI firmware (never
-# distro/deployment-configurable, unlike the ESP mount point). sd_boot_loader_guid is systemd's
-# vendor GUID for its own boot-loader-interface EFI variables (LoaderInfo, LoaderEntryOneShot,
-# LoaderEntryDefault), per systemd's BOOT_LOADER_INTERFACE.md. boot_next_var is a UEFI
-# global-namespace variable, no vendor GUID needed.
+# distro/deployment-configurable, unlike the ESP mount point). efivarfs_path is the fixed
+# subdirectory where the kernel exposes individual EFI variables as files (`efivar`'s own crate
+# never surfaces this path, so plugins that need to clear the immutable attribute on an existing
+# variable file — kernel efivarfs sets it after first write, and `efivar` never clears it back off
+# before overwriting — have to reconstruct the exact same path themselves). sd_boot_loader_guid is
+# systemd's vendor GUID for its own boot-loader-interface EFI variables (LoaderInfo,
+# LoaderEntryOneShot, LoaderEntryDefault), per systemd's BOOT_LOADER_INTERFACE.md. boot_next_var/
+# boot_order_var are UEFI global-namespace variables, no vendor GUID needed — boot_order_var is
+# only needed to clear its immutable attribute before `VarManager::set_boot_order` touches it
+# (that method writes the variable internally, so the uki plugin can't intercept the write() call
+# itself the way it can for boot_next_var).
 [boot]
 efi_sysfs_path = "/sys/firmware/efi"
+efivarfs_path = "/sys/firmware/efi/efivars"
 sd_boot_loader_guid = "4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
 boot_next_var = "BootNext"
+boot_order_var = "BootOrder"
 loader_info_var = "LoaderInfo"
 loader_entry_one_shot_var = "LoaderEntryOneShot"
 loader_entry_default_var = "LoaderEntryDefault"

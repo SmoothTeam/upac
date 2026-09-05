@@ -3,7 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::VecDeque;
 use std::os::raw::c_void;
+
+use composefs::tree::FileSystem;
 
 use uuid::Uuid;
 
@@ -12,6 +15,8 @@ use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CUninstallRequest;
 
+use crate::composefs::repository::ObjectID;
+use crate::database::MemoryDatabase;
 use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
@@ -25,17 +30,21 @@ use upac_types::{PackageEntry, Targets, TmpPath};
 pub use self::error::UninstallError;
 
 use self::checkout::CheckoutStage;
+use self::commit::CommitTransactionStage;
 use self::merge::MergeStage;
+use self::open::OpenTransactionStage;
 use self::preparation::PreparationStage;
+use self::remove::RemovePackageStage;
 use self::swap::SwapStage;
-use self::transaction::TransactionStage;
 
 mod checkout;
+mod commit;
 mod error;
 mod merge;
+mod open;
 mod preparation;
+mod remove;
 mod swap;
-mod transaction;
 
 pub(crate) struct PackageUuidsToRemove(pub Vec<Uuid>);
 pub(crate) struct NewPrefixDigest(pub String);
@@ -48,6 +57,12 @@ pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
 }
+
+pub(crate) struct PendingUuids(pub VecDeque<Uuid>);
+pub(crate) struct TotalPackages(pub u64);
+pub(crate) struct WorkingTree(pub FileSystem<ObjectID>);
+pub(crate) struct WorkingDatabase(pub MemoryDatabase);
+pub(crate) struct WorkingRemovedConfigPaths(pub Vec<String>);
 
 pub struct UninstallPackage<'a> {
     pub name: &'a str,
@@ -157,7 +172,9 @@ fn assemble() -> SequentialOrchestrator<UninstallError> {
             trigger: PipelineTrigger::pre(Operation::Uninstall),
         }),
         Box::new(PreparationStage),
-        Box::new(TransactionStage),
+        Box::new(OpenTransactionStage),
+        Box::new(RemovePackageStage),
+        Box::new(CommitTransactionStage),
         Box::new(MergeStage),
         Box::new(CheckoutStage),
         Box::new(SwapStage),

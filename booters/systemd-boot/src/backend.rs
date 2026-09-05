@@ -3,18 +3,30 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::fs::OpenOptions;
+use std::os::fd::AsRawFd;
+use std::os::raw::c_long;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::str::FromStr;
 
 use efivar::VarManager;
 use efivar::efi::{Variable, VariableFlags};
 
+use nix::{ioctl_read, ioctl_write_ptr};
+
 use uuid::Uuid;
 
 use upac_abi::boot::Booter;
 
-use crate::boot::{LOADER_ENTRY_DEFAULT_VAR, LOADER_ENTRY_ONE_SHOT_VAR, LOADER_INFO_VAR, SD_BOOT_LOADER_GUID};
+use crate::boot::{
+    EFIVARFS_PATH, LOADER_ENTRY_DEFAULT_VAR, LOADER_ENTRY_ONE_SHOT_VAR, LOADER_INFO_VAR, SD_BOOT_LOADER_GUID,
+};
 use crate::error::BlsError;
+
+const FS_IMMUTABLE_FL: c_long = 0x0000_0010;
+
+ioctl_read!(fs_ioc_getflags, b'f', 1, c_long);
+ioctl_write_ptr!(fs_ioc_setflags, b'f', 2, c_long);
 
 pub struct Bls {
     manager: Box<dyn VarManager>,
@@ -56,10 +68,32 @@ impl Bls {
         let guid = Uuid::from_str(SD_BOOT_LOADER_GUID)?;
         let variable = Variable::new_with_vendor(name, guid);
 
+        Self::clear_immutable(&variable);
+
         self.manager
             .write(&variable, VariableFlags::default(), &encode_utf16_null(entry_name))?;
 
         Ok(())
+    }
+
+    fn clear_immutable(variable: &Variable) {
+        let Ok(file) = OpenOptions::new()
+            .read(true)
+            .open(format!("{EFIVARFS_PATH}/{variable}"))
+        else {
+            return;
+        };
+        let fd = file.as_raw_fd();
+
+        let mut flags: c_long = 0;
+        if unsafe { fs_ioc_getflags(fd, &mut flags) }.is_err() {
+            return;
+        }
+
+        if flags & FS_IMMUTABLE_FL != 0 {
+            flags &= !FS_IMMUTABLE_FL;
+            let _ = unsafe { fs_ioc_setflags(fd, &flags) };
+        }
     }
 }
 

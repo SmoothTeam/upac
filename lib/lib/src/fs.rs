@@ -11,7 +11,7 @@ use tempfile::NamedTempFile;
 
 use upac_abi::error::ErrorKind;
 
-use crate::orchestrator::stage::{RollbackGuard, StageResult};
+use crate::orchestrator::stage::RollbackGuard;
 
 /// A file written via [`atomic_write`], remembering its previous content (if any) so a group of
 /// writes can be undone as a unit — push each successfully written file into a `Vec<WrittenFile>`
@@ -58,10 +58,6 @@ impl WrittenFile {
 }
 
 impl RollbackGuard for Vec<WrittenFile> {
-    fn new_none(_result: StageResult) -> Self {
-        Vec::new()
-    }
-
     fn rollback(&mut self) -> Result<(), ErrorKind> {
         while let Some(file) = self.pop() {
             file.restore().map_err(|error| match error.kind() {
@@ -72,9 +68,5 @@ impl RollbackGuard for Vec<WrittenFile> {
         }
 
         Ok(())
-    }
-
-    fn result(&self) -> StageResult {
-        StageResult::Advance
     }
 }

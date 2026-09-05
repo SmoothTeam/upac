@@ -34,5 +34,5 @@ upac-abi = { workspace = true }
 toml = { workspace = true }
 
 [features]
-default = ["cdylib"]
+default = []
 cdylib = []

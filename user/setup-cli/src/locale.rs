@@ -3,27 +3,26 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::env::temp_dir;
-use std::fs::{create_dir_all, write};
-use std::io::Result as IoResult;
-use std::path::PathBuf;
+use std::sync::LazyLock;
 
-// Must be kept in sync with the languages under po/*.po.
-const CATALOGS: &[(&str, &[u8])] = &[
-    ("en", include_bytes!(concat!(env!("OUT_DIR"), "/en.mo"))),
-    ("ru", include_bytes!(concat!(env!("OUT_DIR"), "/ru.mo"))),
-];
+use i18n_embed::DesktopLanguageRequester;
+use i18n_embed::fluent::{FluentLanguageLoader, fluent_language_loader};
 
-// Extracted rather than read from a system path, since up-sp may run in a bootstrap/rescue
-// environment with no locale data of its own installed.
-pub fn extract() -> IoResult<PathBuf> {
-    let locale_dir = temp_dir().join("upac-setup-locale");
+use rust_embed::RustEmbed;
 
-    for (lang, bytes) in CATALOGS {
-        let lang_dir = locale_dir.join(lang).join("LC_MESSAGES");
-        create_dir_all(&lang_dir)?;
-        write(lang_dir.join("upac-setup.mo"), bytes)?;
-    }
+#[derive(RustEmbed)]
+#[folder = "i18n/"]
+struct EmbeddedAssets;
 
-    Ok(locale_dir)
+pub static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| fluent_language_loader!());
+
+pub fn init() {
+    let requested_languages = DesktopLanguageRequester::requested_languages();
+    let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &requested_languages);
+}
+
+#[cfg(test)]
+pub(crate) fn init_for_test() {
+    let english = "en".parse().unwrap();
+    let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &[english]);
 }

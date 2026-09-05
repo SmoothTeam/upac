@@ -69,6 +69,24 @@ macro_rules! run_unmutated {
 }
 pub(crate) use run_unmutated;
 
+macro_rules! ctx_get {
+    ($context:expr, $ty:ty) => {
+        $context
+            .get::<$ty>()
+            .ok_or($crate::errors::CommonError::MissingResult)?
+    };
+}
+pub(crate) use ctx_get;
+
+macro_rules! ctx_take {
+    ($context:expr, $ty:ty) => {
+        $context
+            .take::<$ty>()
+            .ok_or($crate::errors::CommonError::MissingResult)?
+    };
+}
+pub(crate) use ctx_take;
+
 pub type StagePipelineError = TypeId;
 
 pub struct Context {
@@ -206,9 +224,11 @@ where
     fn run_stage(
         stage: &dyn Stage<E>, index: usize, context: &mut Context, cancel: &CancelToken,
     ) -> Result<StageResult, (usize, E)> {
+        context.send_progress(&ProgressEventBuilder::new(index as u32));
+
         let progress = ProgressEventBuilder::new(index as u32);
 
-        let (progress, guard) = match stage.run(context, cancel, progress) {
+        let (progress, result, guard) = match stage.run(context, cancel, progress) {
             Ok(outcome) => outcome,
             Err(error) => {
                 context.unwind();
@@ -217,8 +237,6 @@ where
         };
 
         context.send_progress(&progress);
-
-        let result = guard.result();
         context.rollback.push(guard);
 
         Ok(result)
@@ -273,7 +291,7 @@ where
 
         while let Some(outcome) = set.join_next().await {
             match outcome {
-                Ok(Ok((progress, guard))) => {
+                Ok(Ok((progress, _result, guard))) => {
                     context.send_progress(&progress);
                     context.rollback.push(guard);
                 }

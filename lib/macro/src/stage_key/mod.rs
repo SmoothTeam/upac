@@ -5,8 +5,8 @@
 
 //! `#[derive(StageKey)]` — generates `stage_key(&self) -> &'static str` for a
 //! fieldless enum, converting each variant's PascalCase name into a
-//! `stage_snake_case` gettext key at compile time (e.g. `PrepareBoot` ->
-//! `"stage_prepare_boot"`), so callers never hand-maintain a separate
+//! `stage-kebab-case` Fluent message id at compile time (e.g. `PrepareBoot` ->
+//! `"stage-prepare-boot"`), so callers never hand-maintain a separate
 //! variant-name-to-key table.
 
 use proc_macro::TokenStream;
@@ -14,13 +14,13 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Error, Fields, Ident, parse_macro_input};
 
-fn to_snake_case(name: &str) -> String {
+fn to_kebab_case(name: &str) -> String {
     let mut result = String::new();
 
     for (index, ch) in name.chars().enumerate() {
         if ch.is_uppercase() {
             if index != 0 {
-                result.push('_');
+                result.push('-');
             }
             result.extend(ch.to_lowercase());
         } else {
@@ -66,7 +66,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
         }
 
         let variant_ident = &variant.ident;
-        let key = format!("stage_{}", to_snake_case(&variant_ident.to_string()));
+        let key = format!("stage-{}", to_kebab_case(&variant_ident.to_string()));
         arms.push(quote! {
             Self::#variant_ident => #key,
         });

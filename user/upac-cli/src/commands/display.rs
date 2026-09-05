@@ -12,6 +12,12 @@ use strum::AsRefStr;
 use upac_abi::package::{CPackageMeta, CVersion};
 use upac_types::Version;
 
+use crate::locale::LOADER;
+
+#[cfg(test)]
+#[path = "../../tests/inline/display.rs"]
+mod tests;
+
 macro_rules! str_field {
     ($field:expr) => {
         <&str>::try_from(&$field).unwrap_or_default()
@@ -55,7 +61,7 @@ pub enum PackageField {
 
 impl PackageField {
     pub fn display(&self) -> String {
-        gettextrs::gettext(self.as_ref())
+        LOADER.get(self.as_ref())
     }
 }
 

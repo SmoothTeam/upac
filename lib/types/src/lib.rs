@@ -390,6 +390,7 @@ pub struct GptLayout {
     pub deploy_fs: FsKind,
     pub deploy_size_mib: u64,
     pub extra_partitions: Vec<PartitionSpec>,
+    pub force_wipe: bool,
 }
 
 #[derive(Debug, Clone, CTryToRust)]

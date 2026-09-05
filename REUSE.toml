@@ -29,3 +29,8 @@ SPDX-License-Identifier = "CC-BY-SA-4.0"
 path = "doc/**"
 SPDX-FileCopyrightText = ["JustPav", "SmoothTeam"]
 SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+[[annotations]]
+path = "**/i18n/**/*.ftl"
+SPDX-FileCopyrightText = ["JustPav", "SmoothTeam"]
+SPDX-License-Identifier = "GPL-3.0-only"

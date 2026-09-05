@@ -45,9 +45,11 @@ files_scratch_filename = "files-packages.redb"
 # next_seq_path is a single monotonic counter file, sysroot-relative (not
 # per-deploy like deploys_dir), that hands out each new deploy record's `seq`
 # (doc §5.7: "a built-in marker for finding the array element following it").
-# etc_upper_relative_path is fixed relative to a single deploy record
-# directory (`state/deploy/<usr-digest>/`, doc §3) — the live overlayfs upper
-# layer for that usr-digest's `/etc`. overlay_opaque_xattr is the fixed
+# config_dir_name is fixed relative to a single deploy record directory
+# (`state/deploy/<usr-digest>/`, doc §3) — its `upper`/`work` children are the
+# live overlayfs upper/work layers for that usr-digest's `/etc`, matching
+# `composefs-setup-root`'s own hardcoded layout expectation (upstream, not
+# something we get to pick freely). overlay_opaque_xattr is the fixed
 # extended-attribute name the Linux kernel's overlayfs driver itself looks
 # for to mark a directory opaque (§5.1's "carry over the user's config
 # edits" upper-layer walk) — an external kernel contract, not something a
@@ -56,7 +58,7 @@ files_scratch_filename = "files-packages.redb"
 # one documented source of truth for fixed external constants.
 #
 # live_etc_dir is the real, absolute mount point of the running system's
-# /etc (doc §3 (13): overlayfs merge of etc_upper_relative_path over the
+# /etc (doc §3 (13): overlayfs merge of config_dir_name/upper over the
 # current working_config) — used by `files add/remove --scope config` to
 # read the live, already-merged content of a path regardless of which
 # overlay layer it currently resolves from.
@@ -68,7 +70,7 @@ sysroot_dir = "sysroot"
 record_filename = "meta.json"
 prefix_digest_cmdline_param = "composefs.digest"
 next_seq_path = "state/next-seq"
-etc_upper_relative_path = "etc-upper/upper"
+config_dir_name = "etc"
 overlay_opaque_xattr = "trusted.overlay.opaque"
 live_etc_dir = "/etc"
 
@@ -156,4 +158,4 @@ shared_mime_info_xmlns = "http://www.freedesktop.org/standards/shared-mime-info"
 [boot]
 esp_mount_primary = "/efi"
 esp_mount_fallback = "/boot"
-upac_to_slot = "upac-to"
+upac_uki_to_slot = "upac-to"

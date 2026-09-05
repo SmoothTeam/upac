@@ -18,6 +18,10 @@ use upac_abi::types::{CBorrowed, CSlice, CVec};
 use crate::cancel_token_ptr;
 use crate::types::errors::LibError;
 
+#[cfg(test)]
+#[path = "../../tests/inline/abi.rs"]
+mod tests;
+
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum FileScope {
     Usr,

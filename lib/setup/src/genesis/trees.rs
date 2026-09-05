@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::env::temp_dir;
-use std::fs::{File, write};
+use std::fs::read_dir;
+use std::io::Result as IoResult;
 use std::path::{Path, PathBuf};
 
 use composefs::generic_tree::Stat;
@@ -12,107 +12,114 @@ use composefs::repository::ImportContext;
 use composefs::tree::FileSystem;
 
 use upac::composefs::file::FileHandle;
-use upac::composefs::repository::commit_tree;
-use upac::database::files::FileStoreMut;
-use upac::database::meta::MetaStoreMut;
-use upac::database::{InMemory, MemoryDatabase};
-use upac::errors::CommonError;
-use upac::layout::database::DATABASE_PATH;
 use upac::orchestrator::Context;
-use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use upac_types::{FileEntry, FileEntryScope, PackageMeta};
+use super::ctx_get;
 
 use crate::error::SetupError;
-use crate::genesis::{ConfigDigest, GenesisInput, PrefixDigest};
-use crate::layout::genesis::SCRATCH_FILENAME;
 use crate::target::TargetSysroot;
+use crate::types::{ConfigTree, GenesisInput, ImportedConfigPaths, ImportedPrefixPaths, PrefixTree, ResolvedSourceDir};
+
+#[cfg(test)]
+#[path = "../../tests/inline/trees.rs"]
+mod tests;
+
+macro_rules! import_with_progress {
+    ($repository:expr, $tree:expr, $source:expr, $import_ctx:expr, $cancel:expr, $context:expr, $stage:expr) => {{
+        let total = ImportTreesStage::count_leaf_entries($source).unwrap_or(0);
+        let mut current = 0u64;
+
+        FileHandle::new(PathBuf::new()).import_directory(
+            $repository,
+            $tree,
+            $source,
+            $import_ctx,
+            $cancel,
+            &mut |path| {
+                current += 1;
+                $context.send_progress(
+                    &ProgressEventBuilder::new($stage)
+                        .subject(path.display().to_string())
+                        .progress(current, total),
+                );
+            },
+        )?
+    }};
+}
 
 pub struct ImportTreesStage;
 
 impl Stage<SetupError> for ImportTreesStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), SetupError> {
-        let meta = context.take::<PackageMeta>().ok_or(CommonError::MissingResult)?;
-        let target = context.get::<TargetSysroot>().ok_or(CommonError::MissingResult)?;
-        let input = context.get::<GenesisInput>().ok_or(CommonError::MissingResult)?;
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+        let target = ctx_get!(context, TargetSysroot);
+        let input = ctx_get!(context, GenesisInput);
+        let resolved = ctx_get!(context, ResolvedSourceDir);
 
         let repository = target.repository();
         let mut import_ctx = ImportContext::default();
+        let stage = progress.stage();
 
         let mut prefix_tree = FileSystem::new(Stat::uninitialized());
-        let usr_source = Path::new(&input.source_dir).join("usr");
-        let imported = if usr_source.is_dir() {
-            FileHandle::new(PathBuf::new()).import_directory(
+        let prefix_source = resolved.0.join("usr");
+        let imported = if prefix_source.is_dir() {
+            import_with_progress!(
                 repository,
                 &mut prefix_tree,
-                &usr_source,
+                &prefix_source,
                 &mut import_ctx,
                 cancel,
-            )?
+                context,
+                stage
+            )
         } else {
             Vec::new()
         };
 
         let mut config_tree = FileSystem::new(Stat::uninitialized());
-        let config_source = Path::new(&input.source_dir).join("etc");
+        let config_source = resolved.0.join("etc");
         let imported_config = if !input.empty_config && config_source.is_dir() {
-            FileHandle::new(PathBuf::new()).import_directory(
+            import_with_progress!(
                 repository,
                 &mut config_tree,
                 &config_source,
                 &mut import_ctx,
                 cancel,
-            )?
+                context,
+                stage
+            )
         } else {
             Vec::new()
         };
 
-        let mut database = MemoryDatabase::new_in_memory()?;
-        let uuid = database.insert_package_meta(&meta)?;
+        context.put(PrefixTree(prefix_tree));
+        context.put(ConfigTree(config_tree));
+        context.put(ImportedPrefixPaths(imported));
+        context.put(ImportedConfigPaths(imported_config));
+        context.put(import_ctx);
 
-        for path in imported {
-            database.insert_package_file(
-                uuid,
-                &FileEntry {
-                    path: path.to_string_lossy().into_owned(),
-                    is_user: false,
-                    scope: FileEntryScope::Prefix,
-                },
-            )?;
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+    }
+}
+
+impl ImportTreesStage {
+    fn count_leaf_entries(dir: &Path) -> IoResult<u64> {
+        let mut count = 0;
+
+        for entry in read_dir(dir)? {
+            let entry = entry?;
+
+            if entry.metadata()?.is_dir() {
+                count += Self::count_leaf_entries(&entry.path())?;
+            } else {
+                count += 1;
+            }
         }
-        for path in imported_config {
-            database.insert_package_file(
-                uuid,
-                &FileEntry {
-                    path: path.to_string_lossy().into_owned(),
-                    is_user: false,
-                    scope: FileEntryScope::Config,
-                },
-            )?;
-        }
 
-        let database_bytes = database.into_bytes()?;
-        let database_scratch_path = temp_dir().join(SCRATCH_FILENAME);
-        write(&database_scratch_path, &database_bytes)?;
-
-        FileHandle::new(DATABASE_PATH).insert_file(
-            repository,
-            &mut prefix_tree,
-            &File::open(&database_scratch_path)?,
-            Stat::uninitialized(),
-            &mut import_ctx,
-        )?;
-
-        let prefix_digest = commit_tree(repository, prefix_tree)?;
-        let config_digest = commit_tree(repository, config_tree)?;
-
-        context.put(PrefixDigest(prefix_digest));
-        context.put(ConfigDigest(config_digest));
-
-        Ok((progress, Box::new(NoRollback)))
+        Ok(count)
     }
 }

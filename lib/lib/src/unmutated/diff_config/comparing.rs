@@ -7,9 +7,8 @@ use upac_abi::FileDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::database::attribution::FileAttribute;
-use crate::errors::CommonError;
-use crate::orchestrator::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage};
+use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_take};
 use crate::unmutated::diff_config::{DiffConfigError, DiffConfigSnapshot};
 
 use upac_types::{DiffConfigFileEntry, DiffFileEntryCommon};
@@ -19,8 +18,8 @@ pub struct ComparingStage;
 impl Stage<DiffConfigError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, Box<dyn RollbackGuard>), DiffConfigError> {
-        let snapshot = context.take::<DiffConfigSnapshot>().ok_or(CommonError::MissingResult)?;
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffConfigError> {
+        let snapshot = ctx_take!(context, DiffConfigSnapshot);
 
         let mut entries = Vec::new();
 
@@ -42,6 +41,6 @@ impl Stage<DiffConfigError> for ComparingStage {
 
         context.put(entries);
 
-        Ok((progress, Box::new(NoRollback)))
+        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

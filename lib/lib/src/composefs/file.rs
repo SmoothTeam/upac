@@ -20,6 +20,24 @@ use upac_abi::hook::CancelToken;
 use crate::composefs::error::RepoError;
 use crate::composefs::repository::ObjectID;
 
+macro_rules! import_if_dir {
+    ($repository:expr, $tree:expr, $source:expr, $import_ctx:expr, $cancel:expr) => {
+        if $source.is_dir() {
+            $crate::composefs::file::FileHandle::new(::std::path::PathBuf::new()).import_directory(
+                $repository,
+                $tree,
+                $source,
+                $import_ctx,
+                $cancel,
+                &mut |_| {},
+            )?
+        } else {
+            Vec::new()
+        }
+    };
+}
+pub(crate) use import_if_dir;
+
 pub struct FileHandle {
     path: PathBuf,
 }
@@ -193,7 +211,7 @@ impl FileHandle {
 
     pub fn import_directory(
         &self, repository: &Repository<ObjectID>, tree: &mut FileSystem<ObjectID>, source_dir: &Path,
-        ctx: &mut ImportContext, cancel: &CancelToken,
+        ctx: &mut ImportContext, cancel: &CancelToken, on_entry: &mut dyn FnMut(&Path),
     ) -> Result<Vec<PathBuf>, RepoError> {
         let mut imported = Vec::new();
 
@@ -211,13 +229,15 @@ impl FileHandle {
 
             if metadata.is_dir() {
                 target.insert_in_tree(tree, stat)?;
-                let nested = target.import_directory(repository, tree, &source_path, ctx, cancel)?;
+                let nested = target.import_directory(repository, tree, &source_path, ctx, cancel, on_entry)?;
                 imported.extend(nested.into_iter().map(|relative| name.join(relative)));
             } else if metadata.is_symlink() {
                 target.symlink_in_tree(tree, read_link(&source_path)?, stat)?;
+                on_entry(&name);
                 imported.push(name);
             } else {
                 target.insert_file(repository, tree, &File::open(&source_path)?, stat, ctx)?;
+                on_entry(&name);
                 imported.push(name);
             }
         }

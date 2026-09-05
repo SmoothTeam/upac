@@ -17,12 +17,15 @@ pub struct CSetupBase {
 
     pub base: CRequestBase,
 
+    #[optional]
     pub mount_point: CSlice,
     #[non_empty]
-    pub source_dir: CSlice,
+    pub source: CSlice,
+    #[optional]
     pub meta_filename: CSlice,
     pub empty_config: bool,
     pub pinned: bool,
+    #[optional]
     pub boot_plugin: CSlice,
 }
 
@@ -73,6 +76,7 @@ pub struct CGptLayout {
     pub deploy_fs: FsKind,
     pub deploy_size_mib: u64,
     pub extra_partitions: CVec<CPartitionSpec>,
+    pub force_wipe: bool,
 }
 
 #[repr(C)]

@@ -32,9 +32,19 @@ upac-setup = { workspace = true }
 upac-abi   = { workspace = true }
 upac-types = { workspace = true }
 
-gettext-rs = { workspace = true }
-colored    = { workspace = true }
-anyhow     = { workspace = true }
-clap       = { workspace = true }
-ctrlc      = { workspace = true }
-indicatif  = { workspace = true }
+colored       = { workspace = true }
+anyhow        = { workspace = true }
+clap          = { workspace = true }
+ctrlc         = { workspace = true }
+indicatif     = { workspace = true }
+i18n-embed    = { workspace = true }
+i18n-embed-fl = { workspace = true }
+
+rust-embed = "8.12.0"
+
+[build-dependencies]
+toml = { workspace = true }
+
+[dev-dependencies]
+upac-lib = { workspace = true }
+nix      = { workspace = true }

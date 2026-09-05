@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::VecDeque;
 use std::os::raw::c_void;
 
 use upac_abi::error::ErrorKind;
@@ -12,13 +13,21 @@ use upac_abi::request::CGcRequest;
 pub use self::error::GcError;
 
 use self::cleaning::CleaningStage;
+use self::collect::CollectRootsStage;
+use self::pruning::PruneStage;
 
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_mutating};
 use upac_types::states::GcStateId;
 
 mod cleaning;
+mod collect;
 mod error;
+mod pruning;
+
+pub(crate) struct PendingDeploys(pub VecDeque<String>);
+pub(crate) struct TotalDeploys(pub u64);
+pub(crate) struct CollectedRoots(pub Vec<String>);
 
 pub struct GcData<'a> {
     pub hook_message: Option<HookMessageFn>,
@@ -51,7 +60,11 @@ pub fn run(data: GcData) -> Result<(), (GcStateId, GcError)> {
     context.put(deploy);
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
-    let orchestrator = SequentialOrchestrator::new(vec![Box::new(CleaningStage)]);
+    let orchestrator = SequentialOrchestrator::new(vec![
+        Box::new(PruneStage),
+        Box::new(CollectRootsStage),
+        Box::new(CleaningStage),
+    ]);
 
     let result = run_mutating!(orchestrator, context, data.cancel_token, GcStateId, GcError);
 
