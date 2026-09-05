@@ -16,6 +16,8 @@ pub type SetOneShotFn = unsafe extern "C" fn(request: *const CBootPluginRequest,
 
 pub type ConfirmBootFn = unsafe extern "C" fn(request: *const CBootPluginRequest, err_out: *mut ErrorKind) -> i32;
 
+pub type EspLoaderSourceFn = unsafe extern "C" fn() -> CSlice;
+
 pub trait Booter: Sized {
     type Error;
 
@@ -23,6 +25,10 @@ pub trait Booter: Sized {
     fn probes() -> bool;
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), Self::Error>;
     fn confirm_boot(&mut self, entry_name: &str) -> Result<(), Self::Error>;
+
+    fn esp_loader_source() -> Option<&'static str> {
+        None
+    }
 }
 
 #[repr(C)]
