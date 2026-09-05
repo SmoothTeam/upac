@@ -10,10 +10,9 @@ use crate::database::meta::MetaStore;
 use crate::database::{InMemory, MemoryDatabase};
 use crate::deploy::digest::current_prefix_digest;
 use crate::deploy::{Deploy, DeployMode};
-use crate::errors::CommonError;
 use crate::layout::database::DATABASE_PATH;
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get};
 use crate::search::Search;
 use crate::unmutated::search_meta::SearchMetaError;
 
@@ -23,7 +22,7 @@ impl Stage<SearchMetaError> for SearchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SearchMetaError> {
-        let search = context.get::<Search>().ok_or(CommonError::MissingResult)?;
+        let search = ctx_get!(context, Search);
 
         let prefix_digest = current_prefix_digest()?;
 

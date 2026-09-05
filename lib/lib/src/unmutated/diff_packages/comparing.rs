@@ -8,9 +8,8 @@ use std::collections::HashMap;
 use upac_abi::PackageDiffKind;
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
-use crate::errors::CommonError;
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_take};
 use crate::unmutated::diff_packages::DiffPackagesError;
 
 use upac_types::{DiffPackageEntry, DiffPackagesSnapshot};
@@ -21,9 +20,7 @@ impl Stage<DiffPackagesError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffPackagesError> {
-        let snapshot = context
-            .take::<DiffPackagesSnapshot>()
-            .ok_or(CommonError::MissingResult)?;
+        let snapshot = ctx_take!(context, DiffPackagesSnapshot);
 
         let from: HashMap<_, _> = snapshot
             .from

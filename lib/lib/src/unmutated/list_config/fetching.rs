@@ -8,9 +8,8 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use crate::database::record::DeployRecord;
 use crate::deploy::digest::current_prefix_digest;
 use crate::deploy::{Deploy, DeployMode};
-use crate::errors::CommonError;
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_get};
 use crate::unmutated::list_config::ListConfigError;
 
 use upac_types::{ConfigCommitEntry, RequestedPrefixDigest};
@@ -21,9 +20,7 @@ impl Stage<ListConfigError> for FetchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListConfigError> {
-        let requested = context
-            .get::<RequestedPrefixDigest>()
-            .ok_or(CommonError::MissingResult)?;
+        let requested = ctx_get!(context, RequestedPrefixDigest);
 
         let prefix_digest = match &requested.0 {
             Some(prefix_digest) => prefix_digest.clone(),

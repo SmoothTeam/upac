@@ -9,9 +9,8 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use upac_abi::{FileDiffKind, PackageDiffKind};
 
 use crate::database::attribution::FileAttribute;
-use crate::errors::CommonError;
-use crate::orchestrator::Context;
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::orchestrator::{Context, ctx_take};
 use crate::unmutated::diff::{DiffError, DiffSnapshot};
 
 use upac_types::{
@@ -26,7 +25,7 @@ impl Stage<DiffError> for ComparingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffError> {
-        let snapshot = context.take::<DiffSnapshot>().ok_or(CommonError::MissingResult)?;
+        let snapshot = ctx_take!(context, DiffSnapshot);
 
         let mut packages = Self::diff_packages(snapshot.from_packages, snapshot.to_packages);
         let mut unattached_files = Vec::new();
