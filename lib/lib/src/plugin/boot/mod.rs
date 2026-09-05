@@ -5,7 +5,7 @@
 
 use std::mem::MaybeUninit;
 
-use upac_abi::boot::{CBootPluginRequest, ConfirmBootFn, ProbeFn, SetOneShotFn};
+use upac_abi::boot::{CBootPluginRequest, ConfirmBootFn, EspLoaderSourceFn, ProbeFn, SetOneShotFn};
 use upac_abi::error::ErrorKind;
 use upac_abi::types::{CBorrowed, CSlice};
 
@@ -24,19 +24,27 @@ use upac_abi::boot::AbiVersionFn;
 use crate::plugin::boot::manifest::load_boot_plugin_manifests;
 
 #[cfg(feature = "builtin-grub")]
-use upac_boot_grub::{confirm_boot as grub_confirm_boot, probe as grub_probe, set_one_shot as grub_set_one_shot};
+use upac_boot_grub::{
+    confirm_boot as grub_confirm_boot, esp_loader_source as grub_esp_loader_source, probe as grub_probe,
+    set_one_shot as grub_set_one_shot,
+};
 
 #[cfg(feature = "builtin-systemd-boot")]
 use upac_boot_systemd_boot::{
-    confirm_boot as systemd_boot_confirm_boot, probe as systemd_boot_probe, set_one_shot as systemd_boot_set_one_shot,
+    confirm_boot as systemd_boot_confirm_boot, esp_loader_source as systemd_boot_esp_loader_source,
+    probe as systemd_boot_probe, set_one_shot as systemd_boot_set_one_shot,
 };
 
 #[cfg(feature = "builtin-uki")]
-use upac_boot_uki::{confirm_boot as uki_confirm_boot, probe as uki_probe, set_one_shot as uki_set_one_shot};
+use upac_boot_uki::{
+    confirm_boot as uki_confirm_boot, esp_loader_source as uki_esp_loader_source, probe as uki_probe,
+    set_one_shot as uki_set_one_shot,
+};
 
 #[cfg(feature = "builtin-refind")]
 use upac_boot_refind::{
-    confirm_boot as refind_confirm_boot, probe as refind_probe, set_one_shot as refind_set_one_shot,
+    confirm_boot as refind_confirm_boot, esp_loader_source as refind_esp_loader_source, probe as refind_probe,
+    set_one_shot as refind_set_one_shot,
 };
 
 pub mod error;
@@ -46,11 +54,14 @@ pub mod manifest;
 
 #[cfg(feature = "builtin-booters")]
 impl BootPlugin {
-    fn from_static(probe: ProbeFn, set_one_shot: SetOneShotFn, confirm_boot: ConfirmBootFn) -> Self {
+    fn from_static(
+        probe: ProbeFn, set_one_shot: SetOneShotFn, confirm_boot: ConfirmBootFn, esp_loader_source: EspLoaderSourceFn,
+    ) -> Self {
         BootPlugin {
             probe,
             set_one_shot,
             confirm_boot,
+            esp_loader_source,
 
             #[cfg(feature = "dynamic-plugins")]
             _library: None,
@@ -167,25 +178,35 @@ fn static_plugins() -> Vec<(&'static str, BootPlugin)> {
     #[cfg(feature = "builtin-uki")]
     plugins.push((
         "uki",
-        BootPlugin::from_static(uki_probe, uki_set_one_shot, uki_confirm_boot),
+        BootPlugin::from_static(uki_probe, uki_set_one_shot, uki_confirm_boot, uki_esp_loader_source),
     ));
 
     #[cfg(feature = "builtin-systemd-boot")]
     plugins.push((
         "systemd-boot",
-        BootPlugin::from_static(systemd_boot_probe, systemd_boot_set_one_shot, systemd_boot_confirm_boot),
+        BootPlugin::from_static(
+            systemd_boot_probe,
+            systemd_boot_set_one_shot,
+            systemd_boot_confirm_boot,
+            systemd_boot_esp_loader_source,
+        ),
     ));
 
     #[cfg(feature = "builtin-grub")]
     plugins.push((
         "grub",
-        BootPlugin::from_static(grub_probe, grub_set_one_shot, grub_confirm_boot),
+        BootPlugin::from_static(grub_probe, grub_set_one_shot, grub_confirm_boot, grub_esp_loader_source),
     ));
 
     #[cfg(feature = "builtin-refind")]
     plugins.push((
         "refind",
-        BootPlugin::from_static(refind_probe, refind_set_one_shot, refind_confirm_boot),
+        BootPlugin::from_static(
+            refind_probe,
+            refind_set_one_shot,
+            refind_confirm_boot,
+            refind_esp_loader_source,
+        ),
     ));
 
     plugins
@@ -202,6 +223,7 @@ pub struct BootPlugin {
     probe: ProbeFn,
     set_one_shot: SetOneShotFn,
     confirm_boot: ConfirmBootFn,
+    esp_loader_source: EspLoaderSourceFn,
 
     #[cfg(feature = "dynamic-plugins")]
     _library: Option<Library>,
@@ -216,6 +238,7 @@ impl BootPlugin {
         let probe: ProbeFn = unsafe { load_symbol(&library, "probe")? };
         let set_one_shot: SetOneShotFn = unsafe { load_symbol(&library, "set_one_shot")? };
         let confirm_boot: ConfirmBootFn = unsafe { load_symbol(&library, "confirm_boot")? };
+        let esp_loader_source: EspLoaderSourceFn = unsafe { load_symbol(&library, "esp_loader_source")? };
 
         let got = unsafe { abi_version() };
         if got != BOOT_ABI_VERSION {
@@ -229,6 +252,7 @@ impl BootPlugin {
             probe,
             set_one_shot,
             confirm_boot,
+            esp_loader_source,
             _library: Some(library),
         })
     }
@@ -261,5 +285,11 @@ impl BootPlugin {
         }
 
         Ok(())
+    }
+
+    pub fn esp_loader_source(&self) -> Option<String> {
+        let slice = unsafe { (self.esp_loader_source)() };
+
+        Option::<&str>::try_from(&slice).ok().flatten().map(str::to_owned)
     }
 }

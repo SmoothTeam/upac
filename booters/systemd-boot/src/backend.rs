@@ -22,6 +22,7 @@ use crate::boot::{
     EFIVARFS_PATH, LOADER_ENTRY_DEFAULT_VAR, LOADER_ENTRY_ONE_SHOT_VAR, LOADER_INFO_VAR, SD_BOOT_LOADER_GUID,
 };
 use crate::error::BlsError;
+use crate::systemd_boot::SOURCE;
 
 const FS_IMMUTABLE_FL: c_long = 0x0000_0010;
 
@@ -60,6 +61,10 @@ impl Booter for Bls {
 
     fn confirm_boot(&mut self, entry_name: &str) -> Result<(), BlsError> {
         self.write_loader_variable(LOADER_ENTRY_DEFAULT_VAR, entry_name)
+    }
+
+    fn esp_loader_source() -> Option<&'static str> {
+        Some(SOURCE)
     }
 }
 

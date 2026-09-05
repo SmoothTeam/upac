@@ -30,6 +30,13 @@ loader_info_var = "LoaderInfo"
 loader_entry_one_shot_var = "LoaderEntryOneShot"
 loader_entry_default_var = "LoaderEntryDefault"
 
+# source is the fixed, package-convention path (source-tree-relative) where systemd's own
+# packaging always installs its EFI binary — used by genesis to copy the loader onto a brand-new
+# ESP that doesn't have one yet (install/update never need this, the binary is already on the ESP
+# from genesis).
+[systemd_boot]
+source = "usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+
 # grub has no EFI-variable-based one-shot mechanism — it's file-based (grubenv), driven through
 # grub's own grub-reboot/grub-set-default tools rather than a hand-rolled binary-format writer.
 # Both the grubenv location and the tool names differ across distro packaging: Debian/Ubuntu/Arch
@@ -50,6 +57,9 @@ set_default_bin_fallback = "grub2-set-default"
 # entry through PreviousBoot only takes effect if refind.conf's `default_selection` starts with
 # `+` ("remember last boot"); that's a user/deployment-side rEFInd config choice this plugin has
 # no way to inspect or control. GUID/name per rEFInd's own documented EFI variable, not guessed.
+# source is the fixed, package-convention path (source-tree-relative) where rEFInd's own packaging
+# always installs its EFI binary — same genesis use as systemd_boot.source above.
 [refind]
 previous_boot_var = "PreviousBoot"
 previous_boot_guid = "36d08fa7-cf0b-42f5-8f14-68df73ed3740"
+source = "usr/share/refind/refind_x64.efi"

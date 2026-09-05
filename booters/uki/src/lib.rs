@@ -8,7 +8,7 @@ use std::str::from_utf8;
 use upac_abi::BOOT_ABI_VERSION;
 use upac_abi::boot::{Booter, CBootPluginRequest};
 use upac_abi::error::ErrorKind;
-use upac_abi::types::CBorrowed;
+use upac_abi::types::{CBorrowed, CSlice};
 
 use crate::backend::Uki;
 use crate::error::UkiError;
@@ -30,6 +30,13 @@ pub unsafe extern "C" fn abi_version() -> u32 {
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn probe() -> i32 {
     i32::from(Uki::probes())
+}
+
+/// # Safety
+/// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::boot::EspLoaderSourceFn`.
+#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
+pub unsafe extern "C" fn esp_loader_source() -> CSlice {
+    CSlice::from_slice(Uki::esp_loader_source().map(str::as_bytes))
 }
 
 /// # Safety

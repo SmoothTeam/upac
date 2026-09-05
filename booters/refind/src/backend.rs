@@ -20,7 +20,7 @@ use upac_abi::boot::Booter;
 
 use crate::boot::EFIVARFS_PATH;
 use crate::error::RefindError;
-use crate::refind::{PREVIOUS_BOOT_GUID, PREVIOUS_BOOT_VAR};
+use crate::refind::{PREVIOUS_BOOT_GUID, PREVIOUS_BOOT_VAR, SOURCE};
 
 const FS_IMMUTABLE_FL: c_long = 0x0000_0010;
 
@@ -59,6 +59,10 @@ impl Booter for Refind {
 
     fn confirm_boot(&mut self, entry_name: &str) -> Result<(), RefindError> {
         self.write_previous_boot(entry_name)
+    }
+
+    fn esp_loader_source() -> Option<&'static str> {
+        Some(SOURCE)
     }
 }
 
