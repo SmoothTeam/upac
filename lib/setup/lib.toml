@@ -3,11 +3,6 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# meta.filename is the default name of the per-source_dir package-metadata
-# manifest (see meta.rs) — overridable per request via CSetupBase.meta_filename.
-[meta]
-filename = "meta.toml"
-
 # mount.default_mount_point is where the target deployment partition (and,
 # under it, the ESP + any extra_mounts) gets mounted when the request's own
 # mount_point is left empty.
