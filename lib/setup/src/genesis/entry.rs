@@ -24,7 +24,7 @@ use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 use super::ctx_get;
 
 use crate::error::SetupError;
-use crate::layout::genesis::{ESP_FALLBACK_LOADER, REFIND_SOURCE, SYSTEMD_BOOT_SOURCE};
+use crate::layout::genesis::ESP_FALLBACK_LOADER;
 use crate::target::TargetSysroot;
 use crate::types::{GenesisInput, PrefixDigest};
 
@@ -43,13 +43,9 @@ impl Stage<SetupError> for StageBootStage {
 
         let prefix_tree = Self::reopen_tree(repository, &prefix_digest_hex)?;
 
-        let candidate = match input.boot_plugin.as_deref() {
-            Some("systemd-boot") => Some(SYSTEMD_BOOT_SOURCE),
-            Some("refind") => Some(REFIND_SOURCE),
-            _ => None,
-        };
+        let plugin = resolve_boot_plugin(BOOT_PLUGINS_DIR, MANIFEST_EXTENSION, input.boot_plugin.as_deref())?;
 
-        if let Some(candidate) = candidate {
+        if let Some(candidate) = plugin.esp_loader_source() {
             let handle = FileHandle::new(candidate);
             if handle.stat_in_tree(&prefix_tree).is_ok() {
                 let loader_bytes = handle.read_file(repository, &prefix_tree)?;
@@ -71,7 +67,6 @@ impl Stage<SetupError> for StageBootStage {
             &prefix_digest_hex,
         )?;
 
-        let plugin = resolve_boot_plugin(BOOT_PLUGINS_DIR, MANIFEST_EXTENSION, input.boot_plugin.as_deref())?;
         plugin.set_one_shot(&entry_name)?;
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
