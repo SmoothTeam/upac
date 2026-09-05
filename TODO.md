@@ -63,16 +63,3 @@ works after the bootloader-binary fix above). Two separate gaps, both required:
    upac needs to ship/package this integration itself, or whether it's expected to already exist
    on the source distro (same assumption as the systemd-boot/rEFInd binary copy above) — needs
    checking whether Arch/AUR already has a package for this.
-
-**Genesis tracks the entire bootstrapped system as a single synthetic "rootfs" package**, not
-per-package (`ReadMetaStage` reads one `meta.toml`, `ImportTreesStage` imports all of source's
-`usr`/`etc` wholesale). Found while reasoning about the `composefs-setup-root` hook: if it needs to
-already be installed on the source system (via pacman) for genesis to pick it up, its files still
-end up attributed to the one fake "rootfs" package in our database — no real per-package
-provenance for anything baked into the source image, unlike a `pacstrap`-then-`up install` flow
-would give. Decision made: genesis should eventually be rewritten to install real, individually
-decoded packages through the same pipeline `up install` uses, instead of importing a pre-built
-directory wholesale — no special-casing even for the kernel package. This is a genesis rewrite, not
-a patch; deliberately deferred until after a dedicated code-cleanup/macro-consolidation pass
-(reduce duplicated lines, extract shared macros) elsewhere in the codebase first.
-
