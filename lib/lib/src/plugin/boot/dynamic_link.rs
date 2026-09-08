@@ -5,13 +5,17 @@
 
 use libloading::Library;
 
-use upac_abi::BOOT_ABI_VERSION;
-use upac_abi::boot::{
-    AbiVersionFn, ConfirmBootFn, EspLoaderSourceFn, InstallFn, ProbeFn, RegisterBootSlotsFn, SetOneShotFn,
-};
+use upac_abi::{BOOT_ABI_VERSION, BootPluginAbiVersionFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 
 use super::BootPlugin;
 use super::error::BootPluginError;
+use super::manifest::BootPluginManifests;
+
+macro_rules! load_symbol {
+    ($library:expr, $name:literal) => {
+        unsafe { load_symbol(&$library, $name)? }
+    };
+}
 
 unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, BootPluginError> {
     unsafe { library.get::<T>(name.as_bytes()) }
@@ -20,33 +24,39 @@ unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, BootP
 }
 
 impl BootPlugin {
-    pub(super) fn load(library_name: &str) -> Result<Self, BootPluginError> {
+    pub(super) fn load_plugin(library_name: &str) -> Result<Self, BootPluginError> {
         let library = unsafe { Library::new(library_name) }.map_err(|_| BootPluginError::Load)?;
 
-        let abi_version: AbiVersionFn = unsafe { load_symbol(&library, "abi_version")? };
-        let probe: ProbeFn = unsafe { load_symbol(&library, "probe")? };
-        let set_one_shot: SetOneShotFn = unsafe { load_symbol(&library, "set_one_shot")? };
-        let confirm_boot: ConfirmBootFn = unsafe { load_symbol(&library, "confirm_boot")? };
-        let esp_loader_source: EspLoaderSourceFn = unsafe { load_symbol(&library, "esp_loader_source")? };
-        let register_boot_slots: RegisterBootSlotsFn = unsafe { load_symbol(&library, "register_boot_slots")? };
-        let install: InstallFn = unsafe { load_symbol(&library, "install")? };
+        let booter_abi_version: BootPluginAbiVersionFn = load_symbol!(library, "abi_version");
+        let set_one_shot: SetOneShotFn = load_symbol!(library, "set_one_shot");
+        let confirm_boot: ConfirmBootFn = load_symbol!(library, "confirm_boot");
+        let install: InstallFn = load_symbol!(library, "install");
 
-        let got = unsafe { abi_version() };
-        if got != BOOT_ABI_VERSION {
+        let got_booter_abi_version = unsafe { booter_abi_version() };
+        if got_booter_abi_version != BOOT_ABI_VERSION {
             return Err(BootPluginError::AbiMismatch {
-                got,
+                got: got_booter_abi_version,
                 expected: BOOT_ABI_VERSION,
             });
         }
 
         Ok(BootPlugin {
-            probe,
             set_one_shot,
             confirm_boot,
-            esp_loader_source,
-            register_boot_slots,
+
             install,
             _library: Some(library),
         })
     }
+}
+
+pub(super) fn load_boot_plugin_dynamic(
+    manifests: &BootPluginManifests, name: &str,
+) -> Result<BootPlugin, BootPluginError> {
+    let manifest = manifests
+        .0
+        .get(name)
+        .ok_or_else(|| BootPluginError::UnknownName(name.to_owned()))?;
+
+    BootPlugin::load_plugin(&manifest.library)
 }
