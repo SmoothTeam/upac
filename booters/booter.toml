@@ -8,25 +8,21 @@
 # own build.rs reads this same file and generates its own private layout::boot module; nothing
 # here is a Cargo dependency between plugins, just a shared data file.
 #
-# efi_sysfs_path is the fixed Linux kernel sysfs mount point for UEFI firmware (never
-# distro/deployment-configurable, unlike the ESP mount point). efivarfs_path is the fixed
-# subdirectory where the kernel exposes individual EFI variables as files (`efivar`'s own crate
-# never surfaces this path, so plugins that need to clear the immutable attribute on an existing
-# variable file — kernel efivarfs sets it after first write, and `efivar` never clears it back off
-# before overwriting — have to reconstruct the exact same path themselves). sd_boot_loader_guid is
-# systemd's vendor GUID for its own boot-loader-interface EFI variables (LoaderInfo,
-# LoaderEntryOneShot, LoaderEntryDefault), per systemd's BOOT_LOADER_INTERFACE.md. boot_next_var/
-# boot_order_var are UEFI global-namespace variables, no vendor GUID needed — boot_order_var is
-# only needed to clear its immutable attribute before `VarManager::set_boot_order` touches it
-# (that method writes the variable internally, so the uki plugin can't intercept the write() call
-# itself the way it can for boot_next_var).
+# efivarfs_path is the fixed subdirectory where the kernel exposes individual EFI variables as
+# files (`efivar`'s own crate never surfaces this path, so plugins that need to clear the
+# immutable attribute on an existing variable file — kernel efivarfs sets it after first write,
+# and `efivar` never clears it back off before overwriting — have to reconstruct the exact same
+# path themselves). sd_boot_loader_guid is systemd's vendor GUID for its own boot-loader-interface
+# EFI variables (LoaderEntryOneShot, LoaderEntryDefault), per systemd's BOOT_LOADER_INTERFACE.md.
+# boot_next_var/boot_order_var are UEFI global-namespace variables, no vendor GUID needed —
+# boot_order_var is only needed to clear its immutable attribute before
+# `VarManager::set_boot_order` touches it (that method writes the variable internally, so the uki
+# plugin can't intercept the write() call itself the way it can for boot_next_var).
 [boot]
-efi_sysfs_path = "/sys/firmware/efi"
 efivarfs_path = "/sys/firmware/efi/efivars"
 sd_boot_loader_guid = "4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
 boot_next_var = "BootNext"
 boot_order_var = "BootOrder"
-loader_info_var = "LoaderInfo"
 loader_entry_one_shot_var = "LoaderEntryOneShot"
 loader_entry_default_var = "LoaderEntryDefault"
 
@@ -64,8 +60,8 @@ from_slot = "upac-from"
 # UEFI/x86_64-only throughout, matching systemd_boot/refind's own *_x64 binary names below).
 # install_bootloader_id is grub's `--bootloader-id`, used only to name the install's own
 # NVRAM-independent EFI/BOOT/BOOTX64.EFI fallback copy (see backend.rs's `--removable --no-nvram`
-# — genesis relies on the same firmware fallback path uki/systemd-boot/refind already use via
-# esp_loader_source, not a Boot#### entry, so a fresh disk boots without any NVRAM setup).
+# — genesis relies on the same UEFI firmware fallback path uki/systemd-boot/refind's binaries
+# already occupy, not a Boot#### entry, so a fresh disk boots without any NVRAM setup).
 [grub]
 reboot_bin_primary = "grub-reboot"
 reboot_bin_fallback = "grub2-reboot"
@@ -86,9 +82,6 @@ install_bootloader_id = "upac"
 # entry through PreviousBoot only takes effect if refind.conf's `default_selection` starts with
 # `+` ("remember last boot"); that's a user/deployment-side rEFInd config choice this plugin has
 # no way to inspect or control. GUID/name per rEFInd's own documented EFI variable, not guessed.
-# source is the fixed, package-convention path (source-tree-relative) where rEFInd's own packaging
-# always installs its EFI binary — same genesis use as systemd_boot.source above.
 [refind]
 previous_boot_var = "PreviousBoot"
 previous_boot_guid = "36d08fa7-cf0b-42f5-8f14-68df73ed3740"
-source = "usr/share/refind/refind_x64.efi"
