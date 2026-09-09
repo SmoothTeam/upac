@@ -31,6 +31,8 @@ pub struct CInstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub boot_plugin: CSlice,
+
     pub tmp_path: CSlice,
 
     pub subject: CSlice,
@@ -38,8 +40,7 @@ pub struct CInstallRequest {
     pub message: CSlice,
 
     pub packages: CVec<CSlice>,
-    #[optional]
-    pub boot_plugin: CSlice,
+
     pub allow_conflict_files: bool,
 }
 
@@ -49,6 +50,8 @@ pub struct CUpdateRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub boot_plugin: CSlice,
+
     pub tmp_path: CSlice,
 
     pub subject: CSlice,
@@ -56,8 +59,7 @@ pub struct CUpdateRequest {
     pub message: CSlice,
 
     pub packages: CVec<CSlice>,
-    #[optional]
-    pub boot_plugin: CSlice,
+
     pub allow_downgrade: bool,
     pub allow_conflict_files: bool,
 }
@@ -68,13 +70,14 @@ pub struct CUninstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub boot_plugin: CSlice,
+
     pub tmp_path: CSlice,
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
     pub packages: CVec<CPackageInfo>,
-    #[optional]
-    pub boot_plugin: CSlice,
+
     pub purge: bool,
 }
 
@@ -84,10 +87,10 @@ pub struct CRollbackRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub boot_plugin: CSlice,
+
     pub tmp_path: CSlice,
     pub config_digest: CSlice,
-    #[optional]
-    pub boot_plugin: CSlice,
 }
 
 #[repr(C)]
@@ -108,16 +111,17 @@ pub struct CFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
+    pub boot_plugin: CSlice,
+
     pub tmp_path: CSlice,
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
     pub files: CVec<CSlice>,
     pub file_kind: FileDiffKind,
-    pub scope: DiffFileSource,
     pub file_package: *const CPackageInfo,
-    #[optional]
-    pub boot_plugin: CSlice,
+
+    pub scope: DiffFileSource,
 }
 
 #[repr(C)]
