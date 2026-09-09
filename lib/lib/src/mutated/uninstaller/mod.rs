@@ -56,8 +56,10 @@ pub(crate) struct NewPrefixDigest(pub String);
 pub(crate) struct RemovedConfigPaths(pub Vec<String>);
 pub(crate) struct Subject(pub String);
 pub(crate) struct CommitMessage(pub Option<String>);
-pub(crate) struct RequestedBootPlugin(pub Option<String>);
+
 pub(crate) struct Purge(pub bool);
+
+pub(crate) struct RequestedBootPlugin(pub String);
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
@@ -91,8 +93,10 @@ impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
 
 pub struct UninstallData<'a> {
     pub packages: Vec<UninstallPackage<'a>>,
-    pub boot_plugin: Option<&'a str>,
+
     pub purge: bool,
+
+    pub boot_plugin: &'a str,
 
     pub tmp_path: &'a str,
 
@@ -115,8 +119,10 @@ impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
 
         Ok(UninstallData {
             packages: Vec::try_from(&request.packages)?,
-            boot_plugin: (&request.boot_plugin).try_into()?,
+
             purge: request.purge,
+
+            boot_plugin: (&request.boot_plugin).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
 
@@ -152,7 +158,7 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
-    context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
+    context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
     context.put(Purge(data.purge));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 

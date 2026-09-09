@@ -18,7 +18,7 @@ use upac_types::entry::{FileEntry, FileEntryScope};
 use upac_types::hook::ProgressEventBuilder;
 
 use super::{
-    EtcUpperDir, FilesError, PendingFiles, RequestedFileKind, RequestedFileScope, TargetUuid, TotalFiles,
+    ConfigUpperDir, FilesError, PendingFiles, RequestedFileKind, RequestedFileScope, TargetUuid, TotalFiles,
     WorkingDatabase, WorkingTree,
 };
 
@@ -43,7 +43,7 @@ impl Stage<FilesError> for ApplyFileStage {
         let mut woking_database = ctx_take!(context, WorkingDatabase);
         let mut import_ctx = ctx_take!(context, ImportContext);
 
-        let config_upper_dir = ctx_get!(context, EtcUpperDir);
+        let config_upper_dir = ctx_get!(context, ConfigUpperDir);
         let uuid = ctx_get!(context, TargetUuid);
         let file_kind = ctx_get!(context, RequestedFileKind);
         let scope = ctx_get!(context, RequestedFileScope);

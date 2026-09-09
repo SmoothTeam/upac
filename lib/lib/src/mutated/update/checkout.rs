@@ -12,10 +12,9 @@ use super::{NewPrefixDigest, RequestedBootPlugin, ResolvedBootEntry, UpdateError
 use crate::boot::write_boot_entry;
 use crate::composefs::repository::object_id_from_hex;
 use crate::deploy::{Deploy, find_esp_mount};
-use crate::layout::boot_plugins::{BOOT_PLUGINS_DIR, MANIFEST_EXTENSION};
 use crate::orchestrator::context::{Context, ctx_get};
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use crate::plugin::boot::resolve_boot_plugin;
+use crate::plugin::boot::BootPlugins;
 
 pub struct CheckoutStage;
 
@@ -25,7 +24,7 @@ impl Stage<UpdateError> for CheckoutStage {
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
         let new_prefix = ctx_get!(context, NewPrefixDigest);
         let deploy = ctx_get!(context, Deploy);
-        let requested = ctx_get!(context, RequestedBootPlugin);
+        let requested_boot_plugins = ctx_get!(context, RequestedBootPlugin);
 
         let repository = deploy.open_repository()?;
         let tree = deploy.open_tree(&new_prefix.0)?;
@@ -34,7 +33,7 @@ impl Stage<UpdateError> for CheckoutStage {
         let esp_mount = find_esp_mount()?;
         let entry_name = write_boot_entry(&repository, &tree, digest, &esp_mount, &new_prefix.0)?;
 
-        let plugin = resolve_boot_plugin(BOOT_PLUGINS_DIR, MANIFEST_EXTENSION, requested.0.as_deref())?;
+        let plugin = BootPlugins::new()?.load(&requested_boot_plugins.0)?;
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 

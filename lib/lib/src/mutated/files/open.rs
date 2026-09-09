@@ -11,7 +11,8 @@ use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
 use super::{
-    EtcUpperDir, FilesError, PendingFiles, RequestedFilePackage, TargetUuid, TotalFiles, WorkingDatabase, WorkingTree,
+    ConfigUpperDir, FilesError, PendingFiles, RequestedFilePackage, TargetUuid, TotalFiles, WorkingDatabase,
+    WorkingTree,
 };
 
 use crate::composefs::file::FileHandle;
@@ -55,7 +56,7 @@ impl Stage<FilesError> for OpenTransactionStage {
         context.put(WorkingTree(tree));
         context.put(WorkingDatabase(database));
         context.put(ImportContext::default());
-        context.put(EtcUpperDir(config_upper_dir));
+        context.put(ConfigUpperDir(config_upper_dir));
         context.put(TargetUuid(uuid));
         context.put(PendingFiles(pending));
         context.put(TotalFiles(total));

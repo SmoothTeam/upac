@@ -35,8 +35,10 @@ mod merge;
 mod swap;
 
 pub(crate) struct RequestedConfigDigest(pub String);
-pub(crate) struct RequestedBootPlugin(pub Option<String>);
 pub(crate) struct TargetPrefixDigest(pub String);
+
+pub(crate) struct RequestedBootPlugin(pub String);
+
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
@@ -44,7 +46,8 @@ pub(crate) struct ResolvedBootEntry {
 
 pub struct RollbackData<'a> {
     pub config_digest: &'a str,
-    pub boot_plugin: Option<&'a str>,
+
+    pub boot_plugin: &'a str,
 
     pub tmp_path: &'a str,
 
@@ -64,6 +67,7 @@ impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
 
         Ok(RollbackData {
             config_digest: (&request.config_digest).try_into()?,
+
             boot_plugin: (&request.boot_plugin).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
@@ -83,7 +87,7 @@ pub fn run(data: RollbackData) -> Result<(), (RollbackStateId, RollbackError)> {
     let mut context = Context::new();
     context.put(deploy);
     context.put(RequestedConfigDigest(data.config_digest.to_owned()));
-    context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
+    context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 

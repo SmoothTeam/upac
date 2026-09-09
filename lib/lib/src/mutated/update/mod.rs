@@ -58,11 +58,13 @@ pub(crate) struct NewConfigDefaults(pub FileSystem<ObjectID>);
 pub(crate) struct RemovedConfigPaths(pub Vec<String>);
 pub(crate) struct Subject(pub String);
 pub(crate) struct CommitMessage(pub Option<String>);
-pub(crate) struct RequestedBootPlugin(pub Option<String>);
+
+pub(crate) struct RequestedBootPlugin(pub String);
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
 }
+
 pub(crate) struct AllowDowngrade(pub bool);
 pub(crate) struct AllowConflictFiles(pub bool);
 
@@ -77,7 +79,9 @@ pub(crate) struct ImportedRemovedConfigPaths(pub Vec<String>);
 
 pub struct UpdateData<'a> {
     pub packages: Vec<&'a str>,
-    pub boot_plugin: Option<&'a str>,
+
+    pub boot_plugin: &'a str,
+
     pub allow_downgrade: bool,
     pub allow_conflict_files: bool,
 
@@ -102,7 +106,9 @@ impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
 
         Ok(UpdateData {
             packages: Vec::try_from(&request.packages)?,
+
             boot_plugin: (&request.boot_plugin).try_into()?,
+
             allow_downgrade: request.allow_downgrade,
             allow_conflict_files: request.allow_conflict_files,
 
@@ -138,7 +144,7 @@ pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
-    context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
+    context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
     context.put(AllowDowngrade(data.allow_downgrade));
     context.put(AllowConflictFiles(data.allow_conflict_files));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);

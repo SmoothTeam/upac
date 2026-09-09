@@ -58,7 +58,7 @@ pub(crate) struct RequestedFilePackage {
 pub(crate) struct NewPrefixDigest(pub String);
 pub(crate) struct Subject(pub String);
 pub(crate) struct CommitMessage(pub Option<String>);
-pub(crate) struct RequestedBootPlugin(pub Option<String>);
+pub(crate) struct RequestedBootPlugin(pub String);
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
@@ -69,7 +69,7 @@ pub(crate) struct TotalFiles(pub u64);
 pub(crate) struct WorkingTree(pub FileSystem<ObjectID>);
 pub(crate) struct WorkingDatabase(pub MemoryDatabase);
 pub(crate) struct TargetUuid(pub Uuid);
-pub(crate) struct EtcUpperDir(pub PathBuf);
+pub(crate) struct ConfigUpperDir(pub PathBuf);
 
 pub struct FilesPackage<'a> {
     pub name: &'a str,
@@ -92,11 +92,13 @@ impl<'a> TryFrom<&'a CPackageInfo> for FilesPackage<'a> {
 }
 
 pub struct FilesData<'a> {
+    pub scope: DiffFileSource,
+
     pub files: Vec<&'a str>,
     pub file_kind: FileDiffKind,
-    pub scope: DiffFileSource,
     pub file_package: FilesPackage<'a>,
-    pub boot_plugin: Option<&'a str>,
+
+    pub boot_plugin: &'a str,
 
     pub tmp_path: &'a str,
 
@@ -120,10 +122,12 @@ impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
         let cancel_token = unsafe { &*request.base.cancel_token };
 
         Ok(FilesData {
+            scope: request.scope,
+
             files: Vec::try_from(&request.files)?,
             file_kind: request.file_kind,
-            scope: request.scope,
             file_package: FilesPackage::try_from(file_package)?,
+
             boot_plugin: (&request.boot_plugin).try_into()?,
 
             tmp_path: (&request.tmp_path).try_into()?,
@@ -160,7 +164,7 @@ pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
     context.put(TmpPath(data.tmp_path.to_owned()));
     context.put(Subject(data.subject.to_owned()));
     context.put(CommitMessage(data.message.map(str::to_owned)));
-    context.put(RequestedBootPlugin(data.boot_plugin.map(str::to_owned)));
+    context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

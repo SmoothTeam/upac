@@ -6,6 +6,7 @@
 use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::request::BootPluginSetOneShotRequest;
 
 use super::{ResolvedBootEntry, UpdateError};
 
@@ -20,7 +21,9 @@ impl Stage<UpdateError> for SwapStage {
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
         let resolved = ctx_take!(context, ResolvedBootEntry);
 
-        resolved.plugin.set_one_shot(&resolved.entry_name)?;
+        resolved.plugin.set_one_shot(BootPluginSetOneShotRequest {
+            entry_name: resolved.entry_name,
+        })?;
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
