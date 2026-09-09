@@ -20,6 +20,7 @@ use upac_abi::types::CSlice;
 
 use upac_types::package::PackageInfo;
 use upac_types::request::{ListPackagesRequest, RequestBase, UninstallRequest};
+use upac_types::settings::RuntimeSettings;
 
 use crate::cancel_token_ptr;
 use crate::locale::LOADER;
@@ -162,6 +163,13 @@ impl RemoveMachine {
 
         let mut progress = ProgressState::new(ErrorDomain::Uninstall);
 
+        let boot_plugin = self
+            .args
+            .boot
+            .clone()
+            .or_else(|| RuntimeSettings::load().boot.plugin)
+            .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
+
         let request: CUninstallRequest = UninstallRequest {
             base: RequestBase {
                 on_hook: Some(on_progress),
@@ -172,7 +180,7 @@ impl RemoveMachine {
             subject: "remove".to_owned(),
             message: self.args.message.clone(),
             packages: std::mem::take(&mut self.resolved),
-            boot_plugin: self.args.boot.clone(),
+            boot_plugin,
             purge: self.args.purge,
         }
         .into();

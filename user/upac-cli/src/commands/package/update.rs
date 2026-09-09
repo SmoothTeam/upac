@@ -15,6 +15,7 @@ use upac_abi::error::ErrorDomain;
 use upac_abi::request::CUpdateRequest;
 
 use upac_types::request::{RequestBase, UpdateRequest};
+use upac_types::settings::RuntimeSettings;
 
 use crate::cancel_token_ptr;
 use crate::locale::LOADER;
@@ -48,6 +49,11 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let mut progress = ProgressState::new(ErrorDomain::Update);
 
+    let boot_plugin = args
+        .boot
+        .or_else(|| RuntimeSettings::load().boot.plugin)
+        .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
+
     let request: CUpdateRequest = UpdateRequest {
         base: RequestBase {
             on_hook: Some(on_progress),
@@ -58,7 +64,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         subject: "update".to_owned(),
         message: args.message,
         packages,
-        boot_plugin: args.boot,
+        boot_plugin: boot_plugin,
         allow_downgrade: args.allow_downgrade,
         allow_conflict_files: !args.no_conflict_files,
     }
