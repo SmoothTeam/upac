@@ -31,7 +31,7 @@ macro_rules! write_error {
 /// # Safety
 /// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::BootPluginAbiVersionFn`.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn abi_version() -> u32 {
+pub unsafe extern "C" fn boot_abi_version() -> u32 {
     BOOT_ABI_VERSION
 }
 

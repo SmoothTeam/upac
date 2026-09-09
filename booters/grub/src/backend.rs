@@ -10,8 +10,8 @@ use std::process::Command;
 
 use upac_types::traits::Booter;
 
-use crate::error::GrubError;
-use crate::grub::{
+use super::error::GrubError;
+use super::grub::{
     INSTALL_BIN_FALLBACK, INSTALL_BIN_PRIMARY, INSTALL_BOOTLOADER_ID, INSTALL_TARGET, REBOOT_BIN_FALLBACK,
     REBOOT_BIN_PRIMARY, SET_DEFAULT_BIN_FALLBACK, SET_DEFAULT_BIN_PRIMARY,
 };
