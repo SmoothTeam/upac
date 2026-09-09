@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::any::Any;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use efivar::Error as EfivarError;
 
@@ -23,6 +24,16 @@ impl From<EfivarError> for UkiError {
     fn from(error: EfivarError) -> Self {
         match error {
             EfivarError::PermissionDenied { .. } => UkiError::PermissionDenied,
+            _ => UkiError::Unexpected,
+        }
+    }
+}
+
+impl From<IoError> for UkiError {
+    fn from(error: IoError) -> Self {
+        match error.kind() {
+            IoErrorKind::NotFound => UkiError::EntryNotFound,
+            IoErrorKind::PermissionDenied => UkiError::PermissionDenied,
             _ => UkiError::Unexpected,
         }
     }
