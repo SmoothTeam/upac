@@ -33,11 +33,15 @@ pub struct RequestBase {
 #[derive(Debug, Clone, RustToC)]
 pub struct InstallRequest {
     pub base: RequestBase,
+
     pub tmp_path: String,
+
     pub subject: String,
     pub message: Option<String>,
     pub packages: Vec<String>,
-    pub boot_plugin: Option<String>,
+
+    pub boot_plugin: String,
+
     pub allow_conflict_files: bool,
 }
 
@@ -45,10 +49,14 @@ pub struct InstallRequest {
 pub struct UpdateRequest {
     pub base: RequestBase,
     pub tmp_path: String,
+
     pub subject: String,
     pub message: Option<String>,
+
     pub packages: Vec<String>,
-    pub boot_plugin: Option<String>,
+
+    pub boot_plugin: String,
+
     pub allow_downgrade: bool,
     pub allow_conflict_files: bool,
 }
@@ -56,11 +64,16 @@ pub struct UpdateRequest {
 #[derive(Debug, Clone, RustToC)]
 pub struct UninstallRequest {
     pub base: RequestBase,
+
     pub tmp_path: String,
+
     pub subject: String,
     pub message: Option<String>,
+
     pub packages: Vec<PackageInfo>,
-    pub boot_plugin: Option<String>,
+
+    pub boot_plugin: String,
+
     pub purge: bool,
 }
 
@@ -69,7 +82,7 @@ pub struct RollbackRequest {
     pub base: RequestBase,
     pub tmp_path: String,
     pub config_digest: String,
-    pub boot_plugin: Option<String>,
+    pub boot_plugin: String,
 }
 
 #[derive(Debug, Clone, RustToC)]
@@ -83,14 +96,19 @@ pub struct CommitRequest {
 #[derive(Debug, Clone, RustToC)]
 pub struct FilesRequest {
     pub base: RequestBase,
+
     pub tmp_path: String,
+
     pub subject: String,
     pub message: Option<String>,
+
     pub files: Vec<String>,
     pub file_kind: FileDiffKind,
-    pub scope: DiffFileSource,
     pub file_package: *const CPackageInfo,
-    pub boot_plugin: Option<String>,
+
+    pub boot_plugin: String,
+
+    pub scope: DiffFileSource,
 }
 
 #[derive(Debug, Clone, RustToC)]
