@@ -8,12 +8,12 @@ use std::io::ErrorKind as IoErrorKind;
 use std::path::Path;
 use std::process::Command;
 
-use upac_abi::boot::Booter;
+use upac_types::traits::Booter;
 
 use crate::error::GrubError;
 use crate::grub::{
-    GRUBENV_FALLBACK, GRUBENV_PRIMARY, INSTALL_BIN_FALLBACK, INSTALL_BIN_PRIMARY, INSTALL_BOOTLOADER_ID,
-    INSTALL_TARGET, REBOOT_BIN_FALLBACK, REBOOT_BIN_PRIMARY, SET_DEFAULT_BIN_FALLBACK, SET_DEFAULT_BIN_PRIMARY,
+    INSTALL_BIN_FALLBACK, INSTALL_BIN_PRIMARY, INSTALL_BOOTLOADER_ID, INSTALL_TARGET, REBOOT_BIN_FALLBACK,
+    REBOOT_BIN_PRIMARY, SET_DEFAULT_BIN_FALLBACK, SET_DEFAULT_BIN_PRIMARY,
 };
 
 const GRUB_CFG_CONTENTS: &str = "insmod blscfg\nblscfg\n";
@@ -27,20 +27,18 @@ impl Booter for Grub {
         Ok(Grub)
     }
 
-    fn probes() -> bool {
-        Path::new(GRUBENV_PRIMARY).exists() || Path::new(GRUBENV_FALLBACK).exists()
-    }
-
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), GrubError> {
         self.run_first_available([REBOOT_BIN_PRIMARY, REBOOT_BIN_FALLBACK], &[entry_name])
     }
 
-    fn confirm_boot(&mut self, entry_name: &str) -> Result<(), GrubError> {
+    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), GrubError> {
+        let _ = esp_mount_point;
+
         self.run_first_available([SET_DEFAULT_BIN_PRIMARY, SET_DEFAULT_BIN_FALLBACK], &[entry_name])
     }
 
-    fn register_boot_slots(
-        &mut self, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
+    fn install(
+        &mut self, esp_mount_point: &str, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
         esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
     ) -> Result<(), GrubError> {
         let _ = (
@@ -52,10 +50,6 @@ impl Booter for Grub {
             from_slot,
         );
 
-        Ok(())
-    }
-
-    fn install(&mut self, esp_mount_point: &str) -> Result<(), GrubError> {
         self.run_first_available(
             [INSTALL_BIN_PRIMARY, INSTALL_BIN_FALLBACK],
             &[
