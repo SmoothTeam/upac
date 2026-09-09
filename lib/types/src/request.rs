@@ -7,6 +7,7 @@ use std::mem::size_of;
 use std::os::raw::c_void;
 
 use upac_abi::HookMessageFn;
+use upac_abi::error::ErrorKind;
 use upac_abi::hook::CancelToken;
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::{
@@ -19,7 +20,7 @@ use upac_abi::request::{
 use upac_abi::types::{COwned, CSlice, CVec};
 use upac_abi::{DiffFileSource, FileDiffKind};
 
-use upac_macro::RustToC;
+use upac_macro::{CTryToRust, RustToC};
 
 use super::package::PackageInfo;
 
@@ -217,19 +218,19 @@ pub struct DecodeRequest {
     pub cancel_token: *mut CancelToken,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct BootPluginSetOneShotRequest {
     pub entry_name: String,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct BootPluginConfirmSuccsesBootRequest {
     pub entry_name: String,
 
     pub esp_mount_point: String,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct BootPluginInstallRequest {
     pub esp_mount_point: String,
     pub esp_partition_number: u32,
