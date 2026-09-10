@@ -27,7 +27,7 @@ impl BootPlugin {
     pub(super) fn load_plugin(library_name: &str) -> Result<Self, BootPluginError> {
         let library = unsafe { Library::new(library_name) }.map_err(|_| BootPluginError::Load)?;
 
-        let booter_abi_version: BootPluginAbiVersionFn = load_symbol!(library, "abi_version");
+        let booter_abi_version: BootPluginAbiVersionFn = load_symbol!(library, "boot_abi_version");
         let set_one_shot: SetOneShotFn = load_symbol!(library, "set_one_shot");
         let confirm_boot: ConfirmBootFn = load_symbol!(library, "confirm_boot");
         let install: InstallFn = load_symbol!(library, "install");
