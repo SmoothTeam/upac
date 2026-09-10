@@ -8,10 +8,16 @@ use std::io::{BufReader, Read};
 
 use sha2::{Digest, Sha256};
 
+use upac_abi::FreeDecodeResponseFn;
 use upac_abi::hook::CancelToken;
+use upac_abi::package::{CPackageDependency, CPackageMeta};
+use upac_abi::response::CDecodeResponse;
+use upac_abi::types::{COwned, CSlice, CVec};
+
 use upac_macro::RedbCodec;
 
 use super::error::DecodeError;
+use super::package::DecodedPackageMeta;
 
 const VERIFY_CHUNK_SIZE: usize = 65536;
 
@@ -81,4 +87,27 @@ pub fn verify(package_path: &str, expected_checksum: [u8; 32], cancel: &CancelTo
     }
 
     Ok(())
+}
+
+pub fn build_decode_response(
+    decoded: DecodedPackageMeta, declarative_triggers: Vec<String>, free: FreeDecodeResponseFn,
+) -> CDecodeResponse {
+    let DecodedPackageMeta { meta, dependencies } = decoded;
+
+    let dependencies = dependencies
+        .into_iter()
+        .map(CPackageDependency::from)
+        .collect::<Vec<_>>();
+
+    let declarative_triggers = declarative_triggers
+        .into_iter()
+        .map(|trigger| CSlice::from_owned(trigger.into_bytes()))
+        .collect::<Vec<_>>();
+
+    CDecodeResponse::new(
+        CPackageMeta::from(meta),
+        CVec::from_owned(dependencies),
+        CVec::from_owned(declarative_triggers),
+        free,
+    )
 }
