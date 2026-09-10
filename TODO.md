@@ -36,14 +36,27 @@ match upac's on-disk layout exactly (repo at `composefs/`, per-deploy state at `
 Still unresolved: whether upac ships/packages the `composefs-setup-root` binary itself or expects it
 to already exist on the source distro (same open question as the systemd-boot/rEFInd binaries).
 
-**Boot confirmation service, generalized to all 4 plugins (not just UKI)**: `Booter::confirm_boot
-(entry_name)` is already implemented for every plugin — grub (`grub-set-default`, promotes the
-one-shot `grub-reboot` selection to persistent default), systemd-boot (writes `LoaderEntryDefault`),
-rEFInd (writes `PreviousBoot`) all already do the right thing for their own one-shot mechanism; uki
-still needs its to/from swap + persistent NVRAM boot order designed. But nothing anywhere calls
-`confirm_boot` for any of them after a successful boot. Needs its own small service + unit, shipped
-the same way as `composefs-setup-root.service` — via `system/`, built and dropped in by whoever
-assembles `--source`, not embedded in upac itself. Open design question, now needed generically
-(not just for UKI's to/from case): how does the service determine which `entry_name` was actually
-booted (`/proc/cmdline`? the loaded image's own filename? grubenv's own state?) — needs deciding
-before writing any code.
+**Booter ABI redesign — decided this session, execution in progress file-by-file under direct
+supervision (no batch edits).** Four canonical plugin responsibilities:
+
+1. Plugin sets itself for one-time boot (`set_one_shot`) — done.
+2. Plugin sets itself for persistent boot (`confirm_boot`) — done, including UKI's `to.efi`↔
+   `from.efi` file swap (needed a new `esp_mount_point` parameter on `confirm_boot`, added this
+   session; the swap only fires when the confirmed `entry_name` is the `to` slot specifically).
+3. Plugin installs itself onto the ESP (`install`) — done for grub (real `grub-install
+   --removable --no-nvram` + a minimal `blscfg` `grub.cfg`), no-op for the other 3.
+4. Plugin declares where its own pre-built loader binary lives in the source package tree
+   (`esp_loader_source`) — done, stays a separate passive query (only genesis can reach the
+   composefs tree to copy the bytes out, plugins can't do this step themselves).
+
+**`write_boot_entry` must search only for the resource type the selected plugin needs, not
+autonomously scan everything and guess.** Right now (`lib/lib/src/boot/mod.rs`) it calls
+`get_boot_resources` unconditionally, takes whichever single boot resource exists in the tree
+(Type1/Type2/`UsrLibModulesVmLinuz`), and only errors if more than one is found total — completely
+independent of which plugin was actually selected. This is the case in all 6 call sites:
+`lib/lib/src/boot/mod.rs` itself, `mutated/{files,installer,uninstaller,update,rollback}/checkout.rs`,
+and `lib/setup/src/genesis/entry.rs`. Needs to take the (now always-explicit) plugin name and require
+specifically: `uki` → `Type2` only; `grub`/`systemd-boot`/`rEFInd` → `Type1`/`UsrLibModulesVmLinuz`
+only — hard error if that type isn't present, even if a different type is. This also means
+`resolve_boot_plugin` must run before `write_boot_entry` everywhere — today the 5 ordinary
+`checkout.rs` stages call it after (only genesis already has the order right).
