@@ -4,11 +4,16 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::{HashMap, HashSet};
+use std::fs::{read, read_dir};
+use std::str::from_utf8;
 
 use upac_abi::hook::CancelToken;
+
 use upac_types::hook::ProgressEventBuilder;
 
 use upac_types::decoder::DeclarativeTrigger;
+
+use upac_pki::signature::{HookSignature, RootCertificate};
 
 use crate::errors::CommonError;
 use crate::layout::hooks::{HOOK_EXTENSION, HOOKS_DIR, ROOT_CERT_PATH, SIGNATURE_EXTENSION};
@@ -88,12 +93,12 @@ impl<E: From<CommonError> + Send + 'static> Stage<E> for HookStage {
 pub fn load_hooks(
     hooks_dir: &str, root_cert_path: &str, hook_extension: &str, signature_extension: &str,
 ) -> Result<Vec<HookFile>, HookError> {
-    let root_bytes = fs::read(root_cert_path)?;
+    let root_bytes = read(root_cert_path)?;
     let root_certificate = RootCertificate::from_bytes(&root_bytes)?;
 
     let mut hooks = Vec::new();
 
-    for entry in fs::read_dir(hooks_dir)? {
+    for entry in read_dir(hooks_dir)? {
         let path = entry?.path();
 
         if path.extension().and_then(|extension| extension.to_str()) != Some(hook_extension) {
@@ -104,8 +109,8 @@ pub fn load_hooks(
         signature_path.push(".");
         signature_path.push(signature_extension);
 
-        let hook_bytes = fs::read(&path)?;
-        let signature_bytes = fs::read(&signature_path)?;
+        let hook_bytes = read(&path)?;
+        let signature_bytes = read(&signature_path)?;
 
         let signature = HookSignature::from_bytes(&signature_bytes)?;
         signature.verify(&hook_bytes, &root_certificate)?;

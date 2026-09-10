@@ -16,6 +16,8 @@ use upac_types::traits::MessageHook;
 
 use upac_types::states::GcStateId;
 
+use upac_macro::ContextValue;
+
 use self::cleaning::CleaningStage;
 use self::collect::CollectRootsStage;
 use self::pruning::PruneStage;
@@ -31,8 +33,12 @@ mod collect;
 mod error;
 mod pruning;
 
-pub(crate) struct PendingDeploys(pub VecDeque<String>);
-pub(crate) struct TotalDeploys(pub u64);
+pub(crate) struct DeployProgress {
+    pub pending: VecDeque<String>,
+    pub total: u64,
+}
+
+#[derive(ContextValue)]
 pub(crate) struct CollectedRoots(pub Vec<String>);
 
 pub struct GcData<'a> {

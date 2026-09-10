@@ -15,6 +15,8 @@ use upac_types::hook::Message;
 use upac_types::states::MimeStateId;
 use upac_types::traits::MessageHook;
 
+use upac_macro::ContextValue;
+
 use self::preparing::PreparingStage;
 use self::rendering::RenderingStage;
 use self::writing::WritingStage;
@@ -29,10 +31,13 @@ mod preparing;
 mod rendering;
 mod writing;
 
+#[derive(ContextValue)]
 pub(crate) struct DesktopContent(pub String);
 
-pub(crate) struct PendingWrites(pub VecDeque<(&'static str, String)>);
-pub(crate) struct TotalWrites(pub u64);
+pub(crate) struct WriteProgress {
+    pub pending: VecDeque<(&'static str, String)>,
+    pub total: u64,
+}
 
 pub struct MimeData<'a> {
     pub hook_message: Option<HookMessageFn>,

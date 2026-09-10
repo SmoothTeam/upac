@@ -35,6 +35,10 @@ impl DecoderPlugin {
     reason = "each push is independently cfg-gated, vec![] can't express that"
 )]
 pub(super) fn static_decoders() -> Vec<(&'static str, &'static [&'static str], DecoderPlugin)> {
+    #[allow(
+        unused_mut,
+        reason = "mut is only needed when at least one builtin-* decoder feature is enabled"
+    )]
     let mut decoders = Vec::new();
 
     #[cfg(feature = "builtin-alpm")]

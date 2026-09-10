@@ -11,7 +11,7 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{ImportedConfigDefaults, ImportedDatabase, ImportedTree, InstallError};
+use super::{ImportedState, InstallError};
 
 use crate::composefs::file::FileHandle;
 use crate::database::{InMemory, MemoryDatabase};
@@ -36,9 +36,11 @@ impl Stage<InstallError> for OpenTransactionStage {
         let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &tree)?;
         let database = MemoryDatabase::open_in_memory(database_bytes)?;
 
-        context.put(ImportedTree(tree));
-        context.put(ImportedConfigDefaults(FileSystem::new(Stat::uninitialized())));
-        context.put(ImportedDatabase(database));
+        context.put(ImportedState {
+            tree,
+            config_defaults: FileSystem::new(Stat::uninitialized()),
+            database,
+        });
         context.put(ImportContext::default());
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))

@@ -24,9 +24,7 @@ pub unsafe extern "C" fn diff_prefix(
 ) -> i32 {
     let diff_prefix_data = try_convert_abi!(DiffPrefixData::try_from(&request_c), err_out, DiffPrefixStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        crate::unmutated::diff_prefix::run(diff_prefix_data)
-    }));
+    let result = catch_unwind(AssertUnwindSafe(|| run(diff_prefix_data)));
 
     match result {
         Ok(Ok(response)) => {

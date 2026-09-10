@@ -12,7 +12,7 @@ use upac_abi::hook::CancelToken;
 use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{InstallError, PendingPackagePaths, PendingPackages, TotalPackages, UnpackerState};
+use super::{InstallError, InstallProgress, UnpackState};
 
 use crate::errors::CommonError;
 use crate::orchestrator::context::{Context, ctx_get, ctx_take};
@@ -26,38 +26,40 @@ impl Stage<InstallError> for PreparationStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
-        let mut pending_paths = ctx_take!(context, PendingPackagePaths);
-        let mut unpacker = ctx_take!(context, UnpackerState);
-        let mut pending_packages = ctx_take!(context, PendingPackages);
+        let mut unpack_state = ctx_take!(context, UnpackState);
+        let mut install_progress = ctx_take!(context, InstallProgress);
 
         let tmp_path = ctx_get!(context, TmpPath);
-        let total_packages = ctx_get!(context, TotalPackages);
 
-        let package_path = pending_paths.0.pop_front().ok_or(CommonError::MissingResult)?;
-        let index = pending_packages.0.len();
+        let package_path = unpack_state
+            .pending_paths
+            .pop_front()
+            .ok_or(CommonError::MissingResult)?;
+        let index = install_progress.pending.len();
 
-        let (package, trigger) = unpacker
-            .0
+        let (package, trigger) = unpack_state
+            .unpacker
             .unpack_one(&package_path, index, tmp_path.as_ref(), cancel)
             .map_err(CommonError::Decoder)?;
 
         let guard = UnpackedPackageDir(PathBuf::from(&package.temp_package_path));
 
-        pending_packages.0.push_back((package, trigger));
+        install_progress.pending.push_back((package, trigger));
 
-        let remaining = pending_paths.0.len() as u64;
-        let processed = total_packages.0 - remaining;
-        progress = progress.subject(package_path).progress(processed, total_packages.0);
+        let remaining = unpack_state.pending_paths.len() as u64;
+        let processed = install_progress.total - remaining;
+        progress = progress
+            .subject(package_path)
+            .progress(processed, install_progress.total);
 
-        let result = if pending_paths.0.is_empty() {
+        let result = if unpack_state.pending_paths.is_empty() {
             StageResult::Advance
         } else {
             StageResult::Repeat
         };
 
-        context.put(pending_paths);
-        context.put(unpacker);
-        context.put(pending_packages);
+        context.put(unpack_state);
+        context.put(install_progress);
 
         Ok((progress, result, Box::new(guard)))
     }

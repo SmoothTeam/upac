@@ -14,6 +14,8 @@ use upac_types::traits::MessageHook;
 
 use upac_types::states::PinStateId;
 
+use upac_macro::ContextValue;
+
 use self::stage::SetPinnedStage;
 
 use crate::deploy::{Deploy, DeployMode};
@@ -25,7 +27,10 @@ pub use self::error::PinError;
 mod error;
 mod stage;
 
+#[derive(ContextValue)]
 pub(crate) struct RequestedPrefixDigest(pub String);
+
+#[derive(ContextValue)]
 pub(crate) struct RequestedPinned(pub bool);
 
 pub struct PinData<'a> {

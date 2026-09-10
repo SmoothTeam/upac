@@ -15,10 +15,7 @@ use upac_abi::hook::CancelToken;
 use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{
-    ImportedConfigDefaults, ImportedDatabase, ImportedRemovedConfigPaths, ImportedTree, NewConfigDefaults,
-    NewPrefixDigest, RemovedConfigPaths, UpdateError,
-};
+use super::{ImportedState, NewState, UpdateError};
 
 use crate::composefs::error::RepoError;
 use crate::composefs::file::FileHandle;
@@ -35,19 +32,16 @@ impl Stage<UpdateError> for CommitTransactionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UpdateError> {
-        let tree = ctx_take!(context, ImportedTree);
-        let config_defaults = ctx_take!(context, ImportedConfigDefaults);
-        let database = ctx_take!(context, ImportedDatabase);
-        let removed_config_paths = ctx_take!(context, ImportedRemovedConfigPaths);
+        let imported_state = ctx_take!(context, ImportedState);
         let mut import_ctx = ctx_take!(context, ImportContext);
 
         let tmp_path = ctx_get!(context, TmpPath);
         let deploy = ctx_get!(context, Deploy);
 
         let repository = deploy.open_repository()?;
-        let mut tree = tree.0;
+        let mut tree = imported_state.tree;
 
-        let database_bytes = database.0.into_bytes()?;
+        let database_bytes = imported_state.database.into_bytes()?;
         let database_scratch_path = Path::new(tmp_path.as_ref()).join(UPDATE_SCRATCH_FILENAME);
         write(&database_scratch_path, &database_bytes).map_err(RepoError::from)?;
 
@@ -61,9 +55,11 @@ impl Stage<UpdateError> for CommitTransactionStage {
 
         let digest = commit_tree(&repository, tree)?;
 
-        context.put(NewPrefixDigest(digest.to_hex()));
-        context.put(NewConfigDefaults(config_defaults.0));
-        context.put(RemovedConfigPaths(removed_config_paths.0));
+        context.put(NewState {
+            prefix_digest: digest.to_hex(),
+            config_defaults: imported_state.config_defaults,
+            removed_config_paths: imported_state.removed_config_paths,
+        });
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }

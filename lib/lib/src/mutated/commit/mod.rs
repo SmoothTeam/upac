@@ -29,8 +29,10 @@ pub use self::error::CommitError;
 mod error;
 mod transaction;
 
-pub(crate) struct Subject(pub String);
-pub(crate) struct CommitMessage(pub Option<String>);
+pub(crate) struct CommitInfo {
+    pub subject: String,
+    pub message: Option<String>,
+}
 
 pub struct CommitData<'a> {
     pub tmp_path: &'a str,
@@ -73,8 +75,10 @@ pub fn run(data: CommitData) -> Result<(), (CommitStateId, CommitError)> {
     let mut context = Context::new();
     context.put(deploy);
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Subject(data.subject.to_owned()));
-    context.put(CommitMessage(data.message.map(str::to_owned)));
+    context.put(CommitInfo {
+        subject: data.subject.to_owned(),
+        message: data.message.map(str::to_owned),
+    });
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();

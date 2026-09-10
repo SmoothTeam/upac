@@ -21,17 +21,19 @@ impl Stage<FilesError> for CheckoutStage {
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), FilesError> {
         let new_prefix = ctx_get!(context, NewPrefixDigest);
+
         let deploy = ctx_get!(context, Deploy);
+
         let requested_boot_plugins = ctx_get!(context, RequestedBootPlugin);
 
         let repository = deploy.open_repository()?;
-        let deploy_tree = deploy.open_tree(&new_prefix.0)?;
-        let digest = object_id_from_hex(&new_prefix.0)?;
+        let deploy_tree = deploy.open_tree(&new_prefix)?;
+        let digest = object_id_from_hex(&new_prefix)?;
 
         let esp_mount = find_esp_mount()?;
-        let entry_name = write_boot_entry(&repository, &deploy_tree, digest, &esp_mount, &new_prefix.0)?;
+        let entry_name = write_boot_entry(&repository, &deploy_tree, digest, &esp_mount, &new_prefix)?;
 
-        let plugin = BootPlugins::new()?.load(&requested_boot_plugins.0)?;
+        let plugin = BootPlugins::new()?.load(&requested_boot_plugins)?;
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 

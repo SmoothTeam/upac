@@ -20,6 +20,8 @@ use upac_types::package::PackageTemp;
 use upac_types::states::UpdateStateId;
 use upac_types::traits::MessageHook;
 
+use upac_macro::ContextValue;
+
 use self::checkout::CheckoutStage;
 use self::commit::CommitTransactionStage;
 use self::fetching::FetchingStage;
@@ -53,29 +55,45 @@ mod open;
 mod preparation;
 mod swap;
 
-pub(crate) struct NewPrefixDigest(pub String);
-pub(crate) struct NewConfigDefaults(pub FileSystem<ObjectID>);
-pub(crate) struct RemovedConfigPaths(pub Vec<String>);
-pub(crate) struct Subject(pub String);
-pub(crate) struct CommitMessage(pub Option<String>);
+pub(crate) struct NewState {
+    pub prefix_digest: String,
+    pub config_defaults: FileSystem<ObjectID>,
+    pub removed_config_paths: Vec<String>,
+}
 
+pub(crate) struct CommitInfo {
+    pub subject: String,
+    pub message: Option<String>,
+}
+
+#[derive(ContextValue)]
 pub(crate) struct RequestedBootPlugin(pub String);
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
 }
 
+#[derive(ContextValue)]
 pub(crate) struct AllowDowngrade(pub bool);
+#[derive(ContextValue)]
 pub(crate) struct AllowConflictFiles(pub bool);
 
-pub(crate) struct PendingPackagePaths(pub VecDeque<String>);
-pub(crate) struct UnpackerState(pub PackageUnpacker);
-pub(crate) struct PendingPackages(pub VecDeque<(PackageTemp, DeclarativeTrigger)>);
-pub(crate) struct TotalPackages(pub u64);
-pub(crate) struct ImportedTree(pub FileSystem<ObjectID>);
-pub(crate) struct ImportedConfigDefaults(pub FileSystem<ObjectID>);
-pub(crate) struct ImportedDatabase(pub MemoryDatabase);
-pub(crate) struct ImportedRemovedConfigPaths(pub Vec<String>);
+pub(crate) struct UnpackState {
+    pub pending_paths: VecDeque<String>,
+    pub unpacker: PackageUnpacker,
+}
+
+pub(crate) struct ImportProgress {
+    pub pending: VecDeque<(PackageTemp, DeclarativeTrigger)>,
+    pub total: u64,
+}
+
+pub(crate) struct ImportedState {
+    pub tree: FileSystem<ObjectID>,
+    pub config_defaults: FileSystem<ObjectID>,
+    pub database: MemoryDatabase,
+    pub removed_config_paths: Vec<String>,
+}
 
 pub struct UpdateData<'a> {
     pub packages: Vec<&'a str>,
@@ -135,15 +153,19 @@ pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
 
     let mut context = Context::new();
     context.put(deploy);
-    context.put(UnpackerState(unpacker));
-    context.put(PendingPackagePaths(
-        data.packages.iter().map(|path| (*path).to_owned()).collect(),
-    ));
-    context.put(PendingPackages(VecDeque::new()));
-    context.put(TotalPackages(total_packages));
+    context.put(UnpackState {
+        pending_paths: data.packages.iter().map(|path| (*path).to_owned()).collect(),
+        unpacker,
+    });
+    context.put(ImportProgress {
+        pending: VecDeque::new(),
+        total: total_packages,
+    });
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Subject(data.subject.to_owned()));
-    context.put(CommitMessage(data.message.map(str::to_owned)));
+    context.put(CommitInfo {
+        subject: data.subject.to_owned(),
+        message: data.message.map(str::to_owned),
+    });
     context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
     context.put(AllowDowngrade(data.allow_downgrade));
     context.put(AllowConflictFiles(data.allow_conflict_files));

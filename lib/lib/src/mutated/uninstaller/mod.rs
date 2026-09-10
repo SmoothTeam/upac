@@ -22,6 +22,8 @@ use upac_types::states::UninstallStateId;
 use upac_types::traits::MessageHook;
 use upac_types::{TmpPath, UninstallPackagesTargets};
 
+use upac_macro::ContextValue;
+
 use self::checkout::CheckoutStage;
 use self::commit::CommitTransactionStage;
 use self::merge::MergeStage;
@@ -51,25 +53,39 @@ mod preparation;
 mod remove;
 mod swap;
 
+#[derive(ContextValue)]
 pub(crate) struct PackageUuidsToRemove(pub Vec<Uuid>);
-pub(crate) struct NewPrefixDigest(pub String);
-pub(crate) struct RemovedConfigPaths(pub Vec<String>);
-pub(crate) struct Subject(pub String);
-pub(crate) struct CommitMessage(pub Option<String>);
 
+pub(crate) struct NewState {
+    pub prefix_digest: String,
+    pub removed_config_paths: Vec<String>,
+}
+
+pub(crate) struct CommitInfo {
+    pub subject: String,
+    pub message: Option<String>,
+}
+
+#[derive(ContextValue)]
 pub(crate) struct Purge(pub bool);
 
+#[derive(ContextValue)]
 pub(crate) struct RequestedBootPlugin(pub String);
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
 }
 
-pub(crate) struct PendingUuids(pub VecDeque<Uuid>);
-pub(crate) struct TotalPackages(pub u64);
-pub(crate) struct WorkingTree(pub FileSystem<ObjectID>);
-pub(crate) struct WorkingDatabase(pub MemoryDatabase);
-pub(crate) struct WorkingRemovedConfigPaths(pub Vec<String>);
+pub(crate) struct RemoveProgress {
+    pub pending: VecDeque<Uuid>,
+    pub total: u64,
+}
+
+pub(crate) struct WorkingState {
+    pub tree: FileSystem<ObjectID>,
+    pub database: MemoryDatabase,
+    pub removed_config_paths: Vec<String>,
+}
 
 pub struct UninstallPackage<'a> {
     pub name: &'a str,
@@ -141,7 +157,7 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     let deploy =
         Deploy::new(DeployMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, UninstallError::from(error)))?;
 
-    let targets = Targets(
+    let targets = UninstallPackagesTargets(
         data.packages
             .iter()
             .map(|package| PackageEntry {
@@ -156,8 +172,10 @@ pub fn run(data: UninstallData) -> Result<(), (UninstallStateId, UninstallError)
     context.put(targets);
     context.put(deploy);
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Subject(data.subject.to_owned()));
-    context.put(CommitMessage(data.message.map(str::to_owned)));
+    context.put(CommitInfo {
+        subject: data.subject.to_owned(),
+        message: data.message.map(str::to_owned),
+    });
     context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
     context.put(Purge(data.purge));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);

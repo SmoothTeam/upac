@@ -13,7 +13,7 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{DesktopContent, MimeError, PendingWrites, TotalWrites};
+use super::{DesktopContent, MimeError, WriteProgress};
 
 use crate::layout::mime::{DESKTOP_FILE_PATH, MIME_XML_PATH, SHARED_MIME_INFO_XMLNS};
 use crate::orchestrator::context::{Context, ctx_take};
@@ -31,12 +31,11 @@ impl Stage<MimeError> for RenderingStage {
 
         let mime_xml = Self::render_mime_xml(&manifests)?;
         let mime_type_line = Self::render_mime_type_line(&manifests);
-        let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content.0, &mime_type_line)?;
+        let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content, &mime_type_line)?;
 
         let pending = VecDeque::from([(MIME_XML_PATH, mime_xml), (DESKTOP_FILE_PATH, desktop_content)]);
 
-        context.put(PendingWrites(pending));
-        context.put(TotalWrites(2));
+        context.put(WriteProgress { pending, total: 2 });
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }

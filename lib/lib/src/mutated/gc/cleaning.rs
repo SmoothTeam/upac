@@ -23,7 +23,7 @@ impl Stage<GcError> for CleaningStage {
         let deploy = ctx_take!(context, Deploy);
 
         let repository = deploy.open_repository()?;
-        let root_refs: Vec<&str> = roots.0.iter().map(String::as_str).collect();
+        let root_refs: Vec<&str> = roots.iter().map(String::as_str).collect();
         gc(&repository, &root_refs)?;
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))

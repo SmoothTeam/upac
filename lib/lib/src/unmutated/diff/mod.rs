@@ -35,7 +35,9 @@ mod preparing;
 struct DiffSnapshot {
     from_packages: Vec<PackageMeta>,
     to_packages: Vec<PackageMeta>,
+
     changed_files: Vec<(String, FileDiffKind, DiffFileSource)>,
+
     from_database: MemoryDatabase,
     to_database: MemoryDatabase,
 }

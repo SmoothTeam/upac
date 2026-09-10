@@ -15,6 +15,8 @@ use upac_types::hook::Message;
 use upac_types::states::RollbackStateId;
 use upac_types::traits::MessageHook;
 
+use upac_macro::ContextValue;
+
 use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::swap::SwapStage;
@@ -34,9 +36,13 @@ mod error;
 mod merge;
 mod swap;
 
+#[derive(ContextValue)]
 pub(crate) struct RequestedConfigDigest(pub String);
+
+#[derive(ContextValue)]
 pub(crate) struct TargetPrefixDigest(pub String);
 
+#[derive(ContextValue)]
 pub(crate) struct RequestedBootPlugin(pub String);
 
 pub(crate) struct ResolvedBootEntry {

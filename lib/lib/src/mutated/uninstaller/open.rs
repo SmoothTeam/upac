@@ -9,10 +9,7 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{
-    PackageUuidsToRemove, PendingUuids, TotalPackages, UninstallError, WorkingDatabase, WorkingRemovedConfigPaths,
-    WorkingTree,
-};
+use super::{PackageUuidsToRemove, RemoveProgress, UninstallError, WorkingState};
 
 use crate::composefs::file::FileHandle;
 use crate::database::{InMemory, MemoryDatabase};
@@ -39,14 +36,15 @@ impl Stage<UninstallError> for OpenTransactionStage {
         let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &tree)?;
         let database = MemoryDatabase::open_in_memory(database_bytes)?;
 
-        let total = uuids.0.len() as u64;
+        let total = uuids.len() as u64;
         let pending: VecDeque<_> = uuids.0.into_iter().collect();
 
-        context.put(WorkingTree(tree));
-        context.put(WorkingDatabase(database));
-        context.put(WorkingRemovedConfigPaths(Vec::new()));
-        context.put(PendingUuids(pending));
-        context.put(TotalPackages(total));
+        context.put(WorkingState {
+            tree,
+            database,
+            removed_config_paths: Vec::new(),
+        });
+        context.put(RemoveProgress { total, pending });
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }

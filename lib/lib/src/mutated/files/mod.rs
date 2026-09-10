@@ -23,6 +23,8 @@ use upac_types::hook::Message;
 use upac_types::states::FilesStateId;
 use upac_types::traits::MessageHook;
 
+use upac_macro::ContextValue;
+
 use self::apply::ApplyFileStage;
 use self::checkout::CheckoutStage;
 use self::commit::CommitTransactionStage;
@@ -48,28 +50,45 @@ mod error;
 mod open;
 mod swap;
 
-pub(crate) struct RequestedFileKind(pub FileDiffKind);
-pub(crate) struct RequestedFileScope(pub DiffFileSource);
+pub(crate) struct RequestedFileOperation {
+    pub kind: FileDiffKind,
+    pub scope: DiffFileSource,
+}
 pub(crate) struct RequestedFilePackage {
     pub name: String,
     pub arch: String,
     pub arch_sub: Option<String>,
 }
+
+#[derive(ContextValue)]
 pub(crate) struct NewPrefixDigest(pub String);
-pub(crate) struct Subject(pub String);
-pub(crate) struct CommitMessage(pub Option<String>);
+
+pub(crate) struct CommitInfo {
+    pub subject: String,
+    pub message: Option<String>,
+}
+
+#[derive(ContextValue)]
 pub(crate) struct RequestedBootPlugin(pub String);
 pub(crate) struct ResolvedBootEntry {
     pub plugin: BootPlugin,
     pub entry_name: String,
 }
 
-pub(crate) struct PendingFiles(pub VecDeque<String>);
-pub(crate) struct TotalFiles(pub u64);
-pub(crate) struct WorkingTree(pub FileSystem<ObjectID>);
-pub(crate) struct WorkingDatabase(pub MemoryDatabase);
-pub(crate) struct TargetUuid(pub Uuid);
-pub(crate) struct ConfigUpperDir(pub PathBuf);
+pub(crate) struct FileProgress {
+    pub pending: VecDeque<String>,
+    pub total: u64,
+}
+
+pub(crate) struct WorkingState {
+    pub tree: FileSystem<ObjectID>,
+    pub database: MemoryDatabase,
+}
+
+pub(crate) struct ApplyTarget {
+    pub uuid: Uuid,
+    pub config_upper_dir: PathBuf,
+}
 
 pub struct FilesPackage<'a> {
     pub name: &'a str,
@@ -154,16 +173,20 @@ pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
             .map(|path| (*path).to_owned())
             .collect::<Vec<String>>(),
     );
-    context.put(RequestedFileKind(data.file_kind));
-    context.put(RequestedFileScope(data.scope));
+    context.put(RequestedFileOperation {
+        kind: data.file_kind,
+        scope: data.scope,
+    });
     context.put(RequestedFilePackage {
         name: data.file_package.name.to_owned(),
         arch: data.file_package.arch.to_owned(),
         arch_sub: data.file_package.arch_sub.map(str::to_owned),
     });
     context.put(TmpPath(data.tmp_path.to_owned()));
-    context.put(Subject(data.subject.to_owned()));
-    context.put(CommitMessage(data.message.map(str::to_owned)));
+    context.put(CommitInfo {
+        subject: data.subject.to_owned(),
+        message: data.message.map(str::to_owned),
+    });
     context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
     context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
 

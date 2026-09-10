@@ -11,7 +11,7 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{ImportedConfigDefaults, ImportedDatabase, ImportedRemovedConfigPaths, ImportedTree, UpdateError};
+use super::{ImportedState, UpdateError};
 
 use crate::composefs::file::FileHandle;
 use crate::database::{InMemory, MemoryDatabase};
@@ -36,10 +36,12 @@ impl Stage<UpdateError> for OpenTransactionStage {
         let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &tree)?;
         let database = MemoryDatabase::open_in_memory(database_bytes)?;
 
-        context.put(ImportedTree(tree));
-        context.put(ImportedConfigDefaults(FileSystem::new(Stat::uninitialized())));
-        context.put(ImportedDatabase(database));
-        context.put(ImportedRemovedConfigPaths(Vec::new()));
+        context.put(ImportedState {
+            tree,
+            config_defaults: FileSystem::new(Stat::uninitialized()),
+            database,
+            removed_config_paths: Vec::new(),
+        });
         context.put(ImportContext::default());
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))

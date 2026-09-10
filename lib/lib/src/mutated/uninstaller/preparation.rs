@@ -5,6 +5,7 @@
 
 use upac_abi::hook::CancelToken;
 
+use upac_types::UninstallPackagesTargets;
 use upac_types::decoder::DeclarativeTrigger;
 use upac_types::hook::ProgressEventBuilder;
 
@@ -26,7 +27,7 @@ impl Stage<UninstallError> for PreparationStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
-        let targets = ctx_get!(context, Targets);
+        let targets = ctx_get!(context, UninstallPackagesTargets);
         let deploy = ctx_get!(context, Deploy);
 
         let current_prefix = current_prefix_digest()?;

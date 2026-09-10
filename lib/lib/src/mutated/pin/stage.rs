@@ -26,7 +26,7 @@ impl Stage<PinError> for SetPinnedStage {
         let prefix_digest = ctx_get!(context, RequestedPrefixDigest);
         let pinned = ctx_get!(context, RequestedPinned);
 
-        let record_dir = deploy.deploy(&prefix_digest.0);
+        let record_dir = deploy.deploy(&prefix_digest);
         let mut record = DeployRecord::read(&record_dir)?;
 
         let mut written = Vec::new();

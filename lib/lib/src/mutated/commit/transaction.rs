@@ -9,7 +9,7 @@ use composefs::repository::ImportContext;
 use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{CommitError, CommitMessage, Subject};
+use super::{CommitError, CommitInfo};
 
 use crate::composefs::overlay::apply_overlay_upper;
 use crate::composefs::repository::commit_tree;
@@ -27,8 +27,7 @@ impl Stage<CommitError> for TransactionStage {
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), CommitError> {
         let deploy = ctx_get!(context, Deploy);
-        let subject = ctx_get!(context, Subject);
-        let message = ctx_get!(context, CommitMessage);
+        let commit_info = ctx_get!(context, CommitInfo);
 
         let repository = deploy.open_repository()?;
 
@@ -51,8 +50,8 @@ impl Stage<CommitError> for TransactionStage {
         written.extend(record_deploy.update_working_config(
             &current_record_dir,
             new_config_digest,
-            subject.0.clone(),
-            message.0.clone(),
+            commit_info.subject.clone(),
+            commit_info.message.clone(),
         )?);
 
         Ok((progress, StageResult::Advance, Box::new(written)))

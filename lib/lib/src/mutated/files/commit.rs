@@ -15,7 +15,7 @@ use upac_abi::hook::CancelToken;
 use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{CommitMessage, FilesError, NewPrefixDigest, Subject, WorkingDatabase, WorkingTree};
+use super::{CommitInfo, FilesError, NewPrefixDigest, WorkingState};
 
 use crate::composefs::error::RepoError;
 use crate::composefs::file::FileHandle;
@@ -35,19 +35,18 @@ impl Stage<FilesError> for CommitTransactionStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), FilesError> {
-        let working_tree = ctx_take!(context, WorkingTree);
-        let working_database = ctx_take!(context, WorkingDatabase);
-        let mut import_ctx = ctx_take!(context, ImportContext);
+        let working_state = ctx_take!(context, WorkingState);
+        let mut imported_ctx = ctx_take!(context, ImportContext);
 
+        let commit_info = ctx_get!(context, CommitInfo);
         let tmp_path = ctx_get!(context, TmpPath);
+
         let deploy = ctx_get!(context, Deploy);
-        let subject = ctx_get!(context, Subject);
-        let message = ctx_get!(context, CommitMessage);
 
         let repository = deploy.open_repository()?;
-        let mut tree = working_tree.0;
+        let mut tree = working_state.tree;
 
-        let database_bytes = working_database.0.into_bytes()?;
+        let database_bytes = working_state.database.into_bytes()?;
         let database_scratch_path = Path::new(tmp_path.as_ref()).join(FILES_SCRATCH_FILENAME);
         write(&database_scratch_path, &database_bytes).map_err(RepoError::from)?;
 
@@ -56,7 +55,7 @@ impl Stage<FilesError> for CommitTransactionStage {
             &mut tree,
             &File::open(&database_scratch_path).map_err(RepoError::from)?,
             Stat::uninitialized(),
-            &mut import_ctx,
+            &mut imported_ctx,
         )?;
 
         let digest = commit_tree(&repository, tree)?;
@@ -73,8 +72,8 @@ impl Stage<FilesError> for CommitTransactionStage {
 
             let record = DeployRecord {
                 prefix_digest: new_prefix.clone(),
-                subject: subject.0.clone(),
-                message: message.0.clone(),
+                subject: commit_info.subject.clone(),
+                message: commit_info.message.clone(),
                 seq: DeployRecord::allocate_seq(&deploy.next_seq_path())?,
                 timestamp: DeployRecord::now_secs(),
                 config_history: current_record.config_history.clone(),

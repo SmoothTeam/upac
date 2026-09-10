@@ -10,10 +10,7 @@ use composefs::repository::ImportContext;
 use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{
-    ConfigUpperDir, FilesError, PendingFiles, RequestedFilePackage, TargetUuid, TotalFiles, WorkingDatabase,
-    WorkingTree,
-};
+use super::{ApplyTarget, FileProgress, FilesError, RequestedFilePackage, WorkingState};
 
 use crate::composefs::file::FileHandle;
 use crate::database::meta::MetaStore;
@@ -53,13 +50,10 @@ impl Stage<FilesError> for OpenTransactionStage {
         let total = files.len() as u64;
         let pending: VecDeque<_> = files.into_iter().collect();
 
-        context.put(WorkingTree(tree));
-        context.put(WorkingDatabase(database));
+        context.put(WorkingState { tree, database });
         context.put(ImportContext::default());
-        context.put(ConfigUpperDir(config_upper_dir));
-        context.put(TargetUuid(uuid));
-        context.put(PendingFiles(pending));
-        context.put(TotalFiles(total));
+        context.put(ApplyTarget { uuid, config_upper_dir });
+        context.put(FileProgress { pending, total });
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
