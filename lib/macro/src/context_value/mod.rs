@@ -1,3 +1,13 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+//! `#[derive(ContextValue)]` — generates `Deref`/`DerefMut`/`From<T>` for a
+//! single-field tuple struct, so an orchestrator `Context` wrapper type can be
+//! used (and constructed) like its inner value without hand-written
+//! boilerplate for each one.
+
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
