@@ -3,11 +3,17 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::io::Read;
+use std::fs::File;
+use std::io::{BufReader, Read};
 
+use sha2::{Digest, Sha256};
+
+use upac_abi::hook::CancelToken;
 use upac_macro::RedbCodec;
 
 use super::error::DecodeError;
+
+const VERIFY_CHUNK_SIZE: usize = 65536;
 
 #[derive(Debug, Clone, RedbCodec)]
 pub struct DeclarativeTrigger {
@@ -48,4 +54,31 @@ pub fn read_to_string<R: Read>(reader: &mut R) -> Result<String, DecodeError> {
     reader.read_to_end(&mut bytes)?;
 
     String::from_utf8(bytes).map_err(|_| DecodeError::InvalidUtf8)
+}
+
+pub fn verify(package_path: &str, expected_checksum: [u8; 32], cancel: &CancelToken) -> Result<(), DecodeError> {
+    let file = File::open(package_path)?;
+    let mut reader = BufReader::new(file);
+
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; VERIFY_CHUNK_SIZE];
+
+    loop {
+        if cancel.is_cancelled() {
+            return Err(DecodeError::Cancelled);
+        }
+
+        let bytes_read = reader.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    if hasher.finalize().as_slice() != expected_checksum.as_slice() {
+        return Err(DecodeError::ChecksumMismatch);
+    }
+
+    Ok(())
 }
