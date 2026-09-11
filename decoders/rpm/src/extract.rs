@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{self, File};
+use std::fs::{File, create_dir_all};
 use std::io::Read;
 use std::os::unix::fs::symlink;
 use std::path::{Component, Path};
@@ -13,8 +13,9 @@ use flate2::read::GzDecoder;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_abi::decoder::DecodeError;
 use upac_abi::hook::CancelToken;
+
+use upac_types::error::DecodeError;
 
 use crate::header::Header;
 use crate::rpm::{PAYLOAD_COMPRESSOR_TAG, PAYLOAD_FORMAT_TAG};
@@ -34,7 +35,13 @@ pub fn extract(file: File, header: &Header, output_dir: &str, cancel: &CancelTok
         .string(PAYLOAD_COMPRESSOR_TAG)?
         .unwrap_or_else(|| "gzip".to_owned());
 
-    let mut reader = open_decompressor(&compressor, file)?;
+    let mut reader: Box<dyn Read> = match compressor.as_str() {
+        "gzip" => Box::new(GzDecoder::new(file)),
+        "xz" => Box::new(XzDecoder::new(file)),
+        "zstd" => Box::new(ZstdDecoder::new(file)?),
+        "none" => Box::new(file),
+        _ => return Err(DecodeError::UnsupportedFormat),
+    };
 
     loop {
         if cancel.is_cancelled() {
@@ -65,7 +72,7 @@ pub fn extract(file: File, header: &Header, output_dir: &str, cancel: &CancelTok
 
         reader = match entry.mode() & MODE_TYPE_MASK {
             MODE_TYPE_DIRECTORY => {
-                fs::create_dir_all(&target_path)?;
+                create_dir_all(&target_path)?;
                 entry_reader.finish()?
             }
             MODE_TYPE_SYMLINK => {
@@ -74,7 +81,7 @@ pub fn extract(file: File, header: &Header, output_dir: &str, cancel: &CancelTok
                 let link_target = String::from_utf8(link_target).map_err(|_| DecodeError::InvalidUtf8)?;
 
                 if let Some(parent) = target_path.parent() {
-                    fs::create_dir_all(parent)?;
+                    create_dir_all(parent)?;
                 }
                 symlink(link_target, &target_path)?;
 
@@ -82,7 +89,7 @@ pub fn extract(file: File, header: &Header, output_dir: &str, cancel: &CancelTok
             }
             MODE_TYPE_REGULAR => {
                 if let Some(parent) = target_path.parent() {
-                    fs::create_dir_all(parent)?;
+                    create_dir_all(parent)?;
                 }
 
                 let mut out = File::create(&target_path)?;
@@ -93,14 +100,4 @@ pub fn extract(file: File, header: &Header, output_dir: &str, cancel: &CancelTok
     }
 
     Ok(())
-}
-
-fn open_decompressor(compressor: &str, file: File) -> Result<Box<dyn Read>, DecodeError> {
-    match compressor {
-        "gzip" => Ok(Box::new(GzDecoder::new(file))),
-        "xz" => Ok(Box::new(XzDecoder::new(file))),
-        "zstd" => Ok(Box::new(ZstdDecoder::new(file)?)),
-        "none" => Ok(Box::new(file)),
-        _ => Err(DecodeError::UnsupportedFormat),
-    }
 }
