@@ -7,7 +7,9 @@ use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 use std::str::Utf8Error;
 
-use upac_abi::error::ErrorDomain;
+use upac_abi::error::{CError, ErrorKind};
+
+use super::traits::CommandState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecodeError {
@@ -48,9 +50,30 @@ impl DecodeError {
     }
 }
 
-pub trait CommandState: Copy {
-    const DOMAIN: ErrorDomain;
-    const VALIDATION: Self;
-
-    fn as_u32(self) -> u32;
+pub unsafe fn write_error<S: CommandState>(err_out: *mut CError, state: S, error: ErrorKind) {
+    if !err_out.is_null() {
+        unsafe {
+            *err_out = CError {
+                domain: S::DOMAIN,
+                state: state.as_u32(),
+                error,
+            };
+        }
+    }
 }
+
+pub fn write_abi_error<S: CommandState>(error: ErrorKind, err_out: *mut CError) -> i32 {
+    unsafe { write_error(err_out, S::VALIDATION, error) };
+    -1
+}
+
+#[macro_export]
+macro_rules! try_convert_abi {
+    ($expr:expr, $err_out:expr, $state:ty) => {
+        match $expr {
+            Ok(value) => value,
+            Err(error) => return upac_types::error::write_abi_error::<$state>(error, $err_out),
+        }
+    };
+}
+pub use try_convert_abi;

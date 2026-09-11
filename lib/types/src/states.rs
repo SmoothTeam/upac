@@ -7,7 +7,7 @@ use upac_abi::error::ErrorDomain;
 
 use upac_macro::{FromStageIndex, StageKey};
 
-use crate::error::CommandState;
+use super::traits::CommandState;
 
 macro_rules! impl_command_state {
     ($name:ident, $domain:ident) => {

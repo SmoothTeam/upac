@@ -11,7 +11,7 @@ use upac_abi::HookMessageFn;
 use upac_abi::hook::{CProgressEvent, HookAck};
 use upac_abi::types::CSlice;
 
-use crate::traits::MessageHook;
+use super::traits::MessageHook;
 
 pub struct ProgressEventBuilder {
     stage: u32,

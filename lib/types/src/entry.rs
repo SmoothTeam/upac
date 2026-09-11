@@ -18,7 +18,6 @@ use upac_macro::{RedbCodec, RustToC};
 use crate::codec::RedbCodable;
 use crate::package::Version;
 
-// ── FileEntryScope ──────────────────────────────────────────────────────────
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileEntryScope {
@@ -42,7 +41,6 @@ impl RedbCodable for FileEntryScope {
     }
 }
 
-// ── FileEntry ───────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RedbCodec)]
 pub struct FileEntry {
     pub path: String,
@@ -50,7 +48,6 @@ pub struct FileEntry {
     pub scope: FileEntryScope,
 }
 
-// ── SearchFileEntry ─────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct SearchFileEntry {
     pub path: String,
@@ -58,7 +55,6 @@ pub struct SearchFileEntry {
     pub is_user: bool,
 }
 
-// ── PrefixEntry ─────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct PrefixEntry {
     pub prefix_digest: String,
@@ -71,7 +67,6 @@ pub struct PrefixEntry {
     pub working_config: Option<String>,
 }
 
-// ── ConfigCommitEntry ─────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct ConfigCommitEntry {
     pub config_digest: String,
@@ -80,7 +75,6 @@ pub struct ConfigCommitEntry {
     pub message: Option<String>,
 }
 
-// ── HistoryEntry ────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct HistoryEntry {
     pub prefix_digest: String,
@@ -94,14 +88,12 @@ pub struct HistoryEntry {
     pub config_history: Vec<ConfigCommitEntry>,
 }
 
-// ── DiffFileEntryCommon ──────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffFileEntryCommon {
     pub path: String,
     pub kind: FileDiffKind,
 }
 
-// ── DiffPrefixFileEntry ─────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPrefixFileEntry {
     pub common: DiffFileEntryCommon,
@@ -110,14 +102,12 @@ pub struct DiffPrefixFileEntry {
     pub is_user: bool,
 }
 
-// ── DiffConfigFileEntry ─────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffConfigFileEntry {
     pub common: DiffFileEntryCommon,
     pub package_name: Option<String>,
 }
 
-// ── DiffPackageEntry ────────────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPackageEntry {
     pub name: String,
@@ -127,7 +117,6 @@ pub struct DiffPackageEntry {
     pub files: Vec<DiffPrefixFileEntry>,
 }
 
-// ── DiffUntrackedFileEntry ──────────────────────────────────────────────────
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffUntrackedFileEntry {
     pub common: DiffFileEntryCommon,

@@ -14,7 +14,6 @@ use upac_abi::types::{COwned, CSlice};
 
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
-// ── Version ─────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum VersionToken<'raw> {
     Alpha(&'raw str),
@@ -127,7 +126,6 @@ impl Version {
     }
 }
 
-// ── Package ─────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
 pub struct PackageTemp {
     pub meta: PackageMeta,
@@ -149,7 +147,6 @@ pub struct PackageMeta {
     pub installed_size: u64,
 }
 
-// ── PackageEntry ────────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
 pub struct PackageEntry {
     pub name: String,

@@ -3,10 +3,18 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_abi::error::ErrorDomain;
 use upac_abi::hook::{CProgressEvent, HookAck};
 
-use crate::error::DecodeError;
-use crate::package::DecodedPackageMeta;
+use super::error::DecodeError;
+use super::package::DecodedPackageMeta;
+
+pub trait CommandState: Copy {
+    const DOMAIN: ErrorDomain;
+    const VALIDATION: Self;
+
+    fn as_u32(self) -> u32;
+}
 
 pub trait Booter: Sized {
     type Error;
