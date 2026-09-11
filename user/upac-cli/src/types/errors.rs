@@ -14,7 +14,7 @@ use upac_types::states::{
     CommitStateId, DiffConfigStateId, DiffPackagesStateId, DiffPrefixStateId, DiffStateId, FilesStateId, GcStateId,
     InstallStateId, ListConfigStateId, ListHistoryStateId, ListPackagesStateId, ListPrefixStateId, MimeStateId,
     PinStateId, RollbackStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
-    SearchMetaStateId, UninstallStateId, UpdateStateId,
+    SearchMetaStateId, SetupStateId, UninstallStateId, UpdateStateId,
 };
 
 use crate::locale::LOADER;
@@ -99,6 +99,7 @@ impl Display for StageName {
             ErrorDomain::SearchFiles => SearchFilesStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInMeta => SearchInMetaStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInPackageFiles => SearchInPackageFilesStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Setup => SetupStateId::from_stage_index(state).stage_key(),
         };
 
         write!(formatter, "{}", LOADER.get(key))
