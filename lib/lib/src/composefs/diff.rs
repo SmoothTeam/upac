@@ -34,14 +34,14 @@ impl Side {
     }
 }
 
-pub struct TreeDiff<'a> {
-    from_leaves: &'a [Leaf<ObjectID>],
-    to_leaves: &'a [Leaf<ObjectID>],
+pub struct TreeDiff<'tree> {
+    from_leaves: &'tree [Leaf<ObjectID>],
+    to_leaves: &'tree [Leaf<ObjectID>],
     changes: Vec<(String, FileDiffKind)>,
 }
 
-impl<'a> TreeDiff<'a> {
-    pub fn run(from: &'a FileSystem<ObjectID>, to: &'a FileSystem<ObjectID>) -> Vec<(String, FileDiffKind)> {
+impl<'tree> TreeDiff<'tree> {
+    pub fn run(from: &'tree FileSystem<ObjectID>, to: &'tree FileSystem<ObjectID>) -> Vec<(String, FileDiffKind)> {
         let mut differ = Self {
             from_leaves: &from.leaves,
             to_leaves: &to.leaves,
@@ -126,7 +126,7 @@ impl<'a> TreeDiff<'a> {
         }
     }
 
-    fn leaves(&self, side: Side) -> &'a [Leaf<ObjectID>] {
+    fn leaves(&self, side: Side) -> &'tree [Leaf<ObjectID>] {
         match side {
             Side::From => self.from_leaves,
             Side::To => self.to_leaves,

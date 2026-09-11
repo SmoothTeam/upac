@@ -163,25 +163,25 @@ impl StoredFileEntry {
 }
 
 impl RedbValue for StoredFileEntry {
-    type AsBytes<'a> = Vec<u8>;
-    type SelfType<'a> = StoredFileEntry;
+    type AsBytes<'bytes> = Vec<u8>;
+    type SelfType<'bytes> = StoredFileEntry;
 
     fn fixed_width() -> Option<usize> {
         None
     }
 
-    fn from_bytes<'a>(data: &'a [u8]) -> StoredFileEntry
+    fn from_bytes<'bytes>(data: &'bytes [u8]) -> StoredFileEntry
     where
-        Self: 'a,
+        Self: 'bytes,
     {
         let mut offset = 0;
 
         StoredFileEntry(FileEntry::redb_decode(data, &mut offset))
     }
 
-    fn as_bytes<'a, 'b: 'a>(value: &'a StoredFileEntry) -> Vec<u8>
+    fn as_bytes<'bytes, 'value: 'bytes>(value: &'bytes StoredFileEntry) -> Vec<u8>
     where
-        Self: 'b,
+        Self: 'value,
     {
         let mut buf = Vec::new();
 

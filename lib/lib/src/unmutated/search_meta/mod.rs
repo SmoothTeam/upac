@@ -27,20 +27,20 @@ pub use self::error::SearchMetaError;
 mod error;
 mod searching;
 
-pub struct SearchMetaData<'a> {
-    pub search: &'a str,
+pub struct SearchMetaData<'data> {
+    pub search: &'data str,
     pub is_regex: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CSearchMetaRequest> for SearchMetaData<'a> {
+impl<'data> TryFrom<&'data CSearchMetaRequest> for SearchMetaData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSearchMetaRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSearchMetaRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

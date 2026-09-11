@@ -26,17 +26,17 @@ pub use self::error::ListPackagesError;
 mod error;
 mod fetching;
 
-pub struct ListPackagesData<'a> {
+pub struct ListPackagesData<'data> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CListPackagesRequest> for ListPackagesData<'a> {
+impl<'data> TryFrom<&'data CListPackagesRequest> for ListPackagesData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CListPackagesRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CListPackagesRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

@@ -41,17 +41,17 @@ pub(crate) struct DeployProgress {
 #[derive(ContextValue)]
 pub(crate) struct CollectedRoots(pub Vec<String>);
 
-pub struct GcData<'a> {
+pub struct GcData<'data> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CGcRequest> for GcData<'a> {
+impl<'data> TryFrom<&'data CGcRequest> for GcData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CGcRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CGcRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

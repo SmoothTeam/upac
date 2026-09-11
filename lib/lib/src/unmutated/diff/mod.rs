@@ -42,22 +42,22 @@ struct DiffSnapshot {
     to_database: MemoryDatabase,
 }
 
-pub struct DiffData<'a> {
-    pub from_prefix_digest: Option<&'a str>,
-    pub to_prefix_digest: Option<&'a str>,
-    pub from_config_digest: Option<&'a str>,
-    pub to_config_digest: Option<&'a str>,
+pub struct DiffData<'data> {
+    pub from_prefix_digest: Option<&'data str>,
+    pub to_prefix_digest: Option<&'data str>,
+    pub from_config_digest: Option<&'data str>,
+    pub to_config_digest: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CDiffRequest> for DiffData<'a> {
+impl<'data> TryFrom<&'data CDiffRequest> for DiffData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CDiffRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CDiffRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

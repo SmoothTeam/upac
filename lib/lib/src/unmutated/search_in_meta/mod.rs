@@ -27,23 +27,23 @@ pub use self::error::SearchInMetaError;
 mod error;
 mod searching;
 
-pub struct SearchInMetaData<'a> {
-    pub name: &'a str,
-    pub arch: &'a str,
-    pub arch_sub: Option<&'a str>,
-    pub search: &'a str,
+pub struct SearchInMetaData<'data> {
+    pub name: &'data str,
+    pub arch: &'data str,
+    pub arch_sub: Option<&'data str>,
+    pub search: &'data str,
     pub is_regex: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CSearchInMetaRequest> for SearchInMetaData<'a> {
+impl<'data> TryFrom<&'data CSearchInMetaRequest> for SearchInMetaData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSearchInMetaRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSearchInMetaRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

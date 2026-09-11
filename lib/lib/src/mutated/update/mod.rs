@@ -95,29 +95,29 @@ pub(crate) struct ImportedState {
     pub removed_config_paths: Vec<String>,
 }
 
-pub struct UpdateData<'a> {
-    pub packages: Vec<&'a str>,
+pub struct UpdateData<'data> {
+    pub packages: Vec<&'data str>,
 
-    pub boot_plugin: &'a str,
+    pub boot_plugin: &'data str,
 
     pub allow_downgrade: bool,
     pub allow_conflict_files: bool,
 
-    pub tmp_path: &'a str,
+    pub tmp_path: &'data str,
 
-    pub subject: &'a str,
-    pub message: Option<&'a str>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CUpdateRequest> for UpdateData<'a> {
+impl<'data> TryFrom<&'data CUpdateRequest> for UpdateData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CUpdateRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CUpdateRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

@@ -37,20 +37,20 @@ struct DiffPrefixSnapshot {
     to_database: MemoryDatabase,
 }
 
-pub struct DiffPrefixData<'a> {
-    pub from_prefix_digest: Option<&'a str>,
-    pub to_prefix_digest: Option<&'a str>,
+pub struct DiffPrefixData<'data> {
+    pub from_prefix_digest: Option<&'data str>,
+    pub to_prefix_digest: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CDiffPrefixRequest> for DiffPrefixData<'a> {
+impl<'data> TryFrom<&'data CDiffPrefixRequest> for DiffPrefixData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CDiffPrefixRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CDiffPrefixRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

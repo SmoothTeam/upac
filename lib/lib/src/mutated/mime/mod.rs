@@ -39,17 +39,17 @@ pub(crate) struct WriteProgress {
     pub total: u64,
 }
 
-pub struct MimeData<'a> {
+pub struct MimeData<'data> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CMimeSyncRequest> for MimeData<'a> {
+impl<'data> TryFrom<&'data CMimeSyncRequest> for MimeData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CMimeSyncRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CMimeSyncRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

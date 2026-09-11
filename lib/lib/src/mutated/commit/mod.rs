@@ -34,22 +34,22 @@ pub(crate) struct CommitInfo {
     pub message: Option<String>,
 }
 
-pub struct CommitData<'a> {
-    pub tmp_path: &'a str,
+pub struct CommitData<'data> {
+    pub tmp_path: &'data str,
 
-    pub subject: &'a str,
-    pub message: Option<&'a str>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CCommitRequest> for CommitData<'a> {
+impl<'data> TryFrom<&'data CCommitRequest> for CommitData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CCommitRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CCommitRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

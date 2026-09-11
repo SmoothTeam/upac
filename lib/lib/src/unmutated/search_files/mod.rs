@@ -27,20 +27,20 @@ pub use self::error::SearchFilesError;
 mod error;
 mod searching;
 
-pub struct SearchFilesData<'a> {
-    pub search: &'a str,
+pub struct SearchFilesData<'data> {
+    pub search: &'data str,
     pub is_regex: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CSearchFilesRequest> for SearchFilesData<'a> {
+impl<'data> TryFrom<&'data CSearchFilesRequest> for SearchFilesData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSearchFilesRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSearchFilesRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

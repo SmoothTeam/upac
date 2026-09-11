@@ -137,8 +137,6 @@ impl MetaStoreMut for MemoryDatabase {
     }
 }
 
-// Wraps `PackageMeta` (defined in the external `upac-types` crate) so `redb::Value` can be
-// implemented for it here without violating the orphan rule.
 #[derive(Debug)]
 #[repr(transparent)]
 pub(crate) struct StoredPackageMeta(pub(crate) PackageMeta);
@@ -152,25 +150,25 @@ impl StoredPackageMeta {
 }
 
 impl RedbValue for StoredPackageMeta {
-    type AsBytes<'a> = Vec<u8>;
-    type SelfType<'a> = StoredPackageMeta;
+    type AsBytes<'bytes> = Vec<u8>;
+    type SelfType<'bytes> = StoredPackageMeta;
 
     fn fixed_width() -> Option<usize> {
         None
     }
 
-    fn from_bytes<'a>(data: &'a [u8]) -> StoredPackageMeta
+    fn from_bytes<'bytes>(data: &'bytes [u8]) -> StoredPackageMeta
     where
-        Self: 'a,
+        Self: 'bytes,
     {
         let mut offset = 0;
 
         StoredPackageMeta(PackageMeta::redb_decode(data, &mut offset))
     }
 
-    fn as_bytes<'a, 'b: 'a>(value: &'a StoredPackageMeta) -> Vec<u8>
+    fn as_bytes<'bytes, 'value: 'bytes>(value: &'bytes StoredPackageMeta) -> Vec<u8>
     where
-        Self: 'b,
+        Self: 'value,
     {
         let mut buf = Vec::new();
 

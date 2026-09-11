@@ -87,16 +87,16 @@ pub(crate) struct WorkingState {
     pub removed_config_paths: Vec<String>,
 }
 
-pub struct UninstallPackage<'a> {
-    pub name: &'a str,
-    pub arch: &'a str,
-    pub arch_sub: Option<&'a str>,
+pub struct UninstallPackage<'data> {
+    pub name: &'data str,
+    pub arch: &'data str,
+    pub arch_sub: Option<&'data str>,
 }
 
-impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
+impl<'data> TryFrom<&'data CPackageInfo> for UninstallPackage<'data> {
     type Error = ErrorKind;
 
-    fn try_from(info: &'a CPackageInfo) -> Result<Self, ErrorKind> {
+    fn try_from(info: &'data CPackageInfo) -> Result<Self, ErrorKind> {
         unsafe { info.validate()? };
 
         Ok(UninstallPackage {
@@ -107,28 +107,28 @@ impl<'a> TryFrom<&'a CPackageInfo> for UninstallPackage<'a> {
     }
 }
 
-pub struct UninstallData<'a> {
-    pub packages: Vec<UninstallPackage<'a>>,
+pub struct UninstallData<'data> {
+    pub packages: Vec<UninstallPackage<'data>>,
 
     pub purge: bool,
 
-    pub boot_plugin: &'a str,
+    pub boot_plugin: &'data str,
 
-    pub tmp_path: &'a str,
+    pub tmp_path: &'data str,
 
-    pub subject: &'a str,
-    pub message: Option<&'a str>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CUninstallRequest> for UninstallData<'a> {
+impl<'data> TryFrom<&'data CUninstallRequest> for UninstallData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CUninstallRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CUninstallRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

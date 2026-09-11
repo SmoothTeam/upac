@@ -90,16 +90,16 @@ pub(crate) struct ApplyTarget {
     pub config_upper_dir: PathBuf,
 }
 
-pub struct FilesPackage<'a> {
-    pub name: &'a str,
-    pub arch: &'a str,
-    pub arch_sub: Option<&'a str>,
+pub struct FilesPackage<'data> {
+    pub name: &'data str,
+    pub arch: &'data str,
+    pub arch_sub: Option<&'data str>,
 }
 
-impl<'a> TryFrom<&'a CPackageInfo> for FilesPackage<'a> {
+impl<'data> TryFrom<&'data CPackageInfo> for FilesPackage<'data> {
     type Error = ErrorKind;
 
-    fn try_from(info: &'a CPackageInfo) -> Result<Self, ErrorKind> {
+    fn try_from(info: &'data CPackageInfo) -> Result<Self, ErrorKind> {
         unsafe { info.validate()? };
 
         Ok(FilesPackage {
@@ -110,30 +110,30 @@ impl<'a> TryFrom<&'a CPackageInfo> for FilesPackage<'a> {
     }
 }
 
-pub struct FilesData<'a> {
+pub struct FilesData<'data> {
     pub scope: DiffFileSource,
 
-    pub files: Vec<&'a str>,
+    pub files: Vec<&'data str>,
     pub file_kind: FileDiffKind,
-    pub file_package: FilesPackage<'a>,
+    pub file_package: FilesPackage<'data>,
 
-    pub boot_plugin: &'a str,
+    pub boot_plugin: &'data str,
 
-    pub tmp_path: &'a str,
+    pub tmp_path: &'data str,
 
-    pub subject: &'a str,
-    pub message: Option<&'a str>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CFilesRequest> for FilesData<'a> {
+impl<'data> TryFrom<&'data CFilesRequest> for FilesData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CFilesRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CFilesRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let file_package = unsafe { request.file_package.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;

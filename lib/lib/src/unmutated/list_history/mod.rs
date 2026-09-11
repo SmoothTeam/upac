@@ -26,17 +26,17 @@ pub use self::error::ListHistoryError;
 mod error;
 mod fetching;
 
-pub struct ListHistoryData<'a> {
+pub struct ListHistoryData<'data> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CListHistoryRequest> for ListHistoryData<'a> {
+impl<'data> TryFrom<&'data CListHistoryRequest> for ListHistoryData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CListHistoryRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CListHistoryRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

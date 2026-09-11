@@ -28,23 +28,23 @@ pub use self::error::SearchInPackageFilesError;
 mod error;
 mod searching;
 
-pub struct SearchInPackageFilesData<'a> {
-    pub name: &'a str,
-    pub arch: &'a str,
-    pub arch_sub: Option<&'a str>,
-    pub search: &'a str,
+pub struct SearchInPackageFilesData<'data> {
+    pub name: &'data str,
+    pub arch: &'data str,
+    pub arch_sub: Option<&'data str>,
+    pub search: &'data str,
     pub is_regex: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CSearchInPackageFilesRequest> for SearchInPackageFilesData<'a> {
+impl<'data> TryFrom<&'data CSearchInPackageFilesRequest> for SearchInPackageFilesData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSearchInPackageFilesRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSearchInPackageFilesRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

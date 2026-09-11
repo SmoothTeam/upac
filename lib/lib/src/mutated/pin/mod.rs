@@ -33,20 +33,20 @@ pub(crate) struct RequestedPrefixDigest(pub String);
 #[derive(ContextValue)]
 pub(crate) struct RequestedPinned(pub bool);
 
-pub struct PinData<'a> {
-    pub prefix_digest: &'a str,
+pub struct PinData<'data> {
+    pub prefix_digest: &'data str,
     pub pinned: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CPinRequest> for PinData<'a> {
+impl<'data> TryFrom<&'data CPinRequest> for PinData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CPinRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CPinRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

@@ -50,23 +50,23 @@ pub(crate) struct ResolvedBootEntry {
     pub entry_name: String,
 }
 
-pub struct RollbackData<'a> {
-    pub config_digest: &'a str,
+pub struct RollbackData<'data> {
+    pub config_digest: &'data str,
 
-    pub boot_plugin: &'a str,
+    pub boot_plugin: &'data str,
 
-    pub tmp_path: &'a str,
+    pub tmp_path: &'data str,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CRollbackRequest> for RollbackData<'a> {
+impl<'data> TryFrom<&'data CRollbackRequest> for RollbackData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CRollbackRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CRollbackRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

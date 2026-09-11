@@ -27,19 +27,19 @@ pub use self::error::ListConfigError;
 mod error;
 mod fetching;
 
-pub struct ListConfigData<'a> {
-    pub prefix_digest: Option<&'a str>,
+pub struct ListConfigData<'data> {
+    pub prefix_digest: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CListConfigRequest> for ListConfigData<'a> {
+impl<'data> TryFrom<&'data CListConfigRequest> for ListConfigData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CListConfigRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CListConfigRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

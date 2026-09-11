@@ -70,25 +70,25 @@ impl StoredTriggers {
 }
 
 impl RedbValue for StoredTriggers {
-    type AsBytes<'a> = Vec<u8>;
-    type SelfType<'a> = StoredTriggers;
+    type AsBytes<'bytes> = Vec<u8>;
+    type SelfType<'bytes> = StoredTriggers;
 
     fn fixed_width() -> Option<usize> {
         None
     }
 
-    fn from_bytes<'a>(data: &'a [u8]) -> StoredTriggers
+    fn from_bytes<'bytes>(data: &'bytes [u8]) -> StoredTriggers
     where
-        Self: 'a,
+        Self: 'bytes,
     {
         let mut offset = 0;
 
         StoredTriggers(DeclarativeTrigger::redb_decode(data, &mut offset))
     }
 
-    fn as_bytes<'a, 'b: 'a>(value: &'a StoredTriggers) -> Vec<u8>
+    fn as_bytes<'bytes, 'value: 'bytes>(value: &'bytes StoredTriggers) -> Vec<u8>
     where
-        Self: 'b,
+        Self: 'value,
     {
         let mut buf = Vec::new();
 

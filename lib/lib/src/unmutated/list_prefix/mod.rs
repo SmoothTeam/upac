@@ -26,17 +26,17 @@ pub use self::error::ListPrefixError;
 mod error;
 mod fetching;
 
-pub struct ListPrefixData<'a> {
+pub struct ListPrefixData<'data> {
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CListPrefixRequest> for ListPrefixData<'a> {
+impl<'data> TryFrom<&'data CListPrefixRequest> for ListPrefixData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CListPrefixRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CListPrefixRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };

@@ -89,28 +89,28 @@ pub(crate) struct ImportedState {
     pub database: MemoryDatabase,
 }
 
-pub struct InstallData<'a> {
-    pub packages: Vec<&'a str>,
+pub struct InstallData<'data> {
+    pub packages: Vec<&'data str>,
 
     pub allow_conflict_files: bool,
 
-    pub boot_plugin: &'a str,
+    pub boot_plugin: &'data str,
 
-    pub tmp_path: &'a str,
+    pub tmp_path: &'data str,
 
-    pub subject: &'a str,
-    pub message: Option<&'a str>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CInstallRequest> for InstallData<'a> {
+impl<'data> TryFrom<&'data CInstallRequest> for InstallData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CInstallRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CInstallRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
         let cancel_token = unsafe { &*request.base.cancel_token };
