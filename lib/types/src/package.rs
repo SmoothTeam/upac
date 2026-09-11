@@ -16,8 +16,8 @@ use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 // ── Version ─────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum VersionToken<'a> {
-    Alpha(&'a str),
+enum VersionToken<'raw> {
+    Alpha(&'raw str),
     Numeric(u64),
 }
 
