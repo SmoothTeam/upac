@@ -288,8 +288,9 @@ pub enum SetupStateId {
     ImportSystem = 4,
     EmbedDatabase = 5,
     WriteDeployRecord = 6,
-    StageBoot = 7,
-    Setup = 8,
+    Kernel = 7,
+    StageBoot = 8,
+    Setup = 9,
 }
 
 impl_command_state!(SetupStateId, Setup);
