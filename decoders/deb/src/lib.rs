@@ -73,9 +73,8 @@ unsafe extern "C" fn free_decode_response(response: *mut CDecodeResponse) {
 }
 
 fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeError> {
-    let package_path =
-        from_utf8(unsafe { request.package_path.as_slice() }).map_err(|_| DecodeError::InvalidRequest)?;
-    let output_dir = from_utf8(unsafe { request.output_dir.as_slice() }).map_err(|_| DecodeError::InvalidRequest)?;
+    let package_path = from_utf8(unsafe { request.package_path.as_slice() })?;
+    let output_dir = from_utf8(unsafe { request.output_dir.as_slice() })?;
     let cancel = unsafe { request.cancel_token.as_ref() }.ok_or(DecodeError::InvalidRequest)?;
 
     verify(package_path, request.checksum, cancel)?;
