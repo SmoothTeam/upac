@@ -198,7 +198,7 @@ pub struct CDiffResponse {
 }
 
 #[repr(C)]
-#[derive(CValidate, CNew)]
+#[derive(CFree, CValidate, CNew)]
 pub struct CDecodeResponse {
     pub struct_size: usize,
 
