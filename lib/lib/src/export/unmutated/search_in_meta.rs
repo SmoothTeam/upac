@@ -9,10 +9,10 @@ use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CSearchInMetaRequest;
 use upac_abi::response::CSearchInMetaResponse;
 
-use crate::export::{try_convert_abi, write_error};
-use crate::unmutated::search_in_meta::{SearchInMetaData, run};
-
+use upac_types::error::{try_convert_abi, write_abi_error, write_error};
 use upac_types::states::SearchInMetaStateId;
+
+use crate::unmutated::search_in_meta::{SearchInMetaData, run};
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the

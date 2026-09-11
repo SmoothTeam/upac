@@ -16,6 +16,7 @@ use upac_types::traits::MessageHook;
 
 use crate::orchestrator::stage::RollbackGuard;
 
+#[macro_export]
 macro_rules! ctx_get {
     ($context:expr, $ty:ty) => {
         $context
@@ -23,8 +24,9 @@ macro_rules! ctx_get {
             .ok_or($crate::errors::CommonError::MissingResult)?
     };
 }
-pub(crate) use ctx_get;
+pub use ctx_get;
 
+#[macro_export]
 macro_rules! ctx_take {
     ($context:expr, $ty:ty) => {
         $context
@@ -32,7 +34,7 @@ macro_rules! ctx_take {
             .ok_or($crate::errors::CommonError::MissingResult)?
     };
 }
-pub(crate) use ctx_take;
+pub use ctx_take;
 
 pub struct Context {
     slots: HashMap<TypeId, Box<dyn Any>>,

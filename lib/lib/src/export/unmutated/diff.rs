@@ -9,9 +9,9 @@ use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CDiffRequest;
 use upac_abi::response::CDiffResponse;
 
+use upac_types::error::{try_convert_abi, write_abi_error, write_error};
 use upac_types::states::DiffStateId;
 
-use crate::export::{try_convert_abi, write_error};
 use crate::unmutated::diff::{DiffData, run};
 
 /// # Safety

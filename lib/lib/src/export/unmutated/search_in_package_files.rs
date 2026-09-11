@@ -9,10 +9,10 @@ use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CSearchInPackageFilesRequest;
 use upac_abi::response::CSearchInPackageFilesResponse;
 
-use crate::export::{try_convert_abi, write_error};
-use crate::unmutated::search_in_package_files::{SearchInPackageFilesData, run};
-
+use upac_types::error::{try_convert_abi, write_abi_error, write_error};
 use upac_types::states::SearchInPackageFilesStateId;
+
+use crate::unmutated::search_in_package_files::{SearchInPackageFilesData, run};
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the

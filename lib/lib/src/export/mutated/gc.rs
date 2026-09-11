@@ -8,9 +8,9 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CGcRequest;
 
+use upac_types::error::{try_convert_abi, write_abi_error, write_error};
 use upac_types::states::GcStateId;
 
-use crate::export::{try_convert_abi, write_error};
 use crate::mutated::gc::{GcData, run};
 
 /// # Safety
