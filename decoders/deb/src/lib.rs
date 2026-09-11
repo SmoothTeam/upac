@@ -6,7 +6,6 @@
 use std::str::from_utf8;
 
 use upac_abi::DECODER_ABI_VERSION;
-use upac_abi::memory::{free_cslice, free_cvec_owning};
 use upac_abi::request::CDecodeRequest;
 use upac_abi::response::CDecodeResponse;
 
@@ -58,18 +57,7 @@ unsafe extern "C" fn free_decode_response(response: *mut CDecodeResponse) {
         return;
     }
 
-    let response = unsafe { &*response };
-
-    unsafe {
-        response.meta.free();
-
-        free_cvec_owning(&response.dependencies, |dependency| {
-            free_cslice(&dependency.name);
-            dependency.version.free();
-        });
-
-        free_cvec_owning(&response.declarative_triggers, |slice| free_cslice(slice));
-    }
+    unsafe { (&*response).free() };
 }
 
 fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeError> {
