@@ -30,6 +30,7 @@ pub enum ErrorDomain {
     SearchFiles,
     SearchInMeta,
     SearchInPackageFiles,
+    Setup,
 }
 
 #[repr(u32)]
