@@ -346,3 +346,52 @@ pub struct CSetupExistingRequest {
     pub pinned: bool,
     pub boot_plugin: CSlice,
 }
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CPartitionSpec {
+    pub struct_size: usize,
+
+    pub mount_path: CSlice,
+    pub size_mib: u64,
+    pub fs_kind: FsKind,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CGptLayout {
+    pub struct_size: usize,
+
+    pub esp_size_mib: u64,
+    pub deploy_fs: FsKind,
+    pub deploy_size_mib: u64,
+    pub extra_partitions: CVec<CPartitionSpec>,
+    pub force_wipe: bool,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CBtrfsOptions {
+    pub struct_size: usize,
+
+    pub node_size: u32,
+    pub sector_size: u32,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CSetupWholeDiskRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub device_path: CSlice,
+    pub gpt: CGptLayout,
+    pub btrfs: CBtrfsOptions,
+
+    #[optional]
+    pub mount_point: CSlice,
+    pub source: CSlice,
+    pub empty_config: bool,
+    pub pinned: bool,
+    pub boot_plugin: CSlice,
+}
