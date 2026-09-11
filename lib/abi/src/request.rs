@@ -12,7 +12,7 @@ use crate::error::ErrorKind;
 use crate::hook::CancelToken;
 use crate::package::CPackageInfo;
 use crate::types::{CSlice, CVec, check_size};
-use crate::{DiffFileSource, FileDiffKind};
+use crate::{DiffFileSource, FileDiffKind, FsKind};
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
@@ -316,4 +316,33 @@ pub struct CBootPluginInstallRequest {
     pub esp_unique_partition_guid: [u8; 16],
     pub to_slot: CSlice,
     pub from_slot: CSlice,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CPartitionMount {
+    pub struct_size: usize,
+
+    pub mount_path: CSlice,
+    pub device_path: CSlice,
+    pub fs_kind: FsKind,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CSetupExistingRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub esp_device: CSlice,
+    pub deploy_device: CSlice,
+    pub deploy_fs: FsKind,
+    pub extra_mounts: CVec<CPartitionMount>,
+
+    #[optional]
+    pub mount_point: CSlice,
+    pub source: CSlice,
+    pub empty_config: bool,
+    pub pinned: bool,
+    pub boot_plugin: CSlice,
 }
