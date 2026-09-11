@@ -277,3 +277,19 @@ pub enum CommitStateId {
 }
 
 impl_command_state!(CommitStateId, Commit);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum SetupStateId {
+    PrepareSource = 0,
+    EnumeratePackages = 1,
+    UnpackPackage = 2,
+    ImportPackage = 3,
+    ImportSystem = 4,
+    EmbedDatabase = 5,
+    WriteDeployRecord = 6,
+    StageBoot = 7,
+    Setup = 8,
+}
+
+impl_command_state!(SetupStateId, Setup);
