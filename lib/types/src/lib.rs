@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_macro::ContextValue;
+
 use self::package::{PackageEntry, PackageMeta};
 
 pub mod codec;
@@ -27,6 +29,7 @@ macro_rules! as_str_method {
     };
 }
 
+#[derive(ContextValue)]
 pub struct UninstallPackagesTargets(pub Vec<PackageEntry>);
 
 impl UninstallPackagesTargets {
@@ -35,10 +38,12 @@ impl UninstallPackagesTargets {
     }
 }
 
+#[derive(ContextValue)]
 pub struct TmpPath(pub String);
 
 as_str_method!(TmpPath);
 
+#[derive(ContextValue)]
 pub struct RequestedPrefixDigest(pub Option<String>);
 
 pub struct RequestedPrefixDigestRange {
