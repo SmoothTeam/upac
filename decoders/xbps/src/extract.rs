@@ -11,11 +11,12 @@ use tar::Archive;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_abi::decoder::DecodeError;
 use upac_abi::hook::CancelToken;
-use upac_types::decoder::read_to_string;
 
-use crate::xbps::{FILES_ENTRY, INSTALL_ENTRY, PROPS_ENTRY, REMOVE_ENTRY};
+use upac_types::decoder::read_to_string;
+use upac_types::error::DecodeError;
+
+use super::xbps::{FILES_ENTRY, INSTALL_ENTRY, PROPS_ENTRY, REMOVE_ENTRY};
 
 const ZSTD_MAGIC: [u8; 4] = [0x28, 0xB5, 0x2F, 0xFD];
 const XZ_MAGIC: [u8; 6] = [0xFD, b'7', b'z', b'X', b'Z', 0x00];
@@ -76,8 +77,6 @@ impl ExtractedMetadata {
             .ok_or(DecodeError::MissingMetadata)
     }
 
-    /// `.xbps` filenames carry no compression suffix (unlike alpm's `.pkg.tar.{zst,xz,gz}`) — the
-    /// compression filter is sniffed from the file's own magic bytes instead.
     fn open_reader(mut file: File) -> Result<Box<dyn Read>, DecodeError> {
         let mut magic = [0u8; 6];
         let bytes_read = file.read(&mut magic)?;

@@ -10,13 +10,14 @@ use quick_xml::escape::resolve_xml_entity;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
-use upac_abi::decoder::{
-    CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS, DecodeError, parse_constraint_prefix,
-};
-use upac_types::decoder::{DecodeMeta, DecodedMeta};
-use upac_types::{Dependency, PackageMeta, Version};
+use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
 
-use crate::xbps::{
+use upac_types::decoder::parse_constraint_prefix;
+use upac_types::error::DecodeError;
+use upac_types::package::{DecodedPackageMeta, PackageDependency, PackageMeta, Version};
+use upac_types::traits::DecodeMeta;
+
+use super::xbps::{
     ARCHITECTURE_KEY, HOMEPAGE_KEY, INSTALLED_SIZE_KEY, LICENSE_KEY, MAINTAINER_KEY, PKGNAME_KEY, RUN_DEPENDS_KEY,
     SHORT_DESC_KEY, VERSION_KEY,
 };
@@ -44,7 +45,7 @@ const OPERATORS: [(&[u8], u8); 2] = [
 pub struct Props<'a>(pub &'a str);
 
 impl DecodeMeta for Props<'_> {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedMeta, DecodeError> {
+    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
         let (mut fields, run_depends) = Self::parse_plist(self.0)?;
 
         let name = required_field!(fields, PKGNAME_KEY);
@@ -67,7 +68,7 @@ impl DecodeMeta for Props<'_> {
 
         let dependencies = run_depends.iter().map(|dep| Self::parse_dependency(dep)).collect();
 
-        Ok(DecodedMeta { meta, dependencies })
+        Ok(DecodedPackageMeta { meta, dependencies })
     }
 }
 
@@ -122,7 +123,7 @@ impl Props<'_> {
         Ok((fields, run_depends))
     }
 
-    fn parse_dependency(raw: &str) -> Dependency {
+    fn parse_dependency(raw: &str) -> PackageDependency {
         let bytes = raw.as_bytes();
 
         for index in 0..bytes.len() {
@@ -133,14 +134,14 @@ impl Props<'_> {
             let name = raw[..index].to_owned();
             let version = raw[index + operator_len..].to_owned();
 
-            return Dependency {
+            return PackageDependency {
                 name,
                 constraint,
                 version: Version::parse(&version),
             };
         }
 
-        Dependency {
+        PackageDependency {
             name: raw.to_owned(),
             constraint: CONSTRAINT_ANY,
             version: Version::default(),
