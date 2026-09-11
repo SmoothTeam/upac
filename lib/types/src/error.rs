@@ -50,6 +50,8 @@ impl DecodeError {
     }
 }
 
+/// # Safety
+/// `err_out`, if non-null, must point to writable `CError` storage.
 pub unsafe fn write_error<S: CommandState>(err_out: *mut CError, state: S, error: ErrorKind) {
     if !err_out.is_null() {
         unsafe {
@@ -62,7 +64,9 @@ pub unsafe fn write_error<S: CommandState>(err_out: *mut CError, state: S, error
     }
 }
 
-pub fn write_abi_error<S: CommandState>(error: ErrorKind, err_out: *mut CError) -> i32 {
+/// # Safety
+/// `err_out`, if non-null, must point to writable `CError` storage.
+pub unsafe fn write_abi_error<S: CommandState>(error: ErrorKind, err_out: *mut CError) -> i32 {
     unsafe { write_error(err_out, S::VALIDATION, error) };
     -1
 }
@@ -72,7 +76,7 @@ macro_rules! try_convert_abi {
     ($expr:expr, $err_out:expr, $state:ty) => {
         match $expr {
             Ok(value) => value,
-            Err(error) => return upac_types::error::write_abi_error::<$state>(error, $err_out),
+            Err(error) => return unsafe { upac_types::error::write_abi_error::<$state>(error, $err_out) },
         }
     };
 }
