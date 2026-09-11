@@ -8,7 +8,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CInstallRequest;
 
-use upac_types::error::{try_convert_abi, write_abi_error, write_error};
+use upac_types::error::{try_convert_abi, write_error};
 use upac_types::states::InstallStateId;
 
 use crate::mutated::installer::{InstallData, run};

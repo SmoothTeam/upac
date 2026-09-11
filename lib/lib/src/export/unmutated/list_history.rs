@@ -9,7 +9,7 @@ use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CListHistoryRequest;
 use upac_abi::response::CListHistoryResponse;
 
-use upac_types::error::{try_convert_abi, write_abi_error, write_error};
+use upac_types::error::{try_convert_abi, write_error};
 use upac_types::states::ListHistoryStateId;
 
 use crate::unmutated::list_history::{ListHistoryData, run};

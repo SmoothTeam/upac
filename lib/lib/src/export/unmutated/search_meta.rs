@@ -9,7 +9,7 @@ use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CSearchMetaRequest;
 use upac_abi::response::CSearchMetaResponse;
 
-use upac_types::error::{try_convert_abi, write_abi_error, write_error};
+use upac_types::error::{try_convert_abi, write_error};
 use upac_types::states::SearchMetaStateId;
 
 use crate::unmutated::search_meta::{SearchMetaData, run};

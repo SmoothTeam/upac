@@ -9,7 +9,7 @@ use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CSearchFilesRequest;
 use upac_abi::response::CSearchFilesResponse;
 
-use upac_types::error::{try_convert_abi, write_abi_error, write_error};
+use upac_types::error::{try_convert_abi, write_error};
 use upac_types::states::SearchFilesStateId;
 
 use crate::unmutated::search_files::{SearchFilesData, run};

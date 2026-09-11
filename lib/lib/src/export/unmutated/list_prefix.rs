@@ -9,7 +9,7 @@ use upac_abi::error::{CError, ErrorKind};
 use upac_abi::request::CListPrefixRequest;
 use upac_abi::response::CListPrefixResponse;
 
-use upac_types::error::{try_convert_abi, write_abi_error, write_error};
+use upac_types::error::{try_convert_abi, write_error};
 use upac_types::states::ListPrefixStateId;
 
 use crate::unmutated::list_prefix::{ListPrefixData, run};
