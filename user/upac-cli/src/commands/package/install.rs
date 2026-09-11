@@ -62,7 +62,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         subject: "install".to_owned(),
         message: args.message,
         packages,
-        boot_plugin: boot_plugin,
+        boot_plugin,
         allow_conflict_files: !args.no_conflict_files,
     }
     .into();

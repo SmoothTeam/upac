@@ -72,7 +72,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         file_kind: FileDiffKind::Removed,
         scope: args.scope.into(),
         file_package: &package,
-        boot_plugin: boot_plugin,
+        boot_plugin,
     }
     .into();
 

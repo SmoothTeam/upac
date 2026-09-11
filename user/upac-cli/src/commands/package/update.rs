@@ -64,7 +64,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         subject: "update".to_owned(),
         message: args.message,
         packages,
-        boot_plugin: boot_plugin,
+        boot_plugin,
         allow_downgrade: args.allow_downgrade,
         allow_conflict_files: !args.no_conflict_files,
     }

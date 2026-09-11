@@ -44,7 +44,7 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         },
         tmp_path: ctx.tmp_path.to_string_lossy().into_owned(),
         config_digest: args.commit,
-        boot_plugin: boot_plugin,
+        boot_plugin,
     }
     .into();
 
