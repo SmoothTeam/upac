@@ -15,6 +15,12 @@ pub trait Booter: Sized {
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), Self::Error>;
     fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), Self::Error>;
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "each param is its own ESP/partition fact every Booter impl needs individually (mount point, \
+                  partition number, LBA range, GUID, slot names) — grouping them into a request type here would \
+                  just be indirection, not a real builder-shaped API"
+    )]
     fn install(
         &mut self, esp_mount_point: &str, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
         esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
