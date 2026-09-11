@@ -25,7 +25,7 @@ impl Stage<ListConfigError> for FetchingStage {
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListConfigError> {
         let requested = ctx_get!(context, RequestedPrefixDigest);
 
-        let prefix_digest = match &requested.0 {
+        let prefix_digest = match &**requested {
             Some(prefix_digest) => prefix_digest.clone(),
             None => current_prefix_digest()?,
         };

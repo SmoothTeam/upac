@@ -45,7 +45,7 @@ impl Stage<UpdateError> for ImportPackageStage {
             .find_package_uuid(&package.meta.name, &package.meta.arch, package.meta.arch_sub.as_deref())?
             .ok_or(UpdateError::PackageNotFound)?;
 
-        if !allow_downgrade.0 {
+        if !**allow_downgrade {
             let current_meta = imported_state
                 .database
                 .get_package_meta(uuid)?

@@ -18,7 +18,7 @@ use super::{DesktopContent, MimeError, WriteProgress};
 use crate::layout::mime::{DESKTOP_FILE_PATH, MIME_XML_PATH, SHARED_MIME_INFO_XMLNS};
 use crate::orchestrator::context::{Context, ctx_take};
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use crate::plugin::decoder::manifest::DecoderManifest;
+use crate::plugin::decoder::manifest::{DecoderManifest, DecoderManifests};
 
 pub struct RenderingStage;
 
@@ -26,7 +26,7 @@ impl Stage<MimeError> for RenderingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
-        let manifests = ctx_take!(context, HashMap<String, DecoderManifest>);
+        let manifests = ctx_take!(context, DecoderManifests);
         let desktop_content = ctx_take!(context, DesktopContent);
 
         let mime_xml = Self::render_mime_xml(&manifests)?;

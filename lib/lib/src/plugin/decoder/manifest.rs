@@ -12,6 +12,8 @@ use mime::Mime;
 
 use serde::Deserialize;
 
+use upac_macro::ContextValue;
+
 use crate::layout::decoders::{DECODERS_DIR, MANIFEST_EXTENSION};
 use crate::plugin::decoder::error::DecoderError;
 
@@ -23,6 +25,7 @@ pub struct DecoderManifest {
     pub mime: String,
 }
 
+#[derive(ContextValue)]
 pub struct DecoderManifests(pub HashMap<String, DecoderManifest>);
 
 impl DecoderManifests {

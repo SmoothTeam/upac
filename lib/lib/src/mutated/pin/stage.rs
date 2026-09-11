@@ -30,7 +30,7 @@ impl Stage<PinError> for SetPinnedStage {
         let mut record = DeployRecord::read(&record_dir)?;
 
         let mut written = Vec::new();
-        if replace(&mut record.pinned, pinned.0) != record.pinned {
+        if replace(&mut record.pinned, **pinned) != record.pinned {
             written.push(record.write(&record_dir)?);
         }
 

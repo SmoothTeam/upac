@@ -26,7 +26,7 @@ impl Stage<MimeError> for PreparingStage {
         let manifests = DecoderManifests::new().map_err(CommonError::Decoder)?;
         let desktop_content = fs::read_to_string(mime::DESKTOP_FILE_PATH)?;
 
-        context.put(manifests.0);
+        context.put(manifests);
         context.put(DesktopContent(desktop_content));
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))

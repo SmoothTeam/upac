@@ -41,7 +41,7 @@ impl Stage<UninstallError> for RemovePackageStage {
         let files = woking_state.database.list_package_files(uuid)?;
 
         for entry in files {
-            if entry.is_user && !purge.0 {
+            if entry.is_user && !**purge {
                 continue;
             }
 

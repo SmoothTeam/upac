@@ -57,7 +57,7 @@ impl Stage<UpdateError> for MergeStage {
         }
         apply_tree_overlay(&mut new, &new_state.config_defaults)?;
 
-        let merge_result = merge_config(&base, &new, &live, allow_conflict_files.0)?;
+        let merge_result = merge_config(&base, &new, &live, **allow_conflict_files)?;
         let new_config_digest = commit_tree(&repository, merge_result.tree)?.to_hex();
 
         let conflicts_total = merge_result.conflicts.len() as u64;
