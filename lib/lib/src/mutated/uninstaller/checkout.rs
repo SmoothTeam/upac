@@ -33,7 +33,7 @@ impl Stage<UninstallError> for CheckoutStage {
         let esp_mount = find_esp_mount()?;
         let entry_name = write_boot_entry(&repository, &tree, digest, &esp_mount, &new_state.prefix_digest)?;
 
-        let plugin = BootPlugins::new()?.load(&requested_boot_plugin)?;
+        let plugin = BootPlugins::new()?.load(requested_boot_plugin)?;
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 

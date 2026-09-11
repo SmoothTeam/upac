@@ -27,13 +27,13 @@ impl Stage<RollbackError> for CheckoutStage {
         let requested_boot_plugins = ctx_get!(context, RequestedBootPlugin);
 
         let repository = deploy.open_repository()?;
-        let tree = deploy.open_tree(&target)?;
-        let digest = object_id_from_hex(&target)?;
+        let tree = deploy.open_tree(target)?;
+        let digest = object_id_from_hex(target)?;
 
         let esp_mount = find_esp_mount()?;
-        let entry_name = write_boot_entry(&repository, &tree, digest, &esp_mount, &target)?;
+        let entry_name = write_boot_entry(&repository, &tree, digest, &esp_mount, target)?;
 
-        let plugin = BootPlugins::new()?.load(&requested_boot_plugins)?;
+        let plugin = BootPlugins::new()?.load(requested_boot_plugins)?;
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 

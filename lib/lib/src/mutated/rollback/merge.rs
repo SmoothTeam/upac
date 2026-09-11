@@ -23,7 +23,7 @@ impl Stage<RollbackError> for MergeStage {
         let requested = ctx_get!(context, RequestedConfigDigest);
         let deploy = ctx_get!(context, Deploy);
 
-        let (config_digest, prefix_digest) = DeployRecord::resolve_config_digest(deploy, Some(&requested))?;
+        let (config_digest, prefix_digest) = DeployRecord::resolve_config_digest(deploy, Some(requested))?;
 
         let record_dir = deploy.deploy(&prefix_digest);
         let mut record = DeployRecord::read(&record_dir)?;

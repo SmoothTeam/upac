@@ -34,7 +34,7 @@ impl Stage<InstallError> for CheckoutStage {
         let esp_mount = find_esp_mount()?;
         let entry_name = write_boot_entry(&repository, &tree, digest, &esp_mount, &new_state.prefix_digest)?;
 
-        let plugin = BootPlugins::new()?.load(&requested_boot_plugins)?;
+        let plugin = BootPlugins::new()?.load(requested_boot_plugins)?;
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 

@@ -27,13 +27,13 @@ impl Stage<FilesError> for CheckoutStage {
         let requested_boot_plugins = ctx_get!(context, RequestedBootPlugin);
 
         let repository = deploy.open_repository()?;
-        let deploy_tree = deploy.open_tree(&new_prefix)?;
-        let digest = object_id_from_hex(&new_prefix)?;
+        let deploy_tree = deploy.open_tree(new_prefix)?;
+        let digest = object_id_from_hex(new_prefix)?;
 
         let esp_mount = find_esp_mount()?;
-        let entry_name = write_boot_entry(&repository, &deploy_tree, digest, &esp_mount, &new_prefix)?;
+        let entry_name = write_boot_entry(&repository, &deploy_tree, digest, &esp_mount, new_prefix)?;
 
-        let plugin = BootPlugins::new()?.load(&requested_boot_plugins)?;
+        let plugin = BootPlugins::new()?.load(requested_boot_plugins)?;
 
         context.put(ResolvedBootEntry { plugin, entry_name });
 
