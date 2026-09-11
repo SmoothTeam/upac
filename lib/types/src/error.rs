@@ -5,6 +5,7 @@
 
 use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
+use std::str::Utf8Error;
 
 use upac_abi::error::ErrorDomain;
 
@@ -23,6 +24,12 @@ pub enum DecodeError {
 impl From<IoError> for DecodeError {
     fn from(error: IoError) -> Self {
         DecodeError::Io(error.kind())
+    }
+}
+
+impl From<Utf8Error> for DecodeError {
+    fn from(_: Utf8Error) -> Self {
+        DecodeError::InvalidRequest
     }
 }
 
