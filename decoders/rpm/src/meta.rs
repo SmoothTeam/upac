@@ -3,12 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::decoder::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS, DecodeError};
-use upac_types::decoder::{DecodeMeta, DecodedMeta};
-use upac_types::{Dependency, PackageMeta, Version};
+use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
 
-use crate::header::Header;
-use crate::rpm::{
+use upac_types::error::DecodeError;
+use upac_types::package::{DecodedPackageMeta, PackageDependency, PackageMeta, Version};
+use upac_types::traits::DecodeMeta;
+
+use super::header::Header;
+use super::rpm::{
     ARCH_TAG, LICENSE_TAG, NAME_TAG, PACKAGER_TAG, RELEASE_TAG, REQUIRE_FLAGS_TAG, REQUIRE_NAME_TAG,
     REQUIRE_VERSION_TAG, SIZE_TAG, SUMMARY_TAG, URL_TAG, VERSION_TAG,
 };
@@ -18,8 +20,14 @@ const SENSE_GREATER: i32 = 0x04;
 const SENSE_EQUAL: i32 = 0x08;
 const SENSE_RPMLIB: i32 = 0x0100_0000;
 
+const SENSE_FLAGS: [(i32, u8); 3] = [
+    (SENSE_LESS, CONSTRAINT_LESS),
+    (SENSE_GREATER, CONSTRAINT_GREATER),
+    (SENSE_EQUAL, CONSTRAINT_EQUAL),
+];
+
 impl DecodeMeta for Header {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedMeta, DecodeError> {
+    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
         let name = self.string(NAME_TAG)?.ok_or(DecodeError::MalformedMetadata)?;
         let version = self.string(VERSION_TAG)?.ok_or(DecodeError::MalformedMetadata)?;
 
@@ -44,7 +52,7 @@ impl DecodeMeta for Header {
             installed_size,
         };
 
-        Ok(DecodedMeta {
+        Ok(DecodedPackageMeta {
             meta,
             dependencies: self.parse_dependencies()?,
         })
@@ -52,7 +60,7 @@ impl DecodeMeta for Header {
 }
 
 impl Header {
-    fn parse_dependencies(&self) -> Result<Vec<Dependency>, DecodeError> {
+    fn parse_dependencies(&self) -> Result<Vec<PackageDependency>, DecodeError> {
         let names = self.string_array(REQUIRE_NAME_TAG)?;
         let versions = self.string_array(REQUIRE_VERSION_TAG)?;
         let flags = self.int32_array(REQUIRE_FLAGS_TAG)?;
@@ -66,7 +74,7 @@ impl Header {
 
             let raw_version = versions.get(index).cloned().unwrap_or_default();
 
-            dependencies.push(Dependency {
+            dependencies.push(PackageDependency {
                 name,
                 constraint: Self::sense_to_constraint(flag),
                 version: Version::parse(&raw_version),
@@ -77,16 +85,10 @@ impl Header {
     }
 
     fn sense_to_constraint(flag: i32) -> u8 {
-        let mut constraint = 0;
-        if flag & SENSE_LESS != 0 {
-            constraint |= CONSTRAINT_LESS;
-        }
-        if flag & SENSE_GREATER != 0 {
-            constraint |= CONSTRAINT_GREATER;
-        }
-        if flag & SENSE_EQUAL != 0 {
-            constraint |= CONSTRAINT_EQUAL;
-        }
+        let constraint = SENSE_FLAGS
+            .iter()
+            .filter(|(sense, _)| flag & sense != 0)
+            .fold(0, |acc, (_, constraint)| acc | constraint);
 
         if constraint == 0 { CONSTRAINT_ANY } else { constraint }
     }

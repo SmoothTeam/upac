@@ -5,13 +5,14 @@
 
 use std::collections::HashMap;
 
-use upac_abi::decoder::{
-    CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS, DecodeError, parse_constraint_prefix,
-};
-use upac_types::decoder::{DecodeMeta, DecodedMeta};
-use upac_types::{Dependency, PackageMeta, Version};
+use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
 
-use crate::deb::{
+use upac_types::decoder::parse_constraint_prefix;
+use upac_types::error::DecodeError;
+use upac_types::package::{DecodedPackageMeta, PackageDependency, PackageMeta, Version};
+use upac_types::traits::DecodeMeta;
+
+use super::deb::{
     CONTROL_ARCH_KEY, CONTROL_DEPENDS_KEY, CONTROL_DESCRIPTION_KEY, CONTROL_INSTALLED_SIZE_KEY, CONTROL_MAINTAINER_KEY,
     CONTROL_NAME_KEY, CONTROL_URL_KEY, CONTROL_VERSION_KEY,
 };
@@ -45,7 +46,7 @@ pub struct ControlFile<'a> {
 }
 
 impl DecodeMeta for ControlFile<'_> {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedMeta, DecodeError> {
+    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
         let (mut fields, dependencies) = self.parse_fields();
 
         let name = required_field!(fields, CONTROL_NAME_KEY);
@@ -66,12 +67,12 @@ impl DecodeMeta for ControlFile<'_> {
             installed_size,
         };
 
-        Ok(DecodedMeta { meta, dependencies })
+        Ok(DecodedPackageMeta { meta, dependencies })
     }
 }
 
 impl ControlFile<'_> {
-    fn parse_fields(&self) -> (HashMap<&str, String>, Vec<Dependency>) {
+    fn parse_fields(&self) -> (HashMap<&str, String>, Vec<PackageDependency>) {
         let mut fields: HashMap<&str, String> = HashMap::new();
         let mut dependencies = Vec::new();
 
@@ -95,7 +96,7 @@ impl ControlFile<'_> {
         (fields, dependencies)
     }
 
-    fn parse_depends(value: &str) -> Vec<Dependency> {
+    fn parse_depends(value: &str) -> Vec<PackageDependency> {
         value
             .split(',')
             .filter_map(|group| group.split('|').next())
@@ -103,7 +104,7 @@ impl ControlFile<'_> {
             .collect()
     }
 
-    fn parse_dependency(raw: &str) -> Dependency {
+    fn parse_dependency(raw: &str) -> PackageDependency {
         let raw = raw.trim();
         let bytes = raw.as_bytes();
 
@@ -120,14 +121,14 @@ impl ControlFile<'_> {
                 None => version_part,
             };
 
-            return Dependency {
+            return PackageDependency {
                 name,
                 constraint,
                 version: Version::parse(version_str),
             };
         }
 
-        Dependency {
+        PackageDependency {
             name: raw.to_owned(),
             constraint: CONSTRAINT_ANY,
             version: Version::default(),

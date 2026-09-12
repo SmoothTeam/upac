@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs;
+use std::fs::{read, remove_file};
 use std::io::{Error as IoError, ErrorKind as IoErrorKind, Write as IoWrite};
 use std::path::{Path, PathBuf};
 
@@ -13,10 +13,6 @@ use upac_abi::error::ErrorKind;
 
 use crate::orchestrator::stage::RollbackGuard;
 
-/// A file written via [`atomic_write`], remembering its previous content (if any) so a group of
-/// writes can be undone as a unit — push each successfully written file into a `Vec<WrittenFile>`
-/// and call `.rollback()` on it (manually, on a later write's failure, or via the orchestrator's
-/// own [`RollbackGuard`] machinery if a later stage fails).
 pub struct WrittenFile {
     path: PathBuf,
     previous: Option<Vec<u8>>,
@@ -24,7 +20,7 @@ pub struct WrittenFile {
 
 impl WrittenFile {
     pub fn write(path: &Path, content: &[u8]) -> Result<Self, IoError> {
-        let previous = fs::read(path).ok();
+        let previous = read(path).ok();
         let written = WrittenFile {
             path: path.to_owned(),
             previous,
@@ -37,7 +33,7 @@ impl WrittenFile {
     fn restore(&self) -> Result<(), IoError> {
         match &self.previous {
             Some(bytes) => self.atomic_write(bytes),
-            None => match fs::remove_file(&self.path) {
+            None => match remove_file(&self.path) {
                 Ok(()) => Ok(()),
                 Err(error) if error.kind() == IoErrorKind::NotFound => Ok(()),
                 Err(error) => Err(error),

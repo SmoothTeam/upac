@@ -9,13 +9,16 @@ use std::io::Result as IoResult;
 use quick_xml::Writer as XmlWriter;
 use quick_xml::events::{BytesDecl, BytesText, Event};
 
-use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::hook::CancelToken;
 
-use crate::layout::mime;
-use crate::mutated::mime::{DesktopContent, MimeError, PendingWrites, TotalWrites};
+use upac_types::hook::ProgressEventBuilder;
+
+use super::{DesktopContent, MimeError, WriteProgress};
+
+use crate::layout::mime::{DESKTOP_FILE_PATH, MIME_XML_PATH, SHARED_MIME_INFO_XMLNS};
+use crate::orchestrator::context::{Context, ctx_take};
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use crate::orchestrator::{Context, ctx_take};
-use crate::plugin::decoder::manifest::DecoderManifest;
+use crate::plugin::decoder::manifest::{DecoderManifest, DecoderManifests};
 
 pub struct RenderingStage;
 
@@ -23,20 +26,16 @@ impl Stage<MimeError> for RenderingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
-        let manifests = ctx_take!(context, HashMap<String, DecoderManifest>);
+        let manifests = ctx_take!(context, DecoderManifests);
         let desktop_content = ctx_take!(context, DesktopContent);
 
         let mime_xml = Self::render_mime_xml(&manifests)?;
         let mime_type_line = Self::render_mime_type_line(&manifests);
-        let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content.0, &mime_type_line)?;
+        let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content, &mime_type_line)?;
 
-        let pending = VecDeque::from([
-            (mime::MIME_XML_PATH, mime_xml),
-            (mime::DESKTOP_FILE_PATH, desktop_content),
-        ]);
+        let pending = VecDeque::from([(MIME_XML_PATH, mime_xml), (DESKTOP_FILE_PATH, desktop_content)]);
 
-        context.put(PendingWrites(pending));
-        context.put(TotalWrites(2));
+        context.put(WriteProgress { pending, total: 2 });
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
@@ -50,7 +49,7 @@ impl RenderingStage {
 
         writer
             .create_element("mime-info")
-            .with_attribute(("xmlns", mime::SHARED_MIME_INFO_XMLNS))
+            .with_attribute(("xmlns", SHARED_MIME_INFO_XMLNS))
             .write_inner_content(|writer| {
                 for manifest in manifests.values() {
                     Self::write_mime_type_element(writer, manifest)?;

@@ -14,7 +14,7 @@ use upac_types::states::{
     CommitStateId, DiffConfigStateId, DiffPackagesStateId, DiffPrefixStateId, DiffStateId, FilesStateId, GcStateId,
     InstallStateId, ListConfigStateId, ListHistoryStateId, ListPackagesStateId, ListPrefixStateId, MimeStateId,
     PinStateId, RollbackStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
-    SearchMetaStateId, UninstallStateId, UpdateStateId,
+    SearchMetaStateId, SetupStateId, UninstallStateId, UpdateStateId,
 };
 
 use crate::locale::LOADER;
@@ -42,6 +42,19 @@ impl Display for AbiMismatch {
 }
 
 impl Error for AbiMismatch {}
+
+#[derive(Debug)]
+pub struct InvalidResponse {
+    pub error: ErrorKind,
+}
+
+impl Display for InvalidResponse {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        write!(formatter, "{}", error_kind_message(self.error))
+    }
+}
+
+impl Error for InvalidResponse {}
 
 pub(crate) struct StageName {
     domain: ErrorDomain,
@@ -86,9 +99,28 @@ impl Display for StageName {
             ErrorDomain::SearchFiles => SearchFilesStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInMeta => SearchInMetaStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInPackageFiles => SearchInPackageFilesStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Setup => SetupStateId::from_stage_index(state).stage_key(),
         };
 
         write!(formatter, "{}", LOADER.get(key))
+    }
+}
+
+fn error_kind_message(kind: ErrorKind) -> String {
+    match kind {
+        ErrorKind::Unexpected => fl!(LOADER, "err-unexpected"),
+        ErrorKind::OutOfMemory => fl!(LOADER, "err-oom"),
+        ErrorKind::NotFound => fl!(LOADER, "err-not-found"),
+        ErrorKind::AlreadyExists => fl!(LOADER, "err-already-exists"),
+        ErrorKind::PermissionDenied => fl!(LOADER, "err-permission-denied"),
+        ErrorKind::InvalidPath => fl!(LOADER, "err-invalid-path"),
+        ErrorKind::NoSpaceLeft => fl!(LOADER, "err-no-space"),
+        ErrorKind::Cancelled => fl!(LOADER, "err-cancelled"),
+        ErrorKind::ReadFailed => fl!(LOADER, "err-read"),
+        ErrorKind::WriteFailed => fl!(LOADER, "err-write"),
+        ErrorKind::NotInitialized => fl!(LOADER, "err-not-initialized"),
+        ErrorKind::AbiMismatch => fl!(LOADER, "err-abi-mismatch"),
+        ErrorKind::InvalidEntry => fl!(LOADER, "err-invalid-entry"),
     }
 }
 
@@ -99,25 +131,10 @@ pub struct LibError {
 
 impl Display for LibError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        let message = match self.error.error {
-            ErrorKind::Unexpected => fl!(LOADER, "err-unexpected"),
-            ErrorKind::OutOfMemory => fl!(LOADER, "err-oom"),
-            ErrorKind::NotFound => fl!(LOADER, "err-not-found"),
-            ErrorKind::AlreadyExists => fl!(LOADER, "err-already-exists"),
-            ErrorKind::PermissionDenied => fl!(LOADER, "err-permission-denied"),
-            ErrorKind::InvalidPath => fl!(LOADER, "err-invalid-path"),
-            ErrorKind::NoSpaceLeft => fl!(LOADER, "err-no-space"),
-            ErrorKind::Cancelled => fl!(LOADER, "err-cancelled"),
-            ErrorKind::ReadFailed => fl!(LOADER, "err-read"),
-            ErrorKind::WriteFailed => fl!(LOADER, "err-write"),
-            ErrorKind::NotInitialized => fl!(LOADER, "err-not-initialized"),
-            ErrorKind::AbiMismatch => fl!(LOADER, "err-abi-mismatch"),
-            ErrorKind::InvalidEntry => fl!(LOADER, "err-invalid-entry"),
-        };
         write!(
             formatter,
             "{} ({:?}: {})",
-            message,
+            error_kind_message(self.error.error),
             self.error.domain,
             StageName::from(&self.error)
         )

@@ -9,8 +9,9 @@
 //!
 //! Dispatch is by field TYPE, decided at compile time:
 //!   CSlice           -> free_cslice(&self.field)
-//!   CVec<primitive>  -> free_cvec(&self.field)
+//!   CVec<CSlice>     -> free_cvec_owning(&self.field, |entry| free_cslice(entry))
 //!   CVec<composite>  -> free_cvec_owning(&self.field, |entry| entry.free())
+//!   CVec<primitive>  -> free_cvec(&self.field)
 //!   primitive (u32, [u8;32], bool, ...) -> owns nothing, skipped
 //!   other named type (composite)        -> self.field.free()
 //! Add a new owned field and it's handled automatically — no list to maintain.
@@ -32,6 +33,9 @@ fn composite_free(ident: &Ident) -> TokenStream2 {
 
 fn cvec_free(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
     match generic_arg(segment).and_then(segment_name) {
+        Some(name) if name == "CSlice" => quote! {
+            free_cvec_owning(&self.#ident, |entry| free_cslice(entry));
+        },
         Some(name) if VALIDATABLE_COMPOSITES.contains(&name.as_str()) => quote! {
             free_cvec_owning(&self.#ident, |entry| entry.free());
         },

@@ -5,42 +5,49 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::HookMessageFn;
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
+use upac_abi::hook::CancelToken;
 use upac_abi::request::CSearchInPackageFilesRequest;
 
-pub use self::error::SearchInPackageFilesError;
+use upac_types::entry::SearchFileEntry;
+use upac_types::hook::Message;
+use upac_types::package::PackageEntry;
+use upac_types::response::SearchInPackageFilesResponse;
+use upac_types::states::SearchInPackageFilesStateId;
+use upac_types::traits::MessageHook;
 
 use self::searching::SearchingStage;
 
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::orchestrator::context::Context;
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::search::Search;
-use upac_types::states::SearchInPackageFilesStateId;
-use upac_types::{PackageEntry, SearchFileEntry};
+
+pub use self::error::SearchInPackageFilesError;
 
 mod error;
 mod searching;
 
-pub struct SearchInPackageFilesData<'a> {
-    pub name: &'a str,
-    pub arch: &'a str,
-    pub arch_sub: Option<&'a str>,
-    pub search: &'a str,
+pub struct SearchInPackageFilesData<'data> {
+    pub name: &'data str,
+    pub arch: &'data str,
+    pub arch_sub: Option<&'data str>,
+    pub search: &'data str,
     pub is_regex: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CSearchInPackageFilesRequest> for SearchInPackageFilesData<'a> {
+impl<'data> TryFrom<&'data CSearchInPackageFilesRequest> for SearchInPackageFilesData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSearchInPackageFilesRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSearchInPackageFilesRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
-        let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+        let cancel_token = unsafe { &*request.base.cancel_token };
 
         Ok(SearchInPackageFilesData {
             name: (&request.package.name).try_into()?,
@@ -59,7 +66,7 @@ impl<'a> TryFrom<&'a CSearchInPackageFilesRequest> for SearchInPackageFilesData<
 
 pub fn run(
     data: SearchInPackageFilesData,
-) -> Result<(Vec<SearchFileEntry>,), (SearchInPackageFilesStateId, SearchInPackageFilesError)> {
+) -> Result<SearchInPackageFilesResponse, (SearchInPackageFilesStateId, SearchInPackageFilesError)> {
     let search = Search::new(data.search, data.is_regex).map_err(|error| {
         (
             SearchInPackageFilesStateId::Setup,
@@ -78,12 +85,14 @@ pub fn run(
 
     let orchestrator = SequentialOrchestrator::new(vec![Box::new(SearchingStage)]);
 
-    run_unmutated!(
+    let (files,) = run_unmutated!(
         orchestrator,
         context,
         data.cancel_token,
         SearchInPackageFilesStateId,
         SearchInPackageFilesError,
         Vec<SearchFileEntry>
-    )
+    )?;
+
+    Ok(SearchInPackageFilesResponse { files })
 }

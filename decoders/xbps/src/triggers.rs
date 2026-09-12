@@ -3,9 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::DecoderTrigger;
+use upac_types::decoder::DecoderTrigger;
 
-use crate::xbps::{INSTALL_ENTRY, REMOVE_ENTRY};
+use super::xbps::{INSTALL_ENTRY, REMOVE_ENTRY};
 
 pub fn scan(install_present: bool, remove_present: bool) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();

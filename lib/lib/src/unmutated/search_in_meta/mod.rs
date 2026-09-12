@@ -5,42 +5,48 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::HookMessageFn;
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, HookMessageFn, Message, MessageHook};
+use upac_abi::hook::CancelToken;
 use upac_abi::request::CSearchInMetaRequest;
 
-pub use self::error::SearchInMetaError;
+use upac_types::hook::Message;
+use upac_types::package::{PackageEntry, PackageMeta};
+use upac_types::response::SearchInMetaResponse;
+use upac_types::states::SearchInMetaStateId;
+use upac_types::traits::MessageHook;
 
 use self::searching::SearchingStage;
 
-use crate::orchestrator::{Context, Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::orchestrator::context::Context;
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated};
 use crate::search::Search;
-use upac_types::states::SearchInMetaStateId;
-use upac_types::{PackageEntry, PackageMeta};
+
+pub use self::error::SearchInMetaError;
 
 mod error;
 mod searching;
 
-pub struct SearchInMetaData<'a> {
-    pub name: &'a str,
-    pub arch: &'a str,
-    pub arch_sub: Option<&'a str>,
-    pub search: &'a str,
+pub struct SearchInMetaData<'data> {
+    pub name: &'data str,
+    pub arch: &'data str,
+    pub arch_sub: Option<&'data str>,
+    pub search: &'data str,
     pub is_regex: bool,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
 
-    pub cancel_token: &'a CancelToken,
+    pub cancel_token: &'data CancelToken,
 }
 
-impl<'a> TryFrom<&'a CSearchInMetaRequest> for SearchInMetaData<'a> {
+impl<'data> TryFrom<&'data CSearchInMetaRequest> for SearchInMetaData<'data> {
     type Error = ErrorKind;
 
-    fn try_from(request: &'a CSearchInMetaRequest) -> Result<Self, ErrorKind> {
+    fn try_from(request: &'data CSearchInMetaRequest) -> Result<Self, ErrorKind> {
         unsafe { request.validate()? };
 
-        let cancel_token = unsafe { request.base.cancel_token.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
+        let cancel_token = unsafe { &*request.base.cancel_token };
 
         Ok(SearchInMetaData {
             name: (&request.package.name).try_into()?,
@@ -57,7 +63,7 @@ impl<'a> TryFrom<&'a CSearchInMetaRequest> for SearchInMetaData<'a> {
     }
 }
 
-pub fn run(data: SearchInMetaData) -> Result<(Vec<PackageMeta>,), (SearchInMetaStateId, SearchInMetaError)> {
+pub fn run(data: SearchInMetaData) -> Result<SearchInMetaResponse, (SearchInMetaStateId, SearchInMetaError)> {
     let search = Search::new(data.search, data.is_regex)
         .map_err(|error| (SearchInMetaStateId::Setup, SearchInMetaError::from(error)))?;
 
@@ -72,12 +78,14 @@ pub fn run(data: SearchInMetaData) -> Result<(Vec<PackageMeta>,), (SearchInMetaS
 
     let orchestrator = SequentialOrchestrator::new(vec![Box::new(SearchingStage)]);
 
-    run_unmutated!(
+    let (metas,) = run_unmutated!(
         orchestrator,
         context,
         data.cancel_token,
         SearchInMetaStateId,
         SearchInMetaError,
         Vec<PackageMeta>
-    )
+    )?;
+
+    Ok(SearchInMetaResponse { metas })
 }
