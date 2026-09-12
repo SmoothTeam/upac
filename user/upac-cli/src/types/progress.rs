@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::os::raw::c_void;
+use std::ptr::from_mut;
 use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -46,7 +47,8 @@ impl ProgressState {
         let settings = RuntimeSettings::load().progress;
 
         let bar = ProgressBar::new_spinner();
-        bar.set_style(spinner_style(&settings.spinner_template));
+
+        bar.set_style(Self::spinner_style(&settings.spinner_template));
         bar.enable_steady_tick(Duration::from_millis(settings.tick_interval_ms));
 
         ProgressState {
@@ -58,7 +60,7 @@ impl ProgressState {
     }
 
     pub fn ctx_ptr(&mut self) -> *mut c_void {
-        std::ptr::from_mut(self).cast()
+        from_mut(self).cast()
     }
 
     pub fn finish(&self) {
@@ -71,7 +73,7 @@ impl ProgressState {
 
         if event.total > 0 {
             if !self.is_bar {
-                self.bar.set_style(bar_style(&self.settings.bar_template));
+                self.bar.set_style(self.bar_style());
                 self.is_bar = true;
             }
             self.bar.set_length(event.total);
@@ -87,10 +89,12 @@ impl ProgressState {
     }
 }
 
-fn spinner_style(template: &str) -> ProgressStyle {
-    ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_spinner())
-}
+impl ProgressState {
+    fn spinner_style(template: &str) -> ProgressStyle {
+        ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_spinner())
+    }
 
-fn bar_style(template: &str) -> ProgressStyle {
-    ProgressStyle::with_template(template).unwrap_or_else(|_| ProgressStyle::default_bar())
+    fn bar_style(&self) -> ProgressStyle {
+        ProgressStyle::with_template(&self.settings.bar_template).unwrap_or_else(|_| ProgressStyle::default_bar())
+    }
 }
