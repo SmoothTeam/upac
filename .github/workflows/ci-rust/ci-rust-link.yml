@@ -1,0 +1,44 @@
+name: Rust CI
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "doc/**", "LICENSES/**", "REUSE.toml"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**.md", "doc/**", "LICENSES/**", "REUSE.toml"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  link-modes:
+    name: Link modes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libblkid-dev libmount-dev clang mold
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build fully dynamic (dlopen upac-lib + booters/decoders)
+        run: cargo build -p upac-cli -p upac-lib
+
+      - name: Build fully static (all booters/decoders built in)
+        run: |
+          cargo build -p upac-cli -p upac-lib --no-default-features \
+              --features upac-cli/builtin-all,upac-lib/builtin-all
+
+      - name: Build booters/decoders as standalone dlopen'd plugins
+        run: |
+          cargo build -p upac-grub -p upac-refind -p upac-systemd-boot -p upac-uki \
+              -p alpm -p deb -p rpm -p xbps --features cdylib
