@@ -1,4 +1,4 @@
-name: Rust CI
+name: Rust CI Clippy and lint
 on:
   push:
     branches: [main]
