@@ -40,7 +40,7 @@ impl Stage<SetupError> for EnumeratePackagesStage {
         let resolved = ctx_get!(context, ResolvedSourceDir);
 
         let mut package_paths = Vec::new();
-        for entry in read_dir(&resolved)? {
+        for entry in read_dir(&**resolved)? {
             let entry = entry?;
 
             if entry.metadata()?.is_file() {

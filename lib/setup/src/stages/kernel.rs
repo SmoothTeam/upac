@@ -18,8 +18,6 @@ impl Stage<SetupError> for KernelStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        todo!();
-
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

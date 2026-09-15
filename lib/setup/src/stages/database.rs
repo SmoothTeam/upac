@@ -38,8 +38,8 @@ impl Stage<SetupError> for EmbedDatabaseStage {
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
         let mut import_ctx = ctx_take!(context, ImportContext);
-        let mut config_state = ctx_take!(context, ConfigState);
         let mut prefix_tree = ctx_take!(context, PrefixTree);
+        let config_state = ctx_take!(context, ConfigState);
 
         let target = ctx_get!(context, TargetSysroot);
 
@@ -72,7 +72,7 @@ impl Stage<SetupError> for EmbedDatabaseStage {
             &mut import_ctx,
         )?;
 
-        let prefix_digest = commit_tree(repository, *prefix_tree)?;
+        let prefix_digest = commit_tree(repository, prefix_tree.0)?;
         let config_digest = commit_tree(repository, config_state.config_tree)?;
 
         context.put(DeployDigests {

@@ -40,7 +40,7 @@ impl Stage<SetupError> for StageBootStage {
         let prefix_digest_hex = deploy_digests.prefix.to_hex();
         let esp_mount_point = target.esp_mount_point();
 
-        let plugin = BootPlugins::new()?.load(&requested_boot_plugin)?;
+        let plugin = BootPlugins::new()?.load(requested_boot_plugin)?;
 
         plugin.install(BootPluginInstallRequest {
             esp_mount_point: esp_mount_point.to_string_lossy().into_owned(),

@@ -55,7 +55,7 @@ impl Stage<SetupError> for ImportSystemStage {
 
         for ancestor in ancestors {
             let handle = FileHandle::new(ancestor);
-            if handle.stat_in_tree(&mut prefix_tree).is_err() {
+            if handle.stat_in_tree(&prefix_tree).is_err() {
                 handle.insert_in_tree(&mut prefix_tree, Stat::uninitialized())?;
             }
         }

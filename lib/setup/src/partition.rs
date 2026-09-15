@@ -255,10 +255,10 @@ fn split_partition_device(device: &Path) -> Result<(PathBuf, u32), SetupError> {
         .map_err(|_| SetupError::InvalidPartitionLayout)?;
 
     let mut disk_name = &name[..digits_start];
-    if let Some(prefix) = disk_name.strip_suffix('p') {
-        if prefix.chars().next_back().is_some_and(|last| last.is_ascii_digit()) {
-            disk_name = prefix;
-        }
+    if let Some(prefix) = disk_name.strip_suffix('p')
+        && prefix.chars().next_back().is_some_and(|last| last.is_ascii_digit())
+    {
+        disk_name = prefix;
     }
 
     Ok((device.with_file_name(disk_name), partition_number))
