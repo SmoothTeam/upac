@@ -31,11 +31,14 @@ impl Stage<RollbackError> for CheckoutStage {
         let digest = object_id_from_hex(target)?;
 
         let esp_mount = find_esp_mount()?;
-        let entry_name = write_boot_entry(&repository, &tree, digest, &esp_mount, target)?;
+        let written = write_boot_entry(&repository, &tree, digest, &esp_mount, target)?;
 
         let plugin = BootPlugins::new()?.load(requested_boot_plugins)?;
 
-        context.put(ResolvedBootEntry { plugin, entry_name });
+        context.put(ResolvedBootEntry {
+            plugin,
+            entry_name: written.into_entry_name(),
+        });
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
