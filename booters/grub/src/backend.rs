@@ -57,8 +57,6 @@ impl Booter for Grub {
                 &format!("--efi-directory={esp_mount_point}"),
                 &format!("--boot-directory={esp_mount_point}"),
                 &format!("--bootloader-id={INSTALL_BOOTLOADER_ID}"),
-                "--removable",
-                "--no-nvram",
             ],
         )?;
 

@@ -58,10 +58,11 @@ from_slot = "upac-from"
 # reboot/set-default tools above, for the one-time `grub-install` genesis runs against a freshly
 # partitioned ESP. install_target is grub's own `--target` platform name (this project is
 # UEFI/x86_64-only throughout, matching systemd_boot/refind's own *_x64 binary names below).
-# install_bootloader_id is grub's `--bootloader-id`, used only to name the install's own
-# NVRAM-independent EFI/BOOT/BOOTX64.EFI fallback copy (see backend.rs's `--removable --no-nvram`
-# — genesis relies on the same UEFI firmware fallback path uki/systemd-boot/refind's binaries
-# already occupy, not a Boot#### entry, so a fresh disk boots without any NVRAM setup).
+# install_bootloader_id is grub's `--bootloader-id`, naming both the ESP's EFI/<id>/ install
+# directory and the NVRAM Boot#### entry `grub-install` registers for it — genesis lets
+# `grub-install` manage its own NVRAM entry the same way systemd-boot/refind do through their own
+# install tools; only uki has no install utility to shell out to and has to build its own Boot####
+# entries by hand (see `Uki::install`).
 [grub]
 reboot_bin_primary = "grub-reboot"
 reboot_bin_fallback = "grub2-reboot"
