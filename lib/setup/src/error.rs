@@ -21,6 +21,10 @@ use upac::plugin::boot::error::BootPluginError;
 
 use upac_abi::error::ErrorKind;
 
+#[cfg(test)]
+#[path = "../tests/inline/error.rs"]
+mod tests;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupError {
     Common(CommonError),

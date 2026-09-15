@@ -18,6 +18,8 @@ use uuid::Uuid;
 
 use nix::{ioctl_read, ioctl_write_ptr};
 
+use upac_abi::BootResourceKind;
+
 use upac_types::traits::Booter;
 
 use super::boot::EFIVARFS_PATH;
@@ -48,6 +50,10 @@ impl Booter for Refind {
         Ok(Self {
             manager: catch_unwind(AssertUnwindSafe(efivar::system))?,
         })
+    }
+
+    fn boot_resource_kind() -> BootResourceKind {
+        BootResourceKind::Bls
     }
 
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), RefindError> {

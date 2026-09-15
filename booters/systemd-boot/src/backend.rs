@@ -18,6 +18,8 @@ use nix::{ioctl_read, ioctl_write_ptr};
 
 use uuid::Uuid;
 
+use upac_abi::BootResourceKind;
+
 use upac_types::traits::Booter;
 
 use super::boot::{EFIVARFS_PATH, LOADER_ENTRY_DEFAULT_VAR, LOADER_ENTRY_ONE_SHOT_VAR, SD_BOOT_LOADER_GUID};
@@ -48,6 +50,10 @@ impl Booter for SystemdBoot {
         Ok(Self {
             manager: catch_unwind(AssertUnwindSafe(efivar::system))?,
         })
+    }
+
+    fn boot_resource_kind() -> BootResourceKind {
+        BootResourceKind::Bls
     }
 
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), SystemdBootError> {

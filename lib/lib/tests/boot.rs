@@ -16,6 +16,7 @@ use upac::boot::error::BootError;
 use upac::boot::write_boot_entry;
 use upac::composefs::file::FileHandle;
 use upac::composefs::repository::ObjectID;
+use upac_abi::BootResourceKind;
 
 fn scratch_dir(name: &str) -> TempDir {
     Builder::new().prefix(name).tempdir().unwrap()
@@ -77,7 +78,14 @@ fn write_boot_entry_fails_when_the_tree_has_no_boot_resource() {
     let tree = empty_tree();
     let esp = scratch_dir("boot-none-esp");
 
-    let result = write_boot_entry(&repository, &tree, ObjectID::EMPTY, esp.path(), "deadbeef");
+    let result = write_boot_entry(
+        &repository,
+        &tree,
+        ObjectID::EMPTY,
+        esp.path(),
+        "deadbeef",
+        BootResourceKind::Bls,
+    );
 
     assert_eq!(result.unwrap_err(), BootError::NoBootResource);
 }
@@ -91,7 +99,14 @@ fn write_boot_entry_fails_when_the_tree_has_more_than_one_boot_resource() {
     insert_kernel(&repository, &mut tree, &mut ctx, "6.7.0");
     let esp = scratch_dir("boot-ambiguous-esp");
 
-    let result = write_boot_entry(&repository, &tree, ObjectID::EMPTY, esp.path(), "deadbeef");
+    let result = write_boot_entry(
+        &repository,
+        &tree,
+        ObjectID::EMPTY,
+        esp.path(),
+        "deadbeef",
+        BootResourceKind::Bls,
+    );
 
     assert_eq!(result.unwrap_err(), BootError::AmbiguousBootResource);
 }

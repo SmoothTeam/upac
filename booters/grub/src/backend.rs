@@ -8,6 +8,8 @@ use std::io::ErrorKind as IoErrorKind;
 use std::path::Path;
 use std::process::Command;
 
+use upac_abi::BootResourceKind;
+
 use upac_types::traits::Booter;
 
 use super::error::GrubError;
@@ -25,6 +27,10 @@ impl Booter for Grub {
 
     fn new() -> Result<Self, GrubError> {
         Ok(Grub)
+    }
+
+    fn boot_resource_kind() -> BootResourceKind {
+        BootResourceKind::Bls
     }
 
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), GrubError> {

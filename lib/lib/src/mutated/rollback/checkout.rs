@@ -30,10 +30,17 @@ impl Stage<RollbackError> for CheckoutStage {
         let tree = deploy.open_tree(target)?;
         let digest = object_id_from_hex(target)?;
 
-        let esp_mount = find_esp_mount()?;
-        let written = write_boot_entry(&repository, &tree, digest, &esp_mount, target)?;
-
         let plugin = BootPlugins::new()?.load(requested_boot_plugins)?;
+
+        let esp_mount = find_esp_mount()?;
+        let written = write_boot_entry(
+            &repository,
+            &tree,
+            digest,
+            &esp_mount,
+            target,
+            plugin.boot_resource_kind(),
+        )?;
 
         context.put(ResolvedBootEntry {
             plugin,

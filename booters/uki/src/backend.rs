@@ -19,6 +19,8 @@ use nix::{ioctl_read, ioctl_write_ptr};
 
 use uuid::Uuid;
 
+use upac_abi::BootResourceKind;
+
 use upac_types::traits::Booter;
 
 use super::boot::{BOOT_NEXT_VAR, BOOT_ORDER_VAR, EFIVARFS_PATH};
@@ -41,6 +43,10 @@ impl Booter for Uki {
         Ok(Self {
             manager: catch_unwind(AssertUnwindSafe(efivar::system))?,
         })
+    }
+
+    fn boot_resource_kind() -> BootResourceKind {
+        BootResourceKind::Uki
     }
 
     fn set_one_shot(&mut self, entry_name: &str) -> Result<(), UkiError> {

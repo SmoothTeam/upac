@@ -9,7 +9,7 @@ use upac_abi::error::ErrorKind;
 use upac_abi::request::{
     CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
-use upac_abi::{ConfirmBootFn, InstallFn, SetOneShotFn};
+use upac_abi::{BootResourceKind, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 
 use upac_types::request::{BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest};
 
@@ -67,12 +67,17 @@ pub struct BootPlugin {
     set_one_shot: SetOneShotFn,
     confirm_boot: ConfirmBootFn,
     install: InstallFn,
+    boot_resource_kind: BootResourceKindFn,
 
     #[cfg(feature = "dynamic-plugins")]
     _library: Option<Library>,
 }
 
 impl BootPlugin {
+    pub fn boot_resource_kind(&self) -> BootResourceKind {
+        unsafe { (self.boot_resource_kind)() }
+    }
+
     pub fn set_one_shot(&self, request: BootPluginSetOneShotRequest) -> Result<(), BootPluginError> {
         let request: CBootPluginSetOneShotRequest = request.into();
 

@@ -21,7 +21,7 @@ pub mod response;
 pub mod types;
 
 pub const LIB_ABI_VERSION: u32 = 2;
-pub const BOOT_ABI_VERSION: u32 = 2;
+pub const BOOT_ABI_VERSION: u32 = 3;
 pub const DECODER_ABI_VERSION: u32 = 2;
 pub const SETUP_ABI_VERSION: u32 = 2;
 
@@ -44,9 +44,28 @@ pub type ConfirmBootFn =
 
 pub type InstallFn = unsafe extern "C" fn(request: *const CBootPluginInstallRequest, err_out: *mut ErrorKind) -> i32;
 
+pub type BootResourceKindFn = unsafe extern "C" fn() -> BootResourceKind;
+
 pub type DecodeFn = unsafe extern "C" fn(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32;
 
 pub type FreeDecodeResponseFn = unsafe extern "C" fn(response: *mut CDecodeResponse);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BootResourceKind {
+    Bls = 0,
+    Uki = 1,
+}
+
+impl BootResourceKind {
+    pub fn from_u8(version: u8) -> Result<BootResourceKind, ErrorKind> {
+        match version {
+            0 => Ok(BootResourceKind::Bls),
+            1 => Ok(BootResourceKind::Uki),
+            _ => Err(ErrorKind::InvalidEntry),
+        }
+    }
+}
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

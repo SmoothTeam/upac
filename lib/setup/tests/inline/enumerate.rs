@@ -10,15 +10,13 @@ use tempfile::TempDir;
 use upac::orchestrator::context::Context;
 use upac::orchestrator::stage::{Stage, StageResult};
 
-use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::hook::CancelToken;
 
 use upac_types::TmpPath;
+use upac_types::hook::ProgressEventBuilder;
 
-use super::super::prepare::ResolvedSourceDir;
-use super::{
-    ConfigTree, EnumeratePackagesStage, GenesisDatabase, PendingPackagePaths, PendingPackages, PrefixTree,
-    TotalPackages, UnpackerState,
-};
+use super::super::{ConfigState, PrefixTree, ResolvedSourceDir, SetupProgress, UnpackState};
+use super::EnumeratePackagesStage;
 
 #[test]
 fn run_lists_only_files_and_initializes_pipeline_state() {
@@ -37,18 +35,16 @@ fn run_lists_only_files_and_initializes_pipeline_state() {
 
     assert!(matches!(result, StageResult::Advance));
 
-    let total = context.get::<TotalPackages>().unwrap();
-    assert_eq!(total.0, 2);
+    let setup_progress = context.get::<SetupProgress>().unwrap();
+    assert_eq!(setup_progress.total, 2);
+    assert!(setup_progress.pending.is_empty());
 
-    let pending = context.get::<PendingPackagePaths>().unwrap();
-    assert_eq!(pending.0.len(), 2);
+    let unpack_state = context.get::<UnpackState>().unwrap();
+    assert_eq!(unpack_state.pending_paths.len(), 2);
 
-    assert!(context.get::<UnpackerState>().is_some());
     assert!(context.get::<TmpPath>().is_some());
-    assert!(context.get::<PendingPackages>().unwrap().0.is_empty());
-    assert!(context.get::<GenesisDatabase>().is_some());
+    assert!(context.get::<ConfigState>().is_some());
     assert!(context.get::<PrefixTree>().is_some());
-    assert!(context.get::<ConfigTree>().is_some());
 }
 
 #[test]
@@ -63,11 +59,11 @@ fn run_with_empty_directory_sets_total_to_zero() {
 
     EnumeratePackagesStage.run(&mut context, &cancel, progress).unwrap();
 
-    let total = context.get::<TotalPackages>().unwrap();
-    assert_eq!(total.0, 0);
+    let setup_progress = context.get::<SetupProgress>().unwrap();
+    assert_eq!(setup_progress.total, 0);
 
-    let pending = context.get::<PendingPackagePaths>().unwrap();
-    assert!(pending.0.is_empty());
+    let unpack_state = context.get::<UnpackState>().unwrap();
+    assert!(unpack_state.pending_paths.is_empty());
 }
 
 #[test]

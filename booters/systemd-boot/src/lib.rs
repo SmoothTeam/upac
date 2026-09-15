@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::BOOT_ABI_VERSION;
+use upac_abi::BootResourceKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::request::{
     CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
@@ -33,6 +34,13 @@ macro_rules! write_error {
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn boot_abi_version() -> u32 {
     BOOT_ABI_VERSION
+}
+
+/// # Safety
+/// Touches no pointers — `unsafe extern "C"` only to match the ABI calling convention.
+#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
+pub unsafe extern "C" fn boot_resource_kind() -> BootResourceKind {
+    SystemdBoot::boot_resource_kind()
 }
 
 /// # Safety

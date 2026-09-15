@@ -65,6 +65,7 @@ impl Stage<SetupError> for StageBootStage {
             deploy_digests.prefix.clone(),
             &esp_mount_point,
             &prefix_digest_hex,
+            plugin.boot_resource_kind(),
         )?;
 
         if matches!(written, WrittenBootEntry::Uki(_)) {

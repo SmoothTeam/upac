@@ -5,7 +5,7 @@
 
 use libloading::Library;
 
-use upac_abi::{BOOT_ABI_VERSION, BootPluginAbiVersionFn, ConfirmBootFn, InstallFn, SetOneShotFn};
+use upac_abi::{BOOT_ABI_VERSION, BootPluginAbiVersionFn, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 
 use super::BootPlugin;
 use super::error::BootPluginError;
@@ -31,6 +31,7 @@ impl BootPlugin {
         let set_one_shot: SetOneShotFn = load_symbol!(library, "set_one_shot");
         let confirm_boot: ConfirmBootFn = load_symbol!(library, "confirm_boot");
         let install: InstallFn = load_symbol!(library, "install");
+        let boot_resource_kind: BootResourceKindFn = load_symbol!(library, "boot_resource_kind");
 
         let got_booter_abi_version = unsafe { booter_abi_version() };
         if got_booter_abi_version != BOOT_ABI_VERSION {
@@ -45,6 +46,7 @@ impl BootPlugin {
             confirm_boot,
 
             install,
+            boot_resource_kind,
             _library: Some(library),
         })
     }

@@ -57,6 +57,10 @@ mod prepare;
 mod system;
 mod unpack;
 
+#[cfg(test)]
+#[path = "../../tests/inline/stages.rs"]
+mod tests;
+
 macro_rules! import_if_dir {
     ($repository:expr, $tree:expr, $source:expr, $import_ctx:expr, $cancel:expr) => {
         if $source.is_dir() {
