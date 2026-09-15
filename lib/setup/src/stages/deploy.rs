@@ -9,16 +9,17 @@ use composefs::fsverity::FsVerityHashValue;
 
 use upac::database::record::DeployRecord;
 use upac::fs::WrittenFile;
-use upac::orchestrator::Context;
+use upac::orchestrator::context::{Context, ctx_get};
 use upac::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
-use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::hook::CancelToken;
 
-use super::ctx_get;
+use upac_types::hook::ProgressEventBuilder;
+
+use super::{DeployDigests, Pinned};
 
 use crate::error::SetupError;
 use crate::target::TargetSysroot;
-use crate::types::{ConfigDigest, GenesisInput, PrefixDigest};
 
 #[cfg(test)]
 #[path = "../../tests/inline/deploy.rs"]
@@ -30,24 +31,22 @@ impl Stage<SetupError> for WriteDeployRecordStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+        let deploy_digest = ctx_get!(context, DeployDigests);
         let target = ctx_get!(context, TargetSysroot);
-        let input = ctx_get!(context, GenesisInput);
-        let prefix_digest = ctx_get!(context, PrefixDigest);
-        let config_digest = ctx_get!(context, ConfigDigest);
+        let pinned = ctx_get!(context, Pinned);
 
-        let prefix_digest_hex = prefix_digest.0.to_hex();
-        let deploy_dir = target.deploy_dir(&prefix_digest_hex);
+        let deploy_dir = target.deploy_dir(&deploy_digest.prefix.to_hex());
         create_dir_all(&deploy_dir)?;
 
         let record = DeployRecord {
-            prefix_digest: prefix_digest_hex,
+            prefix_digest: deploy_digest.prefix.to_hex(),
             subject: "genesis".to_owned(),
             message: None,
             seq: DeployRecord::allocate_seq(&target.next_seq_path())?,
             timestamp: DeployRecord::now_secs(),
             config_history: Vec::new(),
-            working_config: config_digest.0.to_hex(),
-            pinned: input.pinned,
+            working_config: deploy_digest.config.to_hex(),
+            pinned: **pinned,
         };
         let written_file = record.write(&deploy_dir)?;
 

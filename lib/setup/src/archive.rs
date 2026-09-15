@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{File, metadata};
+use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 
@@ -11,23 +11,14 @@ use anyhow::Error as AnyhowError;
 
 use flate2::read::GzDecoder;
 use tar::Archive;
-use tempfile::TempDir;
 use xz2::read::XzDecoder;
 use zip::ZipArchive;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac::orchestrator::Context;
-use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-
-use upac_abi::hook::{CancelToken, ProgressEventBuilder};
-
-use super::ctx_get;
-
 use crate::error::SetupError;
-use crate::types::{GenesisInput, ResolvedSourceDir};
 
 #[cfg(test)]
-#[path = "../../tests/inline/source.rs"]
+#[path = "../tests/inline/archive.rs"]
 mod tests;
 
 const ZIP_MAGIC: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
@@ -36,14 +27,14 @@ const ZSTD_MAGIC: [u8; 4] = [0x28, 0xB5, 0x2F, 0xFD];
 const XZ_MAGIC: [u8; 6] = [0xFD, b'7', b'z', b'X', b'Z', 0x00];
 const GZIP_MAGIC: [u8; 2] = [0x1F, 0x8B];
 
-enum SourceArchive {
+pub(crate) enum SourceArchive {
     Zip(File),
     SevenZip(PathBuf),
     Tar(Box<dyn Read>),
 }
 
 impl SourceArchive {
-    fn sniff(path: &Path) -> Result<Self, SetupError> {
+    pub(crate) fn sniff(path: &Path) -> Result<Self, SetupError> {
         let mut file = File::open(path)?;
         let mut magic = [0u8; 6];
         let bytes_read = file.read(&mut magic)?;
@@ -78,7 +69,7 @@ impl SourceArchive {
         SourceArchive::Tar(Box::new(Cursor::new(sniffed.to_vec()).chain(file)))
     }
 
-    fn extract(self, destination: &Path) -> Result<(), SetupError> {
+    pub(crate) fn extract(self, destination: &Path) -> Result<(), SetupError> {
         match self {
             SourceArchive::Zip(file) => Self::extract_zip(file, destination),
             SourceArchive::SevenZip(path) => Self::extract_sevenzip(&path, destination),
@@ -100,31 +91,5 @@ impl SourceArchive {
     fn extract_tar(reader: Box<dyn Read>, destination: &Path) -> Result<(), SetupError> {
         Archive::new(reader).unpack(destination)?;
         Ok(())
-    }
-}
-
-pub struct PrepareSourceStage;
-
-impl Stage<SetupError> for PrepareSourceStage {
-    fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
-        let input = ctx_get!(context, GenesisInput);
-
-        let source_path = Path::new(&input.source);
-
-        if metadata(source_path)?.is_dir() {
-            context.put(ResolvedSourceDir(source_path.to_path_buf()));
-            return Ok((progress, StageResult::Advance, Box::new(NoRollback)));
-        }
-
-        let archive = SourceArchive::sniff(source_path)?;
-        let scratch = TempDir::new()?;
-        archive.extract(scratch.path())?;
-
-        context.put(ResolvedSourceDir(scratch.path().to_path_buf()));
-        context.put(scratch);
-
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }
 }

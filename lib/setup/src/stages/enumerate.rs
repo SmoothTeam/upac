@@ -14,21 +14,18 @@ use tempfile::TempDir;
 
 use upac::database::{InMemory, MemoryDatabase};
 use upac::errors::CommonError;
-use upac::orchestrator::Context;
+use upac::orchestrator::context::{Context, ctx_get};
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac::plugin::decoder::unpack::PackageUnpacker;
 
-use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::hook::CancelToken;
 
 use upac_types::TmpPath;
+use upac_types::hook::ProgressEventBuilder;
 
-use super::ctx_get;
+use super::{ConfigState, PrefixTree, ResolvedSourceDir, SetupProgress, UnpackState};
 
 use crate::error::SetupError;
-use crate::types::{
-    ConfigTree, GenesisDatabase, PendingPackagePaths, PendingPackages, PrefixTree, ResolvedSourceDir, TotalPackages,
-    UnpackerState,
-};
 
 #[cfg(test)]
 #[path = "../../tests/inline/enumerate.rs"]
@@ -43,7 +40,7 @@ impl Stage<SetupError> for EnumeratePackagesStage {
         let resolved = ctx_get!(context, ResolvedSourceDir);
 
         let mut package_paths = Vec::new();
-        for entry in read_dir(&resolved.0)? {
+        for entry in read_dir(&resolved)? {
             let entry = entry?;
 
             if entry.metadata()?.is_file() {
@@ -53,21 +50,25 @@ impl Stage<SetupError> for EnumeratePackagesStage {
 
         let total = package_paths.len() as u64;
 
-        let unpacker = PackageUnpacker::new().map_err(CommonError::Decoder)?;
         let scratch = TempDir::new()?;
         let tmp_path = TmpPath(scratch.path().to_string_lossy().into_owned());
-        let database = MemoryDatabase::new_in_memory()?;
 
-        context.put(PendingPackagePaths(VecDeque::from(package_paths)));
-        context.put(TotalPackages(total));
-        context.put(UnpackerState(unpacker));
+        context.put(SetupProgress {
+            pending: VecDeque::new(),
+            total,
+        });
+        context.put(UnpackState {
+            unpacker: PackageUnpacker::new().map_err(CommonError::Decoder)?,
+            pending_paths: VecDeque::from(package_paths),
+        });
+        context.put(ConfigState {
+            config_tree: FileSystem::new(Stat::uninitialized()),
+            database: MemoryDatabase::new_in_memory()?,
+        });
         context.put(tmp_path);
         context.put(scratch);
-        context.put(PendingPackages(VecDeque::new()));
-        context.put(GenesisDatabase(database));
-        context.put(PrefixTree(FileSystem::new(Stat::uninitialized())));
-        context.put(ConfigTree(FileSystem::new(Stat::uninitialized())));
         context.put(ImportContext::default());
+        context.put(PrefixTree(FileSystem::new(Stat::uninitialized())));
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))
     }

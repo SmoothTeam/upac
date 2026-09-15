@@ -23,6 +23,10 @@ categories.workspace = true
 [lints]
 workspace = true
 
+[lib]
+name = "upac_setup"
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 upac-lib   = { workspace = true, default-features = false, features = ["builtin-all-booters", "builtin-all-decoders"] }
 upac-types = { workspace = true }

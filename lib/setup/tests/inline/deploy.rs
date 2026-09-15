@@ -9,24 +9,16 @@ use tempfile::TempDir;
 
 use upac::composefs::repository::ObjectID;
 use upac::database::record::DeployRecord;
-use upac::orchestrator::Context;
+use upac::orchestrator::context::Context;
 use upac::orchestrator::stage::{Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::target::TargetSysroot;
-use crate::types::{ConfigDigest, GenesisInput, PrefixDigest};
 
+use super::super::Pinned;
+use super::super::database::{ConfigDigest, PrefixDigest};
 use super::WriteDeployRecordStage;
-
-fn genesis_input(pinned: bool) -> GenesisInput {
-    GenesisInput {
-        source: String::new(),
-        empty_config: false,
-        pinned,
-        boot_plugin: None,
-    }
-}
 
 #[test]
 fn run_writes_a_deploy_record_readable_back_from_disk() {
@@ -35,7 +27,7 @@ fn run_writes_a_deploy_record_readable_back_from_disk() {
 
     let mut context = Context::new();
     context.put(target);
-    context.put(genesis_input(true));
+    context.put(Pinned(true));
     context.put(PrefixDigest(ObjectID::EMPTY));
     context.put(ConfigDigest(ObjectID::EMPTY));
 
@@ -61,7 +53,7 @@ fn run_writes_a_deploy_record_readable_back_from_disk() {
 #[test]
 fn run_fails_when_target_missing_from_context() {
     let mut context = Context::new();
-    context.put(genesis_input(false));
+    context.put(Pinned(false));
     context.put(PrefixDigest(ObjectID::EMPTY));
     context.put(ConfigDigest(ObjectID::EMPTY));
 

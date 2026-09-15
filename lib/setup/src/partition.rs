@@ -13,11 +13,11 @@ use gptman::{GPT, GPTPartitionEntry};
 
 use uuid::{Uuid, uuid};
 
-use upac_types::PartitionSpec;
+use upac_types::request::PartitionSpec;
 
-use crate::error::SetupError;
-use crate::format::FormatTarget;
-use crate::layout::partition::{DEPLOY_LABEL, ESP_LABEL, SETTLE_ATTEMPTS, SETTLE_INTERVAL_MS};
+use super::error::SetupError;
+use super::format::FormatTarget;
+use super::layout::partition::{DEPLOY_LABEL, ESP_LABEL, SETTLE_ATTEMPTS, SETTLE_INTERVAL_MS};
 
 #[cfg(test)]
 #[path = "../tests/inline/partition.rs"]
@@ -133,6 +133,7 @@ impl DiskLayout {
         }
 
         GPT::write_protective_mbr_into(&mut device, sector_size)?;
+
         gpt.write_into(&mut device)?;
         reread_partition_table(&mut device)?;
 
@@ -216,4 +217,49 @@ impl DiskLayout {
 
         PathBuf::from(format!("{}{separator}{number}", self.device_path.display()))
     }
+}
+
+pub fn existing_esp_geometry(esp_device: &Path) -> Result<(u32, u64, u64, Uuid), SetupError> {
+    let (disk_path, esp_partition) = split_partition_device(esp_device)?;
+
+    let mut device = File::open(disk_path)?;
+    let gpt = GPT::find_from(&mut device)?;
+
+    let entry = gpt
+        .iter()
+        .find(|&(number, _)| number == esp_partition)
+        .map(|(_, entry)| entry)
+        .ok_or(SetupError::InvalidPartitionLayout)?;
+
+    Ok((
+        esp_partition,
+        entry.starting_lba,
+        entry.ending_lba,
+        Uuid::from_bytes_le(entry.unique_partition_guid),
+    ))
+}
+
+fn split_partition_device(device: &Path) -> Result<(PathBuf, u32), SetupError> {
+    let name = device
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or(SetupError::InvalidPartitionLayout)?;
+
+    let digits_start = name.len() - name.chars().rev().take_while(char::is_ascii_digit).count();
+    if digits_start == name.len() {
+        return Err(SetupError::InvalidPartitionLayout);
+    }
+
+    let partition_number: u32 = name[digits_start..]
+        .parse()
+        .map_err(|_| SetupError::InvalidPartitionLayout)?;
+
+    let mut disk_name = &name[..digits_start];
+    if let Some(prefix) = disk_name.strip_suffix('p') {
+        if prefix.chars().next_back().is_some_and(|last| last.is_ascii_digit()) {
+            disk_name = prefix;
+        }
+    }
+
+    Ok((device.with_file_name(disk_name), partition_number))
 }

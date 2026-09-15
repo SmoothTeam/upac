@@ -10,15 +10,15 @@ use composefs::tree::FileSystem;
 use tempfile::TempDir;
 
 use upac::database::{InMemory, MemoryDatabase};
-use upac::orchestrator::Context;
+use upac::orchestrator::context::Context;
 use upac::orchestrator::stage::{Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use crate::target::TargetSysroot;
-use crate::types::{ConfigDigest, ConfigTree, GenesisDatabase, PrefixDigest, PrefixTree};
 
-use super::EmbedDatabaseStage;
+use super::super::enumerate::{ConfigTree, GenesisDatabase, PrefixTree};
+use super::{ConfigDigest, EmbedDatabaseStage, PrefixDigest};
 
 #[test]
 fn run_commits_both_trees_and_puts_digests() {

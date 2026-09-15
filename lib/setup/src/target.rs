@@ -19,23 +19,24 @@ use upac_abi::FsKind;
 
 use uuid::Uuid;
 
-use upac_types::PartitionMount;
+use upac_types::request::PartitionMount;
 
-use crate::data::SetupWholeDiskData;
-use crate::error::SetupError;
-use crate::format::FormatTarget;
-use crate::layout::partition::{DEPLOY_LABEL, ESP_LABEL};
-use crate::partition::DiskLayout;
+use super::error::SetupError;
+use super::format::FormatTarget;
+
+use super::layout::partition::{DEPLOY_LABEL, ESP_LABEL};
+use super::partition::DiskLayout;
+use super::stages::SetupWholeDiskData;
 
 pub struct TargetSysroot {
     mount_point: PathBuf,
     deploy_dir: PathBuf,
     repository: ManuallyDrop<Repository<ObjectID>>,
     mounted: Vec<PathBuf>,
-    esp_partition_number: Option<u32>,
-    esp_starting_lba: Option<u64>,
-    esp_ending_lba: Option<u64>,
-    esp_unique_partition_guid: Option<Uuid>,
+    esp_partition_number: u32,
+    esp_starting_lba: u64,
+    esp_ending_lba: u64,
+    esp_unique_partition_guid: Uuid,
 }
 
 impl TargetSysroot {
@@ -45,8 +46,8 @@ impl TargetSysroot {
     )]
     pub fn new(
         deploy_device: &Path, deploy_fs: FsKind, esp_device: &Path, mount_point: PathBuf,
-        extra_mounts: &[PartitionMount], esp_partition_number: Option<u32>, esp_starting_lba: Option<u64>,
-        esp_ending_lba: Option<u64>, esp_unique_partition_guid: Option<Uuid>,
+        extra_mounts: &[PartitionMount], esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
+        esp_unique_partition_guid: Uuid,
     ) -> Result<Self, SetupError> {
         create_dir_all(&mount_point)?;
 
@@ -103,7 +104,7 @@ impl TargetSysroot {
         })
     }
 
-    pub fn create_whole_disk(data: &SetupWholeDiskData) -> Result<Self, SetupError> {
+    pub fn create_whole_disk(data: &SetupWholeDiskData<'_>) -> Result<Self, SetupError> {
         let layout = DiskLayout::create(
             Path::new(data.device_path),
             data.esp_size_mib,
@@ -150,10 +151,10 @@ impl TargetSysroot {
             &esp_path,
             PathBuf::from(data.mount_point()),
             &extra_mounts,
-            Some(layout.esp_partition_number()),
-            Some(layout.esp_starting_lba()),
-            Some(layout.esp_ending_lba()),
-            Some(layout.esp_unique_partition_guid()),
+            layout.esp_partition_number(),
+            layout.esp_starting_lba(),
+            layout.esp_ending_lba(),
+            layout.esp_unique_partition_guid(),
         )
     }
 
@@ -173,19 +174,19 @@ impl TargetSysroot {
         self.mount_point.join(ESP_MOUNT_PRIMARY.trim_start_matches('/'))
     }
 
-    pub fn esp_partition_number(&self) -> Option<u32> {
+    pub fn esp_partition_number(&self) -> u32 {
         self.esp_partition_number
     }
 
-    pub fn esp_starting_lba(&self) -> Option<u64> {
+    pub fn esp_starting_lba(&self) -> u64 {
         self.esp_starting_lba
     }
 
-    pub fn esp_ending_lba(&self) -> Option<u64> {
+    pub fn esp_ending_lba(&self) -> u64 {
         self.esp_ending_lba
     }
 
-    pub fn esp_unique_partition_guid(&self) -> Option<Uuid> {
+    pub fn esp_unique_partition_guid(&self) -> Uuid {
         self.esp_unique_partition_guid
     }
 }
@@ -223,10 +224,10 @@ impl TargetSysroot {
             deploy_dir,
             repository: ManuallyDrop::new(repository),
             mounted: Vec::new(),
-            esp_partition_number: None,
-            esp_starting_lba: None,
-            esp_ending_lba: None,
-            esp_unique_partition_guid: None,
+            esp_partition_number: 0,
+            esp_starting_lba: 0,
+            esp_ending_lba: 0,
+            esp_unique_partition_guid: Uuid::nil(),
         })
     }
 }

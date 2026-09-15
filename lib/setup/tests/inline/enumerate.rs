@@ -7,19 +7,18 @@ use std::fs::{create_dir_all, write};
 
 use tempfile::TempDir;
 
-use upac::orchestrator::Context;
+use upac::orchestrator::context::Context;
 use upac::orchestrator::stage::{Stage, StageResult};
 
 use upac_abi::hook::{CancelToken, ProgressEventBuilder};
 
 use upac_types::TmpPath;
 
-use crate::types::{
-    ConfigTree, GenesisDatabase, PendingPackagePaths, PendingPackages, PrefixTree, ResolvedSourceDir, TotalPackages,
-    UnpackerState,
+use super::super::prepare::ResolvedSourceDir;
+use super::{
+    ConfigTree, EnumeratePackagesStage, GenesisDatabase, PendingPackagePaths, PendingPackages, PrefixTree,
+    TotalPackages, UnpackerState,
 };
-
-use super::EnumeratePackagesStage;
 
 #[test]
 fn run_lists_only_files_and_initializes_pipeline_state() {

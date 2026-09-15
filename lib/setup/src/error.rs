@@ -19,6 +19,8 @@ use upac::errors::CommonError;
 use upac::lock::LockError;
 use upac::plugin::boot::error::BootPluginError;
 
+use upac_abi::error::ErrorKind;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupError {
     Common(CommonError),
@@ -120,5 +122,35 @@ impl From<GptBlockError> for SetupError {
 impl From<AnyhowError> for SetupError {
     fn from(_: AnyhowError) -> Self {
         SetupError::Unexpected
+    }
+}
+
+impl From<SetupError> for ErrorKind {
+    fn from(error: SetupError) -> Self {
+        match error {
+            SetupError::Common(common_error) => common_error.into(),
+            SetupError::Mount(_) => ErrorKind::Unexpected,
+            SetupError::Repo(repo_error) => repo_error.into(),
+            SetupError::Database(database_error) => database_error.into(),
+            SetupError::DeployRecord(deploy_record_error) => deploy_record_error.into(),
+            SetupError::Boot(boot_error) => boot_error.into(),
+            SetupError::BootPlugin(boot_plugin_error) => boot_plugin_error.into(),
+            SetupError::Io(kind) => match kind {
+                IoErrorKind::NotFound => ErrorKind::NotFound,
+                IoErrorKind::PermissionDenied => ErrorKind::PermissionDenied,
+                IoErrorKind::AlreadyExists => ErrorKind::AlreadyExists,
+                _ => ErrorKind::Unexpected,
+            },
+            SetupError::NoSpaceLeft => ErrorKind::NoSpaceLeft,
+            SetupError::NotBlockDevice => ErrorKind::InvalidEntry,
+            SetupError::MkfsFailed => ErrorKind::WriteFailed,
+            SetupError::WipeFailed => ErrorKind::WriteFailed,
+            SetupError::PartitionNotReady => ErrorKind::NotInitialized,
+            SetupError::InvalidPartitionLayout => ErrorKind::InvalidEntry,
+            SetupError::InvalidFormatParams => ErrorKind::InvalidEntry,
+            SetupError::RereadFailed(_) => ErrorKind::ReadFailed,
+            SetupError::ComposefsSetupRootUnitNotFound => ErrorKind::NotFound,
+            SetupError::Unexpected => ErrorKind::Unexpected,
+        }
     }
 }
