@@ -20,7 +20,7 @@ pub unsafe extern "C" fn lib_abi_version() -> u32 {
 /// `token`, if non-null, must point to a valid, initialized `CancelToken` for the duration of the
 /// call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cancel(token: *mut CancelToken) {
+pub unsafe extern "C" fn lib_cancel(token: *mut CancelToken) {
     if token.is_null() {
         return;
     }
