@@ -7,10 +7,14 @@ use clap::ValueEnum;
 use clap::builder::PossibleValue;
 
 use upac_abi::FsKind as FsKindAbi;
-use upac_types::{PartitionMount, PartitionSpec};
+
+use upac_types::request::{PartitionMount, PartitionSpec};
+
+pub mod errors;
+pub mod progress;
 
 #[cfg(test)]
-#[path = "../tests/inline/types.rs"]
+#[path = "../../tests/inline/types.rs"]
 mod tests;
 
 #[repr(transparent)]

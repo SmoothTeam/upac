@@ -4,19 +4,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::os::raw::c_void;
+use std::ptr::from_mut;
 use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
 
 use upac_abi::hook::{CProgressEvent, HookAck};
 
-use upac_setup::genesis::GenesisStage;
+use upac_types::states::SetupStateId;
 
 use crate::layout::progress;
 use crate::locale::LOADER;
 
 #[cfg(test)]
-#[path = "../tests/inline/progress.rs"]
+#[path = "../../tests/inline/progress.rs"]
 mod tests;
 
 /// # Safety
@@ -39,6 +40,7 @@ pub struct ProgressState {
 impl ProgressState {
     pub fn new() -> Self {
         let bar = ProgressBar::new_spinner();
+
         bar.set_style(Self::spinner_style());
         bar.enable_steady_tick(Duration::from_millis(u64::from(progress::TICK_INTERVAL_MS)));
 
@@ -46,7 +48,7 @@ impl ProgressState {
     }
 
     pub fn ctx_ptr(&mut self) -> *mut c_void {
-        std::ptr::from_mut(self).cast()
+        from_mut(self).cast()
     }
 
     pub fn finish(&self) {
@@ -54,7 +56,7 @@ impl ProgressState {
     }
 
     fn apply(&mut self, event: &CProgressEvent) {
-        let stage = Self::stage_name(event.stage);
+        let stage = LOADER.get(SetupStateId::from_stage_index(event.stage as usize).stage_key());
         let subject = <&str>::try_from(&event.subject).unwrap_or_default();
 
         if event.total > 0 {
@@ -76,10 +78,6 @@ impl ProgressState {
 }
 
 impl ProgressState {
-    fn stage_name(index: u32) -> String {
-        LOADER.get(GenesisStage::from_stage_index(index as usize).stage_key())
-    }
-
     fn spinner_style() -> ProgressStyle {
         ProgressStyle::with_template(progress::SPINNER_TEMPLATE)
             .unwrap_or_else(|_| ProgressStyle::default_spinner())

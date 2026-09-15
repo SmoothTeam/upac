@@ -10,20 +10,18 @@ use clap::{Args as ClapArgs, ValueEnum};
 use i18n_embed_fl::fl;
 
 use upac_abi::FsKind as FsKindAbi;
-use upac_abi::hook::CancelToken;
 
-use upac_setup::data::SetupWholeDiskData;
+use upac_types::request::{BtrfsOptions, GptLayout, PartitionSpec, RequestBase, SetupWholeDiskRequest};
 
-use upac_types::PartitionSpec;
-
-use crate::errors::LocalizedSetupError;
+use crate::cancel_token_ptr;
 use crate::layout::disk_defaults;
+use crate::libcore::{Lib, invoke};
 use crate::locale::LOADER;
-use crate::progress::{ProgressState, on_progress};
+use crate::types::progress::{ProgressState, on_progress};
 use crate::types::{FsKind, parse_extra_partition, parse_size_mib};
 
 #[cfg(test)]
-#[path = "../../tests/inline/whole_disk.rs"]
+#[path = "../../tests/inline/auto.rs"]
 mod tests;
 
 #[derive(ClapArgs)]
@@ -57,46 +55,54 @@ pub struct Args {
     pub boot_plugin: Option<String>,
 }
 
-pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
-    let Some(device) = args.device.as_deref() else {
+pub fn run(args: Args, lib: &Lib) -> Result<()> {
+    let Some(device) = args.device else {
         bail!(fl!(LOADER, "err-missing-device"));
     };
     let Some(deploy_size_mib) = args.deploy_size_mib else {
         bail!(fl!(LOADER, "err-missing-deploy-size"));
     };
-    let Some(source) = args.source.as_deref() else {
+    let Some(source) = args.source else {
         bail!(fl!(LOADER, "err-missing-source"));
     };
+    let Some(boot_plugin) = args.boot_plugin else {
+        bail!(fl!(LOADER, "err-missing-boot-plugin"));
+    };
+
+    lib.require_root()?;
 
     let mut progress = ProgressState::new();
 
-    let data = SetupWholeDiskData {
+    let request = SetupWholeDiskRequest {
+        base: RequestBase {
+            on_hook: Some(on_progress),
+            hook_ctx: progress.ctx_ptr(),
+            cancel_token: cancel_token_ptr(),
+        },
+
         device_path: device,
-        esp_size_mib: args.esp_size_mib,
-        deploy_fs: args.deploy_fs.into(),
-        deploy_size_mib,
-        extra_partitions: args.extra_partitions,
-        force_wipe: args.force_wipe,
+        gpt: GptLayout {
+            esp_size_mib: args.esp_size_mib,
+            deploy_fs: args.deploy_fs.into(),
+            deploy_size_mib,
+            extra_partitions: args.extra_partitions,
+            force_wipe: args.force_wipe,
+        },
+        btrfs: BtrfsOptions {
+            node_size: args.node_size,
+            sector_size: args.sector_size,
+        },
 
-        node_size: args.node_size,
-        sector_size: args.sector_size,
-
-        mount_point: args.mount_point.as_deref(),
+        mount_point: args.mount_point,
         source,
         empty_config: args.empty_config,
         pinned: args.pinned,
-        boot_plugin: args.boot_plugin.as_deref(),
+        boot_plugin,
+    }
+    .into();
 
-        hook_message: Some(on_progress),
-        hook_message_context: progress.ctx_ptr(),
-
-        cancel_token,
-    };
-
-    let result = data.run();
+    let result = invoke(|error| unsafe { (lib.setup_whole_disk)(request, error) });
     progress.finish();
 
-    result.map_err(LocalizedSetupError)?;
-
-    Ok(())
+    result
 }

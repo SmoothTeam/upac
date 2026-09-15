@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use upac_abi::FsKind as FsKindAbi;
-use upac_abi::hook::CancelToken;
 
+use crate::libcore::Lib;
 use crate::locale;
 use crate::types::FsKind;
 
@@ -26,21 +26,21 @@ fn valid_args() -> Args {
         source: Some("/mnt/source".to_owned()),
         empty_config: false,
         pinned: false,
-        boot_plugin: None,
+        boot_plugin: Some("systemd-boot".to_owned()),
     }
 }
 
 #[test]
 fn missing_device_bails_before_touching_the_disk() {
     locale::init_for_test();
-    let cancel_token = CancelToken::new();
+    let lib = Lib::load().unwrap();
 
     let error = run(
         Args {
             device: None,
             ..valid_args()
         },
-        &cancel_token,
+        &lib,
     )
     .unwrap_err();
 
@@ -50,14 +50,14 @@ fn missing_device_bails_before_touching_the_disk() {
 #[test]
 fn missing_deploy_size_bails_before_touching_the_disk() {
     locale::init_for_test();
-    let cancel_token = CancelToken::new();
+    let lib = Lib::load().unwrap();
 
     let error = run(
         Args {
             deploy_size_mib: None,
             ..valid_args()
         },
-        &cancel_token,
+        &lib,
     )
     .unwrap_err();
 
@@ -67,16 +67,33 @@ fn missing_deploy_size_bails_before_touching_the_disk() {
 #[test]
 fn missing_source_bails_before_touching_the_disk() {
     locale::init_for_test();
-    let cancel_token = CancelToken::new();
+    let lib = Lib::load().unwrap();
 
     let error = run(
         Args {
             source: None,
             ..valid_args()
         },
-        &cancel_token,
+        &lib,
     )
     .unwrap_err();
 
     assert_eq!(error.to_string(), "Missing required argument: --source");
+}
+
+#[test]
+fn missing_boot_plugin_bails_before_touching_the_disk() {
+    locale::init_for_test();
+    let lib = Lib::load().unwrap();
+
+    let error = run(
+        Args {
+            boot_plugin: None,
+            ..valid_args()
+        },
+        &lib,
+    )
+    .unwrap_err();
+
+    assert_eq!(error.to_string(), "Missing required argument: --boot-plugin");
 }

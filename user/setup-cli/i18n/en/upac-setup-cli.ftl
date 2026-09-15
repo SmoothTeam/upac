@@ -1,27 +1,26 @@
 error = Error
 
-err-common = Common subsystem failure
-err-mount = Mount failed
-err-repo = Repository operation failed
-err-database = Database operation failed
-err-deploy-record = Deploy record operation failed
-err-boot = Boot entry staging failed
-err-boot-plugin = Boot plugin operation failed
-err-io = I/O error
-err-no-space-left = No space left on device
-err-not-block-device = Not a block device
-err-mkfs-failed = Filesystem creation failed
-err-wipe-failed = Failed to wipe the target partition's existing filesystem signature
-err-partition-not-ready = Partition device did not appear in time after partitioning
+abi-version-mismatch = ABI version mismatch
+
 err-unexpected = Unexpected error
+err-oom = Out of memory
+err-not-found = File not found
+err-already-exists = Already exists
+err-permission-denied = Permission denied
+err-requires-root = This command requires root
+err-invalid-path = Invalid path
+err-no-space = No space left
+err-cancelled = Cancelled
+err-read = Read failed
+err-write = Write failed
+err-not-initialized = Not initialized
+err-abi-mismatch = ABI mismatch
+err-invalid-entry = Invalid entry
 
 err-missing-device = Missing required argument: --device
 err-missing-deploy-size = Missing required argument: --deploy-size
 err-missing-source = Missing required argument: --source
-err-invalid-partition-layout = Requested partition sizes don't fit on the disk
-err-invalid-format-params = Invalid filesystem formatting parameters
-err-reread-failed = Failed to reread the partition table (device busy?)
-err-composefs-setup-root-unit-not-found = composefs-setup-root.service not found under source's system/ directory
+err-missing-boot-plugin = Missing required argument: --boot-plugin
 
 stage-prepare-source = Preparing source
 stage-enumerate-packages = Enumerating packages
@@ -30,5 +29,6 @@ stage-import-package = Importing package
 stage-import-system = Importing system files
 stage-embed-database = Embedding package database
 stage-write-deploy-record = Writing deploy record
+stage-kernel = Generating kernel
 stage-stage-boot = Staging boot entry
 stage-setup = Setup
