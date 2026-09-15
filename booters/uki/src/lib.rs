@@ -9,7 +9,7 @@ use upac_abi::request::{
     CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 
-use upac_types::request::{BootPluginConfirmSuccsesBootRequest, BootPluginSetOneShotRequest};
+use upac_types::request::{BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest};
 use upac_types::traits::Booter;
 
 use self::backend::Uki;
@@ -47,7 +47,7 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotReque
     }
 
     let result = BootPluginSetOneShotRequest::try_from(unsafe { &*request })
-        .map_err(|_| UkiError::InvalidRequest)
+        .map_err(UkiError::from)
         .and_then(|request| Uki::new().and_then(|mut uki| uki.set_one_shot(&request.entry_name)));
 
     match result {
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn confirm_boot(
     }
 
     let result = BootPluginConfirmSuccsesBootRequest::try_from(unsafe { &*request })
-        .map_err(|_| UkiError::InvalidRequest)
+        .map_err(UkiError::from)
         .and_then(|request| {
             Uki::new().and_then(|mut uki| uki.confirm_boot(&request.entry_name, &request.esp_mount_point))
         });
@@ -92,9 +92,39 @@ pub unsafe extern "C" fn confirm_boot(
 }
 
 /// # Safety
-/// Touches no pointers — uki has nothing to install onto a pre-existing ESP, always succeeds
-/// (its binary is copied from the source package tree via `esp_loader_source` instead).
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginInstallRequest` for the
+/// duration of the call. `err_out`, if non-null, must point to writable `ErrorKind` storage.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn install(_request: *const CBootPluginInstallRequest, _err_out: *mut ErrorKind) -> i32 {
-    0
+pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest, err_out: *mut ErrorKind) -> i32 {
+    if request.is_null() {
+        write_error!(err_out, UkiError::InvalidRequest);
+
+        return -1;
+    }
+
+    let result = BootPluginInstallRequest::try_from(unsafe { &*request })
+        .map_err(UkiError::from)
+        .and_then(|request| {
+            Uki::new().and_then(|mut uki| {
+                uki.install(
+                    &request.esp_mount_point,
+                    request.esp_partition_number,
+                    request.esp_starting_lba,
+                    request.esp_ending_lba,
+                    request.esp_unique_partition_guid,
+                    &request.to_slot,
+                    &request.from_slot,
+                )
+            })
+        });
+
+    match result {
+        Ok(()) => 0,
+
+        Err(error) => {
+            write_error!(err_out, error);
+
+            -1
+        }
+    }
 }

@@ -45,6 +45,15 @@ impl From<Box<dyn Any + Send + 'static>> for UkiError {
     }
 }
 
+impl From<ErrorKind> for UkiError {
+    fn from(error: ErrorKind) -> Self {
+        match error {
+            ErrorKind::PermissionDenied => UkiError::PermissionDenied,
+            _ => UkiError::InvalidRequest,
+        }
+    }
+}
+
 impl From<UkiError> for ErrorKind {
     fn from(error: UkiError) -> Self {
         match error {

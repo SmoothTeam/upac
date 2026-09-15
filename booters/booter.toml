@@ -83,6 +83,19 @@ install_bootloader_id = "upac"
 # entry through PreviousBoot only takes effect if refind.conf's `default_selection` starts with
 # `+` ("remember last boot"); that's a user/deployment-side rEFInd config choice this plugin has
 # no way to inspect or control. GUID/name per rEFInd's own documented EFI variable, not guessed.
+#
+# install_bin is rEFInd's own installer — single canonical name across distros (unlike grub's
+# primary/fallback split). Run with no extra flags (besides `--yes` for non-interactive use):
+# `refind-install` on its own finds the mounted ESP itself and registers its own NVRAM entry,
+# same as `grub-install`/`bootctl install` do for their own loaders.
 [refind]
 previous_boot_var = "PreviousBoot"
 previous_boot_guid = "36d08fa7-cf0b-42f5-8f14-68df73ed3740"
+
+install_bin = "refind-install"
+
+# systemd-boot's own installer, single canonical name. `bootctl install --esp-path=<mount>` copies
+# the binary to both `EFI/systemd/` and the `EFI/BOOT/BOOTX64.EFI` removable-fallback path, and
+# registers its own NVRAM entry — no extra flags needed beyond pointing it at the right ESP.
+[systemd_boot]
+install_bin = "bootctl"

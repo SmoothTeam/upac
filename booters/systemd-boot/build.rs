@@ -19,7 +19,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let raw = read_to_string(&source)?;
     let config: Value = from_str(&raw)?;
 
-    let section = "boot";
+    let mut generated = String::new();
+    generated.push_str(&generate_section(&config, "boot")?);
+    generated.push_str(&generate_section(&config, "systemd_boot")?);
+
+    let out = Path::new(&var("OUT_DIR")?).join("layout.rs");
+    write(out, generated)?;
+
+    Ok(())
+}
+
+fn generate_section(config: &Value, section: &str) -> Result<String, Box<dyn Error>> {
     let entries = config
         .get(section)
         .and_then(Value::as_table)
@@ -38,8 +48,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     generated.push_str("}\n");
 
-    let out = Path::new(&var("OUT_DIR")?).join("layout.rs");
-    write(out, generated)?;
-
-    Ok(())
+    Ok(generated)
 }

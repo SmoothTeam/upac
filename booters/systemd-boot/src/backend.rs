@@ -4,9 +4,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::OpenOptions;
+use std::io::ErrorKind as IoErrorKind;
 use std::os::fd::AsRawFd;
 use std::os::raw::c_long;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::process::Command;
 use std::str::FromStr;
 
 use efivar::VarManager;
@@ -20,6 +22,7 @@ use upac_types::traits::Booter;
 
 use super::boot::{EFIVARFS_PATH, LOADER_ENTRY_DEFAULT_VAR, LOADER_ENTRY_ONE_SHOT_VAR, SD_BOOT_LOADER_GUID};
 use super::error::SystemdBootError;
+use super::systemd_boot::INSTALL_BIN;
 
 const FS_IMMUTABLE_FL: c_long = 0x0000_0010;
 
@@ -62,7 +65,6 @@ impl Booter for SystemdBoot {
         esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
     ) -> Result<(), SystemdBootError> {
         let _ = (
-            esp_mount_point,
             esp_partition_number,
             esp_starting_lba,
             esp_ending_lba,
@@ -71,7 +73,16 @@ impl Booter for SystemdBoot {
             from_slot,
         );
 
-        Ok(())
+        match Command::new(INSTALL_BIN)
+            .arg("install")
+            .arg(format!("--esp-path={esp_mount_point}"))
+            .status()
+        {
+            Ok(status) if status.success() => Ok(()),
+            Ok(_) => Err(SystemdBootError::Unexpected),
+            Err(error) if error.kind() == IoErrorKind::NotFound => Err(SystemdBootError::ToolNotFound),
+            Err(error) => Err(SystemdBootError::from(error)),
+        }
     }
 }
 

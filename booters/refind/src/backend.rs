@@ -4,9 +4,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::OpenOptions;
+use std::io::ErrorKind as IoErrorKind;
 use std::os::fd::AsRawFd;
 use std::os::raw::c_long;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::process::Command;
 use std::str::FromStr;
 
 use efivar::VarManager;
@@ -20,7 +22,7 @@ use upac_types::traits::Booter;
 
 use super::boot::EFIVARFS_PATH;
 use super::error::RefindError;
-use super::refind::{PREVIOUS_BOOT_GUID, PREVIOUS_BOOT_VAR};
+use super::refind::{INSTALL_BIN, PREVIOUS_BOOT_GUID, PREVIOUS_BOOT_VAR};
 
 const FS_IMMUTABLE_FL: c_long = 0x0000_0010;
 
@@ -72,7 +74,12 @@ impl Booter for Refind {
             from_slot,
         );
 
-        Ok(())
+        match Command::new(INSTALL_BIN).arg("--yes").status() {
+            Ok(status) if status.success() => Ok(()),
+            Ok(_) => Err(RefindError::Unexpected),
+            Err(error) if error.kind() == IoErrorKind::NotFound => Err(RefindError::ToolNotFound),
+            Err(error) => Err(RefindError::from(error)),
+        }
     }
 }
 

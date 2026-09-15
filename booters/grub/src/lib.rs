@@ -47,7 +47,7 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotReque
     }
 
     let result = BootPluginSetOneShotRequest::try_from(unsafe { &*request })
-        .map_err(|_| GrubError::InvalidRequest)
+        .map_err(GrubError::from)
         .and_then(|request| Grub::new().and_then(|mut grub| grub.set_one_shot(&request.entry_name)));
 
     match result {
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn confirm_boot(
     }
 
     let result = BootPluginConfirmSuccsesBootRequest::try_from(unsafe { &*request })
-        .map_err(|_| GrubError::InvalidRequest)
+        .map_err(GrubError::from)
         .and_then(|request| {
             Grub::new().and_then(|mut grub| grub.confirm_boot(&request.entry_name, &request.esp_mount_point))
         });
@@ -103,7 +103,7 @@ pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest, err_
     }
 
     let result = BootPluginInstallRequest::try_from(unsafe { &*request })
-        .map_err(|_| GrubError::InvalidRequest)
+        .map_err(GrubError::from)
         .and_then(|request| {
             Grub::new().and_then(|mut grub| {
                 grub.install(
