@@ -36,27 +36,16 @@ match upac's on-disk layout exactly (repo at `composefs/`, per-deploy state at `
 Still unresolved: whether upac ships/packages the `composefs-setup-root` binary itself or expects it
 to already exist on the source distro (same open question as the systemd-boot/rEFInd binaries).
 
-**Booter ABI redesign — decided this session, execution in progress file-by-file under direct
-supervision (no batch edits).** Four canonical plugin responsibilities:
+## upac-setup
 
-1. Plugin sets itself for one-time boot (`set_one_shot`) — done.
-2. Plugin sets itself for persistent boot (`confirm_boot`) — done, including UKI's `to.efi`↔
-   `from.efi` file swap (needed a new `esp_mount_point` parameter on `confirm_boot`, added this
-   session; the swap only fires when the confirmed `entry_name` is the `to` slot specifically).
-3. Plugin installs itself onto the ESP (`install`) — done for grub (real `grub-install
-   --removable --no-nvram` + a minimal `blscfg` `grub.cfg`), no-op for the other 3.
-4. Plugin declares where its own pre-built loader binary lives in the source package tree
-   (`esp_loader_source`) — done, stays a separate passive query (only genesis can reach the
-   composefs tree to copy the bytes out, plugins can't do this step themselves).
+`KernelStage` (`lib/setup/src/stages/kernel.rs`) is still a no-op stub — needs to actually run
+mkinitcpio/dracut against a scratch directory and import the resulting kernel/initramfs into the
+prefix tree.
 
-**`write_boot_entry` must search only for the resource type the selected plugin needs, not
-autonomously scan everything and guess.** Right now (`lib/lib/src/boot/mod.rs`) it calls
-`get_boot_resources` unconditionally, takes whichever single boot resource exists in the tree
-(Type1/Type2/`UsrLibModulesVmLinuz`), and only errors if more than one is found total — completely
-independent of which plugin was actually selected. This is the case in all 6 call sites:
-`lib/lib/src/boot/mod.rs` itself, `mutated/{files,installer,uninstaller,update,rollback}/checkout.rs`,
-and `lib/setup/src/genesis/entry.rs`. Needs to take the (now always-explicit) plugin name and require
-specifically: `uki` → `Type2` only; `grub`/`systemd-boot`/`rEFInd` → `Type1`/`UsrLibModulesVmLinuz`
-only — hard error if that type isn't present, even if a different type is. This also means
-`resolve_boot_plugin` must run before `write_boot_entry` everywhere — today the 5 ordinary
-`checkout.rs` stages call it after (only genesis already has the order right).
+**Composefs initramfs hook does not exist anywhere in the project** — a dracut module or
+mkinitcpio hook that runs inside the generated initramfs on the target machine at boot: resolve
+`composefs.digest=` from the kernel cmdline, mount the erofs image with fs-verity, overlay
+`state/deploy/<digest>/etc/` on top. Without it, a genesis'd disk cannot boot into the installed
+system even once `KernelStage` above produces a real initramfs — confirmed via a live QEMU/VM boot
+test, not just reading the code (see `ROADMAP.md` §5). Tracked here as a new, unstarted,
+non-trivial subsystem.
