@@ -33,19 +33,18 @@ assembles `--source` has to place it under `system/` too, same assumption alread
 systemd-boot/rEFInd binaries. Confirmed `composefs-setup-root`'s own hardcoded expectations already
 match upac's on-disk layout exactly (repo at `composefs/`, per-deploy state at `state/deploy/<hex>/`,
 `composefs=<hex>` cmdline karg) — no restructuring was needed, only the unit + the `system/` plumbing.
-Still unresolved: whether upac ships/packages the `composefs-setup-root` binary itself or expects it
-to already exist on the source distro (same open question as the systemd-boot/rEFInd binaries).
+**Decided: upac packages/vendors `composefs-setup-root` itself** (same call for the systemd-boot/
+rEFInd binaries) rather than assuming the source distro already provides it — genesis-time import
+should also check whether one already exists under `system/` rather than blindly trusting our own
+copy is the only source. Not yet implemented.
 
 ## upac-setup
 
 `KernelStage` (`lib/setup/src/stages/kernel.rs`) is still a no-op stub — needs to actually run
 mkinitcpio/dracut against a scratch directory and import the resulting kernel/initramfs into the
-prefix tree.
-
-**Composefs initramfs hook does not exist anywhere in the project** — a dracut module or
-mkinitcpio hook that runs inside the generated initramfs on the target machine at boot: resolve
-`composefs.digest=` from the kernel cmdline, mount the erofs image with fs-verity, overlay
-`state/deploy/<digest>/etc/` on top. Without it, a genesis'd disk cannot boot into the installed
-system even once `KernelStage` above produces a real initramfs — confirmed via a live QEMU/VM boot
-test, not just reading the code (see `ROADMAP.md` §5). Tracked here as a new, unstarted,
-non-trivial subsystem.
+prefix tree. `composefs-setup-root` (see the `upac-lib` section above) is the actual initramfs-side
+mechanism that resolves `composefs.digest=`/mounts the erofs image/overlays `/etc` — it isn't a
+separate subsystem to author from scratch, but `KernelStage` still needs to confirm dracut/
+mkinitcpio actually pick the unit up into the generated initrd (not just leave it sitting in
+`/usr` unused) — confirmed via a live QEMU/VM boot test that a genesis'd disk doesn't yet boot into
+the installed system (see `ROADMAP.md` §5).
