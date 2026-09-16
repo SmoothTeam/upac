@@ -21,10 +21,6 @@ use upac_abi::FsKind;
 use super::error::SetupError;
 use super::layout::mkfs::{EXT4_BIN, WIPEFS_BIN, XFS_BIN};
 
-#[cfg(test)]
-#[path = "../tests/inline/format.rs"]
-mod tests;
-
 macro_rules! fat_label {
     ($label:expr) => {{
         let mut bytes = [b' '; 11];
@@ -35,6 +31,10 @@ macro_rules! fat_label {
         bytes
     }};
 }
+
+#[cfg(test)]
+#[path = "../tests/inline/format.rs"]
+mod tests;
 
 macro_rules! run_mkfs {
     ($binary:expr, $args:expr) => {{

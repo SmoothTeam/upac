@@ -14,7 +14,9 @@ use upac::orchestrator::error::OrchestratorError;
 use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 use upac::orchestrator::{Orchestrator, SequentialOrchestrator};
 use upac_abi::error::ErrorKind;
-use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::hook::CancelToken;
+
+use upac_types::hook::ProgressEventBuilder;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TestError {

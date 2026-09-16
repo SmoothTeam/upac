@@ -47,7 +47,6 @@ fn every_variant_maps_to_the_documented_error_kind() {
         ),
         (BootPluginError::UnknownName("uki".to_owned()), ErrorKind::NotFound),
         (BootPluginError::NoClaimant, ErrorKind::NotFound),
-        (BootPluginError::AmbiguousClaim, ErrorKind::InvalidEntry),
     ];
 
     for (error, expected) in cases {

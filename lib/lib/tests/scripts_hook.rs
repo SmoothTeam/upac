@@ -11,12 +11,12 @@ use upac::errors::CommonError;
 use upac::orchestrator::stage::{ConcurrentStage, StageResult};
 use upac::scripts::error::HookError;
 use upac::scripts::file::HookFile;
-use upac::scripts::load::load_hooks;
+use upac::scripts::load_hooks;
 use upac::scripts::pipeline::{Operation, PipelineTrigger, Timing};
 use upac::scripts::primitive::Step;
-use upac_abi::hook::ProgressEventBuilder;
 use upac_pki::generate::{Identity, SigningIdentity, generate_root, generate_signing_cert};
 use upac_pki::signature::HookSignature;
+use upac_types::hook::ProgressEventBuilder;
 
 fn scratch_dir(name: &str) -> TempDir {
     Builder::new().prefix(name).tempdir().unwrap()

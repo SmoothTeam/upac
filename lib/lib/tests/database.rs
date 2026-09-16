@@ -10,7 +10,9 @@ use upac::database::meta::{MetaStore, MetaStoreMut};
 use upac::database::triggers::{TriggerStore, TriggerStoreMut};
 use upac::database::{InMemory, MemoryDatabase};
 
-use upac_types::{DeclarativeTrigger, FileEntry, FileEntryScope, PackageMeta};
+use upac_types::decoder::DeclarativeTrigger;
+use upac_types::entry::{FileEntry, FileEntryScope};
+use upac_types::package::PackageMeta;
 
 fn sample_meta(name: &str) -> PackageMeta {
     PackageMeta {

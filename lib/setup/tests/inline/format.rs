@@ -8,7 +8,7 @@ use std::io::Read;
 
 use tempfile::TempDir;
 
-use super::{FormatTarget, fat_label};
+use super::FormatTarget;
 
 #[test]
 fn format_esp_writes_a_valid_fat32_boot_sector() {

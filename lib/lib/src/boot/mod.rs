@@ -23,6 +23,7 @@ use crate::layout::boot::UPAC_UKI_TO_SLOT;
 
 pub mod error;
 
+#[derive(Debug)]
 pub enum WrittenBootEntry {
     Bls(String),
     Uki(String),

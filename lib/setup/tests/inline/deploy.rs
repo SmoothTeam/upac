@@ -12,12 +12,13 @@ use upac::database::record::DeployRecord;
 use upac::orchestrator::context::Context;
 use upac::orchestrator::stage::{Stage, StageResult};
 
-use upac_abi::hook::{CancelToken, ProgressEventBuilder};
+use upac_abi::hook::CancelToken;
+
+use upac_types::hook::ProgressEventBuilder;
 
 use crate::target::TargetSysroot;
 
-use super::super::Pinned;
-use super::super::database::{ConfigDigest, PrefixDigest};
+use super::super::{DeployDigests, Pinned};
 use super::WriteDeployRecordStage;
 
 #[test]
@@ -28,8 +29,10 @@ fn run_writes_a_deploy_record_readable_back_from_disk() {
     let mut context = Context::new();
     context.put(target);
     context.put(Pinned(true));
-    context.put(PrefixDigest(ObjectID::EMPTY));
-    context.put(ConfigDigest(ObjectID::EMPTY));
+    context.put(DeployDigests {
+        prefix: ObjectID::EMPTY,
+        config: ObjectID::EMPTY,
+    });
 
     let cancel = CancelToken::new();
     let progress = ProgressEventBuilder::new(0);
@@ -54,8 +57,10 @@ fn run_writes_a_deploy_record_readable_back_from_disk() {
 fn run_fails_when_target_missing_from_context() {
     let mut context = Context::new();
     context.put(Pinned(false));
-    context.put(PrefixDigest(ObjectID::EMPTY));
-    context.put(ConfigDigest(ObjectID::EMPTY));
+    context.put(DeployDigests {
+        prefix: ObjectID::EMPTY,
+        config: ObjectID::EMPTY,
+    });
 
     let cancel = CancelToken::new();
     let progress = ProgressEventBuilder::new(0);
