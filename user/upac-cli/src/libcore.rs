@@ -48,7 +48,7 @@ use upac::export::unmutated::{
     search_meta::search_meta,
 };
 #[cfg(feature = "static-link")]
-use upac::export::{cancel, version_abi};
+use upac::export::{lib_abi_version, lib_cancel};
 
 #[cfg(feature = "static-link")]
 impl RoSymbols {
@@ -93,15 +93,15 @@ impl Lib {
         let lib = Self {
             ro: RoSymbols::from_static(),
             rw: RwSymbols::from_static(),
-            cancel,
-            version_abi,
+            cancel: lib_cancel,
+            version_abi: lib_abi_version,
         };
 
         let abi_version = unsafe { (lib.version_abi)() };
-        if abi_version != upac_abi::ABI_VERSION {
+        if abi_version != LIB_ABI_VERSION {
             let err = AbiMismatch {
                 got: abi_version,
-                expected: upac_abi::ABI_VERSION,
+                expected: LIB_ABI_VERSION,
             };
 
             return Err(err.into());
@@ -162,8 +162,8 @@ impl Lib {
             ro: RoSymbols::load(&loaded_library)?,
             rw: RwSymbols::load(&loaded_library)?,
 
-            cancel: unsafe { Lib::load_symbol(&loaded_library, "cancel")? },
-            version_abi: unsafe { Lib::load_symbol(&loaded_library, "version_abi")? },
+            cancel: unsafe { Lib::load_symbol(&loaded_library, "lib_cancel")? },
+            version_abi: unsafe { Lib::load_symbol(&loaded_library, "lib_abi_version")? },
 
             _lib: loaded_library,
         };
