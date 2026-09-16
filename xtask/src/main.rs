@@ -5,30 +5,30 @@
 
 use std::process::ExitCode;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
-use upac_xtask::error::XtaskError;
-use upac_xtask::{gen_tree, lint_style};
+use crate::error::XtaskError;
+
+mod error;
+mod hook;
+mod lint;
+mod tree;
 
 #[derive(Parser)]
-#[command(name = "xtask")]
-struct Cli {
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
+#[command(author, version, about)]
 enum Command {
     /// Regenerate the ASCII directory tree embedded in docs
-    GenTree(gen_tree::Args),
+    Tree(tree::Args),
     /// Check mechanical style-rule violations across the repo
-    LintStyle,
+    Lint,
+    /// Build composefs-setup-root (crates.io, no [lib] target) into target/
+    Hook,
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let command = Command::parse();
 
-    match dispatch(cli.command) {
+    match dispatch(command) {
         Ok(code) => code,
         Err(error) => {
             eprintln!("{error}");
@@ -39,7 +39,8 @@ fn main() -> ExitCode {
 
 fn dispatch(command: Command) -> Result<ExitCode, XtaskError> {
     match command {
-        Command::GenTree(args) => gen_tree::run(args),
-        Command::LintStyle => lint_style::run(),
+        Command::Tree(args) => tree::run(args),
+        Command::Lint => lint::run(),
+        Command::Hook => hook::run(),
     }
 }

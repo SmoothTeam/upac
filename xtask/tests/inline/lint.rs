@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use upac_xtask::lint_style::{
+use super::{
     cargo_toml_dependency_order, cargo_toml_package_order, extern_fn_position, macro_visibility_adjacency,
     no_pub_use_reexport, toml_config_field_order,
 };
@@ -124,8 +124,7 @@ mod cargo_toml_dependency_order_rule {
 
     #[test]
     fn flags_ascending_key_count_among_bracketed_dependencies() {
-        let contents =
-            "[dependencies]\nbar = { version = \"1\" }\nbaz = { version = \"1\", features = [\"x\"] }\n";
+        let contents = "[dependencies]\nbar = { version = \"1\" }\nbaz = { version = \"1\", features = [\"x\"] }\n";
 
         let violations = cargo_toml_dependency_order::check(Path::new("Cargo.toml"), contents);
 
@@ -153,7 +152,11 @@ mod cargo_toml_package_order_rule {
 
         let violations = cargo_toml_package_order::check(Path::new("Cargo.toml"), contents);
 
-        assert!(violations.iter().any(|violation| violation.message.contains("must be the first field")));
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.message.contains("must be the first field"))
+        );
     }
 
     #[test]
@@ -162,7 +165,11 @@ mod cargo_toml_package_order_rule {
 
         let violations = cargo_toml_package_order::check(Path::new("Cargo.toml"), contents);
 
-        assert!(violations.iter().any(|violation| violation.message.contains("workspace fields go first")));
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.message.contains("workspace fields go first"))
+        );
     }
 }
 

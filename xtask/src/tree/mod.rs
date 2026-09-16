@@ -9,13 +9,13 @@ use std::process::ExitCode;
 
 use clap::Args as ClapArgs;
 
+use self::render::TreeRenderer;
 use self::splice::{find_marked_files, splice};
-use self::tree::TreeRenderer;
 
 use crate::error::XtaskError;
 
+mod render;
 pub(crate) mod splice;
-mod tree;
 mod walk;
 
 #[derive(ClapArgs)]

@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use crate::lint_style::violation::Violation;
+use super::violation::Violation;
 
 const RULE: &str = "extern-fn-position";
 

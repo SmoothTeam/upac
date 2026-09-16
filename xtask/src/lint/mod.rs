@@ -22,7 +22,12 @@ pub mod macro_visibility_adjacency;
 pub mod no_pub_use_reexport;
 pub mod toml_config_field_order;
 pub mod violation;
+
 mod walk;
+
+#[cfg(test)]
+#[path = "../../tests/inline/lint.rs"]
+mod tests;
 
 pub fn run() -> Result<ExitCode, XtaskError> {
     let repo_root = repo_root()?;
@@ -63,5 +68,8 @@ pub fn run() -> Result<ExitCode, XtaskError> {
 fn repo_root() -> Result<PathBuf, XtaskError> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    manifest_dir.parent().map(Path::to_path_buf).ok_or(XtaskError::RepoRootNotFound)
+    manifest_dir
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or(XtaskError::RepoRootNotFound)
 }

@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::lint_style::violation::Violation;
+use super::violation::Violation;
 
 const RULE: &str = "no-pub-use-reexport";
 

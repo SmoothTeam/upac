@@ -8,7 +8,7 @@ use std::fmt::{Display, Formatter};
 use std::io::Error as IoError;
 use std::path::PathBuf;
 
-use crate::gen_tree::splice::{MARKER_END, MARKER_START};
+use crate::tree::splice::{MARKER_END, MARKER_START};
 
 #[derive(Debug)]
 pub enum XtaskError {

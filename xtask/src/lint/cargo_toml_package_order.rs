@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use crate::lint_style::violation::Violation;
+use super::violation::Violation;
 
 const RULE: &str = "cargo-toml-package-order";
 
@@ -25,7 +25,11 @@ pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     if let Some(first) = fields.first()
         && first.name != "name"
     {
-        violations.push(violation(path, first.line, "`name` must be the first field in [package]"));
+        violations.push(violation(
+            path,
+            first.line,
+            "`name` must be the first field in [package]",
+        ));
     }
 
     if let Some(description) = fields.iter().find(|field| field.name == "description")
@@ -39,7 +43,10 @@ pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     }
 
     let mut seen_non_workspace = false;
-    for field in fields.iter().filter(|field| field.name != "name" && field.name != "description") {
+    for field in fields
+        .iter()
+        .filter(|field| field.name != "name" && field.name != "description")
+    {
         if field.is_workspace {
             if seen_non_workspace {
                 violations.push(violation(
@@ -85,7 +92,11 @@ fn package_fields(contents: &str) -> Option<Vec<Field>> {
             None => (key.to_owned(), false),
         };
 
-        fields.push(Field { line: start + offset, name, is_workspace });
+        fields.push(Field {
+            line: start + offset,
+            name,
+            is_workspace,
+        });
     }
 
     Some(fields)

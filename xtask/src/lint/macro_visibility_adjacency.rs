@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use crate::lint_style::violation::Violation;
+use super::violation::Violation;
 
 const RULE: &str = "macro-visibility-adjacency";
 
@@ -74,7 +74,8 @@ fn brace_delta(line: &str) -> i32 {
 fn macro_name(line: &str) -> Option<&str> {
     let rest = line.trim_start().strip_prefix("macro_rules! ")?;
 
-    rest.split(|character: char| character == '{' || character.is_whitespace()).next()
+    rest.split(|character: char| character == '{' || character.is_whitespace())
+        .next()
 }
 
 fn visibility_use_name(line: &str) -> Option<&str> {

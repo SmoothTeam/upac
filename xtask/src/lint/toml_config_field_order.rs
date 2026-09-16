@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use crate::lint_style::violation::Violation;
+use super::violation::Violation;
 
 const RULE: &str = "toml-config-field-order";
 
@@ -58,7 +58,11 @@ fn check_block(path: &Path, block: &[&str], block_start: usize) -> Vec<Violation
                 path: path.to_owned(),
                 line: block_start + offset + 1,
                 rule: RULE,
-                message: format!("`{key}` ({}) appears after a {} field — order is bool, string, number", kind_name(kind), kind_name(highest_kind)),
+                message: format!(
+                    "`{key}` ({}) appears after a {} field — order is bool, string, number",
+                    kind_name(kind),
+                    kind_name(highest_kind)
+                ),
             });
         } else {
             highest_kind = kind;

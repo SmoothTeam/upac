@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use crate::lint_style::violation::Violation;
+use super::violation::Violation;
 
 const RULE: &str = "cargo-toml-dependency-order";
 
@@ -33,11 +33,17 @@ pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
 
     for entry in &entries {
         if entry.tier < highest_tier {
-            violations.push(violation(path, entry.line, &format!("`{}` is out of its expected group", entry.name)));
+            violations.push(violation(
+                path,
+                entry.line,
+                &format!("`{}` is out of its expected group", entry.name),
+            ));
             continue;
         }
 
-        if entry.tier == Tier::Bracketed && highest_tier == Tier::Bracketed && entry.key_count > last_bracketed_key_count
+        if entry.tier == Tier::Bracketed
+            && highest_tier == Tier::Bracketed
+            && entry.key_count > last_bracketed_key_count
         {
             violations.push(violation(
                 path,
@@ -61,7 +67,11 @@ pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
 
 fn dependency_entries(contents: &str) -> Vec<Entry> {
     let lines: Vec<&str> = contents.lines().collect();
-    let Some(start) = lines.iter().position(|line| line.trim() == "[dependencies]").map(|index| index + 1) else {
+    let Some(start) = lines
+        .iter()
+        .position(|line| line.trim() == "[dependencies]")
+        .map(|index| index + 1)
+    else {
         return Vec::new();
     };
 
@@ -100,7 +110,12 @@ fn dependency_entries(contents: &str) -> Vec<Entry> {
             0
         };
 
-        entries.push(Entry { line: start + offset, name, tier, key_count });
+        entries.push(Entry {
+            line: start + offset,
+            name,
+            tier,
+            key_count,
+        });
     }
 
     entries
