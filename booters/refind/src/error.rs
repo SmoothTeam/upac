@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::any::Any;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use efivar::Error as EfivarError;
 
@@ -14,6 +15,7 @@ use upac_abi::error::ErrorKind;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RefindError {
     EfiUnavailable,
+    ToolNotFound,
     PermissionDenied,
     InvalidRequest,
     Unexpected,
@@ -23,6 +25,16 @@ impl From<EfivarError> for RefindError {
     fn from(error: EfivarError) -> Self {
         match error {
             EfivarError::PermissionDenied { .. } => RefindError::PermissionDenied,
+            _ => RefindError::Unexpected,
+        }
+    }
+}
+
+impl From<IoError> for RefindError {
+    fn from(error: IoError) -> Self {
+        match error.kind() {
+            IoErrorKind::NotFound => RefindError::ToolNotFound,
+            IoErrorKind::PermissionDenied => RefindError::PermissionDenied,
             _ => RefindError::Unexpected,
         }
     }
@@ -40,10 +52,20 @@ impl From<Box<dyn Any + Send + 'static>> for RefindError {
     }
 }
 
+impl From<ErrorKind> for RefindError {
+    fn from(error: ErrorKind) -> Self {
+        match error {
+            ErrorKind::PermissionDenied => RefindError::PermissionDenied,
+            _ => RefindError::InvalidRequest,
+        }
+    }
+}
+
 impl From<RefindError> for ErrorKind {
     fn from(error: RefindError) -> Self {
         match error {
             RefindError::EfiUnavailable => ErrorKind::NotInitialized,
+            RefindError::ToolNotFound => ErrorKind::NotFound,
             RefindError::PermissionDenied => ErrorKind::PermissionDenied,
             RefindError::InvalidRequest => ErrorKind::InvalidEntry,
             RefindError::Unexpected => ErrorKind::Unexpected,

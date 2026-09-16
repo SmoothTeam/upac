@@ -5,14 +5,16 @@
 
 use std::io::Cursor;
 
-use upac_abi::decoder::DecodeError;
-use upac_abi::decoder::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-use upac_decoder_rpm::header::{self, Header};
+use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
+
+use upac_decoder_rpm::header::Header;
 use upac_decoder_rpm::rpm::{
     ARCH_TAG, LICENSE_TAG, NAME_TAG, PACKAGER_TAG, RELEASE_TAG, REQUIRE_FLAGS_TAG, REQUIRE_NAME_TAG,
     REQUIRE_VERSION_TAG, SIZE_TAG, SUMMARY_TAG, URL_TAG, VERSION_TAG,
 };
-use upac_types::decoder::DecodeMeta;
+
+use upac_types::error::DecodeError;
+use upac_types::traits::DecodeMeta;
 
 const CHECKSUM: [u8; 32] = [7; 32];
 
@@ -70,7 +72,7 @@ fn build_header(entries: &[(u32, RawValue)]) -> Header {
     bytes.extend_from_slice(&data_block);
 
     let mut cursor = Cursor::new(bytes);
-    header::read(&mut cursor).unwrap()
+    Header::read(&mut cursor).unwrap()
 }
 
 fn section_header(tag_count: u32, data_size: u32) -> [u8; 16] {

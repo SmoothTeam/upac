@@ -1,34 +1,34 @@
 error = Ошибка
 
-err-common = Сбой общей подсистемы
-err-mount = Ошибка монтирования
-err-repo = Ошибка операции с репозиторием
-err-database = Ошибка операции с базой данных
-err-deploy-record = Ошибка операции с записью деплоя
-err-boot = Ошибка подготовки загрузочной записи
-err-boot-plugin = Ошибка загрузочного плагина
-err-io = Ошибка ввода-вывода
-err-meta-malformed = Повреждённые метаданные пакета
-err-no-space-left = Не осталось места на устройстве
-err-not-block-device = Не является блочным устройством
-err-mkfs-failed = Ошибка создания файловой системы
-err-wipe-failed = Не удалось стереть существующую сигнатуру файловой системы на разделе
-err-partition-not-ready = Устройство раздела не появилось за отведённое время после разметки
+abi-version-mismatch = Несовпадение версии ABI
+
 err-unexpected = Непредвиденная ошибка
+err-oom = Недостаточно памяти
+err-not-found = Файл не найден
+err-already-exists = Уже существует
+err-permission-denied = Доступ запрещён
+err-requires-root = Для этой команды нужны права root
+err-invalid-path = Неверный путь
+err-no-space = Нет свободного места
+err-cancelled = Отменено
+err-read = Ошибка чтения
+err-write = Ошибка записи
+err-not-initialized = Не инициализировано
+err-abi-mismatch = Несовпадение ABI
+err-invalid-entry = Некорректная запись
 
 err-missing-device = Отсутствует обязательный аргумент: --device
 err-missing-deploy-size = Отсутствует обязательный аргумент: --deploy-size
 err-missing-source = Отсутствует обязательный аргумент: --source
-err-invalid-partition-layout = Запрошенные размеры разделов не помещаются на диск
-err-invalid-format-params = Некорректные параметры форматирования файловой системы
-err-reread-failed = Не удалось перечитать таблицу разделов (устройство занято?)
+err-missing-boot-plugin = Отсутствует обязательный аргумент: --boot-plugin
 
 stage-prepare-source = Подготовка источника
-stage-read-meta = Чтение метаданных пакета
-stage-import-trees = Импорт дерева пакета
-stage-create-database = Создание базы данных пакета
-stage-insert-file-entry = Запись файловых записей
+stage-enumerate-packages = Перечисление пакетов
+stage-unpack-package = Распаковка пакета
+stage-import-package = Импорт пакета
+stage-import-system = Импорт системных файлов
 stage-embed-database = Встраивание базы данных пакета
 stage-write-deploy-record = Запись записи деплоя
+stage-kernel = Генерация ядра
 stage-stage-boot = Подготовка загрузочной записи
 stage-setup = Настройка

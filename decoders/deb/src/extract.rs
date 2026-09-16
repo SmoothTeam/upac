@@ -13,11 +13,12 @@ use tar::Archive as TarArchive;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_abi::decoder::DecodeError;
 use upac_abi::hook::CancelToken;
-use upac_types::decoder::read_to_string;
 
-use crate::deb::{
+use upac_types::decoder::read_to_string;
+use upac_types::error::DecodeError;
+
+use super::deb::{
     CONTROL_ENTRY, CONTROL_TAR_PREFIX, COPYRIGHT_DIR_PREFIX, COPYRIGHT_ENTRY_SUFFIX, DATA_TAR_PREFIX, POSTINST_FILE,
     POSTRM_FILE, PREINST_FILE, PRERM_FILE,
 };

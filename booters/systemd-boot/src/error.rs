@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::any::Any;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use efivar::Error as EfivarError;
 
@@ -12,41 +13,62 @@ use uuid::Error as UuidError;
 use upac_abi::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlsError {
+pub enum SystemdBootError {
     EfiUnavailable,
+    ToolNotFound,
     PermissionDenied,
     InvalidRequest,
     Unexpected,
 }
 
-impl From<EfivarError> for BlsError {
+impl From<EfivarError> for SystemdBootError {
     fn from(error: EfivarError) -> Self {
         match error {
-            EfivarError::PermissionDenied { .. } => BlsError::PermissionDenied,
-            _ => BlsError::Unexpected,
+            EfivarError::PermissionDenied { .. } => SystemdBootError::PermissionDenied,
+            _ => SystemdBootError::Unexpected,
         }
     }
 }
 
-impl From<UuidError> for BlsError {
+impl From<IoError> for SystemdBootError {
+    fn from(error: IoError) -> Self {
+        match error.kind() {
+            IoErrorKind::NotFound => SystemdBootError::ToolNotFound,
+            IoErrorKind::PermissionDenied => SystemdBootError::PermissionDenied,
+            _ => SystemdBootError::Unexpected,
+        }
+    }
+}
+
+impl From<UuidError> for SystemdBootError {
     fn from(_: UuidError) -> Self {
-        BlsError::Unexpected
+        SystemdBootError::Unexpected
     }
 }
 
-impl From<Box<dyn Any + Send + 'static>> for BlsError {
+impl From<Box<dyn Any + Send + 'static>> for SystemdBootError {
     fn from(_: Box<dyn Any + Send + 'static>) -> Self {
-        BlsError::EfiUnavailable
+        SystemdBootError::EfiUnavailable
     }
 }
 
-impl From<BlsError> for ErrorKind {
-    fn from(error: BlsError) -> Self {
+impl From<ErrorKind> for SystemdBootError {
+    fn from(error: ErrorKind) -> Self {
         match error {
-            BlsError::EfiUnavailable => ErrorKind::NotInitialized,
-            BlsError::PermissionDenied => ErrorKind::PermissionDenied,
-            BlsError::InvalidRequest => ErrorKind::InvalidEntry,
-            BlsError::Unexpected => ErrorKind::Unexpected,
+            ErrorKind::PermissionDenied => SystemdBootError::PermissionDenied,
+            _ => SystemdBootError::InvalidRequest,
+        }
+    }
+}
+
+impl From<SystemdBootError> for ErrorKind {
+    fn from(error: SystemdBootError) -> Self {
+        match error {
+            SystemdBootError::EfiUnavailable => ErrorKind::NotInitialized,
+            SystemdBootError::ToolNotFound => ErrorKind::NotFound,
+            SystemdBootError::PermissionDenied => ErrorKind::PermissionDenied,
+            SystemdBootError::InvalidRequest => ErrorKind::InvalidEntry,
+            SystemdBootError::Unexpected => ErrorKind::Unexpected,
         }
     }
 }

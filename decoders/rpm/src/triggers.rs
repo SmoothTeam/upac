@@ -3,10 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::DecoderTrigger;
+use upac_types::decoder::DecoderTrigger;
 
-use crate::header::Header;
-use crate::rpm::{POSTIN_NAME, POSTIN_TAG, POSTUN_NAME, POSTUN_TAG, PREIN_NAME, PREIN_TAG, PREUN_NAME, PREUN_TAG};
+use super::header::Header;
+use super::rpm::{POSTIN_NAME, POSTIN_TAG, POSTUN_NAME, POSTUN_TAG, PREIN_NAME, PREIN_TAG, PREUN_NAME, PREUN_TAG};
 
 pub fn scan(header: &Header) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();

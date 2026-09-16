@@ -18,12 +18,35 @@ use uuid::Uuid;
 
 use upac_abi::FsKind;
 
-use crate::error::SetupError;
-use crate::layout::mkfs::{EXT4_BIN, WIPEFS_BIN, XFS_BIN};
+use super::error::SetupError;
+use super::layout::mkfs::{EXT4_BIN, WIPEFS_BIN, XFS_BIN};
+
+macro_rules! fat_label {
+    ($label:expr) => {{
+        let mut bytes = [b' '; 11];
+        for (slot, byte) in bytes.iter_mut().zip($label.as_bytes()) {
+            *slot = byte.to_ascii_uppercase();
+        }
+
+        bytes
+    }};
+}
 
 #[cfg(test)]
 #[path = "../tests/inline/format.rs"]
 mod tests;
+
+macro_rules! run_mkfs {
+    ($binary:expr, $args:expr) => {{
+        let status = Command::new($binary).args($args).status()?;
+
+        if !status.success() {
+            return Err(SetupError::MkfsFailed);
+        }
+
+        Ok(())
+    }};
+}
 
 pub struct FormatTarget<'target> {
     pub device_path: &'target Path,
@@ -62,7 +85,7 @@ impl FormatTarget<'_> {
 
         let mut options = FormatVolumeOptions::new().fat_type(FatType::Fat32);
         if let Some(label) = self.label {
-            options = options.volume_label(fat_label(label));
+            options = options.volume_label(fat_label!(label));
         }
 
         format_volume(file, options)?;
@@ -114,7 +137,7 @@ impl FormatTarget<'_> {
         }
         args.push(self.device_path.as_os_str());
 
-        run_mkfs(EXT4_BIN, &args)
+        run_mkfs!(EXT4_BIN, &args)
     }
 
     pub fn format_xfs(&self) -> Result<(), SetupError> {
@@ -125,25 +148,6 @@ impl FormatTarget<'_> {
         }
         args.push(self.device_path.as_os_str());
 
-        run_mkfs(XFS_BIN, &args)
+        run_mkfs!(XFS_BIN, &args)
     }
-}
-
-fn fat_label(label: &str) -> [u8; 11] {
-    let mut bytes = [b' '; 11];
-    for (slot, byte) in bytes.iter_mut().zip(label.as_bytes()) {
-        *slot = byte.to_ascii_uppercase();
-    }
-
-    bytes
-}
-
-fn run_mkfs(binary: &str, args: &[&OsStr]) -> Result<(), SetupError> {
-    let status = Command::new(binary).args(args).status()?;
-
-    if !status.success() {
-        return Err(SetupError::MkfsFailed);
-    }
-
-    Ok(())
 }

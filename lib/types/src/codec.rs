@@ -135,7 +135,7 @@ pub(crate) fn read_u64(data: &[u8], offset: &mut usize) -> u64 {
     value
 }
 
-pub(crate) fn read_len_prefixed<'a>(data: &'a [u8], offset: &mut usize) -> &'a [u8] {
+pub(crate) fn read_len_prefixed<'bytes>(data: &'bytes [u8], offset: &mut usize) -> &'bytes [u8] {
     let len = read_u32(data, offset) as usize;
 
     let bytes = &data[*offset..*offset + len];

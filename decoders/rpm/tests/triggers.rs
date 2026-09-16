@@ -5,7 +5,7 @@
 
 use std::io::Cursor;
 
-use upac_decoder_rpm::header::{self, Header};
+use upac_decoder_rpm::header::Header;
 use upac_decoder_rpm::rpm::{NAME_TAG, POSTIN_TAG, POSTUN_TAG, PREIN_TAG, PREUN_TAG};
 use upac_decoder_rpm::triggers;
 
@@ -43,7 +43,7 @@ fn build_header(entries: &[(u32, RawValue)]) -> Header {
     bytes.extend_from_slice(&data_block);
 
     let mut cursor = Cursor::new(bytes);
-    header::read(&mut cursor).unwrap()
+    Header::read(&mut cursor).unwrap()
 }
 
 fn section_header(tag_count: u32, data_size: u32) -> [u8; 16] {

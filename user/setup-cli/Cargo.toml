@@ -40,11 +40,9 @@ indicatif     = { workspace = true }
 i18n-embed    = { workspace = true }
 i18n-embed-fl = { workspace = true }
 
+nix = { version = "0.31.3", features = ["user"] }
+
 rust-embed = "8.12.0"
 
 [build-dependencies]
 toml = { workspace = true }
-
-[dev-dependencies]
-upac-lib = { workspace = true }
-nix      = { workspace = true }

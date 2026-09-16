@@ -3,153 +3,63 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::io::ErrorKind as IoErrorKind;
+use upac_abi::error::{CError, ErrorDomain, ErrorKind};
 
-use nix::errno::Errno;
-
-use upac::boot::error::BootError;
-use upac::composefs::error::RepoError;
-use upac::database::error::{DatabaseError, DeployRecordError};
-use upac::errors::CommonError;
-use upac::plugin::boot::error::BootPluginError;
-
-use upac_setup::error::SetupError;
-use upac_setup::genesis::GenesisStage;
+use upac_types::states::SetupStateId;
 
 use crate::locale;
 
-use super::LocalizedSetupError;
+use super::{AbiMismatch, LibError};
 
-fn localized(stage: GenesisStage, error: SetupError) -> String {
+fn localized(state: SetupStateId, error: ErrorKind) -> String {
     locale::init_for_test();
-    LocalizedSetupError((stage, error)).to_string()
+
+    let error = CError {
+        domain: ErrorDomain::Setup,
+        state: state as u32,
+        error,
+    };
+
+    LibError { error }.to_string()
 }
 
 #[test]
 fn prefixes_the_message_with_the_localized_failing_stage_name() {
-    let message = localized(GenesisStage::ImportTrees, SetupError::Unexpected);
+    let message = localized(SetupStateId::ImportPackage, ErrorKind::Unexpected);
 
-    assert_eq!(message, "Importing package tree: Unexpected error");
+    assert_eq!(message, "Importing package: Unexpected error");
 }
 
 #[test]
-fn common_variant_embeds_debug_detail() {
-    let message = localized(GenesisStage::Setup, SetupError::Common(CommonError::PipelineInvalid));
-
-    assert_eq!(message, "Setup: Common subsystem failure (PipelineInvalid)");
-}
-
-#[test]
-fn mount_variant_embeds_the_errno() {
-    let errno = Errno::EIO;
-    let message = localized(GenesisStage::Setup, SetupError::Mount(errno));
-
-    assert_eq!(message, format!("Setup: Mount failed ({errno})"));
-}
-
-#[test]
-fn repo_variant_embeds_debug_detail() {
-    let message = localized(GenesisStage::ImportTrees, SetupError::Repo(RepoError::NotFound));
-
-    assert_eq!(
-        message,
-        "Importing package tree: Repository operation failed (NotFound)"
-    );
-}
-
-#[test]
-fn database_variant_embeds_debug_detail() {
-    let message = localized(
-        GenesisStage::EmbedDatabase,
-        SetupError::Database(DatabaseError::WriteError),
-    );
-
-    assert_eq!(
-        message,
-        "Embedding package database: Database operation failed (WriteError)"
-    );
-}
-
-#[test]
-fn deploy_record_variant_embeds_debug_detail() {
-    let message = localized(
-        GenesisStage::WriteDeployRecord,
-        SetupError::DeployRecord(DeployRecordError::WriteFailed),
-    );
-
-    assert_eq!(
-        message,
-        "Writing deploy record: Deploy record operation failed (WriteFailed)"
-    );
-}
-
-#[test]
-fn boot_variant_embeds_debug_detail() {
-    let message = localized(GenesisStage::StageBoot, SetupError::Boot(BootError::NoBootResource));
-
-    assert_eq!(
-        message,
-        "Staging boot entry: Boot entry staging failed (NoBootResource)"
-    );
-}
-
-#[test]
-fn boot_plugin_variant_embeds_debug_detail() {
-    let message = localized(
-        GenesisStage::StageBoot,
-        SetupError::BootPlugin(BootPluginError::NoClaimant),
-    );
-
-    assert_eq!(message, "Staging boot entry: Boot plugin operation failed (NoClaimant)");
-}
-
-#[test]
-fn io_variant_embeds_the_error_kind() {
-    let message = localized(GenesisStage::ReadMeta, SetupError::Io(IoErrorKind::NotFound));
-
-    assert_eq!(message, "Reading package metadata: I/O error (NotFound)");
-}
-
-#[test]
-fn reread_failed_variant_embeds_the_errno() {
-    let errno = Errno::ENOSPC;
-    let message = localized(GenesisStage::Setup, SetupError::RereadFailed(errno));
-
-    assert_eq!(
-        message,
-        format!("Setup: Failed to reread the partition table (device busy?) ({errno})")
-    );
-}
-
-#[test]
-fn no_payload_variants_use_their_fixed_localized_message() {
+fn every_error_kind_has_its_own_localized_message() {
     let cases = [
-        (SetupError::MetaMalformed, "Malformed package metadata"),
-        (SetupError::NoSpaceLeft, "No space left on device"),
-        (SetupError::NotBlockDevice, "Not a block device"),
-        (SetupError::MkfsFailed, "Filesystem creation failed"),
-        (
-            SetupError::WipeFailed,
-            "Failed to wipe the target partition's existing filesystem signature",
-        ),
-        (
-            SetupError::PartitionNotReady,
-            "Partition device did not appear in time after partitioning",
-        ),
-        (
-            SetupError::InvalidPartitionLayout,
-            "Requested partition sizes don't fit on the disk",
-        ),
-        (
-            SetupError::InvalidFormatParams,
-            "Invalid filesystem formatting parameters",
-        ),
-        (SetupError::Unexpected, "Unexpected error"),
+        (ErrorKind::Unexpected, "Unexpected error"),
+        (ErrorKind::OutOfMemory, "Out of memory"),
+        (ErrorKind::NotFound, "File not found"),
+        (ErrorKind::AlreadyExists, "Already exists"),
+        (ErrorKind::PermissionDenied, "Permission denied"),
+        (ErrorKind::InvalidPath, "Invalid path"),
+        (ErrorKind::NoSpaceLeft, "No space left"),
+        (ErrorKind::Cancelled, "Cancelled"),
+        (ErrorKind::ReadFailed, "Read failed"),
+        (ErrorKind::WriteFailed, "Write failed"),
+        (ErrorKind::NotInitialized, "Not initialized"),
+        (ErrorKind::AbiMismatch, "ABI mismatch"),
+        (ErrorKind::InvalidEntry, "Invalid entry"),
     ];
 
-    for (error, expected) in cases {
-        let message = localized(GenesisStage::Setup, error);
+    for (kind, expected) in cases {
+        let message = localized(SetupStateId::Setup, kind);
 
         assert_eq!(message, format!("Setup: {expected}"));
     }
+}
+
+#[test]
+fn abi_mismatch_embeds_both_versions() {
+    locale::init_for_test();
+
+    let message = AbiMismatch { got: 1, expected: 2 }.to_string();
+
+    assert_eq!(message, "ABI version mismatch (1 → 2)");
 }

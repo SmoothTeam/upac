@@ -1,0 +1,38 @@
+name: Rust CI tests
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "doc/**", "LICENSES/**", "REUSE.toml"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**.md", "doc/**", "LICENSES/**", "REUSE.toml"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Build, Test, and Lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libblkid-dev libmount-dev clang mold gettext
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Test
+        run: |
+          cargo test --workspace --tests
+          cargo test -p upac-setup -p upac-setup-cli --tests

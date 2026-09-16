@@ -25,6 +25,15 @@ impl From<IoError> for GrubError {
     }
 }
 
+impl From<ErrorKind> for GrubError {
+    fn from(error: ErrorKind) -> Self {
+        match error {
+            ErrorKind::PermissionDenied => GrubError::PermissionDenied,
+            _ => GrubError::InvalidRequest,
+        }
+    }
+}
+
 impl From<GrubError> for ErrorKind {
     fn from(error: GrubError) -> Self {
         match error {

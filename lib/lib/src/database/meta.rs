@@ -9,11 +9,11 @@ use twox_hash::xxhash3_64::Hasher as XxHasher;
 
 use uuid::Uuid;
 
-use upac_types::PackageMeta;
 use upac_types::codec::{RedbCodable, write_len_prefixed, write_opt_str};
+use upac_types::package::PackageMeta;
 
 use super::error::DatabaseError;
-use super::{MemoryDatabase, PACKAGES_HASH_TABLE, PACKAGES_UUID_TABLE, ReadableSource};
+use super::{MemoryDatabase, PACKAGES_HASH_TABLE, PACKAGES_UUID_TABLE, ReadTransactionExt, ReadableSource};
 
 use crate::layout::database::PACKAGES_META_TYPE_NAME;
 
@@ -52,21 +52,27 @@ pub trait MetaStoreMut: MetaStore {
 impl<T: ReadableSource> MetaStore for T {
     fn find_package_uuid(&self, name: &str, arch: &str, arch_sub: Option<&str>) -> Result<Option<Uuid>, DatabaseError> {
         let transaction = self.source().begin_read()?;
-        let by_name = transaction.open_table(PACKAGES_HASH_TABLE)?;
+        let Some(by_name) = transaction.open_table_or_none(PACKAGES_HASH_TABLE)? else {
+            return Ok(None);
+        };
 
         Self::lookup_uuid(&by_name, name, arch, arch_sub)
     }
 
     fn get_package_meta(&self, uuid: Uuid) -> Result<Option<PackageMeta>, DatabaseError> {
         let transaction = self.source().begin_read()?;
-        let packages = transaction.open_table(PACKAGES_UUID_TABLE)?;
+        let Some(packages) = transaction.open_table_or_none(PACKAGES_UUID_TABLE)? else {
+            return Ok(None);
+        };
 
         Ok(packages.get(uuid)?.map(|guard| guard.value().0))
     }
 
     fn list_packages_metas(&self) -> Result<Vec<PackageMeta>, DatabaseError> {
         let transaction = self.source().begin_read()?;
-        let packages = transaction.open_table(PACKAGES_UUID_TABLE)?;
+        let Some(packages) = transaction.open_table_or_none(PACKAGES_UUID_TABLE)? else {
+            return Ok(Vec::new());
+        };
         let mut out = Vec::new();
 
         for entry in packages.iter()? {
@@ -131,8 +137,6 @@ impl MetaStoreMut for MemoryDatabase {
     }
 }
 
-// Wraps `PackageMeta` (defined in the external `upac-types` crate) so `redb::Value` can be
-// implemented for it here without violating the orphan rule.
 #[derive(Debug)]
 #[repr(transparent)]
 pub(crate) struct StoredPackageMeta(pub(crate) PackageMeta);
@@ -146,25 +150,25 @@ impl StoredPackageMeta {
 }
 
 impl RedbValue for StoredPackageMeta {
-    type AsBytes<'a> = Vec<u8>;
-    type SelfType<'a> = StoredPackageMeta;
+    type AsBytes<'bytes> = Vec<u8>;
+    type SelfType<'bytes> = StoredPackageMeta;
 
     fn fixed_width() -> Option<usize> {
         None
     }
 
-    fn from_bytes<'a>(data: &'a [u8]) -> StoredPackageMeta
+    fn from_bytes<'bytes>(data: &'bytes [u8]) -> StoredPackageMeta
     where
-        Self: 'a,
+        Self: 'bytes,
     {
         let mut offset = 0;
 
         StoredPackageMeta(PackageMeta::redb_decode(data, &mut offset))
     }
 
-    fn as_bytes<'a, 'b: 'a>(value: &'a StoredPackageMeta) -> Vec<u8>
+    fn as_bytes<'bytes, 'value: 'bytes>(value: &'bytes StoredPackageMeta) -> Vec<u8>
     where
-        Self: 'b,
+        Self: 'value,
     {
         let mut buf = Vec::new();
 

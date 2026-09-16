@@ -7,14 +7,11 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::hook::CancelToken;
+use upac_types::request::{PartitionMount, RequestBase, SetupExistingRequest};
 
-use upac_setup::data::SetupExistingData;
-
-use upac_types::PartitionMount;
-
-use crate::errors::LocalizedSetupError;
-use crate::progress::{ProgressState, on_progress};
+use crate::cancel_token_ptr;
+use crate::libcore::{Lib, invoke};
+use crate::types::progress::{ProgressState, on_progress};
 use crate::types::{FsKind, parse_extra_mount};
 
 #[derive(ClapArgs)]
@@ -33,41 +30,40 @@ pub struct Args {
     #[arg(long)]
     pub source: String,
     #[arg(long)]
-    pub meta_filename: Option<String>,
-    #[arg(long)]
     pub empty_config: bool,
     #[arg(long)]
     pub pinned: bool,
     #[arg(long)]
-    pub boot_plugin: Option<String>,
+    pub boot_plugin: String,
 }
 
-pub fn run(args: Args, cancel_token: &CancelToken) -> Result<()> {
+pub fn run(args: Args, lib: &Lib) -> Result<()> {
+    lib.require_root()?;
+
     let mut progress = ProgressState::new();
 
-    let data = SetupExistingData {
-        esp_device: &args.esp_device,
-        deploy_device: &args.deploy_device,
+    let request = SetupExistingRequest {
+        base: RequestBase {
+            on_hook: Some(on_progress),
+            hook_ctx: progress.ctx_ptr(),
+            cancel_token: cancel_token_ptr(),
+        },
+
+        esp_device: args.esp_device,
+        deploy_device: args.deploy_device,
         deploy_fs: args.deploy_fs.into(),
         extra_mounts: args.extra_mounts,
 
-        mount_point: args.mount_point.as_deref(),
-        source: &args.source,
-        meta_filename: args.meta_filename.as_deref(),
+        mount_point: args.mount_point,
+        source: args.source,
         empty_config: args.empty_config,
         pinned: args.pinned,
-        boot_plugin: args.boot_plugin.as_deref(),
+        boot_plugin: args.boot_plugin,
+    }
+    .into();
 
-        hook_message: Some(on_progress),
-        hook_message_context: progress.ctx_ptr(),
-
-        cancel_token,
-    };
-
-    let result = data.run();
+    let result = invoke(|error| unsafe { (lib.setup_existing)(request, error) });
     progress.finish();
 
-    result.map_err(LocalizedSetupError)?;
-
-    Ok(())
+    result
 }

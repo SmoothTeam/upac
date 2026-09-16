@@ -40,6 +40,13 @@ pub trait COwned {
     unsafe fn into_owned(self) -> Self::Owned;
 }
 
+pub trait CValidatable {
+    /// # Safety
+    /// Same contract as the inherent `validate()` this forwards to — the receiver must be a
+    /// freshly-received C-ABI struct that hasn't yet been trusted for reads.
+    unsafe fn validate(&self) -> Result<(), ErrorKind>;
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CSlice {
@@ -105,18 +112,18 @@ impl CBorrowed for CSlice {
     }
 }
 
-impl<'a> TryFrom<&'a CSlice> for &'a str {
+impl<'slice> TryFrom<&'slice CSlice> for &'slice str {
     type Error = ErrorKind;
 
-    fn try_from(slice: &'a CSlice) -> Result<Self, ErrorKind> {
+    fn try_from(slice: &'slice CSlice) -> Result<Self, ErrorKind> {
         unsafe { slice.as_str() }
     }
 }
 
-impl<'a> TryFrom<&'a CSlice> for Option<&'a str> {
+impl<'slice> TryFrom<&'slice CSlice> for Option<&'slice str> {
     type Error = ErrorKind;
 
-    fn try_from(slice: &'a CSlice) -> Result<Self, ErrorKind> {
+    fn try_from(slice: &'slice CSlice) -> Result<Self, ErrorKind> {
         if slice.ptr.is_null() {
             return Ok(None);
         }
@@ -209,13 +216,13 @@ impl<T> CBorrowed for CVec<T> {
     }
 }
 
-impl<'a, T, U> TryFrom<&'a CVec<T>> for Vec<U>
+impl<'vec, T, U> TryFrom<&'vec CVec<T>> for Vec<U>
 where
-    U: TryFrom<&'a T, Error = ErrorKind>,
+    U: TryFrom<&'vec T, Error = ErrorKind>,
 {
     type Error = ErrorKind;
 
-    fn try_from(vec: &'a CVec<T>) -> Result<Self, ErrorKind> {
+    fn try_from(vec: &'vec CVec<T>) -> Result<Self, ErrorKind> {
         unsafe { vec.validate()? };
         unsafe { vec.as_slice() }.iter().map(U::try_from).collect()
     }
