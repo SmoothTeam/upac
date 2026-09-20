@@ -152,3 +152,29 @@ impl AsRef<str> for FsKind {
         }
     }
 }
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitramfsGenerator {
+    Dracut = 0,
+    Mkinitcpio = 1,
+}
+
+impl InitramfsGenerator {
+    pub fn from_u8(version: u8) -> Result<InitramfsGenerator, ErrorKind> {
+        match version {
+            0 => Ok(InitramfsGenerator::Dracut),
+            1 => Ok(InitramfsGenerator::Mkinitcpio),
+            _ => Err(ErrorKind::InvalidEntry),
+        }
+    }
+}
+
+impl AsRef<str> for InitramfsGenerator {
+    fn as_ref(&self) -> &str {
+        match self {
+            InitramfsGenerator::Dracut => "dracut",
+            InitramfsGenerator::Mkinitcpio => "mkinitcpio",
+        }
+    }
+}

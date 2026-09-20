@@ -12,7 +12,7 @@ use crate::error::ErrorKind;
 use crate::hook::CancelToken;
 use crate::package::CPackageInfo;
 use crate::types::{CSlice, CVec, check_size};
-use crate::{DiffFileSource, FileDiffKind, FsKind};
+use crate::{DiffFileSource, FileDiffKind, FsKind, InitramfsGenerator};
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
@@ -345,6 +345,7 @@ pub struct CSetupExistingRequest {
     pub empty_config: bool,
     pub pinned: bool,
     pub boot_plugin: CSlice,
+    pub initramfs_generator: InitramfsGenerator,
 }
 
 #[repr(C)]
@@ -394,4 +395,5 @@ pub struct CSetupWholeDiskRequest {
     pub empty_config: bool,
     pub pinned: bool,
     pub boot_plugin: CSlice,
+    pub initramfs_generator: InitramfsGenerator,
 }
