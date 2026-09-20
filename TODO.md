@@ -40,11 +40,13 @@ copy is the only source. Not yet implemented.
 
 ## upac-setup
 
-`KernelStage` (`lib/setup/src/stages/kernel.rs`) is still a no-op stub — needs to actually run
-mkinitcpio/dracut against a scratch directory and import the resulting kernel/initramfs into the
-prefix tree. `composefs-setup-root` (see the `upac-lib` section above) is the actual initramfs-side
-mechanism that resolves `composefs.digest=`/mounts the erofs image/overlays `/etc` — it isn't a
-separate subsystem to author from scratch, but `KernelStage` still needs to confirm dracut/
-mkinitcpio actually pick the unit up into the generated initrd (not just leave it sitting in
-`/usr` unused) — confirmed via a live QEMU/VM boot test that a genesis'd disk doesn't yet boot into
-the installed system (see `ROADMAP.md` §5).
+`KernelStage`'s mkinitcpio path (`lib/setup/src/stages/kernel.rs`) needs rechecking — it only
+redirects `/lib/modules` via `-r <scratch>/lib/modules`, and there's no confirmed mkinitcpio
+equivalent of dracut's full `--sysroot` (which redirects everything: hooks, config, binaries).
+Unlike dracut, mkinitcpio may still fall through to the *real* host's `/etc/mkinitcpio.conf`/`/usr`
+instead of the scratch tree genesis built. Needs verifying against a real mkinitcpio run before
+trusting the generated initramfs for the `mkinitcpio` generator choice.
+
+`RequestedInitramfsGenerator` (`lib/setup/src/stages/mod.rs`) is hardcoded to `"dracut"` in both
+`run_existing`/`run_whole_disk` — it isn't a real request field yet, `CSetupExistingRequest`/
+`CSetupWholeDiskRequest` don't carry it. Needs the same ABI treatment `boot_plugin` already got.
