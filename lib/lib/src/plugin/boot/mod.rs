@@ -15,9 +15,6 @@ use upac_types::request::{BootPluginConfirmSuccsesBootRequest, BootPluginInstall
 
 use self::error::BootPluginError;
 
-#[cfg(all(feature = "dynamic-plugins", feature = "builtin-booters"))]
-compile_error!("dynamic-plugins and builtin-booters are mutually exclusive");
-
 #[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
 

@@ -18,9 +18,6 @@ use libloading::Library;
 
 use crate::plugin::decoder::error::DecoderError;
 
-#[cfg(all(feature = "dynamic-plugins", feature = "builtin-decoders"))]
-compile_error!("dynamic-plugins and builtin-decoders are mutually exclusive");
-
 #[cfg(feature = "dynamic-plugins")]
 pub mod dynamic_link;
 pub mod error;
