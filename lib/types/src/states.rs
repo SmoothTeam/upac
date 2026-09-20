@@ -286,9 +286,9 @@ pub enum SetupStateId {
     UnpackPackage = 2,
     ImportPackage = 3,
     ImportSystem = 4,
-    EmbedDatabase = 5,
-    WriteDeployRecord = 6,
-    Kernel = 7,
+    Kernel = 5,
+    EmbedDatabase = 6,
+    WriteDeployRecord = 7,
     StageBoot = 8,
     Setup = 9,
 }

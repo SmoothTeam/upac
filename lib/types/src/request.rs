@@ -19,7 +19,7 @@ use upac_abi::request::{
     CSearchMetaRequest, CSetupExistingRequest, CSetupWholeDiskRequest, CUninstallRequest, CUpdateRequest,
 };
 use upac_abi::types::{COwned, CSlice, CVec};
-use upac_abi::{DiffFileSource, FileDiffKind, FsKind};
+use upac_abi::{DiffFileSource, FileDiffKind, FsKind, InitramfsGenerator};
 
 use upac_macro::{CTryToRust, RustToC};
 
@@ -285,7 +285,9 @@ pub struct SetupExistingRequest {
     pub source: String,
     pub empty_config: bool,
     pub pinned: bool,
+
     pub boot_plugin: String,
+    pub initramfs_generator: InitramfsGenerator,
 }
 
 #[derive(Debug, Clone, RustToC)]
@@ -300,5 +302,7 @@ pub struct SetupWholeDiskRequest {
     pub source: String,
     pub empty_config: bool,
     pub pinned: bool,
+
     pub boot_plugin: String,
+    pub initramfs_generator: InitramfsGenerator,
 }
