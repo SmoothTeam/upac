@@ -5,15 +5,15 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::fs::{File, Metadata, read_dir, read_link};
+use std::fs::{File, Metadata, Permissions, create_dir_all, read_dir, read_link, set_permissions, write};
 use std::io::Read;
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 
 use composefs::MAX_INLINE_CONTENT;
 use composefs::generic_tree::Stat;
 use composefs::repository::{ImportContext, Repository};
-use composefs::tree::{Directory, FileSystem, Inode, LeafContent, RegularFile};
+use composefs::tree::{Directory, FileSystem, Inode, Leaf, LeafContent, RegularFile};
 
 use upac_abi::hook::CancelToken;
 
@@ -132,6 +132,51 @@ impl FileHandle {
 }
 
 impl FileHandle {
+    fn regular_file_content(
+        repository: &Repository<ObjectID>, regular: &RegularFile<ObjectID>,
+    ) -> Result<Vec<u8>, RepoError> {
+        match regular {
+            RegularFile::Inline(content) => Ok(content.to_vec()),
+            RegularFile::External(object_id, _) | RegularFile::ExternalNoVerity(object_id, _) => {
+                Ok(repository.read_object(object_id)?)
+            }
+            RegularFile::Sparse(size) => Ok(vec![0u8; *size as usize]),
+        }
+    }
+
+    fn export_leaf(
+        repository: &Repository<ObjectID>, leaf: &Leaf<ObjectID>, dest_path: &Path,
+    ) -> Result<(), RepoError> {
+        match &leaf.content {
+            LeafContent::Symlink(target) => Self::export_symlink(target, dest_path),
+            LeafContent::Regular(regular) => {
+                Self::export_regular_file(repository, regular, leaf.stat.st_mode, dest_path)
+            }
+            LeafContent::BlockDevice(_) | LeafContent::CharacterDevice(_) | LeafContent::Fifo | LeafContent::Socket => {
+                Ok(())
+            }
+        }
+    }
+
+    fn export_symlink(target: &OsStr, dest_path: &Path) -> Result<(), RepoError> {
+        symlink(target, dest_path)?;
+
+        Ok(())
+    }
+
+    fn export_regular_file(
+        repository: &Repository<ObjectID>, regular: &RegularFile<ObjectID>, mode: u32, dest_path: &Path,
+    ) -> Result<(), RepoError> {
+        let content = Self::regular_file_content(repository, regular)?;
+
+        write(dest_path, content)?;
+        set_permissions(dest_path, Permissions::from_mode(mode))?;
+
+        Ok(())
+    }
+}
+
+impl FileHandle {
     pub fn stat_in_tree<'t>(&self, tree: &'t FileSystem<ObjectID>) -> Result<&'t Stat, RepoError> {
         let (parent, filename) = tree.root.split(self.path.as_os_str())?;
         let inode = parent.lookup(filename).ok_or(RepoError::NotFound)?;
@@ -200,13 +245,7 @@ impl FileHandle {
         let (parent, filename) = tree.root.split(self.path.as_os_str())?;
         let regular = parent.get_file(filename, &tree.leaves)?;
 
-        match regular {
-            RegularFile::Inline(content) => Ok(content.to_vec()),
-            RegularFile::External(object_id, _size) | RegularFile::ExternalNoVerity(object_id, _size) => {
-                Ok(repository.read_object(object_id)?)
-            }
-            RegularFile::Sparse(size) => Ok(vec![0u8; *size as usize]),
-        }
+        Self::regular_file_content(repository, regular)
     }
 
     pub fn import_directory(
@@ -243,6 +282,31 @@ impl FileHandle {
         }
 
         Ok(imported)
+    }
+
+    pub fn export_directory(
+        &self, repository: &Repository<ObjectID>, tree: &FileSystem<ObjectID>, dest_dir: &Path, cancel: &CancelToken,
+    ) -> Result<(), RepoError> {
+        create_dir_all(dest_dir)?;
+
+        for (name, inode) in self.list_in_tree(tree)? {
+            if cancel.is_cancelled() {
+                return Err(RepoError::Cancelled);
+            }
+
+            let dest_path = dest_dir.join(name);
+            let child = FileHandle::new(self.path.join(name));
+
+            match inode {
+                Inode::Directory(directory) => {
+                    child.export_directory(repository, tree, &dest_path, cancel)?;
+                    set_permissions(&dest_path, Permissions::from_mode(directory.stat.st_mode))?;
+                }
+                Inode::Leaf(leaf_id, _) => Self::export_leaf(repository, tree.leaf(*leaf_id), &dest_path)?,
+            }
+        }
+
+        Ok(())
     }
 }
 
