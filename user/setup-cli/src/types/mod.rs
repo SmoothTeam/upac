@@ -7,6 +7,7 @@ use clap::ValueEnum;
 use clap::builder::PossibleValue;
 
 use upac_abi::FsKind as FsKindAbi;
+use upac_abi::InitramfsGenerator;
 
 use upac_types::request::{PartitionMount, PartitionSpec};
 
@@ -41,6 +42,32 @@ impl ValueEnum for FsKind {
             FsKindAbi::Ext4 => PossibleValue::new("ext4"),
             FsKindAbi::Btrfs => PossibleValue::new("btrfs"),
             FsKindAbi::Xfs => PossibleValue::new("xfs"),
+        })
+    }
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct InitramfsGeneratorClapArg(pub InitramfsGenerator);
+
+impl From<InitramfsGeneratorClapArg> for InitramfsGenerator {
+    fn from(value: InitramfsGeneratorClapArg) -> Self {
+        value.0
+    }
+}
+
+impl ValueEnum for InitramfsGeneratorClapArg {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[
+            InitramfsGeneratorClapArg(InitramfsGenerator::Dracut),
+            InitramfsGeneratorClapArg(InitramfsGenerator::Mkinitcpio),
+        ]
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(match self.0 {
+            InitramfsGenerator::Dracut => PossibleValue::new("dracut"),
+            InitramfsGenerator::Mkinitcpio => PossibleValue::new("mkinitcpio"),
         })
     }
 }

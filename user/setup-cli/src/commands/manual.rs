@@ -5,14 +5,17 @@
 
 use anyhow::Result;
 
-use clap::Args as ClapArgs;
+use clap::{Args as ClapArgs, ValueEnum};
+
+use upac_abi::InitramfsGenerator;
 
 use upac_types::request::{PartitionMount, RequestBase, SetupExistingRequest};
 
 use crate::cancel_token_ptr;
+use crate::layout::initramfs;
 use crate::libcore::{Lib, invoke};
 use crate::types::progress::{ProgressState, on_progress};
-use crate::types::{FsKind, parse_extra_mount};
+use crate::types::{FsKind, InitramfsGeneratorClapArg, parse_extra_mount};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -35,6 +38,8 @@ pub struct Args {
     pub pinned: bool,
     #[arg(long)]
     pub boot_plugin: String,
+    #[arg(long, value_enum, default_value_t = InitramfsGeneratorClapArg::from_str(initramfs::GENERATOR, false).unwrap_or(InitramfsGeneratorClapArg(InitramfsGenerator::Dracut)))]
+    pub initramfs_generator: InitramfsGeneratorClapArg,
 }
 
 pub fn run(args: Args, lib: &Lib) -> Result<()> {
@@ -59,6 +64,7 @@ pub fn run(args: Args, lib: &Lib) -> Result<()> {
         empty_config: args.empty_config,
         pinned: args.pinned,
         boot_plugin: args.boot_plugin,
+        initramfs_generator: args.initramfs_generator.into(),
     }
     .into();
 

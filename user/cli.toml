@@ -22,6 +22,13 @@ esp_size_mib = 256
 node_size = 16384
 sector_size = 4096
 
+# initramfs is up-sp's own compiled-in fallback for the --initramfs-generator flag, offered by
+# both whole-disk and manual mode. Same CLI-only-policy stance as disk_defaults: upac-setup's own
+# lib.toml has no opinion on which generator to prefer, only on the filenames it writes once one
+# has run.
+[initramfs]
+generator = "dracut"
+
 # up-sp's own compiled-in progress-bar styling. Deliberately NOT read from
 # upac_types::settings::RuntimeSettings (that reads /etc/upac.d/upac.toml at runtime, which
 # doesn't exist yet during bootstrap) — tick_chars is plain ASCII on purpose, since up-sp runs on

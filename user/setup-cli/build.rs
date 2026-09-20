@@ -10,7 +10,7 @@ use std::path::Path;
 
 use toml::{Value, from_str};
 
-const SECTIONS: &[&str] = &["disk_defaults", "progress"];
+const SECTIONS: &[&str] = &["disk_defaults", "progress", "initramfs"];
 
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest = var("CARGO_MANIFEST_DIR")?;

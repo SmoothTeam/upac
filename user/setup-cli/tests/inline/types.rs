@@ -7,7 +7,7 @@ use clap::ValueEnum;
 
 use upac_abi::FsKind as FsKindAbi;
 
-use super::{FsKind, parse_extra_mount, parse_extra_partition, parse_size_mib};
+use super::{FsKind, InitramfsGeneratorClapArg, parse_extra_mount, parse_extra_partition, parse_size_mib};
 
 #[test]
 fn parse_extra_mount_accepts_a_well_formed_triple() {
@@ -84,4 +84,16 @@ fn fs_kind_from_str_matches_lowercase_names() {
     assert!(FsKind::from_str("btrfs", false).is_ok());
     assert!(FsKind::from_str("xfs", false).is_ok());
     assert!(FsKind::from_str("EXT4", false).is_err());
+}
+
+#[test]
+fn initramfs_generator_has_exactly_the_two_supported_variants() {
+    assert_eq!(InitramfsGeneratorClapArg::value_variants().len(), 2);
+}
+
+#[test]
+fn initramfs_generator_from_str_matches_lowercase_names() {
+    assert!(InitramfsGeneratorClapArg::from_str("dracut", false).is_ok());
+    assert!(InitramfsGeneratorClapArg::from_str("mkinitcpio", false).is_ok());
+    assert!(InitramfsGeneratorClapArg::from_str("DRACUT", false).is_err());
 }

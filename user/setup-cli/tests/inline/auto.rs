@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use upac_abi::FsKind as FsKindAbi;
+use upac_abi::InitramfsGenerator;
 
 use crate::libcore::Lib;
 use crate::locale;
-use crate::types::FsKind;
+use crate::types::{FsKind, InitramfsGeneratorClapArg};
 
 use super::{Args, run};
 
@@ -27,6 +28,7 @@ fn valid_args() -> Args {
         empty_config: false,
         pinned: false,
         boot_plugin: Some("systemd-boot".to_owned()),
+        initramfs_generator: InitramfsGeneratorClapArg(InitramfsGenerator::Dracut),
     }
 }
 

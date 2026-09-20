@@ -10,15 +10,16 @@ use clap::{Args as ClapArgs, ValueEnum};
 use i18n_embed_fl::fl;
 
 use upac_abi::FsKind as FsKindAbi;
+use upac_abi::InitramfsGenerator;
 
 use upac_types::request::{BtrfsOptions, GptLayout, PartitionSpec, RequestBase, SetupWholeDiskRequest};
 
 use crate::cancel_token_ptr;
-use crate::layout::disk_defaults;
+use crate::layout::{disk_defaults, initramfs};
 use crate::libcore::{Lib, invoke};
 use crate::locale::LOADER;
 use crate::types::progress::{ProgressState, on_progress};
-use crate::types::{FsKind, parse_extra_partition, parse_size_mib};
+use crate::types::{FsKind, InitramfsGeneratorClapArg, parse_extra_partition, parse_size_mib};
 
 #[cfg(test)]
 #[path = "../../tests/inline/auto.rs"]
@@ -53,6 +54,8 @@ pub struct Args {
     pub pinned: bool,
     #[arg(long)]
     pub boot_plugin: Option<String>,
+    #[arg(long, value_enum, default_value_t = InitramfsGeneratorClapArg::from_str(initramfs::GENERATOR, false).unwrap_or(InitramfsGeneratorClapArg(InitramfsGenerator::Dracut)))]
+    pub initramfs_generator: InitramfsGeneratorClapArg,
 }
 
 pub fn run(args: Args, lib: &Lib) -> Result<()> {
@@ -98,6 +101,7 @@ pub fn run(args: Args, lib: &Lib) -> Result<()> {
         empty_config: args.empty_config,
         pinned: args.pinned,
         boot_plugin,
+        initramfs_generator: args.initramfs_generator.into(),
     }
     .into();
 
