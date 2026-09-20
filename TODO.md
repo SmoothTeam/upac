@@ -26,13 +26,16 @@ extractable.
 literal 1:1 mirror of the target's real `/usr`, sibling to the package archives —
 `EnumeratePackagesStage` already skips it, it only looks at files) to contain
 `lib/systemd/system/composefs-setup-root.service` (hard error, `SetupError::
-ComposefsSetupRootUnitNotFound`, if missing), imports the whole tree into `PrefixTree`, and creates
-the unit's `*.target.wants/` enablement symlink itself. This is also how a built `up`/`upac-lib`/
-booters gets onto a genesis'd disk at all — genesis never installs itself automatically, whoever
-assembles `--source` has to place it under `system/` too, same assumption already made for the
-systemd-boot/rEFInd binaries. Confirmed `composefs-setup-root`'s own hardcoded expectations already
-match upac's on-disk layout exactly (repo at `composefs/`, per-deploy state at `state/deploy/<hex>/`,
-`composefs=<hex>` cmdline karg) — no restructuring was needed, only the unit + the `system/` plumbing.
+ComposefsSetupRootUnitNotFound`, if missing) and imports the whole tree into `PrefixTree`. This is
+also how a built `up`/`upac-lib`/booters gets onto a genesis'd disk at all — genesis never installs
+itself automatically, whoever assembles `--source` has to place it under `system/` too, same
+assumption already made for the systemd-boot/rEFInd binaries. Confirmed `composefs-setup-root`'s own
+hardcoded expectations already match upac's on-disk layout exactly (repo at `composefs/`, per-deploy
+state at `state/deploy/<hex>/`, `composefs=<hex>` cmdline karg) — no restructuring was needed, only
+the unit + the `system/` plumbing. The unit's `*.target.wants/` enablement is deliberately NOT
+created by this stage (a symlink to `initrd-root-fs.target.wants/` in the real root tree is a no-op
+— that target only exists inside the initrd's own systemd instance) — it's created instead by the
+dracut module at `hooks/dracut/37composefs/` at initrd-build time.
 **Decided: upac packages/vendors `composefs-setup-root` itself** (same call for the systemd-boot/
 rEFInd binaries) rather than assuming the source distro already provides it — genesis-time import
 should also check whether one already exists under `system/` rather than blindly trusting our own
