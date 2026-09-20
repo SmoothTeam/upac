@@ -63,6 +63,12 @@ settle_interval_ms = 100
 # reason to burden `--source` with it) — see TODO.md for why this specific set of paths matches
 # `composefs-setup-root`'s own hardcoded expectations (confirmed by reading its upstream source,
 # not guessed).
+#
+# initramfs_filename is fixed by composefs-boot itself, not our choice — `UsrLibModulesVmlinuz::
+# load_all` only recognizes a vmlinuz's companion initramfs under this exact name. uki_filename is
+# our own convention (composefs-boot only requires a `.efi` extension in `lib/modules/<kver>/` for
+# `Type2Entry::load_all` to pick it up, the stem is free) — kept alongside initramfs_filename since
+# `KernelStage` writes both under the same `lib/modules/<kver>/` directory.
 [genesis]
 scratch_filename = "genesis-packages.redb"
 efi_linux_dir = "EFI/Linux"
@@ -70,3 +76,5 @@ system_dir = "system"
 composefs_setup_root_unit_path = "lib/systemd/system/composefs-setup-root.service"
 composefs_setup_root_wants_path = "lib/systemd/system/initrd-root-fs.target.wants/composefs-setup-root.service"
 composefs_setup_root_wants_target = "../composefs-setup-root.service"
+initramfs_filename = "initramfs.img"
+uki_filename = "uki.efi"

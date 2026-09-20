@@ -44,6 +44,10 @@ pub enum SetupError {
     InvalidFormatParams,
     RereadFailed(Errno),
     ComposefsSetupRootUnitNotFound,
+    NoKernelFound,
+    AmbiguousKernelVersion,
+    UnknownInitramfsGenerator,
+    InitramfsGeneratorFailed,
     Unexpected,
 }
 
@@ -154,6 +158,10 @@ impl From<SetupError> for ErrorKind {
             SetupError::InvalidFormatParams => ErrorKind::InvalidEntry,
             SetupError::RereadFailed(_) => ErrorKind::ReadFailed,
             SetupError::ComposefsSetupRootUnitNotFound => ErrorKind::NotFound,
+            SetupError::NoKernelFound => ErrorKind::NotFound,
+            SetupError::AmbiguousKernelVersion => ErrorKind::InvalidEntry,
+            SetupError::UnknownInitramfsGenerator => ErrorKind::InvalidEntry,
+            SetupError::InitramfsGeneratorFailed => ErrorKind::Unexpected,
             SetupError::Unexpected => ErrorKind::Unexpected,
         }
     }

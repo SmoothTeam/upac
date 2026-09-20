@@ -17,11 +17,10 @@ use upac::orchestrator::error::OrchestratorError;
 use upac::orchestrator::{Orchestrator, SequentialOrchestrator};
 use upac::plugin::decoder::unpack::PackageUnpacker;
 
-use upac_abi::FsKind;
-use upac_abi::HookMessageFn;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::CancelToken;
 use upac_abi::request::{CSetupExistingRequest, CSetupWholeDiskRequest};
+use upac_abi::{FsKind, HookMessageFn, InitramfsGenerator};
 
 use upac_types::decoder::DeclarativeTrigger;
 use upac_types::hook::Message;
@@ -89,7 +88,9 @@ pub struct SetupExistingData<'data> {
     pub source: &'data str,
     pub empty_config: bool,
     pub pinned: bool,
+
     pub boot_plugin: &'data str,
+    pub initramfs_generator: InitramfsGenerator,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -115,7 +116,9 @@ impl<'data> TryFrom<&'data CSetupExistingRequest> for SetupExistingData<'data> {
             source: (&request.source).try_into()?,
             empty_config: request.empty_config,
             pinned: request.pinned,
+
             boot_plugin: (&request.boot_plugin).try_into()?,
+            initramfs_generator: request.initramfs_generator,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
@@ -146,7 +149,9 @@ pub struct SetupWholeDiskData<'data> {
     pub source: &'data str,
     pub empty_config: bool,
     pub pinned: bool,
+
     pub boot_plugin: &'data str,
+    pub initramfs_generator: InitramfsGenerator,
 
     pub hook_message: Option<HookMessageFn>,
     pub hook_message_context: *mut c_void,
@@ -186,7 +191,9 @@ impl<'data> TryFrom<&'data CSetupWholeDiskRequest> for SetupWholeDiskData<'data>
             source: (&request.source).try_into()?,
             empty_config: request.empty_config,
             pinned: request.pinned,
+
             boot_plugin: (&request.boot_plugin).try_into()?,
+            initramfs_generator: request.initramfs_generator,
 
             hook_message: request.base.on_hook,
             hook_message_context: request.base.hook_ctx,
@@ -207,6 +214,9 @@ pub(crate) struct Pinned(pub bool);
 
 #[derive(ContextValue)]
 pub(crate) struct RequestedBootPlugin(pub String);
+
+#[derive(ContextValue)]
+pub(crate) struct RequestedInitramfsGenerator(pub InitramfsGenerator);
 
 #[derive(ContextValue)]
 pub(crate) struct ResolvedSourceDir(pub PathBuf);
@@ -259,6 +269,7 @@ pub fn run_existing(data: SetupExistingData) -> Result<(), (SetupStateId, SetupE
     context.put(EmptyConfig(data.empty_config));
     context.put(Pinned(data.pinned));
     context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
+    context.put(RequestedInitramfsGenerator(data.initramfs_generator));
 
     let orchestrator = SequentialOrchestrator::new(vec![
         Box::new(PrepareSourceStage),
@@ -266,9 +277,9 @@ pub fn run_existing(data: SetupExistingData) -> Result<(), (SetupStateId, SetupE
         Box::new(UnpackPackageStage),
         Box::new(ImportPackageStage),
         Box::new(ImportSystemStage),
+        Box::new(KernelStage),
         Box::new(EmbedDatabaseStage),
         Box::new(WriteDeployRecordStage),
-        Box::new(KernelStage),
         Box::new(StageBootStage),
     ]);
 
@@ -298,6 +309,7 @@ pub fn run_whole_disk(data: SetupWholeDiskData) -> Result<(), (SetupStateId, Set
     context.put(EmptyConfig(data.empty_config));
     context.put(Pinned(data.pinned));
     context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
+    context.put(RequestedInitramfsGenerator(data.initramfs_generator));
 
     let orchestrator = SequentialOrchestrator::new(vec![
         Box::new(PrepareSourceStage),
@@ -305,9 +317,9 @@ pub fn run_whole_disk(data: SetupWholeDiskData) -> Result<(), (SetupStateId, Set
         Box::new(UnpackPackageStage),
         Box::new(ImportPackageStage),
         Box::new(ImportSystemStage),
+        Box::new(KernelStage),
         Box::new(EmbedDatabaseStage),
         Box::new(WriteDeployRecordStage),
-        Box::new(KernelStage),
         Box::new(StageBootStage),
     ]);
 

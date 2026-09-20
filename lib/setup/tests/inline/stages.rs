@@ -6,6 +6,7 @@
 use std::ptr::null_mut;
 
 use upac_abi::FsKind;
+use upac_abi::InitramfsGenerator;
 use upac_abi::hook::CancelToken;
 
 use super::{SetupExistingData, SetupWholeDiskData};
@@ -22,6 +23,7 @@ fn existing_data<'data>(cancel_token: &'data CancelToken, mount_point: Option<&'
         empty_config: false,
         pinned: false,
         boot_plugin: "systemd-boot",
+        initramfs_generator: InitramfsGenerator::Dracut,
 
         hook_message: None,
         hook_message_context: null_mut(),
@@ -49,6 +51,7 @@ fn whole_disk_data<'data>(
         empty_config: false,
         pinned: false,
         boot_plugin: "systemd-boot",
+        initramfs_generator: InitramfsGenerator::Dracut,
 
         hook_message: None,
         hook_message_context: null_mut(),
