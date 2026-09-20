@@ -47,6 +47,8 @@ Unlike dracut, mkinitcpio may still fall through to the *real* host's `/etc/mkin
 instead of the scratch tree genesis built. Needs verifying against a real mkinitcpio run before
 trusting the generated initramfs for the `mkinitcpio` generator choice.
 
-`RequestedInitramfsGenerator` (`lib/setup/src/stages/mod.rs`) is hardcoded to `"dracut"` in both
-`run_existing`/`run_whole_disk` — it isn't a real request field yet, `CSetupExistingRequest`/
-`CSetupWholeDiskRequest` don't carry it. Needs the same ABI treatment `boot_plugin` already got.
+`KernelStage`'s `run_dracut`/`run_mkinitcpio` (`lib/setup/src/stages/kernel.rs`) currently take a
+plain `is_uki: bool` and branch internally (`--uefi`/`-U` vs the plain-initramfs flags). Once UKI
+signing or a separate UKI-specific generation path is added, this needs splitting into distinct
+`run_<tool>`/`run_<tool>_with_uki` functions instead of a bool flag, so the two concerns (plain
+initramfs vs UKI build+sign) don't stay tangled inside one function.
