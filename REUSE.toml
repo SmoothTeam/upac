@@ -34,3 +34,13 @@ SPDX-License-Identifier = "CC-BY-SA-4.0"
 path = "**/i18n/**/*.ftl"
 SPDX-FileCopyrightText = ["JustPav", "SmoothTeam"]
 SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = "hooks/dracut/37composefs/composefs-setup-root.service"
+SPDX-FileCopyrightText = "2013 Colin Walters <walters@verbum.org>"
+SPDX-License-Identifier = "LGPL-2.1-or-later"
+
+[[annotations]]
+path = "hooks/dracut/37composefs/module-setup.sh"
+SPDX-FileCopyrightText = "The composefs-rs contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"

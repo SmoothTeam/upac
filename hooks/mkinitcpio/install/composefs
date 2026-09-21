@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+build() {
+    add_binary composefs-setup-root
+    add_runscript
+}
+
+help() {
+    cat <<HELPEOF
+This hook replaces /sysroot with the composefs-selected deploy image via
+composefs-setup-root, once the real root device has already been mounted
+there by the default mount handler and before switch_root.
+
+Add this hook after filesystems (or whichever hook mounts the real root
+device) in HOOKS=. Unlike composefs's dracut module, this hook does not
+depend on systemd running inside the initramfs.
+HELPEOF
+}

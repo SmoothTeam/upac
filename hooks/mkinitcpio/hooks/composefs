@@ -1,0 +1,15 @@
+#!/usr/bin/ash
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: GPL-3.0-only
+
+run_latehook() {
+    msg ":: setting up composefs root"
+
+    if ! composefs-setup-root; then
+        err "composefs-setup-root failed to prepare /sysroot"
+    fi
+}
+
+# vim: set ft=sh ts=4 sw=4 et:
