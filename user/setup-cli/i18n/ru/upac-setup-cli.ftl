@@ -20,7 +20,6 @@ err-invalid-entry = Некорректная запись
 err-missing-device = Отсутствует обязательный аргумент: --device
 err-missing-deploy-size = Отсутствует обязательный аргумент: --deploy-size
 err-missing-source = Отсутствует обязательный аргумент: --source
-err-missing-boot-plugin = Отсутствует обязательный аргумент: --boot-plugin
 
 stage-prepare-source = Подготовка источника
 stage-enumerate-packages = Перечисление пакетов

@@ -72,6 +72,40 @@ impl ValueEnum for InitramfsGeneratorClapArg {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum BootPlugin {
+    Uki,
+    SystemdBoot,
+    Grub,
+    Refind,
+}
+
+impl BootPlugin {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BootPlugin::Uki => "uki",
+            BootPlugin::SystemdBoot => "systemd-boot",
+            BootPlugin::Grub => "grub",
+            BootPlugin::Refind => "refind",
+        }
+    }
+}
+
+impl ValueEnum for BootPlugin {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[
+            BootPlugin::Uki,
+            BootPlugin::SystemdBoot,
+            BootPlugin::Grub,
+            BootPlugin::Refind,
+        ]
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(PossibleValue::new(self.as_str()))
+    }
+}
+
 pub fn parse_extra_mount(raw: &str) -> Result<PartitionMount, String> {
     let mut parts = raw.splitn(3, ':');
 

@@ -7,7 +7,7 @@ use clap::ValueEnum;
 
 use upac_abi::FsKind as FsKindAbi;
 
-use super::{FsKind, InitramfsGeneratorClapArg, parse_extra_mount, parse_extra_partition, parse_size_mib};
+use super::{BootPlugin, FsKind, InitramfsGeneratorClapArg, parse_extra_mount, parse_extra_partition, parse_size_mib};
 
 #[test]
 fn parse_extra_mount_accepts_a_well_formed_triple() {
@@ -96,4 +96,18 @@ fn initramfs_generator_from_str_matches_lowercase_names() {
     assert!(InitramfsGeneratorClapArg::from_str("dracut", false).is_ok());
     assert!(InitramfsGeneratorClapArg::from_str("mkinitcpio", false).is_ok());
     assert!(InitramfsGeneratorClapArg::from_str("DRACUT", false).is_err());
+}
+
+#[test]
+fn boot_plugin_has_exactly_the_four_supported_variants() {
+    assert_eq!(BootPlugin::value_variants().len(), 4);
+}
+
+#[test]
+fn boot_plugin_from_str_matches_lowercase_names() {
+    assert!(BootPlugin::from_str("uki", false).is_ok());
+    assert!(BootPlugin::from_str("systemd-boot", false).is_ok());
+    assert!(BootPlugin::from_str("grub", false).is_ok());
+    assert!(BootPlugin::from_str("refind", false).is_ok());
+    assert!(BootPlugin::from_str("SYSTEMD-BOOT", false).is_err());
 }

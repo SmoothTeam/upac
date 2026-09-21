@@ -8,7 +8,7 @@ use upac_abi::InitramfsGenerator;
 
 use crate::libcore::Lib;
 use crate::locale;
-use crate::types::{FsKind, InitramfsGeneratorClapArg};
+use crate::types::{BootPlugin, FsKind, InitramfsGeneratorClapArg};
 
 use super::{Args, run};
 
@@ -27,7 +27,7 @@ fn valid_args() -> Args {
         source: Some("/mnt/source".to_owned()),
         empty_config: false,
         pinned: false,
-        boot_plugin: Some("systemd-boot".to_owned()),
+        boot_plugin: BootPlugin::SystemdBoot,
         initramfs_generator: InitramfsGeneratorClapArg(InitramfsGenerator::Dracut),
     }
 }
@@ -81,21 +81,4 @@ fn missing_source_bails_before_touching_the_disk() {
     .unwrap_err();
 
     assert_eq!(error.to_string(), "Missing required argument: --source");
-}
-
-#[test]
-fn missing_boot_plugin_bails_before_touching_the_disk() {
-    locale::init_for_test();
-    let lib = Lib::load().unwrap();
-
-    let error = run(
-        Args {
-            boot_plugin: None,
-            ..valid_args()
-        },
-        &lib,
-    )
-    .unwrap_err();
-
-    assert_eq!(error.to_string(), "Missing required argument: --boot-plugin");
 }

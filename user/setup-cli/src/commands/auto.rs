@@ -19,7 +19,7 @@ use crate::layout::{disk_defaults, initramfs};
 use crate::libcore::{Lib, invoke};
 use crate::locale::LOADER;
 use crate::types::progress::{ProgressState, on_progress};
-use crate::types::{FsKind, InitramfsGeneratorClapArg, parse_extra_partition, parse_size_mib};
+use crate::types::{BootPlugin, FsKind, InitramfsGeneratorClapArg, parse_extra_partition, parse_size_mib};
 
 #[cfg(test)]
 #[path = "../../tests/inline/auto.rs"]
@@ -52,8 +52,8 @@ pub struct Args {
     pub empty_config: bool,
     #[arg(long)]
     pub pinned: bool,
-    #[arg(long)]
-    pub boot_plugin: Option<String>,
+    #[arg(long, value_enum, default_value_t = BootPlugin::SystemdBoot)]
+    pub boot_plugin: BootPlugin,
     #[arg(long, value_enum, default_value_t = InitramfsGeneratorClapArg::from_str(initramfs::GENERATOR, false).unwrap_or(InitramfsGeneratorClapArg(InitramfsGenerator::Dracut)))]
     pub initramfs_generator: InitramfsGeneratorClapArg,
 }
@@ -67,9 +67,6 @@ pub fn run(args: Args, lib: &Lib) -> Result<()> {
     };
     let Some(source) = args.source else {
         bail!(fl!(LOADER, "err-missing-source"));
-    };
-    let Some(boot_plugin) = args.boot_plugin else {
-        bail!(fl!(LOADER, "err-missing-boot-plugin"));
     };
 
     lib.require_root()?;
@@ -100,7 +97,7 @@ pub fn run(args: Args, lib: &Lib) -> Result<()> {
         source,
         empty_config: args.empty_config,
         pinned: args.pinned,
-        boot_plugin,
+        boot_plugin: args.boot_plugin.as_str().to_owned(),
         initramfs_generator: args.initramfs_generator.into(),
     }
     .into();

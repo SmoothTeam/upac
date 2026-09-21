@@ -15,7 +15,7 @@ use crate::cancel_token_ptr;
 use crate::layout::initramfs;
 use crate::libcore::{Lib, invoke};
 use crate::types::progress::{ProgressState, on_progress};
-use crate::types::{FsKind, InitramfsGeneratorClapArg, parse_extra_mount};
+use crate::types::{BootPlugin, FsKind, InitramfsGeneratorClapArg, parse_extra_mount};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -36,8 +36,8 @@ pub struct Args {
     pub empty_config: bool,
     #[arg(long)]
     pub pinned: bool,
-    #[arg(long)]
-    pub boot_plugin: String,
+    #[arg(long, value_enum, default_value_t = BootPlugin::SystemdBoot)]
+    pub boot_plugin: BootPlugin,
     #[arg(long, value_enum, default_value_t = InitramfsGeneratorClapArg::from_str(initramfs::GENERATOR, false).unwrap_or(InitramfsGeneratorClapArg(InitramfsGenerator::Dracut)))]
     pub initramfs_generator: InitramfsGeneratorClapArg,
 }
@@ -63,7 +63,7 @@ pub fn run(args: Args, lib: &Lib) -> Result<()> {
         source: args.source,
         empty_config: args.empty_config,
         pinned: args.pinned,
-        boot_plugin: args.boot_plugin,
+        boot_plugin: args.boot_plugin.as_str().to_owned(),
         initramfs_generator: args.initramfs_generator.into(),
     }
     .into();

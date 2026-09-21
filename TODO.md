@@ -55,3 +55,12 @@ plain `is_uki: bool` and branch internally (`--uefi`/`-U` vs the plain-initramfs
 signing or a separate UKI-specific generation path is added, this needs splitting into distinct
 `run_<tool>`/`run_<tool>_with_uki` functions instead of a bool flag, so the two concerns (plain
 initramfs vs UKI build+sign) don't stay tangled inside one function.
+
+genesis has no `--source` sibling mechanism for seeding initial `/etc` content the way `system/`
+seeds extra `/usr` content — `/etc` is only ever populated from each individual package's own
+`etc/` payload (`ImportPackageStage`, `source_root.join("etc")` → `config_state.config_tree`).
+This means anything upac itself needs under `/etc` post-boot but that no real package ships (e.g.
+`/etc/upac.d/{decoders,boot-plugins}/*.toml` manifests for a genesis'd disk's own `up` to work)
+currently has no way to get there via genesis. Needs either a `config/` sibling to `system/`
+(imported into `config_state.config_tree` instead of `prefix_tree`) or a different answer for how
+those manifests reach a freshly-genesis'd system at all.

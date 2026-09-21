@@ -20,7 +20,6 @@ err-invalid-entry = Invalid entry
 err-missing-device = Missing required argument: --device
 err-missing-deploy-size = Missing required argument: --deploy-size
 err-missing-source = Missing required argument: --source
-err-missing-boot-plugin = Missing required argument: --boot-plugin
 
 stage-prepare-source = Preparing source
 stage-enumerate-packages = Enumerating packages
