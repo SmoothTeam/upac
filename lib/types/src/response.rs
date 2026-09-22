@@ -12,8 +12,9 @@ use upac_abi::response::{
     CDiffPackagesResponse, CDiffPrefixFileEntry, CDiffPrefixResponse, CDiffResponse, CDiffUntrackedFileEntry,
     CHistoryEntry, CListConfigResponse, CListHistoryResponse, CListPackagesResponse, CListPrefixResponse, CPrefixEntry,
     CSearchFileEntry, CSearchFilesResponse, CSearchInMetaResponse, CSearchInPackageFilesResponse, CSearchMetaResponse,
+    CSetupPartitionResponse,
 };
-use upac_abi::types::{COwned, CVec};
+use upac_abi::types::{COwned, CSlice, CVec};
 
 use upac_macro::{CTryToRust, RustToC};
 
@@ -89,4 +90,11 @@ pub struct DecodeResponse {
     pub meta: PackageMeta,
     pub dependencies: Vec<PackageDependency>,
     pub declarative_triggers: Vec<String>,
+}
+
+#[derive(Debug, Clone, RustToC)]
+pub struct SetupPartitionResponse {
+    pub esp_device: String,
+    pub deploy_device: String,
+    pub extra_devices: Vec<String>,
 }

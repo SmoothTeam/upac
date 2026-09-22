@@ -11,12 +11,12 @@ use upac_abi::error::ErrorKind;
 use upac_abi::hook::CancelToken;
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::{
-    CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest, CBtrfsOptions,
-    CCommitRequest, CDecodeRequest, CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest,
-    CFilesRequest, CGcRequest, CGptLayout, CInstallRequest, CListConfigRequest, CListHistoryRequest,
-    CListPackagesRequest, CListPrefixRequest, CMimeSyncRequest, CPartitionMount, CPartitionSpec, CPinRequest,
-    CRequestBase, CRollbackRequest, CSearchFilesRequest, CSearchInMetaRequest, CSearchInPackageFilesRequest,
-    CSearchMetaRequest, CSetupExistingRequest, CSetupWholeDiskRequest, CUninstallRequest, CUpdateRequest,
+    CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest, CCommitRequest,
+    CDecodeRequest, CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CFilesRequest,
+    CFormatPartitionSpec, CGcRequest, CInstallRequest, CListConfigRequest, CListHistoryRequest, CListPackagesRequest,
+    CListPrefixRequest, CMimeSyncRequest, CPartitionMount, CPartitionSpec, CPinRequest, CRequestBase, CRollbackRequest,
+    CSearchFilesRequest, CSearchInMetaRequest, CSearchInPackageFilesRequest, CSearchMetaRequest, CSetupExistingRequest,
+    CSetupFormatRequest, CSetupPartitionRequest, CUninstallRequest, CUpdateRequest,
 };
 use upac_abi::types::{COwned, CSlice, CVec};
 use upac_abi::{DiffFileSource, FileDiffKind, FsKind, InitramfsGenerator};
@@ -258,18 +258,9 @@ pub struct PartitionSpec {
 }
 
 #[derive(Debug, Clone, CTryToRust, RustToC)]
-pub struct GptLayout {
-    pub esp_size_mib: u64,
-    pub deploy_fs: FsKind,
-    pub deploy_size_mib: u64,
-    pub extra_partitions: Vec<PartitionSpec>,
-    pub force_wipe: bool,
-}
-
-#[derive(Debug, Clone, CTryToRust, RustToC)]
-pub struct BtrfsOptions {
-    pub node_size: u32,
-    pub sector_size: u32,
+pub struct FormatPartitionSpec {
+    pub device_path: String,
+    pub fs_kind: FsKind,
 }
 
 #[derive(Debug, Clone, RustToC)]
@@ -291,18 +282,25 @@ pub struct SetupExistingRequest {
 }
 
 #[derive(Debug, Clone, RustToC)]
-pub struct SetupWholeDiskRequest {
+pub struct SetupPartitionRequest {
     pub base: RequestBase,
 
     pub device_path: String,
-    pub gpt: GptLayout,
-    pub btrfs: BtrfsOptions,
+    pub esp_size_mib: u64,
+    pub deploy_size_mib: u64,
+    pub extra_partitions: Vec<PartitionSpec>,
+    pub force_wipe: bool,
+}
 
-    pub mount_point: Option<String>,
-    pub source: String,
-    pub empty_config: bool,
-    pub pinned: bool,
+#[derive(Debug, Clone, RustToC)]
+pub struct SetupFormatRequest {
+    pub base: RequestBase,
 
-    pub boot_plugin: String,
-    pub initramfs_generator: InitramfsGenerator,
+    pub esp_device: String,
+    pub deploy_device: String,
+    pub deploy_fs: FsKind,
+    pub extra_partitions: Vec<FormatPartitionSpec>,
+    pub node_size: u32,
+    pub sector_size: u32,
+    pub force_wipe: bool,
 }
