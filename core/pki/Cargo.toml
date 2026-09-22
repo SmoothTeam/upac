@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 [package]
-name = "upac-pki"
+name = "upac-lib-pki"
 description = "Ed25519/X.509 signing and verification for upac hook files"
 version.workspace = true
 
@@ -24,6 +24,9 @@ include = ["/src"]
 
 [lints]
 workspace = true
+
+[lib]
+name = "upac_pki"
 
 [dependencies]
 rcgen = { version = "0.14.8", features = ["x509-parser", "pem"] }
