@@ -6,17 +6,18 @@
 use std::str::from_utf8;
 
 use upac_abi::DECODER_ABI_VERSION;
-use upac_abi::request::CDecodeRequest;
-use upac_abi::response::CDecodeResponse;
+use upac_abi::request::decoder::CDecodeRequest;
+use upac_abi::response::decoder::CDecodeResponse;
 
 use upac_types::decoder::{build_decode_response, verify};
 use upac_types::error::DecodeError;
 use upac_types::traits::DecodeMeta;
 
-use crate::extract::ExtractedMetadata;
-use crate::pkginfo::PkgInfo;
+use self::extract::ExtractedMetadata;
+use self::meta::Props;
+use self::triggers::scan;
 
-pub mod pkginfo;
+pub mod meta;
 pub mod triggers;
 
 mod extract;
@@ -63,14 +64,15 @@ unsafe extern "C" fn free_decode_response(response: *mut CDecodeResponse) {
 fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeError> {
     let package_path = from_utf8(unsafe { request.package_path.as_slice() })?;
     let output_dir = from_utf8(unsafe { request.output_dir.as_slice() })?;
+
     let cancel = unsafe { request.cancel_token.as_ref() }.ok_or(DecodeError::InvalidRequest)?;
 
     verify(package_path, request.checksum, cancel)?;
 
     let extracted = ExtractedMetadata::extract(package_path, output_dir, cancel)?;
-    let declarative_triggers = triggers::scan(extracted.install.as_deref().unwrap_or(""));
+    let declarative_triggers = scan(extracted.install_present, extracted.remove_present);
 
-    let decoded = PkgInfo(&extracted.pkginfo).decode(request.checksum)?;
+    let decoded = Props(&extracted.props).decode(request.checksum)?;
 
     Ok(build_decode_response(
         decoded,

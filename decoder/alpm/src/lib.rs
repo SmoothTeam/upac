@@ -6,17 +6,17 @@
 use std::str::from_utf8;
 
 use upac_abi::DECODER_ABI_VERSION;
-use upac_abi::request::CDecodeRequest;
-use upac_abi::response::CDecodeResponse;
+use upac_abi::request::decoder::CDecodeRequest;
+use upac_abi::response::decoder::CDecodeResponse;
 
 use upac_types::decoder::{build_decode_response, verify};
 use upac_types::error::DecodeError;
 use upac_types::traits::DecodeMeta;
 
-use self::control::ControlFile;
-use self::extract::ExtractedMetadata;
+use crate::extract::ExtractedMetadata;
+use crate::pkginfo::PkgInfo;
 
-pub mod control;
+pub mod pkginfo;
 pub mod triggers;
 
 mod extract;
@@ -68,13 +68,9 @@ fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeErr
     verify(package_path, request.checksum, cancel)?;
 
     let extracted = ExtractedMetadata::extract(package_path, output_dir, cancel)?;
-    let declarative_triggers = triggers::scan(&extracted.scripts_present);
+    let declarative_triggers = triggers::scan(extracted.install.as_deref().unwrap_or(""));
 
-    let control = ControlFile {
-        content: &extracted.control,
-        license: extracted.license,
-    };
-    let decoded = control.decode(request.checksum)?;
+    let decoded = PkgInfo(&extracted.pkginfo).decode(request.checksum)?;
 
     Ok(build_decode_response(
         decoded,

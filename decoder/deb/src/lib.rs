@@ -3,23 +3,20 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::File;
 use std::str::from_utf8;
 
 use upac_abi::DECODER_ABI_VERSION;
-use upac_abi::request::CDecodeRequest;
-use upac_abi::response::CDecodeResponse;
+use upac_abi::request::decoder::CDecodeRequest;
+use upac_abi::response::decoder::CDecodeResponse;
 
 use upac_types::decoder::{build_decode_response, verify};
 use upac_types::error::DecodeError;
 use upac_types::traits::DecodeMeta;
 
-use self::extract::extract;
-use self::header::Header;
-use self::triggers::scan;
+use self::control::ControlFile;
+use self::extract::ExtractedMetadata;
 
-pub mod header;
-pub mod meta;
+pub mod control;
 pub mod triggers;
 
 mod extract;
@@ -66,18 +63,18 @@ unsafe extern "C" fn free_decode_response(response: *mut CDecodeResponse) {
 fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeError> {
     let package_path = from_utf8(unsafe { request.package_path.as_slice() })?;
     let output_dir = from_utf8(unsafe { request.output_dir.as_slice() })?;
-
     let cancel = unsafe { request.cancel_token.as_ref() }.ok_or(DecodeError::InvalidRequest)?;
 
     verify(package_path, request.checksum, cancel)?;
 
-    let mut file = File::open(package_path)?;
-    let header = Header::read(&mut file)?;
+    let extracted = ExtractedMetadata::extract(package_path, output_dir, cancel)?;
+    let declarative_triggers = triggers::scan(&extracted.scripts_present);
 
-    extract(file, &header, output_dir, cancel)?;
-
-    let declarative_triggers = scan(&header);
-    let decoded = header.decode(request.checksum)?;
+    let control = ControlFile {
+        content: &extracted.control,
+        license: extracted.license,
+    };
+    let decoded = control.decode(request.checksum)?;
 
     Ok(build_decode_response(
         decoded,

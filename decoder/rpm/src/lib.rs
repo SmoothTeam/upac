@@ -3,20 +3,22 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::fs::File;
 use std::str::from_utf8;
 
 use upac_abi::DECODER_ABI_VERSION;
-use upac_abi::request::CDecodeRequest;
-use upac_abi::response::CDecodeResponse;
+use upac_abi::request::decoder::CDecodeRequest;
+use upac_abi::response::decoder::CDecodeResponse;
 
 use upac_types::decoder::{build_decode_response, verify};
 use upac_types::error::DecodeError;
 use upac_types::traits::DecodeMeta;
 
-use self::extract::ExtractedMetadata;
-use self::meta::Props;
+use self::extract::extract;
+use self::header::Header;
 use self::triggers::scan;
 
+pub mod header;
 pub mod meta;
 pub mod triggers;
 
@@ -69,10 +71,13 @@ fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeErr
 
     verify(package_path, request.checksum, cancel)?;
 
-    let extracted = ExtractedMetadata::extract(package_path, output_dir, cancel)?;
-    let declarative_triggers = scan(extracted.install_present, extracted.remove_present);
+    let mut file = File::open(package_path)?;
+    let header = Header::read(&mut file)?;
 
-    let decoded = Props(&extracted.props).decode(request.checksum)?;
+    extract(file, &header, output_dir, cancel)?;
+
+    let declarative_triggers = scan(&header);
+    let decoded = header.decode(request.checksum)?;
 
     Ok(build_decode_response(
         decoded,
