@@ -215,3 +215,13 @@ impl Drop for CDecodeResponse {
         unsafe { (self.free)(self) };
     }
 }
+
+#[repr(C)]
+#[derive(CFree, CNew, CValidate)]
+pub struct CSetupPartitionResponse {
+    pub struct_size: usize,
+
+    pub esp_device: CSlice,
+    pub deploy_device: CSlice,
+    pub extra_devices: CVec<CSlice>,
+}

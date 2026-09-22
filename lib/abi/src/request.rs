@@ -320,16 +320,6 @@ pub struct CBootPluginInstallRequest {
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
-pub struct CPartitionMount {
-    pub struct_size: usize,
-
-    pub mount_path: CSlice,
-    pub device_path: CSlice,
-    pub fs_kind: FsKind,
-}
-
-#[repr(C)]
-#[derive(CNew, CValidate)]
 pub struct CSetupExistingRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -350,6 +340,19 @@ pub struct CSetupExistingRequest {
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
+pub struct CSetupPartitionRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub device_path: CSlice,
+    pub esp_size_mib: u64,
+    pub deploy_size_mib: u64,
+    pub extra_partitions: CVec<CPartitionSpec>,
+    pub force_wipe: bool,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
 pub struct CPartitionSpec {
     pub struct_size: usize,
 
@@ -360,40 +363,34 @@ pub struct CPartitionSpec {
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
-pub struct CGptLayout {
+pub struct CPartitionMount {
     pub struct_size: usize,
 
-    pub esp_size_mib: u64,
+    pub mount_path: CSlice,
+    pub device_path: CSlice,
+    pub fs_kind: FsKind,
+}
+
+#[repr(C)]
+#[derive(CNew, CValidate)]
+pub struct CSetupFormatRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub esp_device: CSlice,
+    pub deploy_device: CSlice,
     pub deploy_fs: FsKind,
-    pub deploy_size_mib: u64,
-    pub extra_partitions: CVec<CPartitionSpec>,
+    pub extra_partitions: CVec<CFormatPartitionSpec>,
+    pub node_size: u32,
+    pub sector_size: u32,
     pub force_wipe: bool,
 }
 
 #[repr(C)]
 #[derive(CNew, CValidate)]
-pub struct CBtrfsOptions {
+pub struct CFormatPartitionSpec {
     pub struct_size: usize,
-
-    pub node_size: u32,
-    pub sector_size: u32,
-}
-
-#[repr(C)]
-#[derive(CNew, CValidate)]
-pub struct CSetupWholeDiskRequest {
-    pub struct_size: usize,
-    pub base: CRequestBase,
 
     pub device_path: CSlice,
-    pub gpt: CGptLayout,
-    pub btrfs: CBtrfsOptions,
-
-    #[optional]
-    pub mount_point: CSlice,
-    pub source: CSlice,
-    pub empty_config: bool,
-    pub pinned: bool,
-    pub boot_plugin: CSlice,
-    pub initramfs_generator: InitramfsGenerator,
+    pub fs_kind: FsKind,
 }
