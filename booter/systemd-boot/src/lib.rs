@@ -6,15 +6,17 @@
 use upac_abi::BOOT_ABI_VERSION;
 use upac_abi::BootResourceKind;
 use upac_abi::error::ErrorKind;
-use upac_abi::request::{
+use upac_abi::request::booter::{
     CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 
-use upac_types::request::{BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest};
+use upac_types::request::booter::{
+    BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
+};
 use upac_types::traits::Booter;
 
-use self::backend::Grub;
-use self::error::GrubError;
+use self::backend::SystemdBoot;
+use self::error::SystemdBootError;
 
 mod backend;
 mod error;
@@ -30,7 +32,7 @@ macro_rules! write_error {
 }
 
 /// # Safety
-/// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::BootPluginAbiVersionFn`.
+/// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::boot::AbiVersionFn`.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn boot_abi_version() -> u32 {
     BOOT_ABI_VERSION
@@ -40,7 +42,7 @@ pub unsafe extern "C" fn boot_abi_version() -> u32 {
 /// Touches no pointers — `unsafe extern "C"` only to match the ABI calling convention.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn boot_resource_kind() -> BootResourceKind {
-    Grub::boot_resource_kind()
+    SystemdBoot::boot_resource_kind()
 }
 
 /// # Safety
@@ -49,14 +51,13 @@ pub unsafe extern "C" fn boot_resource_kind() -> BootResourceKind {
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotRequest, err_out: *mut ErrorKind) -> i32 {
     if request.is_null() {
-        write_error!(err_out, GrubError::InvalidRequest);
-
+        write_error!(err_out, SystemdBootError::InvalidRequest);
         return -1;
     }
 
     let result = BootPluginSetOneShotRequest::try_from(unsafe { &*request })
-        .map_err(GrubError::from)
-        .and_then(|request| Grub::new().and_then(|mut grub| grub.set_one_shot(&request.entry_name)));
+        .map_err(SystemdBootError::from)
+        .and_then(|request| SystemdBoot::new().and_then(|mut systemd| systemd.set_one_shot(&request.entry_name)));
 
     match result {
         Ok(()) => 0,
@@ -70,22 +71,23 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotReque
 }
 
 /// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginConfirmSuccsesBootRequest` for the
+/// `request`, if non-null, must point to a valid, initialized `CConfirmBootRequest` for the
 /// duration of the call. `err_out`, if non-null, must point to writable `ErrorKind` storage.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn confirm_boot(
     request: *const CBootPluginConfirmSuccsesBootRequest, err_out: *mut ErrorKind,
 ) -> i32 {
     if request.is_null() {
-        write_error!(err_out, GrubError::InvalidRequest);
+        write_error!(err_out, SystemdBootError::InvalidRequest);
 
         return -1;
     }
 
     let result = BootPluginConfirmSuccsesBootRequest::try_from(unsafe { &*request })
-        .map_err(GrubError::from)
+        .map_err(SystemdBootError::from)
         .and_then(|request| {
-            Grub::new().and_then(|mut grub| grub.confirm_boot(&request.entry_name, &request.esp_mount_point))
+            SystemdBoot::new()
+                .and_then(|mut systemd| systemd.confirm_boot(&request.entry_name, &request.esp_mount_point))
         });
 
     match result {
@@ -105,16 +107,16 @@ pub unsafe extern "C" fn confirm_boot(
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest, err_out: *mut ErrorKind) -> i32 {
     if request.is_null() {
-        write_error!(err_out, GrubError::InvalidRequest);
+        write_error!(err_out, SystemdBootError::InvalidRequest);
 
         return -1;
     }
 
     let result = BootPluginInstallRequest::try_from(unsafe { &*request })
-        .map_err(GrubError::from)
+        .map_err(SystemdBootError::from)
         .and_then(|request| {
-            Grub::new().and_then(|mut grub| {
-                grub.install(
+            SystemdBoot::new().and_then(|mut systemd| {
+                systemd.install(
                     &request.esp_mount_point,
                     request.esp_partition_number,
                     request.esp_starting_lba,

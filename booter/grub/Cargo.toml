@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 [package]
-name = "upac-uki"
-description = "UKI-direct boot plugin for upac: one-shot/persistent reboot selection via UEFI BootNext/BootOrder"
+name = "upac-booters-grub"
+description = "GRUB (BLS via blscfg) boot plugin for upac: one-shot/persistent reboot selection via grub-reboot/grub-set-default"
 version.workspace = true
 
 edition.workspace = true
@@ -24,16 +24,12 @@ categories.workspace = true
 workspace = true
 
 [lib]
-name = "upac_boot_uki"
+name = "upac_boot_grub"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-abi = { workspace = true }
+upac-abi   = { workspace = true }
 upac-types = { workspace = true }
-
-nix      = { workspace = true, features = ["ioctl"] }
-efivar   = { workspace = true }
-uuid     = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }
