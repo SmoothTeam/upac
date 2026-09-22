@@ -7,10 +7,11 @@ use std::ffi::c_void;
 
 use self::error::ErrorKind;
 use self::hook::{CProgressEvent, HookAck};
-use self::request::{
-    CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest, CDecodeRequest,
+use self::request::booter::{
+    CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
-use self::response::CDecodeResponse;
+use self::request::decoder::CDecodeRequest;
+use self::response::decoder::CDecodeResponse;
 
 pub mod error;
 pub mod hook;

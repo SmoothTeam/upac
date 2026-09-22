@@ -40,7 +40,7 @@ pub struct CPackageMeta {
 }
 
 #[repr(C)]
-#[derive(CNew, CValidate)]
+#[derive(CFree, CNew, CValidate)]
 pub struct CPackageInfo {
     pub struct_size: usize,
     pub name: CSlice,

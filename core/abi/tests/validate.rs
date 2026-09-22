@@ -10,8 +10,8 @@ use upac_abi::error::ErrorKind;
 use upac_abi::memory::free_cslice;
 use upac_abi::package::{CPackageDependency, CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::request::CRequestBase;
-use upac_abi::response::{
-    CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
+use upac_abi::response::entry::{
+    CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
     CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 use upac_abi::types::{COwned, CSlice, CVec};
@@ -116,9 +116,9 @@ fn dependency_validate_rejects_invalid_nested_version() {
     }
 }
 
-fn valid_diff_common() -> CDiffFileEntryCommon {
-    CDiffFileEntryCommon {
-        struct_size: size_of::<CDiffFileEntryCommon>(),
+fn valid_diff_common() -> CDiffFileCommonEntry {
+    CDiffFileCommonEntry {
+        struct_size: size_of::<CDiffFileCommonEntry>(),
         path: CSlice::from_owned(b"/etc/upac.conf".to_vec()),
         kind: FileDiffKind::Modified,
     }
@@ -143,8 +143,8 @@ fn diff_file_entry_common_validate_rejects_wrong_struct_size() {
 
 #[test]
 fn diff_file_entry_common_validate_rejects_empty_path() {
-    let common = CDiffFileEntryCommon {
-        struct_size: size_of::<CDiffFileEntryCommon>(),
+    let common = CDiffFileCommonEntry {
+        struct_size: size_of::<CDiffFileCommonEntry>(),
         path: CSlice { ptr: null(), len: 0 },
         kind: FileDiffKind::Modified,
     };
