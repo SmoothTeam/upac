@@ -21,7 +21,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Error, Fields, Ident, PathSegment, Type, parse_macro_input};
 
-use crate::common::{VALIDATABLE_COMPOSITES, generic_arg, segment_name};
+use crate::common::{generic_arg, is_validatable_composite, segment_name};
 
 fn cslice_free(ident: &Ident) -> TokenStream2 {
     quote! { free_cslice(&self.#ident); }
@@ -36,7 +36,7 @@ fn cvec_free(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
         Some(name) if name == "CSlice" => quote! {
             free_cvec_owning(&self.#ident, |entry| free_cslice(entry));
         },
-        Some(name) if VALIDATABLE_COMPOSITES.contains(&name.as_str()) => quote! {
+        Some(name) if is_validatable_composite(&name) => quote! {
             free_cvec_owning(&self.#ident, |entry| entry.free());
         },
         _ => quote! { free_cvec(&self.#ident); },
@@ -47,7 +47,7 @@ fn field_path_free(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
     match segment.ident.to_string().as_str() {
         "CSlice" => cslice_free(ident),
         "CVec" => cvec_free(ident, segment),
-        name if VALIDATABLE_COMPOSITES.contains(&name) => composite_free(ident),
+        name if is_validatable_composite(name) => composite_free(ident),
         _ => quote! {},
     }
 }

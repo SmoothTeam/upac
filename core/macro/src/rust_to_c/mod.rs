@@ -79,7 +79,7 @@ fn to_c_impl(name: &Ident, c_name: &Ident, field_values: &[TokenStream2]) -> Tok
         impl From<#name> for #c_name {
             fn from(value: #name) -> Self {
                 #c_name {
-                    struct_size: size_of::<#c_name>(),
+                    struct_size: ::std::mem::size_of::<#c_name>(),
                     #(#field_values)*
                 }
             }

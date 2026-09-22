@@ -20,10 +20,7 @@ pub(crate) const SHARED_TYPES: &[&str] = &[
     "InitramfsGenerator",
 ];
 
-pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
-    "CVersion",
-    "CPackageMeta",
-    "CPackageInfo",
+pub(crate) const VALIDATABLE_LIB_ENTRYS_COMPOSITES: &[&str] = &[
     "CDiffFileEntryCommon",
     "CDiffPrefixFileEntry",
     "CDiffConfigFileEntry",
@@ -33,13 +30,30 @@ pub(crate) const VALIDATABLE_COMPOSITES: &[&str] = &[
     "CSearchFileEntry",
     "CPrefixEntry",
     "CHistoryEntry",
-    "CRequestBase",
-    "CPackageDependency",
-    "CPartitionMount",
-    "CPartitionSpec",
-    "CGptLayout",
-    "CBtrfsOptions",
 ];
+
+pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] =
+    &["CVersion", "CPackageMeta", "CPackageInfo", "CPackageDependency"];
+
+pub(crate) const VALIDATABLE_SETUP_LIB_PARTITION_COMPOSITES: &[&str] = &["CPartitionMount", "CPartitionSpec"];
+
+pub(crate) const VALIDATABLE_SETUP_LIB_FSFORMAT_COMPOSITES: &[&str] = &["CFormatPartitionSpec"];
+
+pub(crate) const VALIDATABLE_LIB_REQUEST_COMPOSITES: &[&str] = &["CRequestBase"];
+
+pub(crate) const VALIDATABLE_COMPOSITE_CATEGORIES: &[&[&str]] = &[
+    VALIDATABLE_LIB_ENTRYS_COMPOSITES,
+    VALIDATABLE_LIB_PACKAGE_COMPOSITES,
+    VALIDATABLE_SETUP_LIB_PARTITION_COMPOSITES,
+    VALIDATABLE_SETUP_LIB_FSFORMAT_COMPOSITES,
+    VALIDATABLE_LIB_REQUEST_COMPOSITES,
+];
+
+pub(crate) fn is_validatable_composite(name: &str) -> bool {
+    VALIDATABLE_COMPOSITE_CATEGORIES
+        .iter()
+        .any(|category| category.contains(&name))
+}
 
 pub(crate) fn generic_arg(segment: &PathSegment) -> Option<&Type> {
     let PathArguments::AngleBracketed(args) = &segment.arguments else {

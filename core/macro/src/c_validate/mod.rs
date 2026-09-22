@@ -14,7 +14,7 @@ use quote::quote;
 
 use syn::{Data, DeriveInput, Error, Field, Fields, Ident, PathSegment, Type, TypePtr, parse_macro_input};
 
-use crate::common::{VALIDATABLE_COMPOSITES, generic_arg, segment_name};
+use crate::common::{generic_arg, is_validatable_composite, segment_name};
 
 fn has_attr(field: &Field, name: &str) -> bool {
     field.attrs.iter().any(|attr| attr.path().is_ident(name))
@@ -54,7 +54,7 @@ fn cvec_empty_check(ident: &Ident, non_empty: bool) -> TokenStream2 {
 
 fn cvec_element_check(ident: &Ident, seg: &PathSegment) -> TokenStream2 {
     match generic_arg(seg).and_then(segment_name) {
-        Some(inner) if inner == "CSlice" || VALIDATABLE_COMPOSITES.contains(&inner.as_str()) => quote! {
+        Some(inner) if inner == "CSlice" || is_validatable_composite(&inner) => quote! {
             for element in unsafe { self.#ident.as_slice() } {
                 unsafe { element.validate()? };
             }
@@ -78,7 +78,7 @@ fn field_path_validate(ident: &Ident, seg: &PathSegment, optional: bool, non_emp
     match seg.ident.to_string().as_str() {
         "CSlice" => cslice_validate(ident, optional),
         "CVec" => cvec_validate(ident, seg, non_empty),
-        name if VALIDATABLE_COMPOSITES.contains(&name) => composite_validate(ident),
+        name if is_validatable_composite(name) => composite_validate(ident),
         _ => quote! {},
     }
 }
@@ -101,7 +101,7 @@ fn field_ptr_validate(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
         };
     }
 
-    if VALIDATABLE_COMPOSITES.contains(&name.as_str()) {
+    if is_validatable_composite(&name) {
         quote! {
             unsafe {
                 if self.#ident.is_null() {
