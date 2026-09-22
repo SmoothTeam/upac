@@ -10,10 +10,8 @@ use super::entry::{
     CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 
-use crate::error::ErrorKind;
-use crate::memory::free_cvec_owning;
 use crate::package::CPackageMeta;
-use crate::types::{CVec, check_size};
+use crate::types::CVec;
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]

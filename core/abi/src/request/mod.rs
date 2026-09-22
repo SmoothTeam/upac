@@ -9,10 +9,8 @@ use upac_macro::{CFree, CNew, CValidate};
 
 use super::HookMessageFn;
 
-use crate::error::ErrorKind;
 use crate::hook::CancelToken;
-use crate::memory::{free_cslice, free_cvec_owning};
-use crate::types::{CSlice, CVec, check_size};
+use crate::types::{CSlice, CVec};
 use crate::{FsKind, InitramfsGenerator};
 
 use self::partition::CPartitionMount;

@@ -9,7 +9,7 @@ use std::ptr::{copy_nonoverlapping, null, null_mut};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 use crate::error::ErrorKind;
-use crate::memory::{alloc_bytes, free_cslice, free_cvec};
+use crate::memory::{alloc_bytes, free_cslice, free_cvec, free_cvec_owning};
 
 pub fn check_size<T>(struct_size: usize) -> Result<(), ErrorKind> {
     if struct_size != size_of::<T>() {
@@ -97,6 +97,12 @@ impl CSlice {
     /// slice is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
         unsafe { self.as_cstr().map(|_| ()) }
+    }
+
+    /// # Safety
+    /// Same contract as `free_cslice`.
+    pub unsafe fn free(&self) {
+        unsafe { free_cslice(self) }
     }
 }
 
@@ -198,6 +204,18 @@ impl<T> CVec<T> {
             return &mut [];
         }
         unsafe { from_raw_parts_mut(self.ptr, self.len) }
+    }
+
+    /// # Safety
+    /// Same contract as `free_cvec`.
+    pub unsafe fn free(&self) {
+        unsafe { free_cvec(self) }
+    }
+
+    /// # Safety
+    /// Same contract as `free_cvec_owning`.
+    pub unsafe fn free_owning(&self, free_elem: impl FnMut(&T)) {
+        unsafe { free_cvec_owning(self, free_elem) }
     }
 }
 

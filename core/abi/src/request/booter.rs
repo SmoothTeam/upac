@@ -5,9 +5,7 @@
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::error::ErrorKind;
-use crate::memory::free_cslice;
-use crate::types::{CSlice, check_size};
+use crate::types::CSlice;
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]

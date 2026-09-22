@@ -6,10 +6,8 @@
 use upac_macro::{CFree, CNew, CValidate};
 
 use crate::FreeDecodeResponseFn;
-use crate::error::ErrorKind;
-use crate::memory::{free_cslice, free_cvec_owning};
 use crate::package::{CPackageDependency, CPackageMeta};
-use crate::types::{CSlice, CVec, check_size};
+use crate::types::{CSlice, CVec};
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
