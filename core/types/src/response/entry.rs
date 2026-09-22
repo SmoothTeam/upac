@@ -3,11 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::mem::size_of;
-
 use upac_abi::package::CVersion;
-use upac_abi::response::{
-    CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileEntryCommon, CDiffPackageEntry, CDiffPrefixFileEntry,
+use upac_abi::response::entry::{
+    CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
 use upac_abi::types::{COwned, CSlice, CVec};
@@ -89,14 +87,14 @@ pub struct HistoryEntry {
 }
 
 #[derive(Debug, Clone, RustToC)]
-pub struct DiffFileEntryCommon {
+pub struct DiffFileCommonEntry {
     pub path: String,
     pub kind: FileDiffKind,
 }
 
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffPrefixFileEntry {
-    pub common: DiffFileEntryCommon,
+    pub common: DiffFileCommonEntry,
     pub source: DiffFileSource,
     pub package_name: String,
     pub is_user: bool,
@@ -104,7 +102,7 @@ pub struct DiffPrefixFileEntry {
 
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffConfigFileEntry {
-    pub common: DiffFileEntryCommon,
+    pub common: DiffFileCommonEntry,
     pub package_name: Option<String>,
 }
 
@@ -119,6 +117,6 @@ pub struct DiffPackageEntry {
 
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffUntrackedFileEntry {
-    pub common: DiffFileEntryCommon,
+    pub common: DiffFileCommonEntry,
     pub source: DiffFileSource,
 }
