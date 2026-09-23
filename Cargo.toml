@@ -89,7 +89,7 @@ flate2         = "1.1.9"
 quick-xml      = "0.42.0"
 tar            = "0.4.46"
 xz2            = "0.1.7"
-zstd           = "0.13.3"
+zstd           = "0.14"
 i18n-embed-fl  = "0.10"
 
 [profile.dev]
