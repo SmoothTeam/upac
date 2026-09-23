@@ -8,7 +8,7 @@ use upac_macro::{CFree, CNew, CValidate};
 use crate::types::CSlice;
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CVersion {
     pub struct_size: usize,
 
@@ -18,7 +18,7 @@ pub struct CVersion {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CPackageMeta {
     pub struct_size: usize,
     pub name: CSlice,
@@ -38,7 +38,7 @@ pub struct CPackageMeta {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CPackageInfo {
     pub struct_size: usize,
     pub name: CSlice,
@@ -48,7 +48,7 @@ pub struct CPackageInfo {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CPackageDependency {
     pub struct_size: usize,
 

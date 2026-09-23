@@ -23,7 +23,7 @@ pub mod partition;
 pub mod unmutated;
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CRequestBase {
     pub struct_size: usize,
 
@@ -34,7 +34,7 @@ pub struct CRequestBase {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CSetupExistingRequest {
     pub struct_size: usize,
     pub base: CRequestBase,

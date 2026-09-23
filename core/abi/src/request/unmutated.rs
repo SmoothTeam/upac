@@ -11,14 +11,14 @@ use crate::package::CPackageInfo;
 use crate::types::CSlice;
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CListPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CListConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -28,21 +28,21 @@ pub struct CListConfigRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CListPrefixRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CListHistoryRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CDiffPrefixRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -54,7 +54,7 @@ pub struct CDiffPrefixRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CDiffConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -66,7 +66,7 @@ pub struct CDiffConfigRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CDiffPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -78,7 +78,7 @@ pub struct CDiffPackagesRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CDiffRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -94,7 +94,7 @@ pub struct CDiffRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CSearchMetaRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -104,7 +104,7 @@ pub struct CSearchMetaRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CSearchFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -114,7 +114,7 @@ pub struct CSearchFilesRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CSearchInMetaRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -125,7 +125,7 @@ pub struct CSearchInMetaRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CSearchInPackageFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,

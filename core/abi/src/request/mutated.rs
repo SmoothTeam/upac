@@ -12,7 +12,7 @@ use crate::types::{CSlice, CVec};
 use crate::{DiffFileSource, FileDiffKind};
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CInstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -31,7 +31,7 @@ pub struct CInstallRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CUpdateRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -51,7 +51,7 @@ pub struct CUpdateRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CUninstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -68,7 +68,7 @@ pub struct CUninstallRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CRollbackRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -80,7 +80,7 @@ pub struct CRollbackRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CCommitRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -92,7 +92,7 @@ pub struct CCommitRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -111,21 +111,21 @@ pub struct CFilesRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CGcRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CMimeSyncRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CPinRequest {
     pub struct_size: usize,
     pub base: CRequestBase,

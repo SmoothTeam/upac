@@ -123,6 +123,13 @@ impl DiffFileSource {
             _ => Err(ErrorKind::InvalidEntry),
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            DiffFileSource::Prefix => "prefix",
+            DiffFileSource::Config => "config",
+        }
+    }
 }
 
 #[repr(u8)]

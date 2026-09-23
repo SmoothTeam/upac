@@ -11,7 +11,7 @@ use crate::FsKind;
 use crate::types::{CSlice, CVec};
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CSetupPartitionRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
@@ -24,7 +24,7 @@ pub struct CSetupPartitionRequest {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CPartitionSpec {
     pub struct_size: usize,
 
@@ -34,7 +34,7 @@ pub struct CPartitionSpec {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CPartitionMount {
     pub struct_size: usize,
 
