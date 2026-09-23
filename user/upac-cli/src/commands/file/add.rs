@@ -11,11 +11,10 @@ use i18n_embed_fl::fl;
 
 use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorDomain;
-use upac_abi::package::CPackageInfo;
-use upac_abi::request::CFilesRequest;
 
 use upac_types::package::PackageInfo;
-use upac_types::request::{FilesRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::FilesRequest;
 use upac_types::settings::RuntimeSettings;
 
 use crate::cancel_token_ptr;
@@ -45,7 +44,7 @@ pub struct Args {
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
 
-    let package: CPackageInfo = PackageInfo {
+    let package = PackageInfo {
         name: args.package,
         arch: args.arch,
         arch_sub: args.arch_sub,
@@ -59,24 +58,29 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         .or_else(|| RuntimeSettings::load().boot.plugin)
         .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
 
-    let request: CFilesRequest = FilesRequest {
+    let tmp_path = ctx.tmp_path.to_string_lossy().into_owned();
+    let files: Vec<&str> = args.files.iter().map(|string| string.as_str()).collect();
+
+    let request = FilesRequest {
         base: RequestBase {
             on_hook: Some(on_progress),
             hook_ctx: progress.ctx_ptr(),
             cancel_token: cancel_token_ptr(),
         },
-        tmp_path: ctx.tmp_path.to_string_lossy().into_owned(),
-        subject: "file add".to_owned(),
-        message: args.message,
-        files: args.files,
+        tmp_path: &tmp_path,
+        subject: &"file add",
+        message: args.message.as_deref(),
+        files,
         file_kind: FileDiffKind::Added,
         scope: args.scope.into(),
         file_package: &package,
-        boot_plugin,
+        boot_plugin: &boot_plugin,
     }
     .into();
 
     let result = invoke(|error| unsafe { (symbols.files)(request, error) });
+    unsafe { request.free() };
+
     progress.finish();
 
     result

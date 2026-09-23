@@ -10,6 +10,8 @@ use i18n_embed::{AssetsMultiplexor, DesktopLanguageRequester, FileSystemAssets, 
 
 use rust_embed::RustEmbed;
 
+use upac_types::settings::RuntimeSettings;
+
 use crate::layout::I18N_DIR;
 
 #[derive(RustEmbed)]
@@ -18,17 +20,34 @@ struct EmbeddedAssets;
 
 pub static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| fluent_language_loader!());
 
-pub fn init() {
+pub static SUBJECT_LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| fluent_language_loader!());
+
+fn assets() -> AssetsMultiplexor {
     let mut sources: Vec<Box<dyn I18nAssets + Send + Sync>> = Vec::new();
     if let Ok(disk) = FileSystemAssets::try_new(I18N_DIR) {
         sources.push(Box::new(disk));
     }
     sources.push(Box::new(EmbeddedAssets));
 
-    let assets = AssetsMultiplexor::new(sources);
+    AssetsMultiplexor::new(sources)
+}
+
+pub fn init() {
     let requested_languages = DesktopLanguageRequester::requested_languages();
 
-    let _ = i18n_embed::select(&*LOADER, &assets, &requested_languages);
+    let _ = i18n_embed::select(&*LOADER, &assets(), &requested_languages);
+
+    let configured_language = RuntimeSettings::load()
+        .locale
+        .language
+        .and_then(|language| language.parse().ok());
+
+    let subject_languages = match configured_language {
+        Some(language) => vec![language],
+        None => requested_languages,
+    };
+
+    let _ = i18n_embed::select(&*SUBJECT_LOADER, &assets(), &subject_languages);
 }
 
 #[cfg(test)]

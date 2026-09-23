@@ -11,10 +11,9 @@ use clap::Args as ClapArgs;
 
 use i18n_embed_fl::fl;
 
-use upac_abi::request::{CSearchInMetaRequest, CSearchMetaRequest};
-
-use upac_types::package::PackageInfo;
-use upac_types::request::{RequestBase, SearchInMetaRequest, SearchMetaRequest};
+use upac_types::package::{PackageInfo, PackageMeta};
+use upac_types::request::RequestBase;
+use upac_types::request::unmutated::{SearchInMetaRequest, SearchMetaRequest};
 
 use crate::cancel_token_ptr;
 use crate::commands::display::{PackageField, PackageFormatter};
@@ -60,65 +59,75 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let extra_fields = build_extra_fields(&args);
-
     match args.package.as_deref() {
-        Some(package) => {
-            let Some(arch) = args.package_arch.as_deref() else {
-                anyhow::bail!(fl!(LOADER, "err-invalid-entry"));
-            };
-
-            let request: CSearchInMetaRequest = SearchInMetaRequest {
-                base: RequestBase {
-                    on_hook: None,
-                    hook_ctx: null_mut(),
-                    cancel_token: cancel_token_ptr(),
-                },
-                package: PackageInfo {
-                    name: package.to_owned(),
-                    arch: arch.to_owned(),
-                    arch_sub: args.package_arch_sub.clone(),
-                },
-                search: args.query.clone(),
-                is_regex: args.regex,
-            }
-            .into();
-            let response =
-                invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_in_meta)(request, out, error) })?;
-
-            PackageFormatter {
-                extra_fields: &extra_fields,
-                metas: unsafe { response.metas.as_slice() },
-                sort: args.sort,
-            }
-            .print();
-
-            unsafe { response.free() };
-        }
-
-        None => {
-            let request: CSearchMetaRequest = SearchMetaRequest {
-                base: RequestBase {
-                    on_hook: None,
-                    hook_ctx: null_mut(),
-                    cancel_token: cancel_token_ptr(),
-                },
-                search: args.query.clone(),
-                is_regex: args.regex,
-            }
-            .into();
-            let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_meta)(request, out, error) })?;
-
-            PackageFormatter {
-                extra_fields: &extra_fields,
-                metas: unsafe { response.metas.as_slice() },
-                sort: args.sort,
-            }
-            .print();
-
-            unsafe { response.free() };
-        }
+        Some(package) => search_in_meta(&args, &ctx, package),
+        None => search_meta(&args, &ctx),
     }
+}
+
+fn search_in_meta(args: &Args, ctx: &CommandContext, package: &str) -> Result<()> {
+    let Some(arch) = args.package_arch.as_deref() else {
+        anyhow::bail!(fl!(LOADER, "err-invalid-entry"));
+    };
+
+    let request = SearchInMetaRequest {
+        base: RequestBase {
+            on_hook: None,
+            hook_ctx: null_mut(),
+            cancel_token: cancel_token_ptr(),
+        },
+        package: PackageInfo {
+            name: package.to_owned(),
+            arch: arch.to_owned(),
+            arch_sub: args.package_arch_sub.clone(),
+        },
+        search: &args.query,
+        is_regex: args.regex,
+    }
+    .into();
+
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_in_meta)(request, out, error) })?;
+
+    let metas: Vec<PackageMeta> = Vec::try_from(&response.metas).unwrap_or_default();
+
+    PackageFormatter {
+        extra_fields: &build_extra_fields(args),
+        metas: &metas,
+        sort: args.sort,
+    }
+    .print();
+
+    unsafe { response.free() };
+    unsafe { request.free() };
+
+    Ok(())
+}
+
+fn search_meta(args: &Args, ctx: &CommandContext) -> Result<()> {
+    let request = SearchMetaRequest {
+        base: RequestBase {
+            on_hook: None,
+            hook_ctx: null_mut(),
+            cancel_token: cancel_token_ptr(),
+        },
+        search: &args.query,
+        is_regex: args.regex,
+    }
+    .into();
+
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_meta)(request, out, error) })?;
+
+    let metas: Vec<PackageMeta> = Vec::try_from(&response.metas).unwrap_or_default();
+
+    PackageFormatter {
+        extra_fields: &build_extra_fields(args),
+        metas: &metas,
+        sort: args.sort,
+    }
+    .print();
+
+    unsafe { response.free() };
+    unsafe { request.free() };
 
     Ok(())
 }

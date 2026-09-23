@@ -12,13 +12,13 @@ use clap::Args as ClapArgs;
 use i18n_embed_fl::fl;
 
 use upac_abi::error::ErrorDomain;
-use upac_abi::request::CInstallRequest;
 
-use upac_types::request::{InstallRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::InstallRequest;
 use upac_types::settings::RuntimeSettings;
 
 use crate::cancel_token_ptr;
-use crate::locale::LOADER;
+use crate::locale::{LOADER, SUBJECT_LOADER};
 use crate::types::CommandContext;
 use crate::types::abi::invoke;
 use crate::types::progress::{ProgressState, on_progress};
@@ -52,22 +52,26 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         .or_else(|| RuntimeSettings::load().boot.plugin)
         .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
 
-    let request: CInstallRequest = InstallRequest {
+    let subject = fl!(SUBJECT_LOADER, "subject-install");
+
+    let request = InstallRequest {
         base: RequestBase {
             on_hook: Some(on_progress),
             hook_ctx: progress.ctx_ptr(),
             cancel_token: cancel_token_ptr(),
         },
-        tmp_path: ctx.tmp_path.to_string_lossy().into_owned(),
-        subject: "install".to_owned(),
-        message: args.message,
-        packages,
-        boot_plugin,
+        tmp_path: &ctx.tmp_path.to_string_lossy(),
+        subject: &subject,
+        message: args.message.as_deref(),
+        packages: packages.iter().map(|string| string.as_str()).collect(),
+        boot_plugin: &boot_plugin,
         allow_conflict_files: !args.no_conflict_files,
     }
     .into();
 
     let result = invoke(|error| unsafe { (symbols.install)(request, error) });
+    unsafe { request.free() };
+
     progress.finish();
 
     result

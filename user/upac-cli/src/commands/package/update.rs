@@ -12,9 +12,9 @@ use clap::Args as ClapArgs;
 use i18n_embed_fl::fl;
 
 use upac_abi::error::ErrorDomain;
-use upac_abi::request::CUpdateRequest;
 
-use upac_types::request::{RequestBase, UpdateRequest};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::UpdateRequest;
 use upac_types::settings::RuntimeSettings;
 
 use crate::cancel_token_ptr;
@@ -54,23 +54,25 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         .or_else(|| RuntimeSettings::load().boot.plugin)
         .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
 
-    let request: CUpdateRequest = UpdateRequest {
+    let request = UpdateRequest {
         base: RequestBase {
             on_hook: Some(on_progress),
             hook_ctx: progress.ctx_ptr(),
             cancel_token: cancel_token_ptr(),
         },
-        tmp_path: ctx.tmp_path.to_string_lossy().into_owned(),
-        subject: "update".to_owned(),
-        message: args.message,
-        packages,
-        boot_plugin,
+        tmp_path: &ctx.tmp_path.to_string_lossy(),
+        subject: &"update",
+        message: args.message.as_deref(),
+        packages: packages.iter().map(|string| string.as_str()).collect(),
+        boot_plugin: &boot_plugin,
         allow_downgrade: args.allow_downgrade,
         allow_conflict_files: !args.no_conflict_files,
     }
     .into();
 
     let result = invoke(|error| unsafe { (symbols.update)(request, error) });
+    unsafe { request.free() };
+
     progress.finish();
 
     result

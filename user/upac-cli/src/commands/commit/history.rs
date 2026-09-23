@@ -13,9 +13,9 @@ use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
-use upac_abi::request::CListHistoryRequest;
-
-use upac_types::request::{ListHistoryRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::unmutated::ListHistoryRequest;
+use upac_types::response::entry::HistoryEntry;
 
 use crate::cancel_token_ptr;
 use crate::types::CommandContext;
@@ -25,7 +25,7 @@ use crate::types::abi::invoke_with_response;
 pub struct Args {}
 
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
-    let request: CListHistoryRequest = ListHistoryRequest {
+    let request = ListHistoryRequest {
         base: RequestBase {
             on_hook: None,
             hook_ctx: null_mut(),
@@ -36,28 +36,24 @@ pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
 
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_history)(request, out, error) })?;
 
-    let entries = unsafe { response.history.as_slice() };
+    let entries: Vec<HistoryEntry> = Vec::try_from(&response.history).unwrap_or_default();
     for (index, entry) in entries.iter().enumerate() {
-        let digest = <&str>::try_from(&entry.prefix_digest).unwrap_or_default();
-        let subject = <&str>::try_from(&entry.subject).unwrap_or_default();
-        let working_config = Option::<&str>::try_from(&entry.working_config).unwrap_or_default();
+        let working_config = entry.working_config.as_deref();
 
-        println!("{}", subject.bold());
+        println!("{}", entry.subject.bold());
         if let Some(timestamp) = Local.timestamp_opt(entry.timestamp as i64, 0).single() {
             println!("{}", timestamp.format("%Y-%m-%d %H:%M:%S").to_string().dimmed());
         }
-        println!("{}", digest.yellow());
+        println!("{}", entry.prefix_digest.yellow());
 
-        for config in unsafe { entry.config_history.as_slice() } {
-            let config_digest = <&str>::try_from(&config.config_digest).unwrap_or_default();
-            let config_subject = <&str>::try_from(&config.subject).unwrap_or_default();
-            let marker = if working_config == Some(config_digest) {
+        for config in &entry.config_history {
+            let marker = if working_config == Some(config.config_digest.as_str()) {
                 "*"
             } else {
                 " "
             };
 
-            println!("  {marker} {config_subject} {}", config_digest.yellow());
+            println!("  {marker} {} {}", config.subject, config.config_digest.yellow());
         }
 
         if index < entries.len() - 1 {
@@ -66,6 +62,7 @@ pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
     }
 
     unsafe { response.free() };
+    unsafe { request.free() };
 
     Ok(())
 }

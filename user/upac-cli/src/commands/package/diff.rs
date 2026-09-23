@@ -12,9 +12,10 @@ use clap::Args as ClapArgs;
 use colored::Colorize;
 
 use upac_abi::PackageDiffKind;
-use upac_abi::request::CDiffPackagesRequest;
 
-use upac_types::request::{DiffPackagesRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::unmutated::DiffPackagesRequest;
+use upac_types::response::entry::DiffPackageEntry;
 
 use crate::cancel_token_ptr;
 use crate::commands::display::VersionDisplay;
@@ -28,22 +29,23 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let request: CDiffPackagesRequest = DiffPackagesRequest {
+    let request = DiffPackagesRequest {
         base: RequestBase {
             on_hook: None,
             hook_ctx: null_mut(),
             cancel_token: cancel_token_ptr(),
         },
-        from_prefix_digest: args.from,
-        to_prefix_digest: args.to,
+        from_prefix_digest: args.from.as_deref(),
+        to_prefix_digest: args.to.as_deref(),
     }
     .into();
 
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.diff_packages)(request, out, error) })?;
 
-    for entry in unsafe { response.diff_packages.as_slice() } {
-        let name = <&str>::try_from(&entry.name).unwrap_or_default();
-        let version = VersionDisplay(&entry.version);
+    let diff_packages: Vec<DiffPackageEntry> = Vec::try_from(&response.diff_packages).unwrap_or_default();
+
+    for entry in &diff_packages {
+        let name = entry.name.as_str();
 
         let (marker, colored_name) = match entry.kind {
             PackageDiffKind::Added => ("+".green().bold(), name.green()),
@@ -51,10 +53,11 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
             PackageDiffKind::Modified => ("~".yellow().bold(), name.yellow()),
             PackageDiffKind::FilesChanged => ("*".yellow().bold(), name.yellow()),
         };
-        println!("{} {} {}", marker, colored_name.bold(), version);
+        println!("{} {} {}", marker, colored_name.bold(), VersionDisplay(&entry.version));
     }
 
     unsafe { response.free() };
+    unsafe { request.free() };
 
     Ok(())
 }

@@ -9,9 +9,8 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::request::CPinRequest;
-
-use upac_types::request::{PinRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::PinRequest;
 
 use crate::cancel_token_ptr;
 use crate::types::CommandContext;
@@ -25,16 +24,19 @@ pub struct Args {
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
 
-    let request: CPinRequest = PinRequest {
+    let request = PinRequest {
         base: RequestBase {
             on_hook: None,
             hook_ctx: null_mut(),
             cancel_token: cancel_token_ptr(),
         },
-        prefix_digest: args.digest,
+        prefix_digest: &args.digest,
         pinned: true,
     }
     .into();
 
-    invoke(|error| unsafe { (symbols.pin_deploy)(request, error) })
+    let result = invoke(|error| unsafe { (symbols.pin_deploy)(request, error) });
+    unsafe { request.free() }
+
+    result
 }

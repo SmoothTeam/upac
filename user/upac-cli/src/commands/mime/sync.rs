@@ -9,9 +9,8 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::request::CMimeSyncRequest;
-
-use upac_types::request::{MimeSyncRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::MimeSyncRequest;
 
 use crate::cancel_token_ptr;
 use crate::types::CommandContext;
@@ -23,7 +22,7 @@ pub struct Args {}
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
 
-    let request: CMimeSyncRequest = MimeSyncRequest {
+    let request = MimeSyncRequest {
         base: RequestBase {
             on_hook: None,
             hook_ctx: null_mut(),
@@ -32,5 +31,8 @@ pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
     }
     .into();
 
-    invoke(|error| unsafe { (symbols.mime)(request, error) })
+    let result = invoke(|error| unsafe { (symbols.mime)(request, error) });
+    unsafe { request.free() };
+
+    result
 }

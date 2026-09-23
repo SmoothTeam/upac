@@ -15,24 +15,18 @@ use colored::Colorize;
 use i18n_embed_fl::fl;
 
 use upac_abi::error::ErrorDomain;
-use upac_abi::request::{CListPackagesRequest, CUninstallRequest};
-use upac_abi::types::CSlice;
 
-use upac_types::package::PackageInfo;
-use upac_types::request::{ListPackagesRequest, RequestBase, UninstallRequest};
+use upac_types::package::{PackageInfo, PackageMeta};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::UninstallRequest;
+use upac_types::request::unmutated::ListPackagesRequest;
 use upac_types::settings::RuntimeSettings;
 
 use crate::cancel_token_ptr;
-use crate::locale::LOADER;
+use crate::locale::{LOADER, SUBJECT_LOADER};
 use crate::types::CommandContext;
 use crate::types::abi::{invoke, invoke_with_response};
 use crate::types::progress::{ProgressState, on_progress};
-
-#[cfg(test)]
-#[path = "../../../tests/inline/remove.rs"]
-mod tests;
-
-type InstalledEntry = (String, String, Option<String>);
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -51,155 +45,107 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let mut state = match args.arch.as_deref() {
-        Some(_) => State::ResolvingDirect,
-        None => State::Listing,
+    let packages = match args.arch.as_deref() {
+        Some(arch) => resolve_direct(&args, arch),
+        None => resolve_from_installed(&args.names, &ctx)?,
     };
 
-    let mut machine = RemoveMachine {
-        args,
-        ctx,
-        installed: Vec::new(),
-        resolved: Vec::new(),
-    };
+    uninstall(&args, &ctx, packages)
+}
 
-    while state != State::Done {
-        state = match state {
-            State::Listing => machine.state_listing()?,
-            State::ResolvingDirect => machine.state_resolving_direct()?,
-            State::ResolvingFromInstalled => machine.state_resolving_from_installed()?,
-            State::Removing => machine.state_removing()?,
-            State::Done => unreachable!(),
-        };
+fn resolve_direct(args: &Args, arch: &str) -> Vec<PackageInfo> {
+    args.names
+        .iter()
+        .map(|name| PackageInfo {
+            name: name.clone(),
+            arch: arch.to_owned(),
+            arch_sub: args.arch_sub.clone(),
+        })
+        .collect()
+}
+
+fn resolve_from_installed(names: &[String], ctx: &CommandContext) -> Result<Vec<PackageInfo>> {
+    let request = ListPackagesRequest {
+        base: RequestBase {
+            on_hook: None,
+            hook_ctx: null_mut(),
+            cancel_token: cancel_token_ptr(),
+        },
     }
+    .into();
 
-    Ok(())
-}
+    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_packages)(request, out, error) })?;
 
-#[derive(PartialEq)]
-enum State {
-    Listing,
-    ResolvingDirect,
-    ResolvingFromInstalled,
-    Removing,
-    Done,
-}
+    let installed: Result<Vec<PackageMeta>, _> = Vec::try_from(&response.metas);
 
-struct RemoveMachine {
-    args: Args,
-    ctx: CommandContext,
+    unsafe { response.free() };
+    unsafe { request.free() };
 
-    installed: Vec<InstalledEntry>,
-    resolved: Vec<PackageInfo>,
-}
+    let installed = installed.map_err(|_| anyhow::anyhow!(fl!(LOADER, "err-invalid-entry")))?;
 
-impl RemoveMachine {
-    fn state_listing(&mut self) -> Result<State> {
-        let request: CListPackagesRequest = ListPackagesRequest {
-            base: RequestBase {
-                on_hook: None,
-                hook_ctx: null_mut(),
-                cancel_token: cancel_token_ptr(),
-            },
-        }
-        .into();
+    names
+        .iter()
+        .map(|name| {
+            let matches: Vec<&PackageMeta> = installed.iter().filter(|meta| meta.name == *name).collect();
 
-        let response =
-            invoke_with_response(|out, error| unsafe { (self.ctx.lib.ro.list_packages)(request, out, error) })?;
+            let meta = match matches.len() {
+                0 => anyhow::bail!("{}: {name}", fl!(LOADER, "err-pkg-not-found")),
+                1 => matches[0],
+                _ => matches[prompt_choice(name, &matches)?],
+            };
 
-        self.installed = unsafe { response.metas.as_slice() }
-            .iter()
-            .map(|package_meta| {
-                Ok((
-                    cslice_owned(&package_meta.name)?,
-                    cslice_owned(&package_meta.arch)?,
-                    optional_cslice_owned(&package_meta.arch_sub)?,
-                ))
+            Ok(PackageInfo {
+                name: meta.name.clone(),
+                arch: meta.arch.clone(),
+                arch_sub: meta.arch_sub.clone(),
             })
-            .collect::<Result<_>>()?;
-
-        unsafe { response.free() };
-
-        Ok(State::ResolvingFromInstalled)
-    }
-
-    fn state_resolving_direct(&mut self) -> Result<State> {
-        let Some(arch) = self.args.arch.as_deref() else {
-            anyhow::bail!(fl!(LOADER, "err-invalid-entry"));
-        };
-
-        self.resolved = self
-            .args
-            .names
-            .iter()
-            .map(|name| PackageInfo {
-                name: name.clone(),
-                arch: arch.to_owned(),
-                arch_sub: self.args.arch_sub.clone(),
-            })
-            .collect();
-        Ok(State::Removing)
-    }
-
-    fn state_resolving_from_installed(&mut self) -> Result<State> {
-        self.resolved = self
-            .args
-            .names
-            .iter()
-            .map(|name| {
-                let (arch, arch_sub) = find_installed(&self.installed, name)?;
-                Ok(PackageInfo {
-                    name: name.clone(),
-                    arch,
-                    arch_sub,
-                })
-            })
-            .collect::<Result<_>>()?;
-        Ok(State::Removing)
-    }
-
-    fn state_removing(&mut self) -> Result<State> {
-        let symbols = self.ctx.lib.require_write()?;
-
-        let mut progress = ProgressState::new(ErrorDomain::Uninstall);
-
-        let boot_plugin = self
-            .args
-            .boot
-            .clone()
-            .or_else(|| RuntimeSettings::load().boot.plugin)
-            .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
-
-        let request: CUninstallRequest = UninstallRequest {
-            base: RequestBase {
-                on_hook: Some(on_progress),
-                hook_ctx: progress.ctx_ptr(),
-                cancel_token: cancel_token_ptr(),
-            },
-            tmp_path: self.ctx.tmp_path.to_string_lossy().into_owned(),
-            subject: "remove".to_owned(),
-            message: self.args.message.clone(),
-            packages: std::mem::take(&mut self.resolved),
-            boot_plugin,
-            purge: self.args.purge,
-        }
-        .into();
-
-        let result = invoke(|error| unsafe { (symbols.uninstall)(request, error) });
-        progress.finish();
-        result?;
-
-        Ok(State::Done)
-    }
+        })
+        .collect()
 }
 
-fn prompt_choice(name: &str, matches: &[&InstalledEntry]) -> Result<usize> {
+fn uninstall(args: &Args, ctx: &CommandContext, packages: Vec<PackageInfo>) -> Result<()> {
+    let symbols = ctx.lib.require_write()?;
+
+    let mut progress = ProgressState::new(ErrorDomain::Uninstall);
+
+    let boot_plugin = args
+        .boot
+        .clone()
+        .or_else(|| RuntimeSettings::load().boot.plugin)
+        .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
+
+    let subject = fl!(SUBJECT_LOADER, "subject-remove");
+
+    let request = UninstallRequest {
+        base: RequestBase {
+            on_hook: Some(on_progress),
+            hook_ctx: progress.ctx_ptr(),
+            cancel_token: cancel_token_ptr(),
+        },
+        tmp_path: &ctx.tmp_path.to_string_lossy(),
+        subject: &subject,
+        message: args.message.as_deref(),
+        packages,
+        boot_plugin: &boot_plugin,
+        purge: args.purge,
+    }
+    .into();
+
+    let result = invoke(|error| unsafe { (symbols.uninstall)(request, error) });
+    unsafe { request.free() };
+
+    progress.finish();
+
+    result
+}
+
+fn prompt_choice(name: &str, matches: &[&PackageMeta]) -> Result<usize> {
     println!("{} \"{}\":", fl!(LOADER, "multiple-found"), name.bold());
 
-    for (index, (_, arch, arch_sub)) in matches.iter().enumerate() {
-        match arch_sub.as_deref() {
-            Some(sub) => println!("  {}) {name} ({arch}/{sub})", index + 1),
-            None => println!("  {}) {name} ({arch})", index + 1),
+    for (index, meta) in matches.iter().enumerate() {
+        match meta.arch_sub.as_deref() {
+            Some(arch_sub) => println!("  {}) {name} ({}/{arch_sub})", index + 1, meta.arch),
+            None => println!("  {}) {name} ({})", index + 1, meta.arch),
         }
     }
 
@@ -219,29 +165,4 @@ fn prompt_choice(name: &str, matches: &[&InstalledEntry]) -> Result<usize> {
     }
 
     Ok(choice - 1)
-}
-
-fn find_installed(installed: &[InstalledEntry], name: &str) -> Result<(String, Option<String>)> {
-    let matches: Vec<&InstalledEntry> = installed.iter().filter(|(n, _, _)| n == name).collect();
-
-    let entry = match matches.len() {
-        0 => anyhow::bail!("{}: {name}", fl!(LOADER, "err-pkg-not-found")),
-        1 => matches[0],
-        _ => matches[prompt_choice(name, &matches)?],
-    };
-
-    Ok((entry.1.clone(), entry.2.clone()))
-}
-
-fn cslice_owned(slice: &CSlice) -> Result<String> {
-    Ok(unsafe { slice.as_str() }
-        .map_err(|_| anyhow::anyhow!(fl!(LOADER, "err-invalid-entry")))?
-        .to_owned())
-}
-
-fn optional_cslice_owned(slice: &CSlice) -> Result<Option<String>> {
-    if slice.ptr.is_null() || slice.len == 0 {
-        return Ok(None);
-    }
-    Ok(Some(cslice_owned(slice)?))
 }

@@ -9,9 +9,8 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::request::CGcRequest;
-
-use upac_types::request::{GcRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::GcRequest;
 
 use crate::cancel_token_ptr;
 use crate::types::CommandContext;
@@ -23,7 +22,7 @@ pub struct Args {}
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
 
-    let request: CGcRequest = GcRequest {
+    let request = GcRequest {
         base: RequestBase {
             on_hook: None,
             hook_ctx: null_mut(),
@@ -32,5 +31,8 @@ pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
     }
     .into();
 
-    invoke(|error| unsafe { (symbols.gc)(request, error) })
+    let result = invoke(|error| unsafe { (symbols.gc)(request, error) });
+    unsafe { request.free() };
+
+    result
 }

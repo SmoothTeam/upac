@@ -12,13 +12,16 @@ use nix::unistd::Uid;
 use upac_abi::LIB_ABI_VERSION;
 use upac_abi::error::CError;
 use upac_abi::hook::CancelToken;
-use upac_abi::request::{
-    CCommitRequest, CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CFilesRequest,
-    CGcRequest, CInstallRequest, CListConfigRequest, CListHistoryRequest, CListPackagesRequest, CListPrefixRequest,
-    CMimeSyncRequest, CPinRequest, CRollbackRequest, CSearchFilesRequest, CSearchInMetaRequest,
-    CSearchInPackageFilesRequest, CSearchMetaRequest, CUninstallRequest, CUpdateRequest,
+use upac_abi::request::mutated::{
+    CCommitRequest, CFilesRequest, CGcRequest, CInstallRequest, CMimeSyncRequest, CPinRequest, CRollbackRequest,
+    CUninstallRequest, CUpdateRequest,
 };
-use upac_abi::response::{
+use upac_abi::request::unmutated::{
+    CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CListConfigRequest,
+    CListHistoryRequest, CListPackagesRequest, CListPrefixRequest, CSearchFilesRequest, CSearchInMetaRequest,
+    CSearchInPackageFilesRequest, CSearchMetaRequest,
+};
+use upac_abi::response::unmutated::{
     CDiffConfigResponse, CDiffPackagesResponse, CDiffPrefixResponse, CDiffResponse, CListConfigResponse,
     CListHistoryResponse, CListPackagesResponse, CListPrefixResponse, CSearchFilesResponse, CSearchInMetaResponse,
     CSearchInPackageFilesResponse, CSearchMetaResponse,

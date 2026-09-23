@@ -58,3 +58,6 @@ choose = Choose
 err-invalid-choice = invalid choice
 description = Description
 checksum = Checksum
+
+subject-install = install
+subject-remove = remove

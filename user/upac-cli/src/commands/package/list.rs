@@ -9,9 +9,9 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::request::CListPackagesRequest;
-
-use upac_types::request::{ListPackagesRequest, RequestBase};
+use upac_types::package::PackageMeta;
+use upac_types::request::RequestBase;
+use upac_types::request::unmutated::ListPackagesRequest;
 
 use crate::cancel_token_ptr;
 use crate::commands::display::{PackageField, PackageFormatter};
@@ -47,7 +47,7 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    let request: CListPackagesRequest = ListPackagesRequest {
+    let request = ListPackagesRequest {
         base: RequestBase {
             on_hook: None,
             hook_ctx: null_mut(),
@@ -58,15 +58,18 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_packages)(request, out, error) })?;
 
+    let metas: Vec<PackageMeta> = Vec::try_from(&response.metas).unwrap_or_default();
+
     let extra_fields = build_extra_fields(&args);
     PackageFormatter {
         extra_fields: &extra_fields,
-        metas: unsafe { response.metas.as_slice() },
+        metas: &metas,
         sort: args.sort,
     }
     .print();
 
     unsafe { response.free() };
+    unsafe { request.free() };
 
     Ok(())
 }

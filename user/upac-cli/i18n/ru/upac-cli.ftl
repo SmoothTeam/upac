@@ -58,3 +58,6 @@ choose = Выберите
 err-invalid-choice = неверный выбор
 description = Описание
 checksum = Контрольная сумма
+
+subject-install = установка
+subject-remove = удаление

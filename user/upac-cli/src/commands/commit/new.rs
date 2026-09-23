@@ -9,9 +9,8 @@ use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
-use upac_abi::request::CCommitRequest;
-
-use upac_types::request::{CommitRequest, RequestBase};
+use upac_types::request::RequestBase;
+use upac_types::request::mutated::CommitRequest;
 
 use crate::cancel_token_ptr;
 use crate::types::CommandContext;
@@ -25,17 +24,20 @@ pub struct Args {
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
 
-    let request: CCommitRequest = CommitRequest {
+    let request = CommitRequest {
         base: RequestBase {
             on_hook: None,
             hook_ctx: null_mut(),
             cancel_token: cancel_token_ptr(),
         },
-        tmp_path: ctx.tmp_path.to_string_lossy().into_owned(),
-        subject: args.message,
+        tmp_path: &ctx.tmp_path.to_string_lossy(),
+        subject: &args.message,
         message: None,
     }
     .into();
 
-    invoke(|error| unsafe { (symbols.commit)(request, error) })
+    let result = invoke(|error| unsafe { (symbols.commit)(request, error) });
+    unsafe { request.free() }
+
+    result
 }

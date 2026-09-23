@@ -10,11 +10,15 @@ use i18n_embed_fl::fl;
 
 use upac_abi::error::{CError, ErrorDomain, ErrorKind};
 
-use upac_types::states::{
-    CommitStateId, DiffConfigStateId, DiffPackagesStateId, DiffPrefixStateId, DiffStateId, FilesStateId, GcStateId,
-    InstallStateId, ListConfigStateId, ListHistoryStateId, ListPackagesStateId, ListPrefixStateId, MimeStateId,
-    PinStateId, RollbackStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
-    SearchMetaStateId, SetupStateId, UninstallStateId, UpdateStateId,
+use upac_types::state::mutated::{
+    CommitStateId, FilesStateId, GcStateId, InstallStateId, MimeStateId, PinStateId, RollbackStateId, UninstallStateId,
+    UpdateStateId,
+};
+use upac_types::state::setup::SetupStateId;
+use upac_types::state::unmutated::{
+    DiffConfigStateId, DiffPackagesStateId, DiffPrefixStateId, DiffStateId, ListConfigStateId, ListHistoryStateId,
+    ListPackagesStateId, ListPrefixStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
+    SearchMetaStateId,
 };
 
 use crate::locale::LOADER;

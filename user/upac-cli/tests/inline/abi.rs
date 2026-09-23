@@ -5,7 +5,7 @@
 
 use upac_abi::error::{CError, ErrorDomain, ErrorKind};
 use upac_abi::package::CPackageMeta;
-use upac_abi::response::CListPackagesResponse;
+use upac_abi::response::unmutated::CListPackagesResponse;
 use upac_abi::types::{COwned, CVec};
 
 use crate::locale;

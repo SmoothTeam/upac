@@ -9,7 +9,7 @@ use clap::ValueEnum;
 use colored::Colorize;
 use strum::AsRefStr;
 
-use upac_abi::package::{CPackageMeta, CVersion};
+use upac_types::package::PackageMeta;
 use upac_types::package::Version;
 
 use crate::locale::LOADER;
@@ -18,31 +18,6 @@ use crate::locale::LOADER;
 #[path = "../../tests/inline/display.rs"]
 mod tests;
 
-macro_rules! str_field {
-    ($field:expr) => {
-        <&str>::try_from(&$field).unwrap_or_default()
-    };
-}
-
-macro_rules! optional_str_field {
-    ($field:expr) => {
-        Option::<&str>::try_from(&$field).unwrap_or_default()
-    };
-}
-
-macro_rules! required_str {
-    ($field:expr) => {
-        str_field!($field).to_owned()
-    };
-}
-
-macro_rules! optional_str {
-    ($field:expr) => {
-        optional_str_field!($field).unwrap_or_default().to_owned()
-    };
-}
-
-// ── Package field indices ────────────────────────────────────────────────────
 #[derive(Debug, Clone, Copy, AsRefStr, ValueEnum)]
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]
@@ -65,10 +40,9 @@ impl PackageField {
     }
 }
 
-// ── PackageFormatter ─────────────────────────────────────────────────────────
 pub struct PackageFormatter<'a> {
     pub extra_fields: &'a [PackageField],
-    pub metas: &'a [CPackageMeta],
+    pub metas: &'a [PackageMeta],
     pub sort: Option<PackageField>,
 }
 
@@ -77,17 +51,17 @@ impl<'a> PackageFormatter<'a> {
         let metas = self.ordered_metas();
         if self.extra_fields.is_empty() {
             for meta in &metas {
-                println!("{}", required_str!(meta.name).bold());
+                println!("{}", meta.name.bold());
             }
         } else {
             self.print_table(&metas);
         }
     }
 
-    fn ordered_metas(&self) -> Vec<&'a CPackageMeta> {
-        let mut metas: Vec<&CPackageMeta> = self.metas.iter().collect();
+    fn ordered_metas(&self) -> Vec<&'a PackageMeta> {
+        let mut metas: Vec<&PackageMeta> = self.metas.iter().collect();
         match self.sort {
-            Some(PackageField::Version) => metas.sort_by_key(|meta| Version::try_from(&meta.version).ok()),
+            Some(PackageField::Version) => metas.sort_by(|a, b| a.version.cmp(&b.version)),
             Some(PackageField::Size) => metas.sort_by_key(|meta| meta.installed_size),
             Some(field) => metas.sort_by_key(|meta| Self::field_value(meta, field)),
             None => {}
@@ -95,7 +69,7 @@ impl<'a> PackageFormatter<'a> {
         metas
     }
 
-    fn print_table(&self, metas: &[&CPackageMeta]) {
+    fn print_table(&self, metas: &[&PackageMeta]) {
         let all_fields: Vec<PackageField> = std::iter::once(PackageField::Name)
             .chain(self.extra_fields.iter().copied())
             .collect();
@@ -134,39 +108,34 @@ impl<'a> PackageFormatter<'a> {
         }
     }
 
-    fn field_value(meta: &CPackageMeta, field: PackageField) -> String {
+    fn field_value(meta: &PackageMeta, field: PackageField) -> String {
         match field {
-            PackageField::Name => required_str!(meta.name),
+            PackageField::Name => meta.name.clone(),
             PackageField::Version => VersionDisplay(&meta.version).to_string(),
-            PackageField::Architecture => {
-                let arch = str_field!(meta.arch);
-                match optional_str_field!(meta.arch_sub) {
-                    Some(arch_sub) => format!("{arch}/{arch_sub}"),
-                    None => arch.to_owned(),
-                }
-            }
-            PackageField::Author | PackageField::Packager => required_str!(meta.maintainer),
-            PackageField::License => optional_str!(meta.license),
-            PackageField::Url => optional_str!(meta.url),
-            PackageField::Description => required_str!(meta.description),
+            PackageField::Architecture => match meta.arch_sub.as_deref() {
+                Some(arch_sub) => format!("{}/{arch_sub}", meta.arch),
+                None => meta.arch.clone(),
+            },
+            PackageField::Author | PackageField::Packager => meta.maintainer.clone(),
+            PackageField::License => meta.license.clone().unwrap_or_default(),
+            PackageField::Url => meta.url.clone().unwrap_or_default(),
+            PackageField::Description => meta.description.clone(),
             PackageField::Checksum => hex::encode(meta.sha256),
             PackageField::Size => SizeDisplay(meta.installed_size).to_string(),
         }
     }
 }
 
-// ── Display wrappers ─────────────────────────────────────────────────────────
-pub(crate) struct VersionDisplay<'a>(pub &'a CVersion);
+pub(crate) struct VersionDisplay<'a>(pub &'a Version);
 
 impl Display for VersionDisplay<'_> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         let version = self.0;
-        let raw = str_field!(version.raw);
 
         if version.epoch > 0 {
-            write!(formatter, "{}:{raw}", version.epoch)
+            write!(formatter, "{}:{}", version.epoch, version.raw)
         } else {
-            write!(formatter, "{raw}")
+            write!(formatter, "{}", version.raw)
         }
     }
 }
