@@ -4,17 +4,29 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 //! `#[derive(RustToC)]` — generates `impl From<Rust> for CRust`, converting
-//! an owned Rust domain type into its C-ABI mirror (outbound direction).
+//! a Rust domain type into its C-ABI mirror (outbound direction). Both
+//! `String` and `&str` fields (and `Vec`/`Option` of either) are supported —
+//! a borrowed `&'a str` still copies into an owned `CSlice` here, since the
+//! C side always needs its own buffer regardless of whether the Rust source
+//! owned its string or just borrowed it for the duration of the call.
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use syn::{Data, DeriveInput, Error, Fields, Ident, PathSegment, Type, parse_macro_input};
+use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, parse_macro_input};
 
-use crate::common::{PRIMITIVES, SHARED_TYPES, generic_arg, segment_name};
+use crate::common::{PRIMITIVES, SHARED_TYPES, generic_arg, is_str_type, segment_name};
+
+fn is_str_ref(ty: &Type) -> bool {
+    matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
+}
 
 fn string_to_c(ident: &Ident) -> TokenStream2 {
     quote! { CSlice::from_owned(value.#ident.into_bytes()) }
+}
+
+fn string_ref_to_c(ident: &Ident) -> TokenStream2 {
+    quote! { CSlice::from_owned(value.#ident.as_bytes().to_vec()) }
 }
 
 fn option_to_c(ident: &Ident) -> TokenStream2 {
@@ -31,7 +43,17 @@ fn composite_to_c(ident: &Ident, name: &str) -> TokenStream2 {
 }
 
 fn vec_to_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
-    let Some(inner_name) = generic_arg(segment).and_then(segment_name) else {
+    let Some(inner) = generic_arg(segment) else {
+        return quote! { compile_error!("RustToC: unsupported Vec element type") };
+    };
+
+    if is_str_ref(inner) {
+        return quote! {
+            CVec::from_owned(value.#ident.into_iter().map(|element| CSlice::from_owned(element.as_bytes().to_vec())).collect())
+        };
+    }
+
+    let Some(inner_name) = segment_name(inner) else {
         return quote! { compile_error!("RustToC: unsupported Vec element type") };
     };
 
@@ -64,6 +86,14 @@ fn field_to_c(ident: &Ident, ty: &Type) -> TokenStream2 {
         return quote! { value.#ident };
     }
 
+    if let Type::Reference(reference) = ty {
+        return if is_str_type(&reference.elem) {
+            string_ref_to_c(ident)
+        } else {
+            quote! { compile_error!("RustToC: unsupported reference field type") }
+        };
+    }
+
     let Type::Path(type_path) = ty else {
         return quote! { compile_error!("RustToC: unsupported field type") };
     };
@@ -74,16 +104,28 @@ fn field_to_c(ident: &Ident, ty: &Type) -> TokenStream2 {
     }
 }
 
-fn to_c_impl(name: &Ident, c_name: &Ident, field_values: &[TokenStream2]) -> TokenStream2 {
-    quote! {
-        impl From<#name> for #c_name {
-            fn from(value: #name) -> Self {
-                #c_name {
-                    struct_size: ::std::mem::size_of::<#c_name>(),
-                    #(#field_values)*
+fn to_c_impl(name: &Ident, c_name: &Ident, lifetime: Option<&Lifetime>, field_values: &[TokenStream2]) -> TokenStream2 {
+    match lifetime {
+        Some(lifetime) => quote! {
+            impl<#lifetime> From<#name<#lifetime>> for #c_name {
+                fn from(value: #name<#lifetime>) -> Self {
+                    #c_name {
+                        struct_size: ::std::mem::size_of::<#c_name>(),
+                        #(#field_values)*
+                    }
                 }
             }
-        }
+        },
+        None => quote! {
+            impl From<#name> for #c_name {
+                fn from(value: #name) -> Self {
+                    #c_name {
+                        struct_size: ::std::mem::size_of::<#c_name>(),
+                        #(#field_values)*
+                    }
+                }
+            }
+        },
     }
 }
 
@@ -91,6 +133,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
     let c_name = format_ident!("C{name}");
+    let lifetime = input.generics.lifetimes().next().map(|param| param.lifetime.clone());
 
     let fields = match &input.data {
         Data::Struct(s) => match &s.fields {
@@ -121,5 +164,5 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
         field_values.push(quote! { #ident: #value, });
     }
 
-    to_c_impl(name, &c_name, &field_values).into()
+    to_c_impl(name, &c_name, lifetime.as_ref(), &field_values).into()
 }

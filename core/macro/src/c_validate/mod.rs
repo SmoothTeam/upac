@@ -44,7 +44,7 @@ fn cvec_empty_check(ident: &Ident, non_empty: bool) -> TokenStream2 {
     if non_empty {
         quote! {
             if self.#ident.len == 0 {
-                return Err(ErrorKind::InvalidEntry);
+                return Err(crate::error::ErrorKind::InvalidEntry);
             }
         }
     } else {
@@ -96,7 +96,7 @@ fn field_ptr_validate(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
     if name == "CancelToken" {
         return quote! {
             if self.#ident.is_null() {
-                return Err(ErrorKind::InvalidEntry);
+                return Err(crate::error::ErrorKind::InvalidEntry);
             }
         };
     }
@@ -105,7 +105,7 @@ fn field_ptr_validate(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
         quote! {
             unsafe {
                 if self.#ident.is_null() {
-                    return Err(ErrorKind::InvalidEntry);
+                    return Err(crate::error::ErrorKind::InvalidEntry);
                 }
                 (*self.#ident).validate()?;
             }
@@ -135,15 +135,15 @@ fn field_validate(field: &Field) -> TokenStream2 {
 fn validate_impl(name: &Ident, validations: &[TokenStream2]) -> TokenStream2 {
     quote! {
         impl #name {
-            pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
-                check_size::<#name>(self.struct_size)?;
+            pub unsafe fn validate(&self) -> Result<(), crate::error::ErrorKind> {
+                crate::types::check_size::<#name>(self.struct_size)?;
                 #(#validations)*
                 Ok(())
             }
         }
 
         impl crate::types::CValidatable for #name {
-            unsafe fn validate(&self) -> Result<(), ErrorKind> {
+            unsafe fn validate(&self) -> Result<(), crate::error::ErrorKind> {
                 unsafe { #name::validate(self) }
             }
         }

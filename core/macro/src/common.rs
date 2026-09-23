@@ -73,3 +73,7 @@ pub(crate) fn segment_name(ty: &Type) -> Option<String> {
 
     type_path.path.segments.last().map(|segment| segment.ident.to_string())
 }
+
+pub(crate) fn is_str_type(ty: &Type) -> bool {
+    matches!(ty, Type::Path(path) if path.path.is_ident("str"))
+}

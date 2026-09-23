@@ -8,12 +8,15 @@
 //! that Zig got from `inline for (std.meta.fields)`.
 //!
 //! Dispatch is by field TYPE, decided at compile time:
-//!   CSlice           -> free_cslice(&self.field)
-//!   CVec<CSlice>     -> free_cvec_owning(&self.field, |entry| free_cslice(entry))
-//!   CVec<composite>  -> free_cvec_owning(&self.field, |entry| entry.free())
-//!   CVec<primitive>  -> free_cvec(&self.field)
+//!   CSlice           -> self.field.free()
+//!   CVec<CSlice>     -> self.field.free_owning(|entry| entry.free())
+//!   CVec<composite>  -> self.field.free_owning(|entry| entry.free())
+//!   CVec<primitive>  -> self.field.free()
 //!   primitive (u32, [u8;32], bool, ...) -> owns nothing, skipped
 //!   other named type (composite)        -> self.field.free()
+//! Every case dispatches to an inherent free()/free_owning() method on the field's own type
+//! (CSlice, CVec<T>, or the composite's own #[derive(CFree)] impl) — nothing here needs a `use`
+//! at the derive site, since method-call syntax resolves by receiver type, not by scope.
 //! Add a new owned field and it's handled automatically — no list to maintain.
 
 use proc_macro::TokenStream;
@@ -24,7 +27,7 @@ use syn::{Data, DeriveInput, Error, Fields, Ident, PathSegment, Type, parse_macr
 use crate::common::{generic_arg, is_validatable_composite, segment_name};
 
 fn cslice_free(ident: &Ident) -> TokenStream2 {
-    quote! { free_cslice(&self.#ident); }
+    quote! { self.#ident.free(); }
 }
 
 fn composite_free(ident: &Ident) -> TokenStream2 {
@@ -33,13 +36,10 @@ fn composite_free(ident: &Ident) -> TokenStream2 {
 
 fn cvec_free(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
     match generic_arg(segment).and_then(segment_name) {
-        Some(name) if name == "CSlice" => quote! {
-            free_cvec_owning(&self.#ident, |entry| free_cslice(entry));
+        Some(name) if name == "CSlice" || is_validatable_composite(&name) => quote! {
+            self.#ident.free_owning(|entry| entry.free());
         },
-        Some(name) if is_validatable_composite(&name) => quote! {
-            free_cvec_owning(&self.#ident, |entry| entry.free());
-        },
-        _ => quote! { free_cvec(&self.#ident); },
+        _ => quote! { self.#ident.free(); },
     }
 }
 
