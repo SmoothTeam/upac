@@ -168,6 +168,15 @@ impl From<Option<String>> for CSlice {
     }
 }
 
+impl From<Option<&str>> for CSlice {
+    fn from(value: Option<&str>) -> Self {
+        match value {
+            Some(value) => CSlice::from_owned(value.as_bytes().to_vec()),
+            None => CSlice { ptr: null(), len: 0 },
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CVec<T> {
