@@ -25,6 +25,7 @@ pub mod context;
 pub mod error;
 pub mod stage;
 
+#[macro_export]
 macro_rules! run_mutating {
     ($orchestrator:expr, $context:expr, $cancel:expr, $state:ty, $error:ty) => {
         if $orchestrator.validate(&$context).is_err() {
@@ -46,8 +47,9 @@ macro_rules! run_mutating {
         }
     };
 }
-pub(crate) use run_mutating;
+pub use run_mutating;
 
+#[macro_export]
 macro_rules! run_unmutated {
     ($orchestrator:expr, $context:expr, $cancel:expr, $state:ty, $error:ty, $($take:ty),+) => {
         if $orchestrator.validate(&$context).is_err() {
@@ -68,14 +70,15 @@ macro_rules! run_unmutated {
         }
     };
 }
-pub(crate) use run_unmutated;
+pub use run_unmutated;
 
+#[macro_export]
 macro_rules! stages {
     [$($stage:expr),+ $(,)?] => {
         vec![$(Box::new($stage)),+]
     };
 }
-pub(crate) use stages;
+pub use stages;
 
 pub type StagePipelineError = TypeId;
 
