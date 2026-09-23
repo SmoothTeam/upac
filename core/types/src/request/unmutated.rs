@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_abi::error::ErrorKind;
 use upac_abi::package::CPackageInfo;
-//use upac_abi::request::CRequestBase;
 use upac_abi::request::CRequestBase;
 use upac_abi::request::unmutated::{
     CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CListConfigRequest,
@@ -13,89 +13,89 @@ use upac_abi::request::unmutated::{
 };
 use upac_abi::types::{COwned, CSlice};
 
-use upac_macro::RustToC;
+use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
 use crate::package::PackageInfo;
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct ListPackagesRequest {
     pub base: RequestBase,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct ListConfigRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct ListConfigRequest<'data> {
     pub base: RequestBase,
-    pub prefix_digest: Option<String>,
+    pub prefix_digest: Option<&'data str>,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct ListPrefixRequest {
     pub base: RequestBase,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct ListHistoryRequest {
     pub base: RequestBase,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct DiffPrefixRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct DiffPrefixRequest<'data> {
     pub base: RequestBase,
-    pub from_prefix_digest: Option<String>,
-    pub to_prefix_digest: Option<String>,
+    pub from_prefix_digest: Option<&'data str>,
+    pub to_prefix_digest: Option<&'data str>,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct DiffConfigRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct DiffConfigRequest<'data> {
     pub base: RequestBase,
-    pub from_config_digest: Option<String>,
-    pub to_config_digest: Option<String>,
+    pub from_config_digest: Option<&'data str>,
+    pub to_config_digest: Option<&'data str>,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct DiffPackagesRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct DiffPackagesRequest<'data> {
     pub base: RequestBase,
-    pub from_prefix_digest: Option<String>,
-    pub to_prefix_digest: Option<String>,
+    pub from_prefix_digest: Option<&'data str>,
+    pub to_prefix_digest: Option<&'data str>,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct DiffRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct DiffRequest<'data> {
     pub base: RequestBase,
-    pub from_prefix_digest: Option<String>,
-    pub to_prefix_digest: Option<String>,
-    pub from_config_digest: Option<String>,
-    pub to_config_digest: Option<String>,
+    pub from_prefix_digest: Option<&'data str>,
+    pub to_prefix_digest: Option<&'data str>,
+    pub from_config_digest: Option<&'data str>,
+    pub to_config_digest: Option<&'data str>,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct SearchMetaRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct SearchMetaRequest<'data> {
     pub base: RequestBase,
-    pub search: String,
+    pub search: &'data str,
     pub is_regex: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct SearchFilesRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct SearchFilesRequest<'data> {
     pub base: RequestBase,
-    pub search: String,
+    pub search: &'data str,
     pub is_regex: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct SearchInMetaRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct SearchInMetaRequest<'data> {
     pub base: RequestBase,
     pub package: PackageInfo,
-    pub search: String,
+    pub search: &'data str,
     pub is_regex: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct SearchInPackageFilesRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct SearchInPackageFilesRequest<'data> {
     pub base: RequestBase,
     pub package: PackageInfo,
-    pub search: String,
+    pub search: &'data str,
     pub is_regex: bool,
 }

@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::cmp::Ordering;
-use std::mem::size_of;
 
 use serde::{Deserialize, Deserializer};
 

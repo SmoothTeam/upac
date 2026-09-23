@@ -8,111 +8,114 @@ use upac_abi::request::mutated::{
     CUninstallRequest, CUpdateRequest,
 };
 
+use upac_abi::error::ErrorKind;
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CRequestBase;
 use upac_abi::types::{COwned, CSlice, CVec};
 use upac_abi::{DiffFileSource, FileDiffKind};
 
-use upac_macro::RustToC;
+use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
 use crate::package::PackageInfo;
 
-#[derive(Debug, Clone, RustToC)]
-pub struct InstallRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct InstallRequest<'data> {
     pub base: RequestBase,
 
-    pub tmp_path: String,
+    pub tmp_path: &'data str,
 
-    pub subject: String,
-    pub message: Option<String>,
-    pub packages: Vec<String>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
-    pub boot_plugin: String,
+    pub packages: Vec<&'data str>,
+
+    pub boot_plugin: &'data str,
 
     pub allow_conflict_files: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct UpdateRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct UpdateRequest<'data> {
     pub base: RequestBase,
-    pub tmp_path: String,
 
-    pub subject: String,
-    pub message: Option<String>,
+    pub tmp_path: &'data str,
 
-    pub packages: Vec<String>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
-    pub boot_plugin: String,
+    pub packages: Vec<&'data str>,
+
+    pub boot_plugin: &'data str,
 
     pub allow_downgrade: bool,
     pub allow_conflict_files: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct UninstallRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct UninstallRequest<'data> {
     pub base: RequestBase,
 
-    pub tmp_path: String,
+    pub tmp_path: &'data str,
 
-    pub subject: String,
-    pub message: Option<String>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
     pub packages: Vec<PackageInfo>,
 
-    pub boot_plugin: String,
+    pub boot_plugin: &'data str,
 
     pub purge: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct RollbackRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct RollbackRequest<'data> {
     pub base: RequestBase,
-    pub tmp_path: String,
-    pub config_digest: String,
-    pub boot_plugin: String,
+    pub tmp_path: &'data str,
+    pub config_digest: &'data str,
+    pub boot_plugin: &'data str,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct CommitRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct CommitRequest<'data> {
     pub base: RequestBase,
-    pub tmp_path: String,
-    pub subject: String,
-    pub message: Option<String>,
+    pub tmp_path: &'data str,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct FilesRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct FilesRequest<'data> {
     pub base: RequestBase,
 
-    pub tmp_path: String,
+    pub tmp_path: &'data str,
 
-    pub subject: String,
-    pub message: Option<String>,
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
 
-    pub files: Vec<String>,
+    pub files: Vec<&'data str>,
     pub file_kind: FileDiffKind,
     pub file_package: *const CPackageInfo,
 
-    pub boot_plugin: String,
+    pub boot_plugin: &'data str,
 
     pub scope: DiffFileSource,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct GcRequest {
     pub base: RequestBase,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct MimeSyncRequest {
     pub base: RequestBase,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct PinRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct PinRequest<'data> {
     pub base: RequestBase,
-    pub prefix_digest: String,
+    pub prefix_digest: &'data str,
     pub pinned: bool,
 }
