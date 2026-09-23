@@ -32,20 +32,20 @@ pub struct RequestBase {
     pub cancel_token: *mut CancelToken,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct SetupExistingRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct SetupExistingRequest<'data> {
     pub base: RequestBase,
 
-    pub esp_device: String,
-    pub deploy_device: String,
+    pub esp_device: &'data str,
+    pub deploy_device: &'data str,
     pub deploy_fs: FsKind,
     pub extra_mounts: Vec<PartitionMount>,
 
-    pub mount_point: Option<String>,
-    pub source: String,
+    pub mount_point: Option<&'data str>,
+    pub source: &'data str,
     pub empty_config: bool,
     pub pinned: bool,
 
-    pub boot_plugin: String,
+    pub boot_plugin: &'data str,
     pub initramfs_generator: InitramfsGenerator,
 }

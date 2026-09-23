@@ -47,10 +47,17 @@ pub struct BootSettings {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct LocaleSettings {
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct RuntimeSettings {
     pub gc: GcSettings,
     pub progress: ProgressSettings,
     pub boot: BootSettings,
+    pub locale: LocaleSettings,
 }
 
 impl RuntimeSettings {

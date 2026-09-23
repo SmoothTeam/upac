@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_abi::error::ErrorKind;
 use upac_abi::package::CVersion;
 use upac_abi::response::entry::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPackageEntry, CDiffPrefixFileEntry,
@@ -11,7 +12,7 @@ use upac_abi::response::entry::{
 use upac_abi::types::{COwned, CSlice, CVec};
 use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
 
-use upac_macro::{RedbCodec, RustToC};
+use upac_macro::{CTryToRust, RedbCodec, RustToC};
 
 use crate::codec::RedbCodable;
 use crate::package::Version;
@@ -53,7 +54,7 @@ pub struct SearchFileEntry {
     pub is_user: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct PrefixEntry {
     pub prefix_digest: String,
 
@@ -65,7 +66,7 @@ pub struct PrefixEntry {
     pub working_config: Option<String>,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct ConfigCommitEntry {
     pub config_digest: String,
 
@@ -73,7 +74,7 @@ pub struct ConfigCommitEntry {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct HistoryEntry {
     pub prefix_digest: String,
 
@@ -86,13 +87,13 @@ pub struct HistoryEntry {
     pub config_history: Vec<ConfigCommitEntry>,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DiffFileCommonEntry {
     pub path: String,
     pub kind: FileDiffKind,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DiffPrefixFileEntry {
     pub common: DiffFileCommonEntry,
     pub source: DiffFileSource,
@@ -100,13 +101,13 @@ pub struct DiffPrefixFileEntry {
     pub is_user: bool,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DiffConfigFileEntry {
     pub common: DiffFileCommonEntry,
     pub package_name: Option<String>,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DiffPackageEntry {
     pub name: String,
     pub kind: PackageDiffKind,
@@ -115,7 +116,7 @@ pub struct DiffPackageEntry {
     pub files: Vec<DiffPrefixFileEntry>,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DiffUntrackedFileEntry {
     pub common: DiffFileCommonEntry,
     pub source: DiffFileSource,
