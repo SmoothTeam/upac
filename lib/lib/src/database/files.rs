@@ -10,7 +10,7 @@ use twox_hash::xxhash3_64::Hasher as XxHasher;
 use uuid::Uuid;
 
 use upac_types::codec::RedbCodable;
-use upac_types::entry::FileEntry;
+use upac_types::response::entry::FileEntry;
 
 use super::error::DatabaseError;
 use super::{FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadTransactionExt, ReadableSource};

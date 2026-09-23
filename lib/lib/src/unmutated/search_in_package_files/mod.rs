@@ -3,24 +3,18 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::os::raw::c_void;
-
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::CSearchInPackageFilesRequest;
-
-use upac_types::entry::SearchFileEntry;
 use upac_types::hook::Message;
 use upac_types::package::PackageEntry;
-use upac_types::response::SearchInPackageFilesResponse;
-use upac_types::states::SearchInPackageFilesStateId;
+use upac_types::request::unmutated::SearchInPackageFilesRequest;
+use upac_types::response::entry::SearchFileEntry;
+use upac_types::response::unmutated::SearchInPackageFilesResponse;
+use upac_types::state::unmutated::SearchInPackageFilesStateId;
 use upac_types::traits::MessageHook;
 
 use self::searching::SearchingStage;
 
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
 use crate::search::Search;
 
 pub use self::error::SearchInPackageFilesError;
@@ -28,46 +22,12 @@ pub use self::error::SearchInPackageFilesError;
 mod error;
 mod searching;
 
-pub struct SearchInPackageFilesData<'data> {
-    pub name: &'data str,
-    pub arch: &'data str,
-    pub arch_sub: Option<&'data str>,
-    pub search: &'data str,
-    pub is_regex: bool,
-
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
-
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CSearchInPackageFilesRequest> for SearchInPackageFilesData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CSearchInPackageFilesRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(SearchInPackageFilesData {
-            name: (&request.package.name).try_into()?,
-            arch: (&request.package.arch).try_into()?,
-            arch_sub: (&request.package.arch_sub).try_into()?,
-            search: (&request.search).try_into()?,
-            is_regex: request.is_regex,
-
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
 pub fn run(
-    data: SearchInPackageFilesData,
+    request: SearchInPackageFilesRequest<'_>,
 ) -> Result<SearchInPackageFilesResponse, (SearchInPackageFilesStateId, SearchInPackageFilesError)> {
-    let search = Search::new(data.search, data.is_regex).map_err(|error| {
+    let cancel_token = unsafe { &*request.base.cancel_token };
+
+    let search = Search::new(request.search, request.is_regex).map_err(|error| {
         (
             SearchInPackageFilesStateId::Setup,
             SearchInPackageFilesError::from(error),
@@ -76,19 +36,19 @@ pub fn run(
 
     let mut context = Context::new();
     context.put(PackageEntry {
-        name: data.name.to_owned(),
-        arch: data.arch.to_owned(),
-        arch_sub: data.arch_sub.map(str::to_owned),
+        name: request.package.name,
+        arch: request.package.arch,
+        arch_sub: request.package.arch_sub,
     });
     context.put(search);
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
-    let orchestrator = SequentialOrchestrator::new(vec![Box::new(SearchingStage)]);
+    let orchestrator = SequentialOrchestrator::new(stages![SearchingStage]);
 
     let (files,) = run_unmutated!(
         orchestrator,
         context,
-        data.cancel_token,
+        cancel_token,
         SearchInPackageFilesStateId,
         SearchInPackageFilesError,
         Vec<SearchFileEntry>

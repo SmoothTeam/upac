@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use upac_abi::hook::CancelToken;
 use upac_abi::{FileDiffKind, PackageDiffKind};
 
-use upac_types::entry::{DiffFileEntryCommon, DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry};
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::package::{PackageMeta, Version};
+use upac_types::response::entry::{DiffFileCommonEntry, DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry};
 
 use super::{DiffError, DiffSnapshot};
 
@@ -49,14 +49,14 @@ impl Stage<DiffError> for ComparingStage {
                     });
 
                     entry.files.push(DiffPrefixFileEntry {
-                        common: DiffFileEntryCommon { path, kind },
+                        common: DiffFileCommonEntry { path, kind },
                         source,
                         package_name: attribution.package_meta.name,
                         is_user: attribution.file_entry.is_user,
                     });
                 }
                 None => unattached_files.push(DiffUntrackedFileEntry {
-                    common: DiffFileEntryCommon { path, kind },
+                    common: DiffFileCommonEntry { path, kind },
                     source,
                 }),
             }

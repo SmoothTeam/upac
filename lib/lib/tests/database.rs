@@ -11,8 +11,8 @@ use upac::database::triggers::{TriggerStore, TriggerStoreMut};
 use upac::database::{InMemory, MemoryDatabase};
 
 use upac_types::decoder::DeclarativeTrigger;
-use upac_types::entry::{FileEntry, FileEntryScope};
 use upac_types::package::PackageMeta;
+use upac_types::response::entry::{FileEntry, FileEntryScope};
 
 fn sample_meta(name: &str) -> PackageMeta {
     PackageMeta {

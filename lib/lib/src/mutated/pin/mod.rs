@@ -3,16 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::os::raw::c_void;
-
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::CPinRequest;
 use upac_types::hook::Message;
+use upac_types::request::mutated::PinRequest;
 use upac_types::traits::MessageHook;
 
-use upac_types::states::PinStateId;
+use upac_types::state::mutated::PinStateId;
 
 use upac_macro::ContextValue;
 
@@ -20,7 +15,7 @@ use self::stage::SetPinnedStage;
 
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
 
 pub use self::error::PinError;
 
@@ -33,50 +28,21 @@ pub(crate) struct RequestedPrefixDigest(pub String);
 #[derive(ContextValue)]
 pub(crate) struct RequestedPinned(pub bool);
 
-pub struct PinData<'data> {
-    pub prefix_digest: &'data str,
-    pub pinned: bool,
-
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
-
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CPinRequest> for PinData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CPinRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(PinData {
-            prefix_digest: (&request.prefix_digest).try_into()?,
-            pinned: request.pinned,
-
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
-pub fn run(data: PinData) -> Result<(), (PinStateId, PinError)> {
+pub fn run(request: PinRequest<'_>) -> Result<(), (PinStateId, PinError)> {
     let deploy = Deploy::new(DeployMode::ReadWrite).map_err(|error| (PinStateId::Setup, PinError::from(error)))?;
+    let cancel_token = unsafe { &*request.base.cancel_token };
 
     let mut context = Context::new();
     context.put(deploy);
-    context.put(RequestedPrefixDigest(data.prefix_digest.to_owned()));
-    context.put(RequestedPinned(data.pinned));
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(RequestedPrefixDigest(request.prefix_digest.to_owned()));
+    context.put(RequestedPinned(request.pinned));
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
-    let orchestrator = SequentialOrchestrator::new(vec![Box::new(SetPinnedStage)]);
+    let orchestrator = SequentialOrchestrator::new(stages![SetPinnedStage]);
 
-    let result = run_mutating!(orchestrator, context, data.cancel_token, PinStateId, PinError);
+    let result = run_mutating!(orchestrator, context, cancel_token, PinStateId, PinError);
 
-    data.cancel_token.reset();
+    cancel_token.reset();
 
     result
 }

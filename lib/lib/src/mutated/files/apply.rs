@@ -14,8 +14,8 @@ use composefs::tree::FileSystem;
 use upac_abi::hook::CancelToken;
 use upac_abi::{DiffFileSource, FileDiffKind};
 
-use upac_types::entry::{FileEntry, FileEntryScope};
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::{FileEntry, FileEntryScope};
 
 use super::{ApplyTarget, FileProgress, FilesError, RequestedFileOperation, WorkingState};
 

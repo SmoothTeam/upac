@@ -7,7 +7,7 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use upac_types::entry::FileEntryScope;
+use upac_types::response::entry::FileEntryScope;
 
 use super::{Purge, RemoveProgress, UninstallError, WorkingState};
 

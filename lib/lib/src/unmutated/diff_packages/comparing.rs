@@ -9,8 +9,8 @@ use upac_abi::PackageDiffKind;
 use upac_abi::hook::CancelToken;
 
 use upac_types::DiffPackagesSnapshot;
-use upac_types::entry::DiffPackageEntry;
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::DiffPackageEntry;
 
 use super::DiffPackagesError;
 

@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CListConfigRequest;
-use upac_abi::response::CListConfigResponse;
+use upac_abi::request::unmutated::CListConfigRequest;
+use upac_abi::response::unmutated::CListConfigResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::ListConfigStateId;
+use upac_types::request::unmutated::ListConfigRequest;
+use upac_types::state::unmutated::ListConfigStateId;
 
-use crate::unmutated::list_config::{ListConfigData, run};
+use crate::unmutated::list_config::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,9 @@ use crate::unmutated::list_config::{ListConfigData, run};
 pub unsafe extern "C" fn list_config(
     request_c: CListConfigRequest, response_out: *mut CListConfigResponse, err_out: *mut CError,
 ) -> i32 {
-    let list_config_data = try_convert_abi!(ListConfigData::try_from(&request_c), err_out, ListConfigStateId);
+    let list_config_request = try_convert_abi!(ListConfigRequest::try_from(&request_c), err_out, ListConfigStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(list_config_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(list_config_request)));
 
     match result {
         Ok(Ok(response)) => {

@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CSearchInMetaRequest;
-use upac_abi::response::CSearchInMetaResponse;
+use upac_abi::request::unmutated::CSearchInMetaRequest;
+use upac_abi::response::unmutated::CSearchInMetaResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::SearchInMetaStateId;
+use upac_types::request::unmutated::SearchInMetaRequest;
+use upac_types::state::unmutated::SearchInMetaStateId;
 
-use crate::unmutated::search_in_meta::{SearchInMetaData, run};
+use crate::unmutated::search_in_meta::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,10 @@ use crate::unmutated::search_in_meta::{SearchInMetaData, run};
 pub unsafe extern "C" fn search_in_meta(
     request_c: CSearchInMetaRequest, response_out: *mut CSearchInMetaResponse, err_out: *mut CError,
 ) -> i32 {
-    let search_in_meta_data = try_convert_abi!(SearchInMetaData::try_from(&request_c), err_out, SearchInMetaStateId);
+    let search_in_meta_request =
+        try_convert_abi!(SearchInMetaRequest::try_from(&request_c), err_out, SearchInMetaStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(search_in_meta_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(search_in_meta_request)));
 
     match result {
         Ok(Ok(response)) => {

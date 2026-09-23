@@ -30,14 +30,17 @@ name = "upac"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+upac-lib-pki      = { workspace = true }
+
 upac-macro        = { workspace = true }
 upac-types        = { workspace = true }
 upac-abi          = { workspace = true }
-upac-pki          = { workspace = true }
-upac-uki          = { workspace = true, optional = true }
-upac-systemd-boot = { workspace = true, optional = true }
-upac-grub         = { workspace = true, optional = true }
-upac-refind       = { workspace = true, optional = true }
+
+upac-booters-uki          = { workspace = true, optional = true }
+upac-booters-systemd-boot = { workspace = true, optional = true }
+upac-booters-grub         = { workspace = true, optional = true }
+upac-booters-refind       = { workspace = true, optional = true }
+
 upac-decoders-alpm = { workspace = true, optional = true }
 upac-decoders-deb  = { workspace = true, optional = true }
 upac-decoders-rpm  = { workspace = true, optional = true }
@@ -81,10 +84,10 @@ dynamic-plugins = ["dep:libloading"]
 builtin-booters  = []
 builtin-decoders = []
 
-builtin-uki          = ["dep:upac-uki", "builtin-booters"]
-builtin-systemd-boot = ["dep:upac-systemd-boot", "builtin-booters"]
-builtin-grub         = ["dep:upac-grub", "builtin-booters"]
-builtin-refind       = ["dep:upac-refind", "builtin-booters"]
+builtin-uki          = ["dep:upac-booters-uki", "builtin-booters"]
+builtin-systemd-boot = ["dep:upac-booters-systemd-boot", "builtin-booters"]
+builtin-grub         = ["dep:upac-booters-grub", "builtin-booters"]
+builtin-refind       = ["dep:upac-booters-refind", "builtin-booters"]
 
 builtin-alpm = ["dep:upac-decoders-alpm", "builtin-decoders"]
 builtin-deb  = ["dep:upac-decoders-deb", "builtin-decoders"]

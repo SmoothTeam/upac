@@ -6,8 +6,8 @@
 use upac_abi::hook::CancelToken;
 
 use upac_types::RequestedPrefixDigest;
-use upac_types::entry::ConfigCommitEntry;
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::ConfigCommitEntry;
 
 use super::ListConfigError;
 

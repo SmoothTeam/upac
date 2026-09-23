@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CDiffPrefixRequest;
-use upac_abi::response::CDiffPrefixResponse;
+use upac_abi::request::unmutated::CDiffPrefixRequest;
+use upac_abi::response::unmutated::CDiffPrefixResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::DiffPrefixStateId;
+use upac_types::request::unmutated::DiffPrefixRequest;
+use upac_types::state::unmutated::DiffPrefixStateId;
 
-use crate::unmutated::diff_prefix::{DiffPrefixData, run};
+use crate::unmutated::diff_prefix::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,9 @@ use crate::unmutated::diff_prefix::{DiffPrefixData, run};
 pub unsafe extern "C" fn diff_prefix(
     request_c: CDiffPrefixRequest, response_out: *mut CDiffPrefixResponse, err_out: *mut CError,
 ) -> i32 {
-    let diff_prefix_data = try_convert_abi!(DiffPrefixData::try_from(&request_c), err_out, DiffPrefixStateId);
+    let diff_prefix_request = try_convert_abi!(DiffPrefixRequest::try_from(&request_c), err_out, DiffPrefixStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(diff_prefix_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(diff_prefix_request)));
 
     match result {
         Ok(Ok(response)) => {

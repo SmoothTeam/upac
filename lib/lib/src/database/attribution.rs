@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::entry::FileEntry;
 use upac_types::package::PackageMeta;
+use upac_types::response::entry::FileEntry;
 
 use super::error::DatabaseError;
 use super::files::FileStore;

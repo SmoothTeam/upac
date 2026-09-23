@@ -14,7 +14,7 @@ use crate::database::attribution::FileAttribute;
 use crate::orchestrator::context::{Context, ctx_take};
 use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
-use upac_types::entry::{DiffConfigFileEntry, DiffFileEntryCommon};
+use upac_types::response::entry::{DiffConfigFileEntry, DiffFileCommonEntry};
 
 pub struct ComparingStage;
 
@@ -37,7 +37,7 @@ impl Stage<DiffConfigError> for ComparingStage {
                 .map(|attribution| attribution.package_meta.name);
 
             entries.push(DiffConfigFileEntry {
-                common: DiffFileEntryCommon { path, kind },
+                common: DiffFileCommonEntry { path, kind },
                 package_name,
             });
         }

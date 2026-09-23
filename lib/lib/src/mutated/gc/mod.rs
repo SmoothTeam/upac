@@ -4,17 +4,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::VecDeque;
-use std::os::raw::c_void;
-
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::CGcRequest;
 
 use upac_types::hook::Message;
+use upac_types::request::mutated::GcRequest;
 use upac_types::traits::MessageHook;
 
-use upac_types::states::GcStateId;
+use upac_types::state::mutated::GcStateId;
 
 use upac_macro::ContextValue;
 
@@ -24,7 +19,7 @@ use self::pruning::PruneStage;
 
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
 
 pub use self::error::GcError;
 
@@ -41,46 +36,19 @@ pub(crate) struct DeployProgress {
 #[derive(ContextValue)]
 pub(crate) struct CollectedRoots(pub Vec<String>);
 
-pub struct GcData<'data> {
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
-
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CGcRequest> for GcData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CGcRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(GcData {
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
-pub fn run(data: GcData) -> Result<(), (GcStateId, GcError)> {
+pub fn run(request: GcRequest) -> Result<(), (GcStateId, GcError)> {
     let deploy = Deploy::new(DeployMode::ReadWrite).map_err(|error| (GcStateId::Setup, GcError::from(error)))?;
+    let cancel_token = unsafe { &*request.base.cancel_token };
 
     let mut context = Context::new();
     context.put(deploy);
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
-    let orchestrator = SequentialOrchestrator::new(vec![
-        Box::new(PruneStage),
-        Box::new(CollectRootsStage),
-        Box::new(CleaningStage),
-    ]);
+    let orchestrator = SequentialOrchestrator::new(stages![PruneStage, CollectRootsStage, CleaningStage]);
 
-    let result = run_mutating!(orchestrator, context, data.cancel_token, GcStateId, GcError);
+    let result = run_mutating!(orchestrator, context, cancel_token, GcStateId, GcError);
 
-    data.cancel_token.reset();
+    cancel_token.reset();
 
     result
 }

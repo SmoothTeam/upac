@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CDiffRequest;
-use upac_abi::response::CDiffResponse;
+use upac_abi::request::unmutated::CDiffRequest;
+use upac_abi::response::unmutated::CDiffResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::DiffStateId;
+use upac_types::request::unmutated::DiffRequest;
+use upac_types::state::unmutated::DiffStateId;
 
-use crate::unmutated::diff::{DiffData, run};
+use crate::unmutated::diff::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -20,9 +21,9 @@ use crate::unmutated::diff::{DiffData, run};
 /// matching type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn diff(request_c: CDiffRequest, response_out: *mut CDiffResponse, err_out: *mut CError) -> i32 {
-    let diff_data = try_convert_abi!(DiffData::try_from(&request_c), err_out, DiffStateId);
+    let diff_request = try_convert_abi!(DiffRequest::try_from(&request_c), err_out, DiffStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(diff_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(diff_request)));
 
     match result {
         Ok(Ok(response)) => {

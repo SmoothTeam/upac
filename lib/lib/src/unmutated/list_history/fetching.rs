@@ -5,8 +5,8 @@
 
 use upac_abi::hook::CancelToken;
 
-use upac_types::entry::{ConfigCommitEntry, HistoryEntry};
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::{ConfigCommitEntry, HistoryEntry};
 
 use super::ListHistoryError;
 

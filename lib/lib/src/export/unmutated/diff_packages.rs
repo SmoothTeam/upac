@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CDiffPackagesRequest;
-use upac_abi::response::CDiffPackagesResponse;
+use upac_abi::request::unmutated::CDiffPackagesRequest;
+use upac_abi::response::unmutated::CDiffPackagesResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::DiffPackagesStateId;
+use upac_types::request::unmutated::DiffPackagesRequest;
+use upac_types::state::unmutated::DiffPackagesStateId;
 
-use crate::unmutated::diff_packages::{DiffPackagesData, run};
+use crate::unmutated::diff_packages::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,10 @@ use crate::unmutated::diff_packages::{DiffPackagesData, run};
 pub unsafe extern "C" fn diff_packages(
     request_c: CDiffPackagesRequest, response_out: *mut CDiffPackagesResponse, err_out: *mut CError,
 ) -> i32 {
-    let diff_packages_data = try_convert_abi!(DiffPackagesData::try_from(&request_c), err_out, DiffPackagesStateId);
+    let diff_packages_request =
+        try_convert_abi!(DiffPackagesRequest::try_from(&request_c), err_out, DiffPackagesStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(diff_packages_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(diff_packages_request)));
 
     match result {
         Ok(Ok(response)) => {

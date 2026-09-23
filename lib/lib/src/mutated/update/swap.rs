@@ -6,7 +6,7 @@
 use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
-use upac_types::request::BootPluginSetOneShotRequest;
+use upac_types::request::booter::BootPluginSetOneShotRequest;
 
 use super::{ResolvedBootEntry, UpdateError};
 

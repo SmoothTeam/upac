@@ -3,19 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::os::raw::c_void;
-
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::CDiffRequest;
 use upac_abi::{DiffFileSource, FileDiffKind};
 
-use upac_types::entry::{DiffPackageEntry, DiffUntrackedFileEntry};
 use upac_types::hook::Message;
 use upac_types::package::PackageMeta;
-use upac_types::response::DiffResponse;
-use upac_types::states::DiffStateId;
+use upac_types::request::unmutated::DiffRequest;
+use upac_types::response::entry::{DiffPackageEntry, DiffUntrackedFileEntry};
+use upac_types::response::unmutated::DiffResponse;
+use upac_types::state::unmutated::DiffStateId;
 use upac_types::traits::MessageHook;
 use upac_types::{RequestedConfigDigestRange, RequestedPrefixDigestRange};
 
@@ -24,7 +19,7 @@ use self::preparing::PreparingStage;
 
 use crate::database::MemoryDatabase;
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
 
 pub use self::error::DiffError;
 
@@ -42,60 +37,28 @@ struct DiffSnapshot {
     to_database: MemoryDatabase,
 }
 
-pub struct DiffData<'data> {
-    pub from_prefix_digest: Option<&'data str>,
-    pub to_prefix_digest: Option<&'data str>,
-    pub from_config_digest: Option<&'data str>,
-    pub to_config_digest: Option<&'data str>,
+pub fn run(request: DiffRequest<'_>) -> Result<DiffResponse, (DiffStateId, DiffError)> {
+    let cancel_token = unsafe { &*request.base.cancel_token };
 
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
-
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CDiffRequest> for DiffData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CDiffRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(DiffData {
-            from_prefix_digest: (&request.from_prefix_digest).try_into()?,
-            to_prefix_digest: (&request.to_prefix_digest).try_into()?,
-            from_config_digest: (&request.from_config_digest).try_into()?,
-            to_config_digest: (&request.to_config_digest).try_into()?,
-
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
-pub fn run(data: DiffData) -> Result<DiffResponse, (DiffStateId, DiffError)> {
     let mut context = Context::new();
     context.put(RequestedPrefixDigestRange {
-        from: data.from_prefix_digest.map(str::to_owned),
-        to: data.to_prefix_digest.map(str::to_owned),
+        from: request.from_prefix_digest.map(str::to_owned),
+        to: request.to_prefix_digest.map(str::to_owned),
     });
 
     context.put(RequestedConfigDigestRange {
-        from: data.from_config_digest.map(str::to_owned),
-        to: data.to_config_digest.map(str::to_owned),
+        from: request.from_config_digest.map(str::to_owned),
+        to: request.to_config_digest.map(str::to_owned),
     });
 
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
-    let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
+    let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]);
 
     let (diff_packages, unattached_files) = run_unmutated!(
         orchestrator,
         context,
-        data.cancel_token,
+        cancel_token,
         DiffStateId,
         DiffError,
         Vec<DiffPackageEntry>,

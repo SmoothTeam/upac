@@ -6,21 +6,22 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CMimeSyncRequest;
+use upac_abi::request::mutated::CMimeSyncRequest;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::MimeStateId;
+use upac_types::request::mutated::MimeSyncRequest;
+use upac_types::state::mutated::MimeStateId;
 
-use crate::mutated::mime::{MimeData, run};
+use crate::mutated::mime::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
 /// call. `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn mime(request_c: CMimeSyncRequest, err_out: *mut CError) -> i32 {
-    let mime_data = try_convert_abi!(MimeData::try_from(&request_c), err_out, MimeStateId);
+    let mime_request = try_convert_abi!(MimeSyncRequest::try_from(&request_c), err_out, MimeStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(mime_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(mime_request)));
 
     match result {
         Ok(Ok(())) => 0,

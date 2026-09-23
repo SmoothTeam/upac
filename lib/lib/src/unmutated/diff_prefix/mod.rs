@@ -3,19 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::os::raw::c_void;
-
 use upac_abi::FileDiffKind;
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::CDiffPrefixRequest;
 
 use upac_types::RequestedPrefixDigestRange;
-use upac_types::entry::DiffPrefixFileEntry;
 use upac_types::hook::Message;
-use upac_types::response::DiffPrefixResponse;
-use upac_types::states::DiffPrefixStateId;
+use upac_types::request::unmutated::DiffPrefixRequest;
+use upac_types::response::entry::DiffPrefixFileEntry;
+use upac_types::response::unmutated::DiffPrefixResponse;
+use upac_types::state::unmutated::DiffPrefixStateId;
 use upac_types::traits::MessageHook;
 
 use self::comparing::ComparingStage;
@@ -23,7 +18,7 @@ use self::preparing::PreparingStage;
 
 use crate::database::MemoryDatabase;
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
 
 pub use self::error::DiffPrefixError;
 
@@ -37,50 +32,22 @@ struct DiffPrefixSnapshot {
     to_database: MemoryDatabase,
 }
 
-pub struct DiffPrefixData<'data> {
-    pub from_prefix_digest: Option<&'data str>,
-    pub to_prefix_digest: Option<&'data str>,
+pub fn run(request: DiffPrefixRequest<'_>) -> Result<DiffPrefixResponse, (DiffPrefixStateId, DiffPrefixError)> {
+    let cancel_token = unsafe { &*request.base.cancel_token };
 
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
-
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CDiffPrefixRequest> for DiffPrefixData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CDiffPrefixRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(DiffPrefixData {
-            from_prefix_digest: (&request.from_prefix_digest).try_into()?,
-            to_prefix_digest: (&request.to_prefix_digest).try_into()?,
-
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
-pub fn run(data: DiffPrefixData) -> Result<DiffPrefixResponse, (DiffPrefixStateId, DiffPrefixError)> {
     let mut context = Context::new();
     context.put(RequestedPrefixDigestRange {
-        from: data.from_prefix_digest.map(str::to_owned),
-        to: data.to_prefix_digest.map(str::to_owned),
+        from: request.from_prefix_digest.map(str::to_owned),
+        to: request.to_prefix_digest.map(str::to_owned),
     });
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
-    let orchestrator = SequentialOrchestrator::new(vec![Box::new(PreparingStage), Box::new(ComparingStage)]);
+    let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]);
 
     let (files,) = run_unmutated!(
         orchestrator,
         context,
-        data.cancel_token,
+        cancel_token,
         DiffPrefixStateId,
         DiffPrefixError,
         Vec<DiffPrefixFileEntry>

@@ -7,11 +7,11 @@ use std::mem::MaybeUninit;
 
 use upac_abi::DecodeFn;
 use upac_abi::hook::CancelToken;
-use upac_abi::request::CDecodeRequest;
-use upac_abi::response::CDecodeResponse;
+use upac_abi::request::decoder::CDecodeRequest;
+use upac_abi::response::decoder::CDecodeResponse;
 
-use upac_types::request::DecodeRequest;
-use upac_types::response::DecodeResponse;
+use upac_types::request::decoder::DecodeRequest;
+use upac_types::response::decoder::DecodeResponse;
 
 #[cfg(feature = "dynamic-plugins")]
 use libloading::Library;

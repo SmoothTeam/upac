@@ -5,8 +5,8 @@
 
 use upac_abi::hook::CancelToken;
 
-use upac_types::entry::PrefixEntry;
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::PrefixEntry;
 
 use super::ListPrefixError;
 

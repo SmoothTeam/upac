@@ -6,8 +6,8 @@
 use upac_abi::hook::CancelToken;
 use upac_abi::{DiffFileSource, FileDiffKind};
 
-use upac_types::entry::{DiffFileEntryCommon, DiffPrefixFileEntry};
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::{DiffFileCommonEntry, DiffPrefixFileEntry};
 
 use super::{DiffPrefixError, DiffPrefixSnapshot};
 
@@ -33,7 +33,7 @@ impl Stage<DiffPrefixError> for ComparingStage {
 
             if let Some(attribution) = database.attribute_file(&path)? {
                 entries.push(DiffPrefixFileEntry {
-                    common: DiffFileEntryCommon { path, kind },
+                    common: DiffFileCommonEntry { path, kind },
                     source: DiffFileSource::Prefix,
                     package_name: attribution.package_meta.name,
                     is_user: attribution.file_entry.is_user,

@@ -4,15 +4,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::VecDeque;
-use std::os::raw::c_void;
-
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::CMimeSyncRequest;
 
 use upac_types::hook::Message;
-use upac_types::states::MimeStateId;
+use upac_types::request::mutated::MimeSyncRequest;
+use upac_types::state::mutated::MimeStateId;
 use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
@@ -22,7 +17,7 @@ use self::rendering::RenderingStage;
 use self::writing::WritingStage;
 
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
 
 pub use self::error::MimeError;
 
@@ -39,43 +34,17 @@ pub(crate) struct WriteProgress {
     pub total: u64,
 }
 
-pub struct MimeData<'data> {
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
+pub fn run(request: MimeSyncRequest) -> Result<(), (MimeStateId, MimeError)> {
+    let cancel_token = unsafe { &*request.base.cancel_token };
 
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CMimeSyncRequest> for MimeData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CMimeSyncRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(MimeData {
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
-pub fn run(data: MimeData) -> Result<(), (MimeStateId, MimeError)> {
     let mut context = Context::new();
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
-    let orchestrator = SequentialOrchestrator::new(vec![
-        Box::new(PreparingStage),
-        Box::new(RenderingStage),
-        Box::new(WritingStage),
-    ]);
+    let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, RenderingStage, WritingStage]);
 
-    let result = run_mutating!(orchestrator, context, data.cancel_token, MimeStateId, MimeError);
+    let result = run_mutating!(orchestrator, context, cancel_token, MimeStateId, MimeError);
 
-    data.cancel_token.reset();
+    cancel_token.reset();
 
     result
 }

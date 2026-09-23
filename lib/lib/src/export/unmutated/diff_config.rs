@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CDiffConfigRequest;
-use upac_abi::response::CDiffConfigResponse;
+use upac_abi::request::unmutated::CDiffConfigRequest;
+use upac_abi::response::unmutated::CDiffConfigResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::DiffConfigStateId;
+use upac_types::request::unmutated::DiffConfigRequest;
+use upac_types::state::unmutated::DiffConfigStateId;
 
-use crate::unmutated::diff_config::{DiffConfigData, run};
+use crate::unmutated::diff_config::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,9 @@ use crate::unmutated::diff_config::{DiffConfigData, run};
 pub unsafe extern "C" fn diff_config(
     request_c: CDiffConfigRequest, response_out: *mut CDiffConfigResponse, err_out: *mut CError,
 ) -> i32 {
-    let diff_config_data = try_convert_abi!(DiffConfigData::try_from(&request_c), err_out, DiffConfigStateId);
+    let diff_config_request = try_convert_abi!(DiffConfigRequest::try_from(&request_c), err_out, DiffConfigStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(diff_config_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(diff_config_request)));
 
     match result {
         Ok(Ok(response)) => {

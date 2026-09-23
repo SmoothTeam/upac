@@ -4,20 +4,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::VecDeque;
-use std::os::raw::c_void;
 
 use composefs::tree::FileSystem;
-
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::CUpdateRequest;
 
 use upac_types::TmpPath;
 use upac_types::decoder::DeclarativeTrigger;
 use upac_types::hook::Message;
 use upac_types::package::PackageTemp;
-use upac_types::states::UpdateStateId;
+use upac_types::request::mutated::UpdateRequest;
+use upac_types::state::mutated::UpdateStateId;
 use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
@@ -37,7 +32,7 @@ use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::errors::CommonError;
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
 use crate::plugin::boot::BootPlugin;
 use crate::plugin::decoder::unpack::PackageUnpacker;
 use crate::scripts::HookStage;
@@ -95,110 +90,63 @@ pub(crate) struct ImportedState {
     pub removed_config_paths: Vec<String>,
 }
 
-pub struct UpdateData<'data> {
-    pub packages: Vec<&'data str>,
-
-    pub boot_plugin: &'data str,
-
-    pub allow_downgrade: bool,
-    pub allow_conflict_files: bool,
-
-    pub tmp_path: &'data str,
-
-    pub subject: &'data str,
-    pub message: Option<&'data str>,
-
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
-
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CUpdateRequest> for UpdateData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CUpdateRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(UpdateData {
-            packages: Vec::try_from(&request.packages)?,
-
-            boot_plugin: (&request.boot_plugin).try_into()?,
-
-            allow_downgrade: request.allow_downgrade,
-            allow_conflict_files: request.allow_conflict_files,
-
-            tmp_path: (&request.tmp_path).try_into()?,
-
-            subject: (&request.subject).try_into()?,
-            message: (&request.message).try_into()?,
-
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
-pub fn run(data: UpdateData) -> Result<(), (UpdateStateId, UpdateError)> {
+pub fn run(request: UpdateRequest<'_>) -> Result<(), (UpdateStateId, UpdateError)> {
     let deploy =
         Deploy::new(DeployMode::ReadWrite).map_err(|error| (UpdateStateId::Setup, UpdateError::from(error)))?;
     let unpacker = PackageUnpacker::new()
         .map_err(|error| (UpdateStateId::Setup, UpdateError::from(CommonError::Decoder(error))))?;
 
-    let total_packages = data.packages.len() as u64;
+    let total_packages = request.packages.len() as u64;
+    let cancel_token = unsafe { &*request.base.cancel_token };
 
     let mut context = Context::new();
     context.put(deploy);
     context.put(UnpackState {
-        pending_paths: data.packages.iter().map(|path| (*path).to_owned()).collect(),
+        pending_paths: request.packages.iter().map(|path| (*path).to_owned()).collect(),
         unpacker,
     });
     context.put(ImportProgress {
         pending: VecDeque::new(),
         total: total_packages,
     });
-    context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(TmpPath(request.tmp_path.to_owned()));
     context.put(CommitInfo {
-        subject: data.subject.to_owned(),
-        message: data.message.map(str::to_owned),
+        subject: request.subject.to_owned(),
+        message: request.message.map(str::to_owned),
     });
-    context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
-    context.put(AllowDowngrade(data.allow_downgrade));
-    context.put(AllowConflictFiles(data.allow_conflict_files));
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
+    context.put(AllowDowngrade(request.allow_downgrade));
+    context.put(AllowConflictFiles(request.allow_conflict_files));
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
 
-    let result = run_mutating!(orchestrator, context, data.cancel_token, UpdateStateId, UpdateError);
+    let result = run_mutating!(orchestrator, context, cancel_token, UpdateStateId, UpdateError);
 
-    data.cancel_token.reset();
+    cancel_token.reset();
 
     result
 }
 
 fn assemble() -> SequentialOrchestrator<UpdateError> {
-    SequentialOrchestrator::new(vec![
-        Box::new(HookStage {
+    SequentialOrchestrator::new(stages![
+        HookStage {
             trigger: PipelineTrigger::pre(Operation::Update),
-        }),
-        Box::new(FetchingStage),
-        Box::new(PreparationStage),
-        Box::new(OpenTransactionStage),
-        Box::new(ImportPackageStage),
-        Box::new(CommitTransactionStage),
-        Box::new(MergeStage),
-        Box::new(CheckoutStage),
-        Box::new(SwapStage),
-        Box::new(HookStage {
+        },
+        FetchingStage,
+        PreparationStage,
+        OpenTransactionStage,
+        ImportPackageStage,
+        CommitTransactionStage,
+        MergeStage,
+        CheckoutStage,
+        SwapStage,
+        HookStage {
             trigger: PipelineTrigger::declarative(Operation::Update),
-        }),
-        Box::new(HookStage {
+        },
+        HookStage {
             trigger: PipelineTrigger::post(Operation::Update),
-        }),
-        Box::new(RetentionStage),
+        },
+        RetentionStage,
     ])
 }

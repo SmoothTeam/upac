@@ -4,23 +4,19 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::VecDeque;
-use std::os::raw::c_void;
 use std::path::PathBuf;
 
 use composefs::tree::FileSystem;
 
 use uuid::Uuid;
 
-use upac_abi::HookMessageFn;
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-use upac_abi::package::CPackageInfo;
-use upac_abi::request::CFilesRequest;
 use upac_abi::{DiffFileSource, FileDiffKind};
 
 use upac_types::TmpPath;
 use upac_types::hook::Message;
-use upac_types::states::FilesStateId;
+use upac_types::package::PackageInfo;
+use upac_types::request::mutated::FilesRequest;
+use upac_types::state::mutated::FilesStateId;
 use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
@@ -36,7 +32,7 @@ use crate::database::MemoryDatabase;
 use crate::deploy::retention::RetentionStage;
 use crate::deploy::{Deploy, DeployMode};
 use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating};
+use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
 use crate::plugin::boot::BootPlugin;
 use crate::scripts::HookStage;
 use crate::scripts::pipeline::{Operation, PipelineTrigger};
@@ -90,128 +86,63 @@ pub(crate) struct ApplyTarget {
     pub config_upper_dir: PathBuf,
 }
 
-pub struct FilesPackage<'data> {
-    pub name: &'data str,
-    pub arch: &'data str,
-    pub arch_sub: Option<&'data str>,
-}
-
-impl<'data> TryFrom<&'data CPackageInfo> for FilesPackage<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(info: &'data CPackageInfo) -> Result<Self, ErrorKind> {
-        unsafe { info.validate()? };
-
-        Ok(FilesPackage {
-            name: (&info.name).try_into()?,
-            arch: (&info.arch).try_into()?,
-            arch_sub: (&info.arch_sub).try_into()?,
-        })
-    }
-}
-
-pub struct FilesData<'data> {
-    pub scope: DiffFileSource,
-
-    pub files: Vec<&'data str>,
-    pub file_kind: FileDiffKind,
-    pub file_package: FilesPackage<'data>,
-
-    pub boot_plugin: &'data str,
-
-    pub tmp_path: &'data str,
-
-    pub subject: &'data str,
-    pub message: Option<&'data str>,
-
-    pub hook_message: Option<HookMessageFn>,
-    pub hook_message_context: *mut c_void,
-
-    pub cancel_token: &'data CancelToken,
-}
-
-impl<'data> TryFrom<&'data CFilesRequest> for FilesData<'data> {
-    type Error = ErrorKind;
-
-    fn try_from(request: &'data CFilesRequest) -> Result<Self, ErrorKind> {
-        unsafe { request.validate()? };
-
-        let file_package = unsafe { request.file_package.as_ref() }.ok_or(ErrorKind::InvalidEntry)?;
-
-        let cancel_token = unsafe { &*request.base.cancel_token };
-
-        Ok(FilesData {
-            scope: request.scope,
-
-            files: Vec::try_from(&request.files)?,
-            file_kind: request.file_kind,
-            file_package: FilesPackage::try_from(file_package)?,
-
-            boot_plugin: (&request.boot_plugin).try_into()?,
-
-            tmp_path: (&request.tmp_path).try_into()?,
-
-            subject: (&request.subject).try_into()?,
-            message: (&request.message).try_into()?,
-
-            hook_message: request.base.on_hook,
-            hook_message_context: request.base.hook_ctx,
-
-            cancel_token,
-        })
-    }
-}
-
-pub fn run(data: FilesData) -> Result<(), (FilesStateId, FilesError)> {
+pub fn run(request: FilesRequest<'_>) -> Result<(), (FilesStateId, FilesError)> {
     let deploy = Deploy::new(DeployMode::ReadWrite).map_err(|error| (FilesStateId::Setup, FilesError::from(error)))?;
+    let cancel_token = unsafe { &*request.base.cancel_token };
+
+    let file_package_c =
+        unsafe { request.file_package.as_ref() }.ok_or((FilesStateId::Setup, FilesError::PackageNotFound))?;
+    let file_package =
+        PackageInfo::try_from(file_package_c).map_err(|_| (FilesStateId::Setup, FilesError::PackageNotFound))?;
 
     let mut context = Context::new();
     context.put(deploy);
     context.put(
-        data.files
+        request
+            .files
             .iter()
             .map(|path| (*path).to_owned())
             .collect::<Vec<String>>(),
     );
     context.put(RequestedFileOperation {
-        kind: data.file_kind,
-        scope: data.scope,
+        kind: request.file_kind,
+        scope: request.scope,
     });
     context.put(RequestedFilePackage {
-        name: data.file_package.name.to_owned(),
-        arch: data.file_package.arch.to_owned(),
-        arch_sub: data.file_package.arch_sub.map(str::to_owned),
+        name: file_package.name,
+        arch: file_package.arch,
+        arch_sub: file_package.arch_sub,
     });
-    context.put(TmpPath(data.tmp_path.to_owned()));
+    context.put(TmpPath(request.tmp_path.to_owned()));
     context.put(CommitInfo {
-        subject: data.subject.to_owned(),
-        message: data.message.map(str::to_owned),
+        subject: request.subject.to_owned(),
+        message: request.message.map(str::to_owned),
     });
-    context.put(RequestedBootPlugin(data.boot_plugin.to_owned()));
-    context.put(Box::new(Message::new(data.hook_message, data.hook_message_context)) as Box<dyn MessageHook>);
+    context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
+    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 
     let orchestrator = assemble();
 
-    let result = run_mutating!(orchestrator, context, data.cancel_token, FilesStateId, FilesError);
+    let result = run_mutating!(orchestrator, context, cancel_token, FilesStateId, FilesError);
 
-    data.cancel_token.reset();
+    cancel_token.reset();
 
     result
 }
 
 fn assemble() -> SequentialOrchestrator<FilesError> {
-    SequentialOrchestrator::new(vec![
-        Box::new(HookStage {
+    SequentialOrchestrator::new(stages![
+        HookStage {
             trigger: PipelineTrigger::pre(Operation::Files),
-        }),
-        Box::new(OpenTransactionStage),
-        Box::new(ApplyFileStage),
-        Box::new(CommitTransactionStage),
-        Box::new(CheckoutStage),
-        Box::new(SwapStage),
-        Box::new(HookStage {
+        },
+        OpenTransactionStage,
+        ApplyFileStage,
+        CommitTransactionStage,
+        CheckoutStage,
+        SwapStage,
+        HookStage {
             trigger: PipelineTrigger::post(Operation::Files),
-        }),
-        Box::new(RetentionStage),
+        },
+        RetentionStage,
     ])
 }

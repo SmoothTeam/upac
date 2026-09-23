@@ -70,6 +70,13 @@ macro_rules! run_unmutated {
 }
 pub(crate) use run_unmutated;
 
+macro_rules! stages {
+    [$($stage:expr),+ $(,)?] => {
+        vec![$(Box::new($stage)),+]
+    };
+}
+pub(crate) use stages;
+
 pub type StagePipelineError = TypeId;
 
 pub trait Orchestrator<E>: Sized {

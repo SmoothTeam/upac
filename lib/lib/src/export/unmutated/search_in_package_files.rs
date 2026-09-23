@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CSearchInPackageFilesRequest;
-use upac_abi::response::CSearchInPackageFilesResponse;
+use upac_abi::request::unmutated::CSearchInPackageFilesRequest;
+use upac_abi::response::unmutated::CSearchInPackageFilesResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::SearchInPackageFilesStateId;
+use upac_types::request::unmutated::SearchInPackageFilesRequest;
+use upac_types::state::unmutated::SearchInPackageFilesStateId;
 
-use crate::unmutated::search_in_package_files::{SearchInPackageFilesData, run};
+use crate::unmutated::search_in_package_files::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,13 +23,13 @@ use crate::unmutated::search_in_package_files::{SearchInPackageFilesData, run};
 pub unsafe extern "C" fn search_in_package_files(
     request_c: CSearchInPackageFilesRequest, response_out: *mut CSearchInPackageFilesResponse, err_out: *mut CError,
 ) -> i32 {
-    let search_in_package_files_data = try_convert_abi!(
-        SearchInPackageFilesData::try_from(&request_c),
+    let search_in_package_files_request = try_convert_abi!(
+        SearchInPackageFilesRequest::try_from(&request_c),
         err_out,
         SearchInPackageFilesStateId
     );
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(search_in_package_files_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(search_in_package_files_request)));
 
     match result {
         Ok(Ok(response)) => {

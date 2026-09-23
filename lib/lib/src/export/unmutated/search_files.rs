@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CSearchFilesRequest;
-use upac_abi::response::CSearchFilesResponse;
+use upac_abi::request::unmutated::CSearchFilesRequest;
+use upac_abi::response::unmutated::CSearchFilesResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::SearchFilesStateId;
+use upac_types::request::unmutated::SearchFilesRequest;
+use upac_types::state::unmutated::SearchFilesStateId;
 
-use crate::unmutated::search_files::{SearchFilesData, run};
+use crate::unmutated::search_files::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,9 @@ use crate::unmutated::search_files::{SearchFilesData, run};
 pub unsafe extern "C" fn search_files(
     request_c: CSearchFilesRequest, response_out: *mut CSearchFilesResponse, err_out: *mut CError,
 ) -> i32 {
-    let search_files_data = try_convert_abi!(SearchFilesData::try_from(&request_c), err_out, SearchFilesStateId);
+    let search_files_request = try_convert_abi!(SearchFilesRequest::try_from(&request_c), err_out, SearchFilesStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(search_files_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(search_files_request)));
 
     match result {
         Ok(Ok(response)) => {

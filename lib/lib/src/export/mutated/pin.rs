@@ -6,21 +6,22 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CPinRequest;
+use upac_abi::request::mutated::CPinRequest;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::PinStateId;
+use upac_types::request::mutated::PinRequest;
+use upac_types::state::mutated::PinStateId;
 
-use crate::mutated::pin::{PinData, run};
+use crate::mutated::pin::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
 /// call. `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pin_deploy(request_c: CPinRequest, err_out: *mut CError) -> i32 {
-    let pin_data = try_convert_abi!(PinData::try_from(&request_c), err_out, PinStateId);
+    let pin_request = try_convert_abi!(PinRequest::try_from(&request_c), err_out, PinStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(pin_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(pin_request)));
 
     match result {
         Ok(Ok(())) => 0,

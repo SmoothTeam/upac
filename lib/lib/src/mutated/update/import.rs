@@ -9,8 +9,8 @@ use composefs::repository::ImportContext;
 
 use upac_abi::hook::CancelToken;
 
-use upac_types::entry::{FileEntry, FileEntryScope};
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::{FileEntry, FileEntryScope};
 
 use crate::composefs::file::{FileHandle, import_if_dir};
 use crate::database::files::{FileStore, FileStoreMut};

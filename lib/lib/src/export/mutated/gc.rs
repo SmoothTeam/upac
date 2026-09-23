@@ -6,21 +6,22 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CGcRequest;
+use upac_abi::request::mutated::CGcRequest;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::GcStateId;
+use upac_types::request::mutated::GcRequest;
+use upac_types::state::mutated::GcStateId;
 
-use crate::mutated::gc::{GcData, run};
+use crate::mutated::gc::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
 /// call. `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn gc(request_c: CGcRequest, err_out: *mut CError) -> i32 {
-    let gc_data = try_convert_abi!(GcData::try_from(&request_c), err_out, GcStateId);
+    let gc_request = try_convert_abi!(GcRequest::try_from(&request_c), err_out, GcStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(gc_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(gc_request)));
 
     match result {
         Ok(Ok(())) => 0,

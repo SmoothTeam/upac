@@ -6,12 +6,14 @@
 use std::mem::MaybeUninit;
 
 use upac_abi::error::ErrorKind;
-use upac_abi::request::{
+use upac_abi::request::booter::{
     CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 use upac_abi::{BootResourceKind, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 
-use upac_types::request::{BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest};
+use upac_types::request::booter::{
+    BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
+};
 
 use self::error::BootPluginError;
 
@@ -45,6 +47,7 @@ impl BootPlugins {
         })
     }
 
+    #[allow(unreachable_code)]
     pub fn load(&self, name: &str) -> Result<BootPlugin, BootPluginError> {
         #[cfg(feature = "dynamic-plugins")]
         return dynamic_link::load_boot_plugin_dynamic(&self.manifests, name);

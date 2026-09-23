@@ -6,21 +6,22 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CFilesRequest;
+use upac_abi::request::mutated::CFilesRequest;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::FilesStateId;
+use upac_types::request::mutated::FilesRequest;
+use upac_types::state::mutated::FilesStateId;
 
-use crate::mutated::files::{FilesData, run};
+use crate::mutated::files::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
 /// call. `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn files(request_c: CFilesRequest, err_out: *mut CError) -> i32 {
-    let files_data = try_convert_abi!(FilesData::try_from(&request_c), err_out, FilesStateId);
+    let files_request = try_convert_abi!(FilesRequest::try_from(&request_c), err_out, FilesStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(files_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(files_request)));
 
     match result {
         Ok(Ok(())) => 0,

@@ -6,21 +6,22 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CCommitRequest;
+use upac_abi::request::mutated::CCommitRequest;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::CommitStateId;
+use upac_types::request::mutated::CommitRequest;
+use upac_types::state::mutated::CommitStateId;
 
-use crate::mutated::commit::{CommitData, run};
+use crate::mutated::commit::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
 /// call. `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn commit(request_c: CCommitRequest, err_out: *mut CError) -> i32 {
-    let commit_data = try_convert_abi!(CommitData::try_from(&request_c), err_out, CommitStateId);
+    let commit_request = try_convert_abi!(CommitRequest::try_from(&request_c), err_out, CommitStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(commit_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(commit_request)));
 
     match result {
         Ok(Ok(())) => 0,

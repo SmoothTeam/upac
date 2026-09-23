@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CListPrefixRequest;
-use upac_abi::response::CListPrefixResponse;
+use upac_abi::request::unmutated::CListPrefixRequest;
+use upac_abi::response::unmutated::CListPrefixResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::ListPrefixStateId;
+use upac_types::request::unmutated::ListPrefixRequest;
+use upac_types::state::unmutated::ListPrefixStateId;
 
-use crate::unmutated::list_prefix::{ListPrefixData, run};
+use crate::unmutated::list_prefix::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,9 @@ use crate::unmutated::list_prefix::{ListPrefixData, run};
 pub unsafe extern "C" fn list_prefix(
     request_c: CListPrefixRequest, response_out: *mut CListPrefixResponse, err_out: *mut CError,
 ) -> i32 {
-    let list_prefix_data = try_convert_abi!(ListPrefixData::try_from(&request_c), err_out, ListPrefixStateId);
+    let list_prefix_request = try_convert_abi!(ListPrefixRequest::try_from(&request_c), err_out, ListPrefixStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(list_prefix_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(list_prefix_request)));
 
     match result {
         Ok(Ok(response)) => {

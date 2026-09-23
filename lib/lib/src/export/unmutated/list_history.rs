@@ -6,13 +6,14 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use upac_abi::error::{CError, ErrorKind};
-use upac_abi::request::CListHistoryRequest;
-use upac_abi::response::CListHistoryResponse;
+use upac_abi::request::unmutated::CListHistoryRequest;
+use upac_abi::response::unmutated::CListHistoryResponse;
 
 use upac_types::error::{try_convert_abi, write_error};
-use upac_types::states::ListHistoryStateId;
+use upac_types::request::unmutated::ListHistoryRequest;
+use upac_types::state::unmutated::ListHistoryStateId;
 
-use crate::unmutated::list_history::{ListHistoryData, run};
+use crate::unmutated::list_history::run;
 
 /// # Safety
 /// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
@@ -22,9 +23,9 @@ use crate::unmutated::list_history::{ListHistoryData, run};
 pub unsafe extern "C" fn list_history(
     request_c: CListHistoryRequest, response_out: *mut CListHistoryResponse, err_out: *mut CError,
 ) -> i32 {
-    let list_history_data = try_convert_abi!(ListHistoryData::try_from(&request_c), err_out, ListHistoryStateId);
+    let list_history_request = try_convert_abi!(ListHistoryRequest::try_from(&request_c), err_out, ListHistoryStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(list_history_data)));
+    let result = catch_unwind(AssertUnwindSafe(|| run(list_history_request)));
 
     match result {
         Ok(Ok(response)) => {
