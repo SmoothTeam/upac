@@ -1,4 +1,10 @@
 #!/usr/bin/bash
+# SPDX-FileCopyrightText: The composefs-rs contributors
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+#
 # Adapted from containers/composefs-rs's examples/*/extra/usr/lib/dracut/modules.d/37composefs/
 # (MIT OR Apache-2.0). Only change from upstream: dropped the examples' debug-only strace inst.
 
