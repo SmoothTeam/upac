@@ -9,17 +9,49 @@ use super::impl_command_state;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum SetupStateId {
-    PrepareSource = 0,
-    EnumeratePackages = 1,
-    UnpackPackage = 2,
-    ImportPackage = 3,
-    ImportSystem = 4,
-    Kernel = 5,
-    EmbedDatabase = 6,
-    WriteDeployRecord = 7,
-    StageBoot = 8,
-    Setup = 9,
+pub enum BootstrapStateId {
+    Mount = 0,
+    PrepareSource = 1,
+    EnumeratePackages = 2,
+    UnpackPackage = 3,
+    ImportPackage = 4,
+    ImportSystem = 5,
+    Kernel = 6,
+    EmbedDatabase = 7,
+    WriteDeployRecord = 8,
+    StageBoot = 9,
+    Setup = 10,
 }
 
-impl_command_state!(SetupStateId, Setup);
+impl_command_state!(BootstrapStateId, Bootstrap);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum PartitionTableStateId {
+    Wipe = 0,
+    WriteTable = 1,
+    Setup = 2,
+}
+
+impl_command_state!(PartitionTableStateId, PartitionTable);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum PartitionAddStateId {
+    InsertEntry = 0,
+    Settle = 1,
+    Setup = 2,
+}
+
+impl_command_state!(PartitionAddStateId, PartitionAdd);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum FormatStateId {
+    Verify = 0,
+    Wipe = 1,
+    Mkfs = 2,
+    Setup = 3,
+}
+
+impl_command_state!(FormatStateId, Format);

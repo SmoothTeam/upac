@@ -5,14 +5,13 @@
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::types::{CSlice, CVec};
+use crate::types::CSlice;
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CSetupPartitionResponse {
+pub struct CSetupPartitionAddResponse {
     pub struct_size: usize,
 
-    pub esp_device: CSlice,
-    pub deploy_device: CSlice,
-    pub extra_devices: CVec<CSlice>,
+    pub label: CSlice,
+    pub device_path: CSlice,
 }

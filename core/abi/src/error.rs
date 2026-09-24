@@ -30,7 +30,10 @@ pub enum ErrorDomain {
     SearchFiles,
     SearchInMeta,
     SearchInPackageFiles,
-    Setup,
+    Bootstrap,
+    PartitionTable,
+    PartitionAdd,
+    Format,
 }
 
 #[repr(u32)]

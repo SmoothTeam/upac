@@ -17,6 +17,7 @@ pub(crate) const SHARED_TYPES: &[&str] = &[
     "PackageDiffKind",
     "DiffFileSource",
     "FsKind",
+    "PartitionKind",
     "InitramfsGenerator",
 ];
 
@@ -35,17 +36,11 @@ pub(crate) const VALIDATABLE_LIB_ENTRYS_COMPOSITES: &[&str] = &[
 pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] =
     &["CVersion", "CPackageMeta", "CPackageInfo", "CPackageDependency"];
 
-pub(crate) const VALIDATABLE_SETUP_LIB_PARTITION_COMPOSITES: &[&str] = &["CPartitionMount", "CPartitionSpec"];
-
-pub(crate) const VALIDATABLE_SETUP_LIB_FSFORMAT_COMPOSITES: &[&str] = &["CFormatPartitionSpec"];
-
 pub(crate) const VALIDATABLE_LIB_REQUEST_COMPOSITES: &[&str] = &["CRequestBase"];
 
 pub(crate) const VALIDATABLE_COMPOSITE_CATEGORIES: &[&[&str]] = &[
     VALIDATABLE_LIB_ENTRYS_COMPOSITES,
     VALIDATABLE_LIB_PACKAGE_COMPOSITES,
-    VALIDATABLE_SETUP_LIB_PARTITION_COMPOSITES,
-    VALIDATABLE_SETUP_LIB_FSFORMAT_COMPOSITES,
     VALIDATABLE_LIB_REQUEST_COMPOSITES,
 ];
 

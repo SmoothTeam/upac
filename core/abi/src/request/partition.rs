@@ -7,38 +7,29 @@ use upac_macro::{CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
-use crate::FsKind;
-use crate::types::{CSlice, CVec};
+use crate::PartitionKind;
+use crate::types::CSlice;
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CSetupPartitionRequest {
+pub struct CSetupPartitionTableRequest {
     pub struct_size: usize,
+
     pub base: CRequestBase,
 
     pub device_path: CSlice,
-    pub esp_size_mib: u64,
-    pub deploy_size_mib: u64,
-    pub extra_partitions: CVec<CPartitionSpec>,
     pub force_wipe: bool,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CPartitionSpec {
+pub struct CSetupPartitionAddRequest {
     pub struct_size: usize,
 
-    pub mount_path: CSlice,
-    pub size_mib: u64,
-    pub fs_kind: FsKind,
-}
+    pub base: CRequestBase,
 
-#[repr(C)]
-#[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CPartitionMount {
-    pub struct_size: usize,
-
-    pub mount_path: CSlice,
     pub device_path: CSlice,
-    pub fs_kind: FsKind,
+    pub label: CSlice,
+    pub size_mib: u64,
+    pub kind: PartitionKind,
 }

@@ -6,28 +6,22 @@
 use upac_abi::FsKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::request::CRequestBase;
-use upac_abi::request::format::{CFormatPartitionSpec, CSetupFormatRequest};
-use upac_abi::types::{COwned, CSlice, CVec};
+use upac_abi::request::format::CSetupFormatRequest;
+use upac_abi::types::{COwned, CSlice};
 
 use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
-#[derive(Debug, Clone, RustToC)]
-pub struct SetupFormatRequest {
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct SetupFormatRequest<'data> {
     pub base: RequestBase,
 
-    pub esp_device: String,
-    pub deploy_device: String,
-    pub deploy_fs: FsKind,
-    pub extra_partitions: Vec<FormatPartitionSpec>,
-    pub node_size: u32,
-    pub sector_size: u32,
-    pub force_wipe: bool,
-}
-
-#[derive(Debug, Clone, CTryToRust, RustToC)]
-pub struct FormatPartitionSpec {
-    pub device_path: String,
+    pub device_path: &'data str,
+    pub label: Option<&'data str>,
     pub fs_kind: FsKind,
+    pub require_esp: bool,
+    pub force_wipe: bool,
+    pub btrfs_node_size: u32,
+    pub btrfs_sector_size: u32,
 }

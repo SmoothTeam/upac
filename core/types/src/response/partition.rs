@@ -5,8 +5,8 @@
 
 use upac_abi::error::ErrorKind;
 use upac_abi::response::decoder::CDecodeResponse;
-use upac_abi::response::partition::CSetupPartitionResponse;
-use upac_abi::types::{COwned, CSlice, CVec};
+use upac_abi::response::partition::CSetupPartitionAddResponse;
+use upac_abi::types::{COwned, CSlice};
 
 use upac_macro::{CTryToRust, RustToC};
 
@@ -19,9 +19,8 @@ pub struct DecodeResponse {
     pub declarative_triggers: Vec<String>,
 }
 
-#[derive(Debug, Clone, RustToC)]
-pub struct SetupPartitionResponse {
-    pub esp_device: String,
-    pub deploy_device: String,
-    pub extra_devices: Vec<String>,
+#[derive(Debug, Clone, CTryToRust, RustToC)]
+pub struct SetupPartitionAddResponse {
+    pub label: String,
+    pub device_path: String,
 }

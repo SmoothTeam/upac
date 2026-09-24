@@ -19,5 +19,4 @@ macro_rules! impl_command_state {
         }
     };
 }
-
 pub(crate) use impl_command_state;

@@ -7,22 +7,25 @@ use upac_macro::{CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
-use crate::FsKind;
 use crate::types::CSlice;
+use crate::{FsKind, InitramfsGenerator};
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CSetupFormatRequest {
+pub struct CSetupBootstrapRequest {
     pub struct_size: usize,
 
     pub base: CRequestBase,
 
-    pub device_path: CSlice,
+    pub esp_device: CSlice,
+    pub deploy_device: CSlice,
+    pub deploy_fs: FsKind,
+
     #[optional]
-    pub label: CSlice,
-    pub fs_kind: FsKind,
-    pub require_esp: bool,
-    pub force_wipe: bool,
-    pub btrfs_node_size: u32,
-    pub btrfs_sector_size: u32,
+    pub mount_point: CSlice,
+    pub source: CSlice,
+    pub empty_config: bool,
+    pub pinned: bool,
+    pub boot_plugin: CSlice,
+    pub initramfs_generator: InitramfsGenerator,
 }

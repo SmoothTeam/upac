@@ -9,16 +9,14 @@ use upac_abi::HookMessageFn;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::CancelToken;
 use upac_abi::request::CRequestBase;
-use upac_abi::request::CSetupExistingRequest;
-use upac_abi::request::partition::CPartitionMount;
-use upac_abi::types::{COwned, CSlice, CVec};
-use upac_abi::{FsKind, InitramfsGenerator};
 
 use upac_macro::{CTryToRust, RustToC};
 
-use self::partition::PartitionMount;
+use crate::hook::Message;
+use crate::traits::MessageHook;
 
 pub mod booter;
+pub mod bootstrap;
 pub mod decoder;
 pub mod format;
 pub mod mutated;
@@ -32,20 +30,8 @@ pub struct RequestBase {
     pub cancel_token: *mut CancelToken,
 }
 
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct SetupExistingRequest<'data> {
-    pub base: RequestBase,
-
-    pub esp_device: &'data str,
-    pub deploy_device: &'data str,
-    pub deploy_fs: FsKind,
-    pub extra_mounts: Vec<PartitionMount>,
-
-    pub mount_point: Option<&'data str>,
-    pub source: &'data str,
-    pub empty_config: bool,
-    pub pinned: bool,
-
-    pub boot_plugin: &'data str,
-    pub initramfs_generator: InitramfsGenerator,
+impl RequestBase {
+    pub fn message_hook(&self) -> Box<dyn MessageHook> {
+        Box::new(Message::new(self.on_hook, self.hook_ctx))
+    }
 }

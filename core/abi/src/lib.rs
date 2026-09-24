@@ -138,6 +138,7 @@ pub enum FsKind {
     Ext4 = 0,
     Btrfs = 1,
     Xfs = 2,
+    Vfat = 3,
 }
 
 impl FsKind {
@@ -146,6 +147,7 @@ impl FsKind {
             0 => Ok(FsKind::Ext4),
             1 => Ok(FsKind::Btrfs),
             2 => Ok(FsKind::Xfs),
+            3 => Ok(FsKind::Vfat),
             _ => Err(ErrorKind::InvalidEntry),
         }
     }
@@ -157,6 +159,36 @@ impl AsRef<str> for FsKind {
             FsKind::Ext4 => "ext4",
             FsKind::Btrfs => "btrfs",
             FsKind::Xfs => "xfs",
+            FsKind::Vfat => "vfat",
+        }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartitionKind {
+    Esp = 0,
+    Root = 1,
+    Linux = 2,
+}
+
+impl PartitionKind {
+    pub fn from_u8(version: u8) -> Result<PartitionKind, ErrorKind> {
+        match version {
+            0 => Ok(PartitionKind::Esp),
+            1 => Ok(PartitionKind::Root),
+            2 => Ok(PartitionKind::Linux),
+            _ => Err(ErrorKind::InvalidEntry),
+        }
+    }
+}
+
+impl AsRef<str> for PartitionKind {
+    fn as_ref(&self) -> &str {
+        match self {
+            PartitionKind::Esp => "esp",
+            PartitionKind::Root => "root",
+            PartitionKind::Linux => "linux",
         }
     }
 }
