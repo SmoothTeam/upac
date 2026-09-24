@@ -19,6 +19,8 @@ pub(crate) const SHARED_TYPES: &[&str] = &[
     "FsKind",
     "PartitionKind",
     "InitramfsGenerator",
+    "ErrorDomain",
+    "ErrorKind",
 ];
 
 pub(crate) const VALIDATABLE_LIB_ENTRYS_COMPOSITES: &[&str] = &[

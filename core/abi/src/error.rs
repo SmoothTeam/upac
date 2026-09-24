@@ -4,7 +4,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::ffi::FromBytesWithNulError;
+use std::mem::size_of;
 use std::str::Utf8Error;
+
+use upac_macro::CValidate;
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,9 +70,22 @@ impl From<Utf8Error> for ErrorKind {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, CValidate)]
 pub struct CError {
+    pub struct_size: usize,
+
     pub domain: ErrorDomain,
     pub state: u32,
-    pub error: ErrorKind,
+    pub kind: ErrorKind,
+}
+
+impl Default for CError {
+    fn default() -> Self {
+        CError {
+            struct_size: size_of::<CError>(),
+            domain: ErrorDomain::Uninstall,
+            state: 0,
+            kind: ErrorKind::Unexpected,
+        }
+    }
 }

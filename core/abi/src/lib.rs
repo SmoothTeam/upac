@@ -21,10 +21,10 @@ pub mod request;
 pub mod response;
 pub mod types;
 
-pub const LIB_ABI_VERSION: u32 = 2;
+pub const LIB_ABI_VERSION: u32 = 3;
 pub const BOOT_ABI_VERSION: u32 = 3;
 pub const DECODER_ABI_VERSION: u32 = 2;
-pub const SETUP_ABI_VERSION: u32 = 2;
+pub const SETUP_ABI_VERSION: u32 = 3;
 
 pub const CONSTRAINT_LESS: u8 = 0b001;
 pub const CONSTRAINT_EQUAL: u8 = 0b010;
