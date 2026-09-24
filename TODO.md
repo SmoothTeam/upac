@@ -8,6 +8,20 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   but there's no actual icon asset (SVG/PNG) yet, and no install step wiring it into
   `/usr/share/icons/hicolor/...`. Needs real artwork before packaging.
 
+- Auto-generated `subject` values (`"install"`, `"update"`, `"file add"`, etc. — as opposed to a
+  user-supplied one via `commit new --message`) are hardcoded English, not run through `fl!()`,
+  since they get persisted permanently into `DeployRecord`/`HistoryEntry`. Naively localizing at
+  write time using the caller's ambient `$LANG`/session locale would freeze each entry in whatever
+  locale happened to be active *then*, producing a `commit history` log mixing languages for reasons
+  unrelated to any real intent (different SSH session, live-boot `LANG=C`, another user on a shared
+  machine). Decided instead: add a persisted machine-level locale setting to `RuntimeSettings`
+  (`core/types/src/settings.rs`, alongside `gc`/`progress`/`boot`) — auto-generated subjects are
+  localized against *that* config value, not the ambient environment, so a locale change is always
+  a deliberate, recorded decision. Existing already-written records keep whatever locale was
+  configured when they were created; add a separate command later to re-translate/normalize all
+  existing records into the current configured locale, for users who want a fully consistent log
+  after changing it. `RuntimeSettings.locale` + `SUBJECT_LOADER` (`user/upac-cli/src/locale.rs`) are in place and every upac-cli auto-subject (`install`/`remove`/`update`/`file add`/`file remove`) renders through it. Still needed: `lib/setup/src/commands/bootstrap/deploy.rs`'s hardcoded `"genesis"` subject (`up-sp` has its own locale, so it needs the same config-driven treatment on its side), plus the separate normalize-locale command.
+
 ## upac-lib
 
 Test-coverage pass in progress. The entire non-command core is covered (`errors.rs`/`lock.rs`/
@@ -25,7 +39,7 @@ extractable.
 **`genesis`'s `system/` mechanism is done**: `ImportSystemStage` requires `<source>/system/` (a
 literal 1:1 mirror of the target's real `/usr`, sibling to the package archives —
 `EnumeratePackagesStage` already skips it, it only looks at files) to contain
-`lib/systemd/system/composefs-setup-root.service` (hard error, `SetupError::
+`lib/systemd/system/composefs-setup-root.service` (hard error, `BootstrapError::
 ComposefsSetupRootUnitNotFound`, if missing) and imports the whole tree into `PrefixTree`. This is
 also how a built `up`/`upac-lib`/booters gets onto a genesis'd disk at all — genesis never installs
 itself automatically, whoever assembles `--source` has to place it under `system/` too, same
@@ -43,14 +57,18 @@ copy is the only source. Not yet implemented.
 
 ## upac-setup
 
-`KernelStage`'s mkinitcpio path (`lib/setup/src/stages/kernel.rs`) needs rechecking — it only
+`up-sp` (`user/setup-cli`) still targets the old monolithic ABI (`setup_existing`/`setup_whole_disk`, `upac_types::states`, `PartitionMount`/`PartitionSpec`) and doesn't compile. It needs porting onto the independent exports under `upac_setup::export::*`: `partition init` → `partition_table`, `partition esp`/`partition create` → `partition_add` (ESP defaults vs `--type`), `format esp`/`format create` → `format_partition` (`esp` sets `require_esp` + `Vfat`), `bootstrap` → `bootstrap_system`. There is no `auto` — the user runs the steps by hand, feeding `partition_add`'s printed `label → /dev/…` into the next ones. The ESP/deploy default volume labels (removed from `lib/setup/lib.toml`) move into `up-sp`'s own config, its `FsKind` clap wrapper needs `vfat`, and `libcore.rs`'s static-linking imports move from the crate root to `upac_setup::export::*`.
+
+`partition_add` rereads the whole table via `BLKRRPART` after every insert, which the kernel refuses (`EBUSY`) while any partition on that disk is mounted. Fine for a blank install target; adding partitions to a disk that is in use would need `BLKPG_ADD_PARTITION` instead.
+
+`KernelStage`'s mkinitcpio path (`lib/setup/src/commands/bootstrap/kernel.rs`) needs rechecking — it only
 redirects `/lib/modules` via `-r <scratch>/lib/modules`, and there's no confirmed mkinitcpio
 equivalent of dracut's full `--sysroot` (which redirects everything: hooks, config, binaries).
 Unlike dracut, mkinitcpio may still fall through to the *real* host's `/etc/mkinitcpio.conf`/`/usr`
 instead of the scratch tree genesis built. Needs verifying against a real mkinitcpio run before
 trusting the generated initramfs for the `mkinitcpio` generator choice.
 
-`KernelStage`'s `run_dracut`/`run_mkinitcpio` (`lib/setup/src/stages/kernel.rs`) currently take a
+`KernelStage`'s `run_dracut`/`run_mkinitcpio` (`lib/setup/src/commands/bootstrap/kernel.rs`) currently take a
 plain `is_uki: bool` and branch internally (`--uefi`/`-U` vs the plain-initramfs flags). Once UKI
 signing or a separate UKI-specific generation path is added, this needs splitting into distinct
 `run_<tool>`/`run_<tool>_with_uki` functions instead of a bool flag, so the two concerns (plain
