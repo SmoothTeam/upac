@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::ptr::null_mut;
-
 use anyhow::Result;
 
 use clap::Args as ClapArgs;
@@ -13,14 +11,11 @@ use colored::Colorize;
 
 use upac_abi::PackageDiffKind;
 
-use upac_types::request::RequestBase;
 use upac_types::request::unmutated::DiffPackagesRequest;
 use upac_types::response::entry::DiffPackageEntry;
 
-use crate::cancel_token_ptr;
 use crate::commands::display::VersionDisplay;
-use crate::types::CommandContext;
-use crate::types::abi::invoke_with_response;
+use crate::types::{CommandContext, query, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -30,19 +25,12 @@ pub struct Args {
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let request = DiffPackagesRequest {
-        base: RequestBase {
-            on_hook: None,
-            hook_ctx: null_mut(),
-            cancel_token: cancel_token_ptr(),
-        },
+        base: request_base!(),
         from_prefix_digest: args.from.as_deref(),
         to_prefix_digest: args.to.as_deref(),
-    }
-    .into();
+    };
 
-    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.diff_packages)(request, out, error) })?;
-
-    let diff_packages: Vec<DiffPackageEntry> = Vec::try_from(&response.diff_packages).unwrap_or_default();
+    let diff_packages: Vec<DiffPackageEntry> = query!(ctx.lib.ro.diff_packages, request, diff_packages)?;
 
     for entry in &diff_packages {
         let name = entry.name.as_str();
@@ -55,9 +43,6 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
         };
         println!("{} {} {}", marker, colored_name.bold(), VersionDisplay(&entry.version));
     }
-
-    unsafe { response.free() };
-    unsafe { request.free() };
 
     Ok(())
 }

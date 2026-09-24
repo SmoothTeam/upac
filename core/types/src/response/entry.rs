@@ -47,7 +47,7 @@ pub struct FileEntry {
     pub scope: FileEntryScope,
 }
 
-#[derive(Debug, Clone, RustToC)]
+#[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct SearchFileEntry {
     pub path: String,
     pub package_name: String,

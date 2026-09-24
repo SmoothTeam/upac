@@ -61,3 +61,6 @@ checksum = Контрольная сумма
 
 subject-install = установка
 subject-remove = удаление
+subject-update = обновление
+subject-file-add = добавление файлов
+subject-file-remove = удаление файлов

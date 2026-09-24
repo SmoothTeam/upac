@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::ptr::null_mut;
-
 use anyhow::Result;
 
 use clap::Args as ClapArgs;
@@ -14,28 +12,11 @@ use colored::Colorize;
 use i18n_embed_fl::fl;
 
 use upac_types::package::PackageInfo;
-use upac_types::request::RequestBase;
 use upac_types::request::unmutated::{SearchFilesRequest, SearchInPackageFilesRequest};
+use upac_types::response::entry::SearchFileEntry;
 
-use crate::cancel_token_ptr;
 use crate::locale::LOADER;
-use crate::types::CommandContext;
-use crate::types::abi::invoke_with_response;
-
-macro_rules! print_entries {
-    ($entries:expr) => {
-        for entry in $entries {
-            let path = <&str>::try_from(&entry.path).unwrap_or_default();
-            let package_name = <&str>::try_from(&entry.package_name).unwrap_or_default();
-
-            if package_name.is_empty() {
-                println!("{}", path.bold());
-            } else {
-                println!("{} ({package_name})", path.bold());
-            }
-        }
-    };
-}
+use crate::types::{CommandContext, query, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -51,23 +32,29 @@ pub struct Args {
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
-    match args.package.as_deref() {
-        Some(package) => search_in_package(&args, ctx, package),
-        None => search_all(&args, ctx),
+    let entries = match args.package.as_deref() {
+        Some(package) => search_in_package(&args, &ctx, package)?,
+        None => search_all(&args, &ctx)?,
+    };
+
+    for entry in &entries {
+        if entry.package_name.is_empty() {
+            println!("{}", entry.path.bold());
+        } else {
+            println!("{} ({})", entry.path.bold(), entry.package_name);
+        }
     }
+
+    Ok(())
 }
 
-fn search_in_package(args: &Args, ctx: CommandContext, package: &str) -> Result<()> {
+fn search_in_package(args: &Args, ctx: &CommandContext, package: &str) -> Result<Vec<SearchFileEntry>> {
     let Some(arch) = args.package_arch.as_deref() else {
         anyhow::bail!(fl!(LOADER, "err-invalid-entry"));
     };
 
     let request = SearchInPackageFilesRequest {
-        base: RequestBase {
-            on_hook: None,
-            hook_ctx: null_mut(),
-            cancel_token: cancel_token_ptr(),
-        },
+        base: request_base!(),
         package: PackageInfo {
             name: package.to_owned(),
             arch: arch.to_owned(),
@@ -75,38 +62,17 @@ fn search_in_package(args: &Args, ctx: CommandContext, package: &str) -> Result<
         },
         search: &args.query,
         is_regex: args.regex,
-    }
-    .into();
+    };
 
-    let response =
-        invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_in_package_files)(request, out, error) })?;
-
-    print_entries!(unsafe { response.files.as_slice() });
-
-    unsafe { response.free() };
-    unsafe { request.free() };
-
-    Ok(())
+    query!(ctx.lib.ro.search_in_package_files, request, files)
 }
 
-fn search_all(args: &Args, ctx: CommandContext) -> Result<()> {
+fn search_all(args: &Args, ctx: &CommandContext) -> Result<Vec<SearchFileEntry>> {
     let request = SearchFilesRequest {
-        base: RequestBase {
-            on_hook: None,
-            hook_ctx: null_mut(),
-            cancel_token: cancel_token_ptr(),
-        },
+        base: request_base!(),
         search: &args.query,
         is_regex: args.regex,
-    }
-    .into();
+    };
 
-    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.search_files)(request, out, error) })?;
-
-    print_entries!(unsafe { response.files.as_slice() });
-
-    unsafe { response.free() };
-    unsafe { request.free() };
-
-    Ok(())
+    query!(ctx.lib.ro.search_files, request, files)
 }

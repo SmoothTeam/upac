@@ -13,17 +13,12 @@ use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorDomain;
 
 use upac_types::package::PackageInfo;
-use upac_types::request::RequestBase;
 use upac_types::request::mutated::FilesRequest;
-use upac_types::settings::RuntimeSettings;
 
-use crate::cancel_token_ptr;
-use crate::locale::LOADER;
-use crate::types::CommandContext;
-use crate::types::abi::{FileScope, invoke};
-use crate::types::progress::{ProgressState, on_progress};
-
-const MESSEAGE: &str = "file remove";
+use crate::locale::SUBJECT_LOADER;
+use crate::types::abi::FileScope;
+use crate::types::progress::ProgressState;
+use crate::types::{CommandContext, boot_plugin, call, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -55,32 +50,21 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let mut progress = ProgressState::new(ErrorDomain::Files);
 
-    let boot_plugin = args
-        .boot
-        .or_else(|| RuntimeSettings::load().boot.plugin)
-        .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
+    let boot_plugin = boot_plugin!(args.boot)?;
+
+    let subject = fl!(SUBJECT_LOADER, "subject-file-remove");
 
     let request = FilesRequest {
-        base: RequestBase {
-            on_hook: Some(on_progress),
-            hook_ctx: progress.ctx_ptr(),
-            cancel_token: cancel_token_ptr(),
-        },
-        tmp_path: &ctx.tmp_path.to_string_lossy(),
-        subject: MESSEAGE,
+        base: request_base!(progress),
+        tmp_path: &ctx.tmp_path,
+        subject: &subject,
         message: args.message.as_deref(),
         files: args.files.iter().map(|string| string.as_str()).collect(),
         file_kind: FileDiffKind::Removed,
         scope: args.scope.into(),
         file_package: &package,
         boot_plugin: &boot_plugin,
-    }
-    .into();
+    };
 
-    let result = invoke(|error| unsafe { (symbols.files)(request, error) });
-    unsafe { request.free() };
-
-    progress.finish();
-
-    result
+    call!(symbols.files, request)
 }

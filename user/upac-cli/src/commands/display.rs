@@ -5,7 +5,7 @@
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use clap::ValueEnum;
+use clap::{Args as ClapArgs, ValueEnum};
 use colored::Colorize;
 use strum::AsRefStr;
 
@@ -37,6 +37,58 @@ pub enum PackageField {
 impl PackageField {
     pub fn display(&self) -> String {
         LOADER.get(self.as_ref())
+    }
+}
+
+#[derive(ClapArgs, Default)]
+pub struct DisplayPakcageMetaArgs {
+    #[arg(long)]
+    pub version: bool,
+    #[arg(long)]
+    pub arch: bool,
+    #[arg(long)]
+    pub author: bool,
+    #[arg(long)]
+    pub license: bool,
+    #[arg(long)]
+    pub url: bool,
+    #[arg(long)]
+    pub packager: bool,
+    #[arg(long)]
+    pub size: bool,
+    #[arg(long)]
+    pub description: bool,
+    #[arg(long)]
+    pub checksum: bool,
+    #[arg(long, value_enum)]
+    pub sort: Option<PackageField>,
+}
+
+impl DisplayPakcageMetaArgs {
+    pub fn print(&self, metas: &[PackageMeta]) {
+        PackageFormatter {
+            extra_fields: &self.extra_fields(),
+            metas,
+            sort: self.sort,
+        }
+        .print();
+    }
+
+    fn extra_fields(&self) -> Vec<PackageField> {
+        [
+            (self.version, PackageField::Version),
+            (self.arch, PackageField::Architecture),
+            (self.author, PackageField::Author),
+            (self.license, PackageField::License),
+            (self.url, PackageField::Url),
+            (self.packager, PackageField::Packager),
+            (self.size, PackageField::Size),
+            (self.description, PackageField::Description),
+            (self.checksum, PackageField::Checksum),
+        ]
+        .into_iter()
+        .filter_map(|(enabled, field)| enabled.then_some(field))
+        .collect()
     }
 }
 

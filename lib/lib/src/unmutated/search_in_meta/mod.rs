@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_types::hook::Message;
-use upac_types::package::{PackageEntry, PackageMeta};
+use upac_types::package::PackageMeta;
 use upac_types::request::unmutated::SearchInMetaRequest;
 use upac_types::response::unmutated::SearchInMetaResponse;
 use upac_types::state::unmutated::SearchInMetaStateId;
@@ -28,11 +28,7 @@ pub fn run(request: SearchInMetaRequest<'_>) -> Result<SearchInMetaResponse, (Se
         .map_err(|error| (SearchInMetaStateId::Setup, SearchInMetaError::from(error)))?;
 
     let mut context = Context::new();
-    context.put(PackageEntry {
-        name: request.package.name,
-        arch: request.package.arch,
-        arch_sub: request.package.arch_sub,
-    });
+    context.put(request.package);
     context.put(search);
     context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 

@@ -11,7 +11,6 @@ use upac_types::request::mutated::UninstallRequest;
 use uuid::Uuid;
 
 use upac_types::hook::Message;
-use upac_types::package::PackageEntry;
 use upac_types::state::mutated::UninstallStateId;
 use upac_types::traits::MessageHook;
 use upac_types::{TmpPath, UninstallPackagesTargets};
@@ -85,17 +84,7 @@ pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, Unins
     let deploy =
         Deploy::new(DeployMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, UninstallError::from(error)))?;
 
-    let targets = UninstallPackagesTargets(
-        request
-            .packages
-            .iter()
-            .map(|package| PackageEntry {
-                name: package.name.clone(),
-                arch: package.arch.clone(),
-                arch_sub: package.arch_sub.clone(),
-            })
-            .collect(),
-    );
+    let targets = UninstallPackagesTargets(request.packages);
 
     let cancel_token = unsafe { &*request.base.cancel_token };
 

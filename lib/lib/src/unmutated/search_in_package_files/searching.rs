@@ -6,7 +6,7 @@
 use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
-use upac_types::package::PackageEntry;
+use upac_types::package::PackageInfo;
 use upac_types::response::entry::SearchFileEntry;
 
 use super::SearchInPackageFilesError;
@@ -29,7 +29,7 @@ impl Stage<SearchInPackageFilesError> for SearchingStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SearchInPackageFilesError> {
-        let identity = ctx_get!(context, PackageEntry);
+        let identity = ctx_get!(context, PackageInfo);
         let search = ctx_get!(context, Search);
 
         let prefix_digest = current_prefix_digest()?;

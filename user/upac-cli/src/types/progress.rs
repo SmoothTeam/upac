@@ -63,10 +63,6 @@ impl ProgressState {
         from_mut(self).cast()
     }
 
-    pub fn finish(&self) {
-        self.bar.finish_and_clear();
-    }
-
     pub(crate) fn apply(&mut self, event: &CProgressEvent) {
         let stage = StageName::new(self.domain, event.stage).to_string();
         let subject = <&str>::try_from(&event.subject).unwrap_or_default();
@@ -86,6 +82,12 @@ impl ProgressState {
             format!("{stage}: {subject}")
         };
         self.bar.set_message(message);
+    }
+}
+
+impl Drop for ProgressState {
+    fn drop(&mut self) {
+        self.bar.finish_and_clear();
     }
 }
 

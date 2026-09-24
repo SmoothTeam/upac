@@ -7,7 +7,7 @@ use upac_types::package::{PackageMeta, Version};
 
 use crate::locale;
 
-use super::{PackageField, PackageFormatter, SizeDisplay, VersionDisplay};
+use super::{DisplayPakcageMetaArgs, PackageField, PackageFormatter, SizeDisplay, VersionDisplay};
 
 fn meta(name: &str, version_raw: &str, installed_size: u64) -> PackageMeta {
     PackageMeta {
@@ -22,6 +22,10 @@ fn meta(name: &str, version_raw: &str, installed_size: u64) -> PackageMeta {
         installed_size,
         ..PackageMeta::default()
     }
+}
+
+fn field_bytes(fields: &[PackageField]) -> Vec<u8> {
+    fields.iter().map(|field| *field as u8).collect()
 }
 
 #[test]
@@ -128,4 +132,51 @@ fn ordered_metas_sorts_by_size_when_requested() {
     let ordered = formatter.ordered_metas();
     assert_eq!(ordered[0].name, "small");
     assert_eq!(ordered[1].name, "large");
+}
+
+#[test]
+fn extra_fields_is_empty_when_no_flags_are_set() {
+    assert!(DisplayPakcageMetaArgs::default().extra_fields().is_empty());
+}
+
+#[test]
+fn extra_fields_follows_a_fixed_order_regardless_of_flag_order() {
+    let args = DisplayPakcageMetaArgs {
+        checksum: true,
+        version: true,
+        author: true,
+        ..DisplayPakcageMetaArgs::default()
+    };
+
+    let expected = field_bytes(&[PackageField::Version, PackageField::Author, PackageField::Checksum]);
+    assert_eq!(field_bytes(&args.extra_fields()), expected);
+}
+
+#[test]
+fn extra_fields_includes_every_flag_when_all_are_set() {
+    let args = DisplayPakcageMetaArgs {
+        version: true,
+        arch: true,
+        author: true,
+        license: true,
+        url: true,
+        packager: true,
+        size: true,
+        description: true,
+        checksum: true,
+        sort: None,
+    };
+
+    let expected = field_bytes(&[
+        PackageField::Version,
+        PackageField::Architecture,
+        PackageField::Author,
+        PackageField::License,
+        PackageField::Url,
+        PackageField::Packager,
+        PackageField::Size,
+        PackageField::Description,
+        PackageField::Checksum,
+    ]);
+    assert_eq!(field_bytes(&args.extra_fields()), expected);
 }

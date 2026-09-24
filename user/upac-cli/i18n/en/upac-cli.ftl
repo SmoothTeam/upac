@@ -61,3 +61,6 @@ checksum = Checksum
 
 subject-install = install
 subject-remove = remove
+subject-update = update
+subject-file-add = file add
+subject-file-remove = file remove

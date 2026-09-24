@@ -3,39 +3,27 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::ptr::null_mut;
-
 use anyhow::Result;
 
 use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
-use upac_types::request::RequestBase;
 use upac_types::request::unmutated::ListConfigRequest;
 use upac_types::response::entry::ConfigCommitEntry;
 
-use crate::cancel_token_ptr;
-use crate::types::CommandContext;
-use crate::types::abi::invoke_with_response;
+use crate::types::{CommandContext, query, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {}
 
 pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
     let request = ListConfigRequest {
-        base: RequestBase {
-            on_hook: None,
-            hook_ctx: null_mut(),
-            cancel_token: cancel_token_ptr(),
-        },
+        base: request_base!(),
         prefix_digest: None,
-    }
-    .into();
+    };
 
-    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.list_config)(request, out, error) })?;
-
-    let commits: Vec<ConfigCommitEntry> = Vec::try_from(&response.commits).unwrap_or_default();
+    let commits: Vec<ConfigCommitEntry> = query!(ctx.lib.ro.list_config, request, commits)?;
     for (index, commit) in commits.iter().enumerate() {
         println!("{}", commit.subject.bold());
         println!("{}", commit.config_digest.yellow());
@@ -44,9 +32,6 @@ pub fn run(_args: Args, ctx: CommandContext) -> Result<()> {
             println!();
         }
     }
-
-    unsafe { response.free() };
-    unsafe { request.free() };
 
     Ok(())
 }

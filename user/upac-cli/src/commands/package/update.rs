@@ -13,15 +13,11 @@ use i18n_embed_fl::fl;
 
 use upac_abi::error::ErrorDomain;
 
-use upac_types::request::RequestBase;
 use upac_types::request::mutated::UpdateRequest;
-use upac_types::settings::RuntimeSettings;
 
-use crate::cancel_token_ptr;
-use crate::locale::LOADER;
-use crate::types::CommandContext;
-use crate::types::abi::invoke;
-use crate::types::progress::{ProgressState, on_progress};
+use crate::locale::{LOADER, SUBJECT_LOADER};
+use crate::types::progress::ProgressState;
+use crate::types::{CommandContext, boot_plugin, call, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -49,31 +45,20 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let mut progress = ProgressState::new(ErrorDomain::Update);
 
-    let boot_plugin = args
-        .boot
-        .or_else(|| RuntimeSettings::load().boot.plugin)
-        .ok_or_else(|| anyhow::anyhow!(fl!(LOADER, "err-boot-plugin-required")))?;
+    let boot_plugin = boot_plugin!(args.boot)?;
+
+    let subject = fl!(SUBJECT_LOADER, "subject-update");
 
     let request = UpdateRequest {
-        base: RequestBase {
-            on_hook: Some(on_progress),
-            hook_ctx: progress.ctx_ptr(),
-            cancel_token: cancel_token_ptr(),
-        },
-        tmp_path: &ctx.tmp_path.to_string_lossy(),
-        subject: &"update",
+        base: request_base!(progress),
+        tmp_path: &ctx.tmp_path,
+        subject: &subject,
         message: args.message.as_deref(),
         packages: packages.iter().map(|string| string.as_str()).collect(),
         boot_plugin: &boot_plugin,
         allow_downgrade: args.allow_downgrade,
         allow_conflict_files: !args.no_conflict_files,
-    }
-    .into();
+    };
 
-    let result = invoke(|error| unsafe { (symbols.update)(request, error) });
-    unsafe { request.free() };
-
-    progress.finish();
-
-    result
+    call!(symbols.update, request)
 }

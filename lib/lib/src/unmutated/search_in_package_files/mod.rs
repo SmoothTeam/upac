@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_types::hook::Message;
-use upac_types::package::PackageEntry;
 use upac_types::request::unmutated::SearchInPackageFilesRequest;
 use upac_types::response::entry::SearchFileEntry;
 use upac_types::response::unmutated::SearchInPackageFilesResponse;
@@ -35,11 +34,7 @@ pub fn run(
     })?;
 
     let mut context = Context::new();
-    context.put(PackageEntry {
-        name: request.package.name,
-        arch: request.package.arch,
-        arch_sub: request.package.arch_sub,
-    });
+    context.put(request.package);
     context.put(search);
     context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
 

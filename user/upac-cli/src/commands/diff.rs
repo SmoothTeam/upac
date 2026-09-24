@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::ptr::null_mut;
-
 use anyhow::Result;
 
 use clap::Args as ClapArgs;
@@ -13,14 +11,11 @@ use colored::Colorize;
 
 use upac_abi::{FileDiffKind, PackageDiffKind};
 
-use upac_types::request::RequestBase;
 use upac_types::request::unmutated::DiffRequest;
 use upac_types::response::entry::{DiffPackageEntry, DiffUntrackedFileEntry};
 
-use crate::cancel_token_ptr;
 use crate::commands::display::VersionDisplay;
-use crate::types::CommandContext;
-use crate::types::abi::invoke_with_response;
+use crate::types::{CommandContext, query, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -36,22 +31,15 @@ pub struct Args {
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let request = DiffRequest {
-        base: RequestBase {
-            on_hook: None,
-            hook_ctx: null_mut(),
-            cancel_token: cancel_token_ptr(),
-        },
+        base: request_base!(),
         from_prefix_digest: args.from_prefix.as_deref(),
         to_prefix_digest: args.to_prefix.as_deref(),
         from_config_digest: args.from_config.as_deref(),
         to_config_digest: args.to_config.as_deref(),
-    }
-    .into();
+    };
 
-    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.diff)(request, out, error) })?;
-
-    let diff_packages: Vec<DiffPackageEntry> = Vec::try_from(&response.diff_packages).unwrap_or_default();
-    let unattached_files: Vec<DiffUntrackedFileEntry> = Vec::try_from(&response.unattached_files).unwrap_or_default();
+    let (diff_packages, unattached_files): (Vec<DiffPackageEntry>, Vec<DiffUntrackedFileEntry>) =
+        query!(ctx.lib.ro.diff, request, diff_packages, unattached_files)?;
 
     for entry in &diff_packages {
         let name = entry.name.as_str();
@@ -76,9 +64,6 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
         println!("{} {} ({})", marker, colored_path.bold(), entry.source.as_str());
     }
-
-    unsafe { response.free() };
-    unsafe { request.free() };
 
     Ok(())
 }

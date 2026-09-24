@@ -5,7 +5,7 @@
 
 use upac_macro::ContextValue;
 
-use self::package::{PackageEntry, PackageMeta};
+use self::package::{PackageInfo, PackageMeta};
 
 pub mod codec;
 pub mod decoder;
@@ -29,10 +29,10 @@ macro_rules! as_str_method {
 }
 
 #[derive(ContextValue)]
-pub struct UninstallPackagesTargets(pub Vec<PackageEntry>);
+pub struct UninstallPackagesTargets(pub Vec<PackageInfo>);
 
 impl UninstallPackagesTargets {
-    pub fn entries(&self) -> &[PackageEntry] {
+    pub fn entries(&self) -> &[PackageInfo] {
         &self.0
     }
 }

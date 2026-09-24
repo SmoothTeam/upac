@@ -146,18 +146,20 @@ pub struct PackageMeta {
     pub installed_size: u64,
 }
 
-#[derive(Debug, Clone)]
-pub struct PackageEntry {
-    pub name: String,
-    pub arch: String,
-    pub arch_sub: Option<String>,
-}
-
 #[derive(Debug, Clone, CTryToRust, RustToC)]
 pub struct PackageInfo {
     pub name: String,
     pub arch: String,
     pub arch_sub: Option<String>,
+}
+
+impl From<PackageMeta> for PackageInfo {
+    fn from(meta: PackageMeta) -> Self {
+        let PackageMeta {
+            name, arch, arch_sub, ..
+        } = meta;
+        PackageInfo { name, arch, arch_sub }
+    }
 }
 
 #[derive(Debug, Clone, CTryToRust, RustToC)]

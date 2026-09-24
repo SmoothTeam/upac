@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::ptr::null_mut;
-
 use anyhow::Result;
 
 use clap::Args as ClapArgs;
@@ -13,13 +11,10 @@ use colored::Colorize;
 
 use upac_abi::FileDiffKind;
 
-use upac_types::request::RequestBase;
 use upac_types::request::unmutated::DiffPrefixRequest;
 use upac_types::response::entry::DiffPrefixFileEntry;
 
-use crate::cancel_token_ptr;
-use crate::types::CommandContext;
-use crate::types::abi::invoke_with_response;
+use crate::types::{CommandContext, query, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -29,19 +24,12 @@ pub struct Args {
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let request = DiffPrefixRequest {
-        base: RequestBase {
-            on_hook: None,
-            hook_ctx: null_mut(),
-            cancel_token: cancel_token_ptr(),
-        },
+        base: request_base!(),
         from_prefix_digest: args.from.as_deref(),
         to_prefix_digest: args.to.as_deref(),
-    }
-    .into();
+    };
 
-    let response = invoke_with_response(|out, error| unsafe { (ctx.lib.ro.diff_prefix)(request, out, error) })?;
-
-    let files: Vec<DiffPrefixFileEntry> = Vec::try_from(&response.files).unwrap_or_default();
+    let files: Vec<DiffPrefixFileEntry> = query!(ctx.lib.ro.diff_prefix, request, files)?;
 
     for entry in &files {
         let path = entry.common.path.as_str();
@@ -58,9 +46,6 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
             println!("{} {} ({})", marker, colored_path.bold(), entry.package_name);
         }
     }
-
-    unsafe { response.free() };
-    unsafe { request.free() };
 
     Ok(())
 }
