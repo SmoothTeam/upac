@@ -24,7 +24,7 @@ pub(crate) const SHARED_TYPES: &[&str] = &[
 ];
 
 pub(crate) const VALIDATABLE_LIB_ENTRYS_COMPOSITES: &[&str] = &[
-    "CDiffFileEntryCommon",
+    "CDiffFileCommonEntry",
     "CDiffPrefixFileEntry",
     "CDiffConfigFileEntry",
     "CDiffUntrackedFileEntry",

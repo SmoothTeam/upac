@@ -7,6 +7,7 @@ use std::mem::size_of;
 use std::ptr::{null, null_mut};
 
 use upac_abi::error::ErrorKind;
+use upac_abi::hook::CancelToken;
 use upac_abi::memory::free_cslice;
 use upac_abi::package::{CPackageDependency, CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::request::CRequestBase;
@@ -359,23 +360,35 @@ fn history_entry_validate_rejects_an_invalid_config_history_element() {
     }
 }
 
-fn valid_request_base() -> CRequestBase {
+fn valid_request_base(cancel_token: &mut CancelToken) -> CRequestBase {
     CRequestBase {
         struct_size: size_of::<CRequestBase>(),
         on_hook: None,
         hook_ctx: null_mut(),
-        cancel_token: null_mut(),
+        cancel_token,
     }
 }
 
 #[test]
 fn request_base_validate_ok_for_well_formed() {
-    assert!(unsafe { valid_request_base().validate() }.is_ok());
+    let mut cancel_token = CancelToken::new();
+
+    assert!(unsafe { valid_request_base(&mut cancel_token).validate() }.is_ok());
+}
+
+#[test]
+fn request_base_validate_rejects_a_null_cancel_token() {
+    let mut cancel_token = CancelToken::new();
+    let mut base = valid_request_base(&mut cancel_token);
+    base.cancel_token = null_mut();
+
+    assert_eq!(unsafe { base.validate() }, Err(ErrorKind::InvalidEntry));
 }
 
 #[test]
 fn request_base_validate_rejects_wrong_struct_size() {
-    let mut base = valid_request_base();
+    let mut cancel_token = CancelToken::new();
+    let mut base = valid_request_base(&mut cancel_token);
     base.struct_size = 0;
 
     assert_eq!(unsafe { base.validate() }, Err(ErrorKind::AbiMismatch));

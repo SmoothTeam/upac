@@ -1,0 +1,19 @@
+about = Demo tool
+about-create = Create a thing
+arg-create-size = Size of the thing
+
+clap-usage = USAGE
+clap-options = OPTS
+clap-arguments = ARGS
+clap-commands = CMDS
+clap-help = Show help
+clap-version = Show version
+clap-help-subcommand = Show help for a subcommand
+clap-error = ERR
+clap-error-try-help = See { $help }
+clap-error-missing-argument = missing: { $arguments }
+clap-error-invalid-value = bad value '{ $value }' for { $argument }
+clap-error-unknown-argument = unknown argument { $argument }
+clap-error-unknown-subcommand = unknown subcommand { $subcommand }
+clap-error-missing-subcommand = { $command } needs a subcommand
+clap-error-conflict = { $argument } conflicts with { $prior }

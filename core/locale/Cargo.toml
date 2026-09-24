@@ -29,3 +29,5 @@ workspace = true
 name = "upac_locale"
 
 [dependencies]
+clap       = { workspace = true, features = ["string"] }
+i18n-embed = { workspace = true }
