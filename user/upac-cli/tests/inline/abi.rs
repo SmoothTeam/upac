@@ -3,10 +3,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_abi::error::{CError, ErrorDomain, ErrorKind};
+use upac_abi::error::{ErrorDomain, ErrorKind};
 use upac_abi::package::CPackageMeta;
 use upac_abi::response::unmutated::CListPackagesResponse;
 use upac_abi::types::{COwned, CVec};
+
+use upac_types::error::Error as AbiError;
 
 use crate::locale;
 use crate::types::abi::{invoke, invoke_with_response};
@@ -21,11 +23,12 @@ fn invoke_propagates_the_localized_error_on_a_nonzero_code() {
     locale::init_for_test();
 
     let result = invoke(|error| unsafe {
-        *error = CError {
+        *error = AbiError {
             domain: ErrorDomain::Install,
             state: 0,
-            error: ErrorKind::NotFound,
-        };
+            kind: ErrorKind::NotFound,
+        }
+        .into();
         1
     });
 
@@ -47,11 +50,12 @@ fn invoke_with_response_propagates_the_localized_error_on_a_nonzero_code() {
     locale::init_for_test();
 
     let result = invoke_with_response(|_response: *mut CListPackagesResponse, error| unsafe {
-        *error = CError {
+        *error = AbiError {
             domain: ErrorDomain::Install,
             state: 0,
-            error: ErrorKind::NotFound,
-        };
+            kind: ErrorKind::NotFound,
+        }
+        .into();
         1
     });
 

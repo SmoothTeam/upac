@@ -8,7 +8,9 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use i18n_embed_fl::fl;
 
-use upac_abi::error::{CError, ErrorDomain, ErrorKind};
+use upac_abi::error::{ErrorDomain, ErrorKind};
+
+use upac_types::error::Error as AbiError;
 
 use upac_types::state::mutated::{
     CommitStateId, FilesStateId, GcStateId, InstallStateId, MimeStateId, PinStateId, RollbackStateId, UninstallStateId,
@@ -71,12 +73,6 @@ impl StageName {
     }
 }
 
-impl From<&CError> for StageName {
-    fn from(error: &CError) -> Self {
-        StageName::new(error.domain, error.state)
-    }
-}
-
 impl Display for StageName {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         let state = self.state as usize;
@@ -131,19 +127,18 @@ fn error_kind_message(kind: ErrorKind) -> String {
     }
 }
 
+#[repr(transparent)]
 #[derive(Debug)]
-pub struct LibError {
-    pub error: CError,
-}
+pub struct LibError(pub AbiError);
 
 impl Display for LibError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         write!(
             formatter,
             "{} ({:?}: {})",
-            error_kind_message(self.error.error),
-            self.error.domain,
-            StageName::from(&self.error)
+            error_kind_message(self.0.kind),
+            self.0.domain,
+            StageName::new(self.0.domain, self.0.state)
         )
     }
 }

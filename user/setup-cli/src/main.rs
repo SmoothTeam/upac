@@ -15,13 +15,16 @@ use colored::Colorize;
 
 use i18n_embed_fl::fl;
 
+use locale::{LOADER, init};
+
 use upac_abi::hook::CancelToken;
 
 use self::libcore::Lib;
 
 mod commands {
-    pub mod auto;
-    pub mod manual;
+    pub mod bootstrap;
+    pub mod format;
+    pub mod partition;
 }
 
 mod libcore;
@@ -41,24 +44,23 @@ pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
 #[command(name = "up-sp", author, version, about)]
 struct Cli {
     #[command(subcommand)]
-    command: Option<Command>,
-
-    #[command(flatten)]
-    whole_disk: commands::auto::Args,
+    command: Command,
 }
 
 #[derive(Subcommand)]
 enum Command {
-    Manual(commands::manual::Args),
+    Partition(commands::partition::Args),
+    Format(commands::format::Args),
+    Bootstrap(commands::bootstrap::Args),
 }
 
 fn main() -> ExitCode {
-    locale::init();
+    init();
 
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("{} {err}", format!("{}:", fl!(locale::LOADER, "error")).red().bold());
+            eprintln!("{} {err}", format!("{}:", fl!(LOADER, "error")).red().bold());
             ExitCode::FAILURE
         }
     }
@@ -75,8 +77,9 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Command::Manual(args)) => commands::manual::run(args, &lib)?,
-        None => commands::auto::run(cli.whole_disk, &lib)?,
+        Command::Partition(args) => commands::partition::run(args, &lib)?,
+        Command::Format(args) => commands::format::run(args, &lib)?,
+        Command::Bootstrap(args) => commands::bootstrap::run(args, &lib)?,
     }
 
     Ok(())

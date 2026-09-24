@@ -5,47 +5,9 @@
 
 use clap::ValueEnum;
 
-use upac_abi::FsKind as FsKindAbi;
+use upac_abi::PartitionKind;
 
-use super::{BootPlugin, FsKind, InitramfsGeneratorClapArg, parse_extra_mount, parse_extra_partition, parse_size_mib};
-
-#[test]
-fn parse_extra_mount_accepts_a_well_formed_triple() {
-    let mount = parse_extra_mount("/mnt/boot:/dev/sda1:ext4").unwrap();
-
-    assert_eq!(mount.mount_path, "/mnt/boot");
-    assert_eq!(mount.device_path, "/dev/sda1");
-    assert_eq!(mount.fs_kind, FsKindAbi::Ext4);
-}
-
-#[test]
-fn parse_extra_mount_rejects_a_missing_field() {
-    assert!(parse_extra_mount("/mnt/boot:/dev/sda1").is_err());
-}
-
-#[test]
-fn parse_extra_mount_rejects_an_unknown_fs_kind() {
-    assert!(parse_extra_mount("/mnt/boot:/dev/sda1:zfs").is_err());
-}
-
-#[test]
-fn parse_extra_partition_accepts_a_well_formed_triple() {
-    let partition = parse_extra_partition("/mnt/data:2048:btrfs").unwrap();
-
-    assert_eq!(partition.mount_path, "/mnt/data");
-    assert_eq!(partition.size_mib, 2048);
-    assert_eq!(partition.fs_kind, FsKindAbi::Btrfs);
-}
-
-#[test]
-fn parse_extra_partition_rejects_a_non_numeric_size() {
-    assert!(parse_extra_partition("/mnt/data:big:btrfs").is_err());
-}
-
-#[test]
-fn parse_extra_partition_rejects_a_missing_field() {
-    assert!(parse_extra_partition("/mnt/data:2048").is_err());
-}
+use super::{BootPlugin, FsKind, InitramfsGeneratorClapArg, PartitionKindClapArg, parse_size_mib};
 
 #[test]
 fn parse_size_mib_accepts_a_plain_number_as_mib() {
@@ -74,8 +36,8 @@ fn parse_size_mib_rejects_a_non_numeric_value() {
 }
 
 #[test]
-fn fs_kind_has_exactly_the_three_supported_variants() {
-    assert_eq!(FsKind::value_variants().len(), 3);
+fn fs_kind_has_exactly_the_four_supported_variants() {
+    assert_eq!(FsKind::value_variants().len(), 4);
 }
 
 #[test]
@@ -83,7 +45,15 @@ fn fs_kind_from_str_matches_lowercase_names() {
     assert!(FsKind::from_str("ext4", false).is_ok());
     assert!(FsKind::from_str("btrfs", false).is_ok());
     assert!(FsKind::from_str("xfs", false).is_ok());
+    assert!(FsKind::from_str("vfat", false).is_ok());
     assert!(FsKind::from_str("EXT4", false).is_err());
+}
+
+#[test]
+fn partition_kind_offers_linux_and_root_but_not_esp() {
+    assert!(PartitionKindClapArg::from_str("linux", false).is_ok_and(|kind| kind.0 == PartitionKind::Linux));
+    assert!(PartitionKindClapArg::from_str("root", false).is_ok_and(|kind| kind.0 == PartitionKind::Root));
+    assert!(PartitionKindClapArg::from_str("esp", false).is_err());
 }
 
 #[test]

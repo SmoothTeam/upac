@@ -3,29 +3,30 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_abi::error::{CError, ErrorDomain, ErrorKind};
+use upac_abi::error::{ErrorDomain, ErrorKind};
 
-use upac_types::states::SetupStateId;
+use upac_types::error::Error as AbiError;
+use upac_types::state::setup::{BootstrapStateId, FormatStateId, PartitionAddStateId, PartitionTableStateId};
 
 use crate::locale;
 
 use super::{AbiMismatch, LibError};
 
-fn localized(state: SetupStateId, error: ErrorKind) -> String {
+fn localized(state: BootstrapStateId, kind: ErrorKind) -> String {
     locale::init_for_test();
 
-    let error = CError {
-        domain: ErrorDomain::Setup,
+    let error = AbiError {
+        domain: ErrorDomain::Bootstrap,
         state: state as u32,
-        error,
+        kind,
     };
 
-    LibError { error }.to_string()
+    LibError(error).to_string()
 }
 
 #[test]
 fn prefixes_the_message_with_the_localized_failing_stage_name() {
-    let message = localized(SetupStateId::ImportPackage, ErrorKind::Unexpected);
+    let message = localized(BootstrapStateId::ImportPackage, ErrorKind::Unexpected);
 
     assert_eq!(message, "Importing package: Unexpected error");
 }
@@ -49,10 +50,48 @@ fn every_error_kind_has_its_own_localized_message() {
     ];
 
     for (kind, expected) in cases {
-        let message = localized(SetupStateId::Setup, kind);
+        let message = localized(BootstrapStateId::Setup, kind);
 
         assert_eq!(message, format!("Setup: {expected}"));
     }
+}
+
+#[test]
+fn resolves_the_failing_stage_through_the_partition_domains() {
+    locale::init_for_test();
+
+    let table_error = AbiError {
+        domain: ErrorDomain::PartitionTable,
+        state: PartitionTableStateId::WriteTable as u32,
+        kind: ErrorKind::WriteFailed,
+    };
+    let add_error = AbiError {
+        domain: ErrorDomain::PartitionAdd,
+        state: PartitionAddStateId::Settle as u32,
+        kind: ErrorKind::NotInitialized,
+    };
+
+    assert_eq!(
+        LibError(table_error).to_string(),
+        "Writing partition table: Write failed"
+    );
+    assert_eq!(
+        LibError(add_error).to_string(),
+        "Waiting for partition device: Not initialized"
+    );
+}
+
+#[test]
+fn resolves_the_failing_stage_through_the_format_domain() {
+    locale::init_for_test();
+
+    let error = AbiError {
+        domain: ErrorDomain::Format,
+        state: FormatStateId::Verify as u32,
+        kind: ErrorKind::InvalidEntry,
+    };
+
+    assert_eq!(LibError(error).to_string(), "Verifying ESP partition: Invalid entry");
 }
 
 #[test]

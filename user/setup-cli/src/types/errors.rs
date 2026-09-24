@@ -8,9 +8,10 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use i18n_embed_fl::fl;
 
-use upac_abi::error::{CError, ErrorKind};
+use upac_abi::error::{ErrorDomain, ErrorKind};
 
-use upac_types::states::SetupStateId;
+use upac_types::error::Error as AbiError;
+use upac_types::state::setup::{BootstrapStateId, FormatStateId, PartitionAddStateId, PartitionTableStateId};
 
 use crate::locale::LOADER;
 
@@ -38,6 +39,45 @@ impl Display for AbiMismatch {
 
 impl Error for AbiMismatch {}
 
+#[derive(Debug)]
+pub struct InvalidResponse {
+    pub error: ErrorKind,
+}
+
+impl Display for InvalidResponse {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        write!(formatter, "{}", error_kind_message(self.error))
+    }
+}
+
+impl Error for InvalidResponse {}
+
+pub(crate) struct StageName {
+    domain: ErrorDomain,
+    state: u32,
+}
+
+impl StageName {
+    pub(crate) fn new(domain: ErrorDomain, state: u32) -> Self {
+        StageName { domain, state }
+    }
+}
+
+impl Display for StageName {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        let state = self.state as usize;
+
+        let key = match self.domain {
+            ErrorDomain::PartitionTable => PartitionTableStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::PartitionAdd => PartitionAddStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Format => FormatStateId::from_stage_index(state).stage_key(),
+            _ => BootstrapStateId::from_stage_index(state).stage_key(),
+        };
+
+        write!(formatter, "{}", LOADER.get(key))
+    }
+}
+
 fn error_kind_message(kind: ErrorKind) -> String {
     match kind {
         ErrorKind::Unexpected => fl!(LOADER, "err-unexpected"),
@@ -56,34 +96,17 @@ fn error_kind_message(kind: ErrorKind) -> String {
     }
 }
 
+#[repr(transparent)]
 #[derive(Debug)]
-pub struct LibError {
-    pub error: CError,
-}
-
-impl LibError {
-    /// # Safety
-    /// `error` must point to a valid, initialized `CError` whenever `code != 0` — the ABI only writes
-    /// to it on the failure path, leaving it uninitialized on success.
-    pub unsafe fn check(code: i32, error: *const CError) -> Result<(), Self> {
-        if code == 0 {
-            return Ok(());
-        }
-        Err(Self {
-            error: unsafe { *error },
-        })
-    }
-}
+pub struct LibError(pub AbiError);
 
 impl Display for LibError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        let stage = SetupStateId::from_stage_index(self.error.state as usize).stage_key();
-
         write!(
             formatter,
             "{}: {}",
-            LOADER.get(stage),
-            error_kind_message(self.error.error)
+            StageName::new(self.0.domain, self.0.state),
+            error_kind_message(self.0.kind)
         )
     }
 }

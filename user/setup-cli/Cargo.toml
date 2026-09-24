@@ -28,9 +28,10 @@ name = "up-sp"
 path = "src/main.rs"
 
 [dependencies]
-upac-setup = { workspace = true }
-upac-abi   = { workspace = true }
-upac-types = { workspace = true }
+upac-lib-setup = { workspace = true }
+
+upac-abi       = { workspace = true }
+upac-types     = { workspace = true }
 
 colored       = { workspace = true }
 anyhow        = { workspace = true }

@@ -18,9 +18,21 @@ err-abi-mismatch = Несовпадение ABI
 err-invalid-entry = Некорректная запись
 
 err-missing-device = Отсутствует обязательный аргумент: --device
-err-missing-deploy-size = Отсутствует обязательный аргумент: --deploy-size
+err-missing-size = Отсутствует обязательный аргумент: --size
+err-missing-label = Отсутствует обязательный аргумент: --label
 err-missing-source = Отсутствует обязательный аргумент: --source
+err-missing-esp-device = Отсутствует обязательный аргумент: --esp-device
+err-missing-deploy-device = Отсутствует обязательный аргумент: --deploy-device
 
+partition-created = { $label } → { $device }
+
+stage-wipe = Подготовка устройства
+stage-write-table = Запись таблицы разделов
+stage-insert-entry = Добавление раздела
+stage-verify = Проверка ESP-раздела
+stage-mkfs = Создание файловой системы
+stage-settle = Ожидание устройства раздела
+stage-mount = Монтирование целевых разделов
 stage-prepare-source = Подготовка источника
 stage-enumerate-packages = Перечисление пакетов
 stage-unpack-package = Распаковка пакета

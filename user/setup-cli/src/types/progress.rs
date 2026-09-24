@@ -9,12 +9,11 @@ use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
 
+use upac_abi::error::ErrorDomain;
 use upac_abi::hook::{CProgressEvent, HookAck};
 
-use upac_types::states::SetupStateId;
-
 use crate::layout::progress;
-use crate::locale::LOADER;
+use crate::types::errors::StageName;
 
 #[cfg(test)]
 #[path = "../../tests/inline/progress.rs"]
@@ -33,30 +32,32 @@ pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_v
 }
 
 pub struct ProgressState {
-    bar: ProgressBar,
-    is_bar: bool,
+    pub(crate) bar: ProgressBar,
+    pub(crate) is_bar: bool,
+
+    domain: ErrorDomain,
 }
 
 impl ProgressState {
-    pub fn new() -> Self {
+    pub fn new(domain: ErrorDomain) -> Self {
         let bar = ProgressBar::new_spinner();
 
         bar.set_style(Self::spinner_style());
         bar.enable_steady_tick(Duration::from_millis(u64::from(progress::TICK_INTERVAL_MS)));
 
-        ProgressState { bar, is_bar: false }
+        ProgressState {
+            bar,
+            is_bar: false,
+            domain,
+        }
     }
 
     pub fn ctx_ptr(&mut self) -> *mut c_void {
         from_mut(self).cast()
     }
 
-    pub fn finish(&self) {
-        self.bar.finish_and_clear();
-    }
-
-    fn apply(&mut self, event: &CProgressEvent) {
-        let stage = LOADER.get(SetupStateId::from_stage_index(event.stage as usize).stage_key());
+    pub(crate) fn apply(&mut self, event: &CProgressEvent) {
+        let stage = StageName::new(self.domain, event.stage).to_string();
         let subject = <&str>::try_from(&event.subject).unwrap_or_default();
 
         if event.total > 0 {
@@ -91,8 +92,8 @@ impl ProgressState {
     }
 }
 
-impl Default for ProgressState {
-    fn default() -> Self {
-        Self::new()
+impl Drop for ProgressState {
+    fn drop(&mut self) {
+        self.bar.finish_and_clear();
     }
 }

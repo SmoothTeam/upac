@@ -12,18 +12,21 @@
 # own translations (rust-embed) and never reads an installed system's paths.
 i18n_dir = "/usr/share/upac/i18n"
 
-# disk_defaults are up-sp's own compiled-in fallback values for whole-disk mode's
-# --esp-size/--deploy-fs/--node-size/--sector-size flags. Deliberately separate from
-# upac-setup's own lib.toml (which no longer has an opinion on these at all) — the CLI's
-# defaults are a CLI-only policy decision, not something the library should know or care about.
+# disk_defaults are up-sp's own compiled-in fallback values for its partition/format flags:
+# `partition esp --size`/`--label`, `format esp --label`, and `format create --fs`/
+# `--btrfs-node-size`/`--btrfs-sector-size`. Deliberately separate from upac-lib-setup's own
+# lib.toml (which has no opinion on any of these) — the CLI's defaults are a CLI-only policy
+# decision, not something the library should know or care about.
 [disk_defaults]
 deploy_fs = "btrfs"
-esp_size_mib = 256
-node_size = 16384
-sector_size = 4096
+esp_label = "ESP"
 
-# initramfs is up-sp's own compiled-in fallback for the --initramfs-generator flag, offered by
-# both whole-disk and manual mode. Same CLI-only-policy stance as disk_defaults: upac-setup's own
+btrfs_node_size = 16384
+btrfs_sector_size = 4096
+esp_size_mib = 256
+
+# initramfs is up-sp's own compiled-in fallback for `bootstrap`'s --initramfs-generator flag.
+# Same CLI-only-policy stance as disk_defaults: upac-lib-setup's own
 # lib.toml has no opinion on which generator to prefer, only on the filenames it writes once one
 # has run.
 [initramfs]

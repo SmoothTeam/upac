@@ -30,13 +30,9 @@ use upac_abi::response::unmutated::{
 #[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
 
-use super::types::errors::{AbiMismatch, LibError};
+use super::types::errors::AbiMismatch;
 
 use crate::locale::LOADER;
-
-#[cfg(test)]
-#[path = "../tests/inline/libcore.rs"]
-mod tests;
 
 #[cfg(feature = "static-link")]
 use upac::export::mutated::{
@@ -241,19 +237,5 @@ impl Lib {
         }
 
         Ok(&self.rw)
-    }
-}
-
-impl LibError {
-    /// # Safety
-    /// `error` must point to a valid, initialized `CError` whenever `code != 0` — the ABI only writes
-    /// to it on the failure path, leaving it uninitialized on success.
-    pub unsafe fn check(code: i32, error: *const CError) -> Result<(), Self> {
-        if code == 0 {
-            return Ok(());
-        }
-        Err(Self {
-            error: unsafe { *error },
-        })
     }
 }

@@ -19,10 +19,12 @@ pub static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| fluent_lang
 pub fn init() {
     let requested_languages = DesktopLanguageRequester::requested_languages();
     let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &requested_languages);
+    LOADER.set_use_isolating(false);
 }
 
 #[cfg(test)]
 pub(crate) fn init_for_test() {
     let english = "en".parse().unwrap();
     let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &[english]);
+    LOADER.set_use_isolating(false);
 }

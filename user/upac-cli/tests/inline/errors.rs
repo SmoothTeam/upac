@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_abi::error::{CError, ErrorDomain, ErrorKind};
+use upac_abi::error::{ErrorDomain, ErrorKind};
+
+use upac_types::error::Error as AbiError;
 
 use crate::locale;
 use crate::types::errors::{AbiMismatch, LibError, StageName};
@@ -51,19 +53,6 @@ fn stage_name_resolves_the_localized_first_stage_of_every_domain() {
 }
 
 #[test]
-fn stage_name_from_c_error_matches_new() {
-    locale::init_for_test();
-
-    let error = CError {
-        domain: ErrorDomain::Gc,
-        state: 1,
-        error: ErrorKind::Unexpected,
-    };
-
-    assert_eq!(StageName::from(&error).to_string(), "Collecting roots");
-}
-
-#[test]
 fn lib_error_display_covers_every_error_kind() {
     locale::init_for_test();
 
@@ -84,13 +73,11 @@ fn lib_error_display_covers_every_error_kind() {
     ];
 
     for (kind, expected) in cases {
-        let error = LibError {
-            error: CError {
-                domain: ErrorDomain::Install,
-                state: 0,
-                error: kind,
-            },
-        };
+        let error = LibError(AbiError {
+            domain: ErrorDomain::Install,
+            state: 0,
+            kind,
+        });
 
         assert_eq!(error.to_string(), format!("{expected} (Install: Pre-hooks)"));
     }
