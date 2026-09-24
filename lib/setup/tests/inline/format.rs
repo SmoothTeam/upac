@@ -11,7 +11,7 @@ use tempfile::TempDir;
 use super::FormatTarget;
 
 #[test]
-fn format_esp_writes_a_valid_fat32_boot_sector() {
+fn format_vfat_writes_a_valid_fat32_boot_sector() {
     let scratch = TempDir::new().unwrap();
     let device_path = scratch.path().join("esp.img");
 
@@ -24,7 +24,7 @@ fn format_esp_writes_a_valid_fat32_boot_sector() {
         device_path: &device_path,
         label: Some("ESP"),
     };
-    target.format_esp().unwrap();
+    target.format_vfat().unwrap();
 
     let mut file = OpenOptions::new().read(true).open(&device_path).unwrap();
     let mut boot_sector = [0u8; 512];

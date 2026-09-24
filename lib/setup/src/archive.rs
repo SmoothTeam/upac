@@ -15,7 +15,7 @@ use xz2::read::XzDecoder;
 use zip::ZipArchive;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use crate::error::SetupError;
+use crate::commands::bootstrap::error::BootstrapError;
 
 #[cfg(test)]
 #[path = "../tests/inline/archive.rs"]
@@ -34,7 +34,7 @@ pub(crate) enum SourceArchive {
 }
 
 impl SourceArchive {
-    pub(crate) fn sniff(path: &Path) -> Result<Self, SetupError> {
+    pub(crate) fn sniff(path: &Path) -> Result<Self, BootstrapError> {
         let mut file = File::open(path)?;
         let mut magic = [0u8; 6];
         let bytes_read = file.read(&mut magic)?;
@@ -50,7 +50,7 @@ impl SourceArchive {
         })
     }
 
-    fn zstd_tar(sniffed: &[u8], file: File) -> Result<Self, SetupError> {
+    fn zstd_tar(sniffed: &[u8], file: File) -> Result<Self, BootstrapError> {
         let chained = Cursor::new(sniffed.to_vec()).chain(file);
         Ok(SourceArchive::Tar(Box::new(ZstdDecoder::new(chained)?)))
     }
@@ -69,7 +69,7 @@ impl SourceArchive {
         SourceArchive::Tar(Box::new(Cursor::new(sniffed.to_vec()).chain(file)))
     }
 
-    pub(crate) fn extract(self, destination: &Path) -> Result<(), SetupError> {
+    pub(crate) fn extract(self, destination: &Path) -> Result<(), BootstrapError> {
         match self {
             SourceArchive::Zip(file) => Self::extract_zip(file, destination),
             SourceArchive::SevenZip(path) => Self::extract_sevenzip(&path, destination),
@@ -77,18 +77,18 @@ impl SourceArchive {
         }
     }
 
-    fn extract_zip(file: File, destination: &Path) -> Result<(), SetupError> {
+    fn extract_zip(file: File, destination: &Path) -> Result<(), BootstrapError> {
         let mut archive = ZipArchive::new(file).map_err(AnyhowError::new)?;
         archive.extract(destination).map_err(AnyhowError::new)?;
         Ok(())
     }
 
-    fn extract_sevenzip(path: &Path, destination: &Path) -> Result<(), SetupError> {
+    fn extract_sevenzip(path: &Path, destination: &Path) -> Result<(), BootstrapError> {
         sevenz_rust2::decompress_file(path, destination).map_err(AnyhowError::new)?;
         Ok(())
     }
 
-    fn extract_tar(reader: Box<dyn Read>, destination: &Path) -> Result<(), SetupError> {
+    fn extract_tar(reader: Box<dyn Read>, destination: &Path) -> Result<(), BootstrapError> {
         Archive::new(reader).unpack(destination)?;
         Ok(())
     }

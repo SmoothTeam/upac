@@ -18,20 +18,21 @@ use upac::plugin::boot::BootPlugins;
 use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
-use upac_types::request::{BootPluginInstallRequest, BootPluginSetOneShotRequest};
+use upac_types::request::booter::{BootPluginInstallRequest, BootPluginSetOneShotRequest};
 
+use super::error::BootstrapError;
 use super::{DeployDigests, RequestedBootPlugin};
 
-use crate::error::SetupError;
+use crate::commands::partition::gpt::existing_esp_geometry;
 use crate::layout::genesis::EFI_LINUX_DIR;
 use crate::target::TargetSysroot;
 
 pub struct StageBootStage;
 
-impl Stage<SetupError> for StageBootStage {
+impl Stage<BootstrapError> for StageBootStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let target = ctx_get!(context, TargetSysroot);
         let requested_boot_plugin = ctx_get!(context, RequestedBootPlugin);
         let deploy_digests = ctx_get!(context, DeployDigests);
@@ -39,15 +40,17 @@ impl Stage<SetupError> for StageBootStage {
         let repository = target.repository();
         let prefix_digest_hex = deploy_digests.prefix.to_hex();
         let esp_mount_point = target.esp_mount_point();
+        let (esp_partition_number, esp_starting_lba, esp_ending_lba, esp_unique_partition_guid) =
+            existing_esp_geometry(target.esp_device())?;
 
         let plugin = BootPlugins::new()?.load(requested_boot_plugin)?;
 
         plugin.install(BootPluginInstallRequest {
             esp_mount_point: esp_mount_point.to_string_lossy().into_owned(),
-            esp_partition_number: target.esp_partition_number(),
-            esp_starting_lba: target.esp_starting_lba(),
-            esp_ending_lba: target.esp_ending_lba(),
-            esp_unique_partition_guid: target.esp_unique_partition_guid().to_bytes_le(),
+            esp_partition_number,
+            esp_starting_lba,
+            esp_ending_lba,
+            esp_unique_partition_guid: esp_unique_partition_guid.to_bytes_le(),
             to_slot: UPAC_UKI_TO_SLOT.to_owned(),
             from_slot: UPAC_UKI_FROM_SLOT.to_owned(),
         })?;

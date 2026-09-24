@@ -23,20 +23,19 @@ use upac_abi::hook::CancelToken;
 use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
+use super::error::BootstrapError;
 use super::{ConfigState, PrefixTree, ResolvedSourceDir, SetupProgress, UnpackState};
 
-use crate::error::SetupError;
-
 #[cfg(test)]
-#[path = "../../tests/inline/enumerate.rs"]
+#[path = "../../../tests/inline/enumerate.rs"]
 mod tests;
 
 pub struct EnumeratePackagesStage;
 
-impl Stage<SetupError> for EnumeratePackagesStage {
+impl Stage<BootstrapError> for EnumeratePackagesStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let resolved = ctx_get!(context, ResolvedSourceDir);
 
         let mut package_paths = Vec::new();

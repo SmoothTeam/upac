@@ -18,8 +18,9 @@ use uuid::Uuid;
 
 use upac_abi::FsKind;
 
-use super::error::SetupError;
-use super::layout::mkfs::{EXT4_BIN, WIPEFS_BIN, XFS_BIN};
+use super::error::FormatError;
+
+use crate::layout::mkfs::{EXT4_BIN, XFS_BIN};
 
 macro_rules! fat_label {
     ($label:expr) => {{
@@ -32,55 +33,38 @@ macro_rules! fat_label {
     }};
 }
 
-#[cfg(test)]
-#[path = "../tests/inline/format.rs"]
-mod tests;
-
 macro_rules! run_mkfs {
     ($binary:expr, $args:expr) => {{
         let status = Command::new($binary).args($args).status()?;
 
         if !status.success() {
-            return Err(SetupError::MkfsFailed);
+            return Err(FormatError::MkfsFailed);
         }
 
         Ok(())
     }};
 }
 
-pub struct FormatTarget<'target> {
+#[cfg(test)]
+#[path = "../../../tests/inline/format.rs"]
+mod tests;
+
+pub(crate) struct FormatTarget<'target> {
     pub device_path: &'target Path,
     pub label: Option<&'target str>,
 }
 
 impl FormatTarget<'_> {
-    pub fn format(
-        &self, fs_kind: FsKind, node_size: u32, sector_size: u32, force_wipe: bool,
-    ) -> Result<(), SetupError> {
-        if force_wipe {
-            self.wipe_signature()?;
-        }
-
+    pub fn format(&self, fs_kind: FsKind, btrfs_node_size: u32, btrfs_sector_size: u32) -> Result<(), FormatError> {
         match fs_kind {
+            FsKind::Vfat => self.format_vfat(),
             FsKind::Ext4 => self.format_ext4(),
-            FsKind::Btrfs => self.format_btrfs(node_size, sector_size),
+            FsKind::Btrfs => self.format_btrfs(btrfs_node_size, btrfs_sector_size),
             FsKind::Xfs => self.format_xfs(),
         }
     }
 
-    pub fn wipe_signature(&self) -> Result<(), SetupError> {
-        let status = Command::new(WIPEFS_BIN)
-            .args(["-a", &self.device_path.to_string_lossy()])
-            .status()?;
-
-        if !status.success() {
-            return Err(SetupError::WipeFailed);
-        }
-
-        Ok(())
-    }
-
-    pub fn format_esp(&self) -> Result<(), SetupError> {
+    fn format_vfat(&self) -> Result<(), FormatError> {
         let file = OpenOptions::new().read(true).write(true).open(self.device_path)?;
 
         let mut options = FormatVolumeOptions::new().fat_type(FatType::Fat32);
@@ -93,9 +77,9 @@ impl FormatTarget<'_> {
         Ok(())
     }
 
-    pub fn format_btrfs(&self, node_size: u32, sector_size: u32) -> Result<(), SetupError> {
-        if node_size == 0 || sector_size == 0 {
-            return Err(SetupError::InvalidFormatParams);
+    fn format_btrfs(&self, node_size: u32, sector_size: u32) -> Result<(), FormatError> {
+        if !node_size.is_power_of_two() || !sector_size.is_power_of_two() {
+            return Err(FormatError::InvalidFormatParams);
         }
 
         let total_bytes = device_size(self.device_path)?;
@@ -129,7 +113,7 @@ impl FormatTarget<'_> {
         Ok(())
     }
 
-    pub fn format_ext4(&self) -> Result<(), SetupError> {
+    fn format_ext4(&self) -> Result<(), FormatError> {
         let mut args = Vec::new();
         if let Some(label) = self.label {
             args.push(OsStr::new("-L"));
@@ -140,7 +124,7 @@ impl FormatTarget<'_> {
         run_mkfs!(EXT4_BIN, &args)
     }
 
-    pub fn format_xfs(&self) -> Result<(), SetupError> {
+    fn format_xfs(&self) -> Result<(), FormatError> {
         let mut args = vec![OsStr::new("-f")];
         if let Some(label) = self.label {
             args.push(OsStr::new("-L"));

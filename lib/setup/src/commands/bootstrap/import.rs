@@ -16,20 +16,20 @@ use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 use upac_abi::hook::CancelToken;
 
-use upac_types::entry::{FileEntry, FileEntryScope};
 use upac_types::hook::ProgressEventBuilder;
+use upac_types::response::entry::{FileEntry, FileEntryScope};
 
+use super::error::BootstrapError;
 use super::{ConfigState, EmptyConfig, PrefixTree, SetupProgress, import_if_dir};
 
-use crate::error::SetupError;
 use crate::target::TargetSysroot;
 
 pub struct ImportPackageStage;
 
-impl Stage<SetupError> for ImportPackageStage {
+impl Stage<BootstrapError> for ImportPackageStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let mut setup_progress = ctx_take!(context, SetupProgress);
         let mut imported_ctx = ctx_take!(context, ImportContext);
         let mut prefix_tree = ctx_take!(context, PrefixTree);

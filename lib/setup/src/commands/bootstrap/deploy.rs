@@ -16,21 +16,21 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
+use super::error::BootstrapError;
 use super::{DeployDigests, Pinned};
 
-use crate::error::SetupError;
 use crate::target::TargetSysroot;
 
 #[cfg(test)]
-#[path = "../../tests/inline/deploy.rs"]
+#[path = "../../../tests/inline/deploy.rs"]
 mod tests;
 
 pub struct WriteDeployRecordStage;
 
-impl Stage<SetupError> for WriteDeployRecordStage {
+impl Stage<BootstrapError> for WriteDeployRecordStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let deploy_digest = ctx_get!(context, DeployDigests);
         let target = ctx_get!(context, TargetSysroot);
         let pinned = ctx_get!(context, Pinned);

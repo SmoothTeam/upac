@@ -24,18 +24,18 @@ use upac_abi::{BootResourceKind, InitramfsGenerator};
 
 use upac_types::hook::ProgressEventBuilder;
 
+use super::error::BootstrapError;
 use super::{PrefixTree, RequestedBootPlugin, RequestedInitramfsGenerator};
 
-use crate::error::SetupError;
 use crate::layout::genesis::{INITRAMFS_FILENAME, UKI_FILENAME};
 use crate::target::TargetSysroot;
 
 pub struct KernelStage;
 
-impl Stage<SetupError> for KernelStage {
+impl Stage<BootstrapError> for KernelStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let mut prefix_tree = ctx_take!(context, PrefixTree);
         let mut import_ctx = ctx_take!(context, ImportContext);
 
@@ -75,20 +75,20 @@ impl Stage<SetupError> for KernelStage {
     }
 }
 
-fn detect_kernel_version(prefix_tree: &FileSystem<ObjectID>) -> Result<String, SetupError> {
+fn detect_kernel_version(prefix_tree: &FileSystem<ObjectID>) -> Result<String, BootstrapError> {
     let mut versions: Vec<String> = FileHandle::new("lib/modules")
         .list_in_tree(prefix_tree)?
         .map(|(name, _)| name.to_string_lossy().into_owned())
         .collect();
 
     match versions.len() {
-        0 => Err(SetupError::NoKernelFound),
+        0 => Err(BootstrapError::NoKernelFound),
         1 => Ok(versions.remove(0)),
-        _ => Err(SetupError::AmbiguousKernelVersion),
+        _ => Err(BootstrapError::AmbiguousKernelVersion),
     }
 }
 
-fn run_dracut(scratch: &Path, kver: &str, is_uki: bool, output_path: &Path) -> Result<(), SetupError> {
+fn run_dracut(scratch: &Path, kver: &str, is_uki: bool, output_path: &Path) -> Result<(), BootstrapError> {
     let mut command = Command::new("dracut");
     command
         .arg("--sysroot")
@@ -103,13 +103,13 @@ fn run_dracut(scratch: &Path, kver: &str, is_uki: bool, output_path: &Path) -> R
 
     let status = command.status()?;
     if !status.success() {
-        return Err(SetupError::InitramfsGeneratorFailed);
+        return Err(BootstrapError::InitramfsGeneratorFailed);
     }
 
     Ok(())
 }
 
-fn run_mkinitcpio(scratch: &Path, kver: &str, is_uki: bool, output_path: &Path) -> Result<(), SetupError> {
+fn run_mkinitcpio(scratch: &Path, kver: &str, is_uki: bool, output_path: &Path) -> Result<(), BootstrapError> {
     let mut command = Command::new("mkinitcpio");
     command
         .args(["-k", kver, "-r"])
@@ -120,7 +120,7 @@ fn run_mkinitcpio(scratch: &Path, kver: &str, is_uki: bool, output_path: &Path) 
 
     let status = command.status()?;
     if !status.success() {
-        return Err(SetupError::InitramfsGeneratorFailed);
+        return Err(BootstrapError::InitramfsGeneratorFailed);
     }
 
     Ok(())

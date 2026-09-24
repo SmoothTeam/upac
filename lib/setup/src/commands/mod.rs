@@ -3,12 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-pub mod export;
-
-mod archive;
-mod commands;
-mod layout {
-    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
-}
-mod target;
-mod wipe;
+pub mod bootstrap;
+pub mod format;
+pub mod partition;

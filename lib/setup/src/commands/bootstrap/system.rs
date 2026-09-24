@@ -12,18 +12,18 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
+use super::error::BootstrapError;
 use super::{PrefixTree, ResolvedSourceDir, import_if_dir};
 
-use crate::error::SetupError;
 use crate::layout::genesis::{COMPOSEFS_SETUP_ROOT_UNIT_PATH, SYSTEM_DIR};
 use crate::target::TargetSysroot;
 
 pub struct ImportSystemStage;
 
-impl Stage<SetupError> for ImportSystemStage {
+impl Stage<BootstrapError> for ImportSystemStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let mut prefix_tree = ctx_take!(context, PrefixTree);
         let mut imported_ctx = ctx_take!(context, ImportContext);
 
@@ -35,7 +35,7 @@ impl Stage<SetupError> for ImportSystemStage {
         let system_dir = resolved.join(SYSTEM_DIR);
         let unit_source = system_dir.join(COMPOSEFS_SETUP_ROOT_UNIT_PATH);
         if !unit_source.is_file() {
-            return Err(SetupError::ComposefsSetupRootUnitNotFound);
+            return Err(BootstrapError::ComposefsSetupRootUnitNotFound);
         }
 
         import_if_dir!(repository, &mut prefix_tree, &system_dir, &mut imported_ctx, cancel);

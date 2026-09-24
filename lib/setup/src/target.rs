@@ -17,38 +17,20 @@ use upac::layout::deployment::{DEPLOYS_DIR, NEXT_SEQ_PATH, REPO_DIR};
 
 use upac_abi::FsKind;
 
-use uuid::Uuid;
-
-use upac_types::request::PartitionMount;
-
-use super::error::SetupError;
-use super::format::FormatTarget;
-
-use super::layout::partition::{DEPLOY_LABEL, ESP_LABEL};
-use super::partition::DiskLayout;
-use super::stages::SetupWholeDiskData;
+use crate::commands::bootstrap::error::BootstrapError;
 
 pub struct TargetSysroot {
     mount_point: PathBuf,
     deploy_dir: PathBuf,
+    esp_device: PathBuf,
     repository: ManuallyDrop<Repository<ObjectID>>,
     mounted: Vec<PathBuf>,
-    esp_partition_number: u32,
-    esp_starting_lba: u64,
-    esp_ending_lba: u64,
-    esp_unique_partition_guid: Uuid,
 }
 
 impl TargetSysroot {
-    #[allow(
-        clippy::too_many_arguments,
-        reason = "flat ESP-geometry params by design, not grouped into a struct — see partition::DiskLayout"
-    )]
     pub fn new(
         deploy_device: &Path, deploy_fs: FsKind, esp_device: &Path, mount_point: PathBuf,
-        extra_mounts: &[PartitionMount], esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
-        esp_unique_partition_guid: Uuid,
-    ) -> Result<Self, SetupError> {
+    ) -> Result<Self, BootstrapError> {
         create_dir_all(&mount_point)?;
 
         mount(
@@ -59,103 +41,40 @@ impl TargetSysroot {
             None::<&str>,
         )?;
 
-        let mut mounted = vec![mount_point.clone()];
+        let (deploy_dir, repository, esp_mount_point) = Self::prepare_mounted_deploy(&mount_point, esp_device)
+            .inspect_err(|_| {
+                let _ = umount(&mount_point);
+            })?;
 
+        Ok(Self {
+            mounted: vec![mount_point.clone(), esp_mount_point],
+            mount_point,
+            deploy_dir,
+            esp_device: esp_device.to_owned(),
+            repository: ManuallyDrop::new(repository),
+        })
+    }
+
+    fn prepare_mounted_deploy(
+        mount_point: &Path, esp_device: &Path,
+    ) -> Result<(PathBuf, Repository<ObjectID>, PathBuf), BootstrapError> {
         let deploy_dir = mount_point.join(DEPLOYS_DIR);
         create_dir_all(&deploy_dir)?;
 
         let (repository, _freshly_initialized) = repository::init(&mount_point.join(REPO_DIR))?;
 
         let esp_mount_point = mount_point.join(ESP_MOUNT_PRIMARY.trim_start_matches('/'));
-
         create_dir_all(&esp_mount_point)?;
 
         mount(
             Some(esp_device),
             &esp_mount_point,
-            Some("vfat"),
+            Some(FsKind::Vfat.as_ref()),
             MsFlags::empty(),
             None::<&str>,
         )?;
-        mounted.push(esp_mount_point);
 
-        for extra in extra_mounts {
-            let target = mount_point.join(extra.mount_path.trim_start_matches('/'));
-            create_dir_all(&target)?;
-            mount(
-                Some(Path::new(&extra.device_path)),
-                &target,
-                Some(extra.fs_kind.as_ref()),
-                MsFlags::empty(),
-                None::<&str>,
-            )?;
-            mounted.push(target);
-        }
-
-        Ok(Self {
-            mount_point,
-            deploy_dir,
-            repository: ManuallyDrop::new(repository),
-            mounted,
-            esp_partition_number,
-            esp_starting_lba,
-            esp_ending_lba,
-            esp_unique_partition_guid,
-        })
-    }
-
-    pub fn create_whole_disk(data: &SetupWholeDiskData<'_>) -> Result<Self, SetupError> {
-        let layout = DiskLayout::create(
-            Path::new(data.device_path),
-            data.esp_size_mib,
-            data.deploy_size_mib,
-            &data.extra_partitions,
-            data.force_wipe,
-        )?;
-
-        let esp_path = layout.esp_path();
-
-        FormatTarget {
-            device_path: &esp_path,
-            label: Some(ESP_LABEL),
-        }
-        .format_esp()?;
-
-        let deploy_path = layout.deploy_path();
-        FormatTarget {
-            device_path: &deploy_path,
-            label: Some(DEPLOY_LABEL),
-        }
-        .format(data.deploy_fs, data.node_size, data.sector_size, data.force_wipe)?;
-
-        let extra_paths = layout.extra_paths();
-        let mut extra_mounts = Vec::with_capacity(data.extra_partitions.len());
-
-        for (spec, path) in data.extra_partitions.iter().zip(extra_paths.iter()) {
-            FormatTarget {
-                device_path: path,
-                label: Some(&spec.mount_path),
-            }
-            .format(spec.fs_kind, 0, 0, data.force_wipe)?;
-
-            extra_mounts.push(PartitionMount {
-                mount_path: spec.mount_path.clone(),
-                device_path: path.display().to_string(),
-                fs_kind: spec.fs_kind,
-            });
-        }
-
-        Self::new(
-            &deploy_path,
-            data.deploy_fs,
-            &esp_path,
-            PathBuf::from(data.mount_point()),
-            &extra_mounts,
-            layout.esp_partition_number(),
-            layout.esp_starting_lba(),
-            layout.esp_ending_lba(),
-            layout.esp_unique_partition_guid(),
-        )
+        Ok((deploy_dir, repository, esp_mount_point))
     }
 
     pub fn repository(&self) -> &Repository<ObjectID> {
@@ -174,20 +93,8 @@ impl TargetSysroot {
         self.mount_point.join(ESP_MOUNT_PRIMARY.trim_start_matches('/'))
     }
 
-    pub fn esp_partition_number(&self) -> u32 {
-        self.esp_partition_number
-    }
-
-    pub fn esp_starting_lba(&self) -> u64 {
-        self.esp_starting_lba
-    }
-
-    pub fn esp_ending_lba(&self) -> u64 {
-        self.esp_ending_lba
-    }
-
-    pub fn esp_unique_partition_guid(&self) -> Uuid {
-        self.esp_unique_partition_guid
+    pub fn esp_device(&self) -> &Path {
+        &self.esp_device
     }
 }
 
@@ -211,7 +118,7 @@ impl Drop for TargetSysroot {
 
 #[cfg(test)]
 impl TargetSysroot {
-    pub(crate) fn for_testing(mount_point: PathBuf) -> Result<Self, SetupError> {
+    pub(crate) fn for_testing(mount_point: PathBuf) -> Result<Self, BootstrapError> {
         create_dir_all(&mount_point)?;
 
         let deploy_dir = mount_point.join(DEPLOYS_DIR);
@@ -222,12 +129,9 @@ impl TargetSysroot {
         Ok(Self {
             mount_point,
             deploy_dir,
+            esp_device: PathBuf::new(),
             repository: ManuallyDrop::new(repository),
             mounted: Vec::new(),
-            esp_partition_number: 0,
-            esp_starting_lba: 0,
-            esp_ending_lba: 0,
-            esp_unique_partition_guid: Uuid::nil(),
         })
     }
 }

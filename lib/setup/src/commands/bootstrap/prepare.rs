@@ -15,17 +15,17 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
+use super::error::BootstrapError;
 use super::{RequestedSource, ResolvedSourceDir};
 
 use crate::archive::SourceArchive;
-use crate::error::SetupError;
 
 pub struct PrepareSourceStage;
 
-impl Stage<SetupError> for PrepareSourceStage {
+impl Stage<BootstrapError> for PrepareSourceStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let source = ctx_get!(context, RequestedSource);
 
         let source_path = Path::new(source.as_str());

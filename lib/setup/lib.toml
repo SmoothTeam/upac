@@ -3,34 +3,33 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# mount.default_mount_point is where the target deployment partition (and,
-# under it, the ESP + any extra_mounts) gets mounted when the request's own
-# mount_point is left empty.
+# mount.default_mount_point is where `bootstrap_system`'s MountStage mounts the target deployment
+# partition (and, under it, the ESP) when the request's own mount_point is left empty.
 [mount]
 default_mount_point = "/mnt/upac-setup"
 
 # mkfs.ext4_bin/xfs_bin are the mkfs binaries shelled out to for ext4/xfs
 # formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs).
-# mkfs.wipefs_bin clears a partition's existing filesystem
-# signature before formatting, only when the request explicitly opts into it
-# (CSetupWholeDiskRequest.gpt.force_wipe) — never run silently.
+# mkfs.wipefs_bin clears a device's existing signatures (crate::wipe), only when the request
+# explicitly opts into it (`force_wipe` on both `partition_table` and `format_partition`) — never
+# run silently. Without force_wipe it still runs, in list-only mode (no `-a`), and the command
+# refuses to touch a device that reports any signature at all (`DeviceNotEmpty`).
 [mkfs]
 ext4_bin = "mkfs.ext4"
 xfs_bin = "mkfs.xfs"
 wipefs_bin = "wipefs"
 
-# partition.settle_attempts/settle_interval_ms bound how long DiskLayout::create waits for the
-# kernel (via udev) to create the new partition device nodes after BLKRRPART, before giving up —
-# the ioctl itself is synchronous, but the /dev/vdaN nodes it triggers are created by udev
-# asynchronously afterward. esp_label/deploy_label name both the GPT partition entry itself
-# (DiskLayout::create) and the filesystem volume label written at format time
-# (TargetSysroot::create_whole_disk) — purely informational (`lsblk -f`/`blkid`/other OS
-# installers), nothing in this codebase looks a partition up by either. Uppercase by the same
-# convention real-world ESP volume labels always use.
+# partition.settle_attempts/settle_interval_ms bound how long `partition_add`'s SettleStage waits
+# for the kernel (via udev) to create the new partition device node after BLKRRPART, before giving
+# up — the ioctl itself is synchronous, but the /dev/vdaN node it triggers is created by udev
+# asynchronously afterward.
+#
+# partition.fallback_sector_size is the logical sector size (bytes) `partition_table` builds the
+# new GPT with when the BLKSSZGET ioctl can't report the device's real one (e.g. a plain disk
+# image file instead of a block device). `partition_add` never uses it — it reads the sector size
+# back from the existing GPT itself.
 [partition]
-esp_label = "ESP"
-deploy_label = "UPAC-DEPLOY"
-
+fallback_sector_size = 512
 settle_attempts = 50
 settle_interval_ms = 100
 
@@ -57,7 +56,7 @@ settle_interval_ms = 100
 #
 # composefs_setup_root_unit_path (relative to `system_dir`, i.e. also relative to real `/usr`) is
 # where `ImportSystemStage` requires to find a `composefs-setup-root.service` unit — hard error
-# (`SetupError::ComposefsSetupRootUnitNotFound`) if missing, since a genesis'd disk cannot boot at
+# (`BootstrapError::ComposefsSetupRootUnitNotFound`) if missing, since a genesis'd disk cannot boot at
 # all without it. `ImportSystemStage` deliberately does NOT create the unit's `*.target.wants/`
 # enablement symlink itself — `initrd-root-fs.target` only exists inside the initrd's own systemd
 # instance, so wanting it from the real root's unit tree is a no-op after switch-root. The dracut
@@ -71,8 +70,10 @@ settle_interval_ms = 100
 # `KernelStage` writes both under the same `lib/modules/<kver>/` directory.
 [genesis]
 scratch_filename = "genesis-packages.redb"
+
+composefs_setup_root_unit_path = "lib/systemd/system/composefs-setup-root.service"
 efi_linux_dir = "EFI/Linux"
 system_dir = "system"
-composefs_setup_root_unit_path = "lib/systemd/system/composefs-setup-root.service"
+
 initramfs_filename = "initramfs.img"
 uki_filename = "uki.efi"

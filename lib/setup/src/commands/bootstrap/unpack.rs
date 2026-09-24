@@ -13,16 +13,15 @@ use upac_types::hook::ProgressEventBuilder;
 
 use upac_types::TmpPath;
 
+use super::error::BootstrapError;
 use super::{SetupProgress, UnpackState};
-
-use crate::error::SetupError;
 
 pub struct UnpackPackageStage;
 
-impl Stage<SetupError> for UnpackPackageStage {
+impl Stage<BootstrapError> for UnpackPackageStage {
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let mut setup_progress = ctx_take!(context, SetupProgress);
         let mut unpack_state = ctx_take!(context, UnpackState);
 

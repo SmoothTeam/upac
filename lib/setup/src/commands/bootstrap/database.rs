@@ -21,22 +21,22 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
+use super::error::BootstrapError;
 use super::{ConfigState, DeployDigests, PrefixTree};
 
-use crate::error::SetupError;
 use crate::layout::genesis::SCRATCH_FILENAME;
 use crate::target::TargetSysroot;
 
 #[cfg(test)]
-#[path = "../../tests/inline/embed.rs"]
+#[path = "../../../tests/inline/embed.rs"]
 mod tests;
 
 pub struct EmbedDatabaseStage;
 
-impl Stage<SetupError> for EmbedDatabaseStage {
+impl Stage<BootstrapError> for EmbedDatabaseStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), SetupError> {
+    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let mut import_ctx = ctx_take!(context, ImportContext);
         let mut prefix_tree = ctx_take!(context, PrefixTree);
         let config_state = ctx_take!(context, ConfigState);
