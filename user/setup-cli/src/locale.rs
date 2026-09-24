@@ -10,9 +10,23 @@ use i18n_embed::fluent::{FluentLanguageLoader, fluent_language_loader};
 
 use rust_embed::RustEmbed;
 
+use upac_locale::CliLocale;
+
+#[cfg(test)]
+#[path = "../tests/inline/locale.rs"]
+mod tests;
+
 #[derive(RustEmbed)]
 #[folder = "i18n/"]
 struct EmbeddedAssets;
+
+pub struct Locale;
+
+impl CliLocale for Locale {
+    fn loader() -> &'static FluentLanguageLoader {
+        &LOADER
+    }
+}
 
 pub static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| fluent_language_loader!());
 

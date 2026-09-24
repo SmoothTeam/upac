@@ -8,8 +8,6 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   but there's no actual icon asset (SVG/PNG) yet, and no install step wiring it into
   `/usr/share/icons/hicolor/...`. Needs real artwork before packaging.
 
-- clap output is not localized in any CLI (`up`, `up-sp`, `up-si`) — both its parse errors and the whole `--help` text (`Usage:`/`Options:` headings, every flag/subcommand description) are always English. Parse errors go through a custom `clap::error::ErrorFormatter` (`Cli::try_parse()` + `error.apply::<…>().exit()`, matching on `error.kind()` + `ContextKind::InvalidArg`, falling back to `RichFormatter` for untranslated kinds); `--help` needs runtime descriptions via the builder API (`Cli::command().mut_arg(…, |arg| arg.help(fl!(…)))`) plus a localized `help_template`. Once errors are localized, required flags go back to plain `String` fields (clap-enforced, shown as required in `--help`) instead of today's `Option<String>` + manual `bail!(fl!("err-missing-*"))` workaround, which collapses the per-flag `err-missing-*` keys into one `err-missing-argument`.
-
 - Auto-generated `subject` values (`"install"`, `"update"`, `"file add"`, etc. — as opposed to a
   user-supplied one via `commit new --message`) are hardcoded English, not run through `fl!()`,
   since they get persisted permanently into `DeployRecord`/`HistoryEntry`. Naively localizing at
@@ -58,8 +56,6 @@ should also check whether one already exists under `system/` rather than blindly
 copy is the only source. Not yet implemented.
 
 ## upac-setup
-
-`up-sp` (`user/setup-cli`) still targets the old monolithic ABI (`setup_existing`/`setup_whole_disk`, `upac_types::states`, `PartitionMount`/`PartitionSpec`) and doesn't compile. It needs porting onto the independent exports under `upac_setup::export::*`: `partition init` → `partition_table`, `partition esp`/`partition create` → `partition_add` (ESP defaults vs `--type`), `format esp`/`format create` → `format_partition` (`esp` sets `require_esp` + `Vfat`), `bootstrap` → `bootstrap_system`. There is no `auto` — the user runs the steps by hand, feeding `partition_add`'s printed `label → /dev/…` into the next ones. The ESP/deploy default volume labels (removed from `lib/setup/lib.toml`) move into `up-sp`'s own config, its `FsKind` clap wrapper needs `vfat`, and `libcore.rs`'s static-linking imports move from the crate root to `upac_setup::export::*`.
 
 `partition_add` rereads the whole table via `BLKRRPART` after every insert, which the kernel refuses (`EBUSY`) while any partition on that disk is mounted. Fine for a blank install target; adding partitions to a disk that is in use would need `BLKPG_ADD_PARTITION` instead.
 

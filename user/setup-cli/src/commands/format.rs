@@ -3,11 +3,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 
 use clap::{Args as ClapArgs, Subcommand, ValueEnum};
-
-use i18n_embed_fl::fl;
 
 use upac_abi::FsKind as FsKindAbi;
 use upac_abi::error::ErrorDomain;
@@ -16,13 +14,8 @@ use upac_types::request::format::SetupFormatRequest;
 
 use crate::layout::disk_defaults::{BTRFS_NODE_SIZE, BTRFS_SECTOR_SIZE, DEPLOY_FS, ESP_LABEL};
 use crate::libcore::Lib;
-use crate::locale::LOADER;
 use crate::types::progress::ProgressState;
 use crate::types::{FsKind, call, request_base};
-
-#[cfg(test)]
-#[path = "../../tests/inline/format.rs"]
-mod tests;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -39,7 +32,7 @@ pub enum FormatCommand {
 #[derive(ClapArgs)]
 pub struct EspArgs {
     #[arg(long)]
-    pub device: Option<String>,
+    pub device: String,
     #[arg(long, default_value = ESP_LABEL)]
     pub label: String,
     #[arg(long)]
@@ -49,7 +42,7 @@ pub struct EspArgs {
 #[derive(ClapArgs)]
 pub struct CreateArgs {
     #[arg(long)]
-    pub device: Option<String>,
+    pub device: String,
     #[arg(long, value_enum, default_value_t = FsKind::from_str(DEPLOY_FS, false).unwrap_or(FsKind(FsKindAbi::Btrfs)))]
     pub fs: FsKind,
     #[arg(long)]
@@ -70,10 +63,6 @@ pub fn run(args: Args, lib: &Lib) -> Result<()> {
 }
 
 fn esp(args: EspArgs, lib: &Lib) -> Result<()> {
-    let Some(device) = args.device else {
-        bail!(fl!(LOADER, "err-missing-device"));
-    };
-
     lib.require_root()?;
 
     let mut progress = ProgressState::new(ErrorDomain::Format);
@@ -82,7 +71,7 @@ fn esp(args: EspArgs, lib: &Lib) -> Result<()> {
         lib.format_partition,
         SetupFormatRequest {
             base: request_base!(progress),
-            device_path: &device,
+            device_path: &args.device,
             label: Some(args.label.as_str()),
             fs_kind: FsKindAbi::Vfat,
             require_esp: true,
@@ -94,10 +83,6 @@ fn esp(args: EspArgs, lib: &Lib) -> Result<()> {
 }
 
 fn create(args: CreateArgs, lib: &Lib) -> Result<()> {
-    let Some(device) = args.device else {
-        bail!(fl!(LOADER, "err-missing-device"));
-    };
-
     lib.require_root()?;
 
     let mut progress = ProgressState::new(ErrorDomain::Format);
@@ -106,7 +91,7 @@ fn create(args: CreateArgs, lib: &Lib) -> Result<()> {
         lib.format_partition,
         SetupFormatRequest {
             base: request_base!(progress),
-            device_path: &device,
+            device_path: &args.device,
             label: args.label.as_deref(),
             fs_kind: args.fs.into(),
             require_esp: false,

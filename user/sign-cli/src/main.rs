@@ -14,6 +14,10 @@ use colored::Colorize;
 
 use i18n_embed_fl::fl;
 
+use upac_locale::parse;
+
+use self::locale::Locale;
+
 mod commands {
     pub mod generate_cert;
     pub mod generate_root;
@@ -28,7 +32,7 @@ mod layout {
 mod locale;
 
 #[derive(Parser)]
-#[command(name = "up-si", author, version, about)]
+#[command(name = "up-si", author, version)]
 enum Command {
     GenerateRoot(commands::generate_root::Args),
     GenerateCert(commands::generate_cert::Args),
@@ -49,7 +53,7 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<()> {
-    match Command::parse() {
+    match parse::<Command, Locale>() {
         Command::GenerateRoot(args) => commands::generate_root::run(args)?,
         Command::GenerateCert(args) => commands::generate_cert::run(args)?,
         Command::SignHook(args) => commands::sign_hook::run(args)?,

@@ -28,7 +28,8 @@ name = "up-si"
 path = "src/main.rs"
 
 [dependencies]
-upac-lib-pki  = { workspace = true }
+upac-lib-pki    = { workspace = true }
+upac-lib-locale = { workspace = true }
 
 colored       = { workspace = true }
 anyhow        = { workspace = true }

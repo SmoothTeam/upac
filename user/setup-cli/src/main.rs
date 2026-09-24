@@ -15,9 +15,11 @@ use colored::Colorize;
 
 use i18n_embed_fl::fl;
 
-use locale::{LOADER, init};
+use locale::{LOADER, Locale, init};
 
 use upac_abi::hook::CancelToken;
+
+use upac_locale::parse;
 
 use self::libcore::Lib;
 
@@ -41,7 +43,7 @@ pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
 }
 
 #[derive(Parser)]
-#[command(name = "up-sp", author, version, about)]
+#[command(name = "up-sp", author, version)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -67,14 +69,14 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<()> {
+    let cli = parse::<Cli, Locale>();
+
     let lib = Arc::new(Lib::load()?);
 
     let lib_cancel = Arc::clone(&lib);
     ctrlc::set_handler(move || {
         unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
     })?;
-
-    let cli = Cli::parse();
 
     match cli.command {
         Command::Partition(args) => commands::partition::run(args, &lib)?,

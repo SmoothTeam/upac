@@ -10,13 +10,27 @@ use i18n_embed::{AssetsMultiplexor, DesktopLanguageRequester, FileSystemAssets, 
 
 use rust_embed::RustEmbed;
 
+use upac_locale::CliLocale;
+
 use upac_types::settings::RuntimeSettings;
 
 use crate::layout::I18N_DIR;
 
+#[cfg(test)]
+#[path = "../tests/inline/locale.rs"]
+mod tests;
+
 #[derive(RustEmbed)]
 #[folder = "i18n/"]
 struct EmbeddedAssets;
+
+pub struct Locale;
+
+impl CliLocale for Locale {
+    fn loader() -> &'static FluentLanguageLoader {
+        &LOADER
+    }
+}
 
 pub static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| fluent_language_loader!());
 
@@ -36,6 +50,7 @@ pub fn init() {
     let requested_languages = DesktopLanguageRequester::requested_languages();
 
     let _ = i18n_embed::select(&*LOADER, &assets(), &requested_languages);
+    LOADER.set_use_isolating(false);
 
     let configured_language = RuntimeSettings::load()
         .locale
@@ -54,4 +69,5 @@ pub fn init() {
 pub(crate) fn init_for_test() {
     let english = "en".parse().unwrap();
     let _ = i18n_embed::select(&*LOADER, &EmbeddedAssets, &[english]);
+    LOADER.set_use_isolating(false);
 }
