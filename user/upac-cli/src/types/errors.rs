@@ -14,7 +14,7 @@ use upac_types::state::mutated::{
     CommitStateId, FilesStateId, GcStateId, InstallStateId, MimeStateId, PinStateId, RollbackStateId, UninstallStateId,
     UpdateStateId,
 };
-use upac_types::state::setup::SetupStateId;
+use upac_types::state::setup::{BootstrapStateId, FormatStateId, PartitionAddStateId, PartitionTableStateId};
 use upac_types::state::unmutated::{
     DiffConfigStateId, DiffPackagesStateId, DiffPrefixStateId, DiffStateId, ListConfigStateId, ListHistoryStateId,
     ListPackagesStateId, ListPrefixStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
@@ -103,7 +103,10 @@ impl Display for StageName {
             ErrorDomain::SearchFiles => SearchFilesStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInMeta => SearchInMetaStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInPackageFiles => SearchInPackageFilesStateId::from_stage_index(state).stage_key(),
-            ErrorDomain::Setup => SetupStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Bootstrap => BootstrapStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::PartitionTable => PartitionTableStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::PartitionAdd => PartitionAddStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Format => FormatStateId::from_stage_index(state).stage_key(),
         };
 
         write!(formatter, "{}", LOADER.get(key))
