@@ -1,6 +1,7 @@
 about = Demo tool
 about-create = Create a thing
 arg-create-size = Size of the thing
+arg-create-version = Show the version column
 
 clap-usage = USAGE
 clap-options = OPTS

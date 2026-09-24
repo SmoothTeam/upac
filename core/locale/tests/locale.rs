@@ -52,6 +52,8 @@ struct CreateArgs {
     size: String,
     #[arg(long)]
     label: Option<String>,
+    #[arg(long)]
+    version: bool,
 }
 
 #[test]
@@ -67,6 +69,18 @@ fn localize_sets_about_and_argument_help_from_their_keys() {
         .find(|arg| arg.get_id().as_str() == "size")
         .unwrap();
     assert_eq!(size.get_help().unwrap().to_string(), "Size of the thing");
+}
+
+#[test]
+fn a_user_defined_version_flag_is_not_mistaken_for_the_builtin_one() {
+    let command = localize::<TestLocale>(Cli::command());
+    let create = command.find_subcommand("create").unwrap();
+
+    let version = create
+        .get_arguments()
+        .find(|arg| arg.get_id().as_str() == "version")
+        .unwrap();
+    assert_eq!(version.get_help().unwrap().to_string(), "Show the version column");
 }
 
 #[test]
@@ -86,6 +100,7 @@ fn parses_valid_arguments() {
     let DemoCommand::Create(args) = cli.command;
     assert_eq!(args.size, "8G");
     assert_eq!(args.label, None);
+    assert!(!args.version);
 }
 
 #[test]

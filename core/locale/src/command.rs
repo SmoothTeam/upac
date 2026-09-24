@@ -7,7 +7,7 @@ use std::mem::take;
 
 use clap::builder::StyledStr;
 use clap::builder::styling::Styles;
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 use i18n_embed::fluent::FluentLanguageLoader;
 
@@ -31,8 +31,6 @@ pub const SHARED_KEYS: &[&str] = &[
     "clap-error-conflict",
 ];
 
-const HELP_ARG: &str = "help";
-const VERSION_ARG: &str = "version";
 const HELP_SUBCOMMAND: &str = "help";
 
 pub fn localize<L: CliLocale>(mut command: Command) -> Command {
@@ -85,9 +83,9 @@ fn localize_command(command: &mut Command, path: &mut Vec<String>, loader: &Flue
 }
 
 fn localize_arg(arg: Arg, path: &[String], loader: &FluentLanguageLoader) -> Arg {
-    let key = match arg.get_id().as_str() {
-        HELP_ARG => "clap-help".to_owned(),
-        VERSION_ARG => "clap-version".to_owned(),
+    let key = match arg.get_action() {
+        ArgAction::Help | ArgAction::HelpShort | ArgAction::HelpLong => "clap-help".to_owned(),
+        ArgAction::Version => "clap-version".to_owned(),
         _ => arg_key(&arg, path),
     };
 
@@ -112,8 +110,7 @@ fn collect_keys(command: &Command, path: &mut Vec<String>, keys: &mut Vec<String
     keys.push(about_key(path));
 
     for arg in command.get_arguments() {
-        let id = arg.get_id().as_str();
-        if id == HELP_ARG || id == VERSION_ARG || arg.is_hide_set() {
+        if is_builtin(arg) || arg.is_hide_set() {
             continue;
         }
 
@@ -129,6 +126,13 @@ fn collect_keys(command: &Command, path: &mut Vec<String>, keys: &mut Vec<String
         collect_keys(subcommand, path, keys);
         path.pop();
     }
+}
+
+fn is_builtin(arg: &Arg) -> bool {
+    matches!(
+        arg.get_action(),
+        ArgAction::Help | ArgAction::HelpShort | ArgAction::HelpLong | ArgAction::Version
+    )
 }
 
 fn about_key(path: &[String]) -> String {
