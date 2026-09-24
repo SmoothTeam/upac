@@ -110,3 +110,33 @@ fn an_unknown_partition_type_is_rejected_in_english() {
         "{message}"
     );
 }
+
+#[test]
+fn disk_and_explicit_devices_conflict_in_english() {
+    let message = parse_error::<English>(&[
+        "up-sp",
+        "bootstrap",
+        "--disk",
+        "/dev/sda",
+        "--esp-device",
+        "/dev/sda1",
+        "--source",
+        "/mnt/source",
+    ]);
+
+    assert!(message.starts_with("error: the argument '"), "{message}");
+    assert!(message.contains("cannot be used with"), "{message}");
+    assert!(message.contains("--disk <DISK>"), "{message}");
+    assert!(message.contains("--esp-device <ESP_DEVICE>"), "{message}");
+}
+
+#[test]
+fn bootstrap_without_any_target_is_reported_in_english() {
+    let message = parse_error::<English>(&["up-sp", "bootstrap", "--source", "/mnt/source"]);
+
+    assert!(
+        message.starts_with("error: the following required arguments were not provided:"),
+        "{message}"
+    );
+    assert!(message.contains("--disk <DISK>"), "{message}");
+}

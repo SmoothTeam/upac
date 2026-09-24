@@ -75,4 +75,12 @@ fn partition_specific_variants_map_to_the_expected_error_kinds() {
         ErrorKind::from(PartitionError::PartitionNotReady),
         ErrorKind::NotInitialized
     );
+    assert_eq!(
+        ErrorKind::from(PartitionError::PartitionKindNotFound),
+        ErrorKind::NotFound
+    );
+    assert_eq!(
+        ErrorKind::from(PartitionError::PartitionKindAmbiguous),
+        ErrorKind::InvalidEntry
+    );
 }

@@ -15,7 +15,7 @@ use upac::orchestrator::context::Context;
 use upac::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
 use upac::plugin::decoder::unpack::PackageUnpacker;
 
-use upac_abi::{FsKind, InitramfsGenerator};
+use upac_abi::{FsKind, InitramfsGenerator, PartitionKind};
 
 use upac_types::decoder::DeclarativeTrigger;
 use upac_types::package::PackageTemp;
@@ -36,6 +36,7 @@ use self::prepare::PrepareSourceStage;
 use self::system::ImportSystemStage;
 use self::unpack::UnpackPackageStage;
 
+use crate::commands::partition::gpt::find_partition_by_kind;
 use crate::layout::mount::DEFAULT_MOUNT_POINT;
 
 pub mod error;
@@ -70,10 +71,24 @@ macro_rules! import_if_dir {
 pub(crate) use import_if_dir;
 
 pub(crate) struct RequestedMount {
-    pub esp_device: PathBuf,
-    pub deploy_device: PathBuf,
+    pub disk: Option<PathBuf>,
+    pub esp_device: Option<PathBuf>,
+    pub deploy_device: Option<PathBuf>,
     pub deploy_fs: FsKind,
     pub mount_point: PathBuf,
+}
+
+impl RequestedMount {
+    pub fn resolve_devices(&self) -> Result<(PathBuf, PathBuf), BootstrapError> {
+        match (&self.disk, &self.esp_device, &self.deploy_device) {
+            (Some(disk), None, None) => Ok((
+                find_partition_by_kind(disk, PartitionKind::Esp)?,
+                find_partition_by_kind(disk, PartitionKind::Root)?,
+            )),
+            (None, Some(esp_device), Some(deploy_device)) => Ok((esp_device.clone(), deploy_device.clone())),
+            _ => Err(BootstrapError::InvalidDeviceSelection),
+        }
+    }
 }
 
 #[derive(ContextValue)]
@@ -126,8 +141,9 @@ pub fn run(request: SetupBootstrapRequest<'_>) -> Result<(), (BootstrapStateId, 
     let mut context = Context::new();
     context.put(request.base.message_hook());
     context.put(RequestedMount {
-        esp_device: PathBuf::from(request.esp_device),
-        deploy_device: PathBuf::from(request.deploy_device),
+        disk: request.disk.map(PathBuf::from),
+        esp_device: request.esp_device.map(PathBuf::from),
+        deploy_device: request.deploy_device.map(PathBuf::from),
         deploy_fs: request.deploy_fs,
         mount_point: PathBuf::from(request.mount_point.unwrap_or(DEFAULT_MOUNT_POINT)),
     });

@@ -36,6 +36,8 @@ pub enum PartitionError {
     InvalidPartitionLayout,
     RereadFailed(Errno),
     PartitionNotReady,
+    PartitionKindNotFound,
+    PartitionKindAmbiguous,
     Unexpected,
 }
 
@@ -111,6 +113,8 @@ impl From<PartitionError> for ErrorKind {
             PartitionError::InvalidPartitionLayout => ErrorKind::InvalidEntry,
             PartitionError::RereadFailed(_) => ErrorKind::ReadFailed,
             PartitionError::PartitionNotReady => ErrorKind::NotInitialized,
+            PartitionError::PartitionKindNotFound => ErrorKind::NotFound,
+            PartitionError::PartitionKindAmbiguous => ErrorKind::InvalidEntry,
             PartitionError::Unexpected => ErrorKind::Unexpected,
         }
     }

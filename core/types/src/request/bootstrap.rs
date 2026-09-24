@@ -17,8 +17,9 @@ use super::RequestBase;
 pub struct SetupBootstrapRequest<'data> {
     pub base: RequestBase,
 
-    pub esp_device: &'data str,
-    pub deploy_device: &'data str,
+    pub disk: Option<&'data str>,
+    pub esp_device: Option<&'data str>,
+    pub deploy_device: Option<&'data str>,
     pub deploy_fs: FsKind,
 
     pub mount_point: Option<&'data str>,

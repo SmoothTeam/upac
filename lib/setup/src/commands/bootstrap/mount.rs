@@ -29,16 +29,13 @@ impl Stage<BootstrapError> for MountStage {
             return Err(BootstrapError::UnsupportedDeployFs);
         }
 
-        if !is_esp_partition(&requested.esp_device)? {
+        let (esp_device, deploy_device) = requested.resolve_devices()?;
+
+        if !is_esp_partition(&esp_device)? {
             return Err(BootstrapError::NotEspPartition);
         }
 
-        let target = TargetSysroot::new(
-            &requested.deploy_device,
-            requested.deploy_fs,
-            &requested.esp_device,
-            requested.mount_point,
-        )?;
+        let target = TargetSysroot::new(&deploy_device, requested.deploy_fs, &esp_device, requested.mount_point)?;
 
         context.put(target);
 

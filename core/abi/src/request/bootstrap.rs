@@ -17,7 +17,11 @@ pub struct CSetupBootstrapRequest {
 
     pub base: CRequestBase,
 
+    #[optional]
+    pub disk: CSlice,
+    #[optional]
     pub esp_device: CSlice,
+    #[optional]
     pub deploy_device: CSlice,
     pub deploy_fs: FsKind,
 

@@ -80,6 +80,7 @@ arg-format-create-force-wipe = Предварительно стереть су�
 arg-format-create-btrfs-node-size = Размер узла btrfs в байтах
 arg-format-create-btrfs-sector-size = Размер сектора btrfs в байтах
 about-bootstrap = Установить первую систему на подготовленные разделы
+arg-bootstrap-disk = Диск для установки; его ESP и корневой раздел находятся по типу в GPT
 arg-bootstrap-esp-device = Устройство ESP-раздела
 arg-bootstrap-deploy-device = Устройство раздела развёртывания
 arg-bootstrap-deploy-fs = Файловая система раздела развёртывания

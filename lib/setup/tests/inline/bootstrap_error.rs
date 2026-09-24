@@ -51,3 +51,11 @@ fn not_esp_partition_maps_to_invalid_entry() {
         ErrorKind::InvalidEntry
     );
 }
+
+#[test]
+fn invalid_device_selection_maps_to_invalid_entry() {
+    assert_eq!(
+        ErrorKind::from(BootstrapError::InvalidDeviceSelection),
+        ErrorKind::InvalidEntry
+    );
+}

@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 
-use clap::{Args as ClapArgs, ValueEnum};
+use clap::{ArgGroup, Args as ClapArgs, ValueEnum};
 
 use upac_abi::FsKind as FsKindAbi;
 use upac_abi::InitramfsGenerator;
@@ -20,11 +20,14 @@ use crate::types::progress::ProgressState;
 use crate::types::{BootPlugin, FsKind, InitramfsGeneratorClapArg, call, request_base};
 
 #[derive(ClapArgs)]
+#[command(group(ArgGroup::new("target").required(true).args(["disk", "esp_device"])))]
 pub struct Args {
-    #[arg(long)]
-    pub esp_device: String,
-    #[arg(long)]
-    pub deploy_device: String,
+    #[arg(long, conflicts_with_all = ["esp_device", "deploy_device"])]
+    pub disk: Option<String>,
+    #[arg(long, requires = "deploy_device")]
+    pub esp_device: Option<String>,
+    #[arg(long, requires = "esp_device")]
+    pub deploy_device: Option<String>,
     #[arg(long, value_enum, default_value_t = FsKind::from_str(DEPLOY_FS, false).unwrap_or(FsKind(FsKindAbi::Btrfs)))]
     pub deploy_fs: FsKind,
 
@@ -51,8 +54,9 @@ pub fn run(args: Args, lib: &Lib) -> Result<()> {
         lib.bootstrap_system,
         SetupBootstrapRequest {
             base: request_base!(progress),
-            esp_device: &args.esp_device,
-            deploy_device: &args.deploy_device,
+            disk: args.disk.as_deref(),
+            esp_device: args.esp_device.as_deref(),
+            deploy_device: args.deploy_device.as_deref(),
             deploy_fs: args.deploy_fs.into(),
             mount_point: args.mount_point.as_deref(),
             source: &args.source,

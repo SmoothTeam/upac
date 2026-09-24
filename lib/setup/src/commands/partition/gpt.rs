@@ -78,14 +78,8 @@ impl GptTable {
             .find_first_place(size_sectors)
             .ok_or(PartitionError::NoSpaceLeft)?;
 
-        let partition_type = match kind {
-            PartitionKind::Esp => ESP_PARTITION_TYPE_GUID,
-            PartitionKind::Root => ROOT_PARTITION_TYPE_GUID,
-            PartitionKind::Linux => LINUX_PARTITION_TYPE_GUID,
-        };
-
         self.0[number] = GPTPartitionEntry {
-            partition_type_guid: partition_type.to_bytes_le(),
+            partition_type_guid: partition_type_guid(kind).to_bytes_le(),
             unique_partition_guid: Uuid::new_v4().to_bytes_le(),
             starting_lba,
             ending_lba: starting_lba + size_sectors - 1,
@@ -108,6 +102,25 @@ impl GptTable {
 
         Ok(())
     }
+}
+
+pub(crate) fn find_partition_by_kind(disk_path: &Path, kind: PartitionKind) -> Result<PathBuf, PartitionError> {
+    let mut disk = File::open(disk_path)?;
+    let gpt = GPT::find_from(&mut disk)?;
+
+    let type_guid = partition_type_guid(kind).to_bytes_le();
+
+    let mut numbers = gpt
+        .iter()
+        .filter(|(_, entry)| entry.is_used() && entry.partition_type_guid == type_guid)
+        .map(|(number, _)| number);
+
+    let number = numbers.next().ok_or(PartitionError::PartitionKindNotFound)?;
+    if numbers.next().is_some() {
+        return Err(PartitionError::PartitionKindAmbiguous);
+    }
+
+    Ok(partition_node_path(disk_path, number))
 }
 
 pub(crate) fn partition_node_path(device_path: &Path, number: u32) -> PathBuf {
@@ -149,6 +162,14 @@ fn find_partition_entry(partition_device: &Path) -> Result<(u32, GPTPartitionEnt
         .find(|&(number, entry)| number == partition_number && entry.is_used())
         .map(|(number, entry)| (number, entry.clone()))
         .ok_or(PartitionError::InvalidPartitionLayout)
+}
+
+fn partition_type_guid(kind: PartitionKind) -> Uuid {
+    match kind {
+        PartitionKind::Esp => ESP_PARTITION_TYPE_GUID,
+        PartitionKind::Root => ROOT_PARTITION_TYPE_GUID,
+        PartitionKind::Linux => LINUX_PARTITION_TYPE_GUID,
+    }
 }
 
 fn split_partition_device(device: &Path) -> Result<(PathBuf, u32), PartitionError> {

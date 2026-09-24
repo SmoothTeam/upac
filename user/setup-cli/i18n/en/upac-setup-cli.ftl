@@ -80,6 +80,7 @@ arg-format-create-force-wipe = Wipe existing signatures first
 arg-format-create-btrfs-node-size = Btrfs node size in bytes
 arg-format-create-btrfs-sector-size = Btrfs sector size in bytes
 about-bootstrap = Install the first system onto prepared partitions
+arg-bootstrap-disk = Disk to install onto; its ESP and root partitions are found by GPT type
 arg-bootstrap-esp-device = ESP partition device
 arg-bootstrap-deploy-device = Deployment partition device
 arg-bootstrap-deploy-fs = Filesystem of the deployment partition
