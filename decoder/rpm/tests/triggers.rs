@@ -9,8 +9,8 @@ use upac_decoder_rpm::header::Header;
 use upac_decoder_rpm::rpm::{NAME_TAG, POSTIN_TAG, POSTUN_TAG, PREIN_TAG, PREUN_TAG};
 use upac_decoder_rpm::triggers;
 
-enum RawValue<'a> {
-    Str(&'a str),
+enum RawValue<'data> {
+    Str(&'data str),
 }
 
 fn build_header(entries: &[(u32, RawValue)]) -> Header {

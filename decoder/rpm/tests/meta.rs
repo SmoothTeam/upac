@@ -18,11 +18,11 @@ use upac_types::traits::DecodeMeta;
 
 const CHECKSUM: [u8; 32] = [7; 32];
 
-enum RawValue<'a> {
-    Str(&'a str),
-    StrArray(&'a [&'a str]),
+enum RawValue<'data> {
+    Str(&'data str),
+    StrArray(&'data [&'data str]),
     I32(i32),
-    I32Array(&'a [i32]),
+    I32Array(&'data [i32]),
 }
 
 fn build_header(entries: &[(u32, RawValue)]) -> Header {

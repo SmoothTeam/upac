@@ -92,13 +92,13 @@ impl DisplayPakcageMetaArgs {
     }
 }
 
-pub struct PackageFormatter<'a> {
-    pub extra_fields: &'a [PackageField],
-    pub metas: &'a [PackageMeta],
+pub struct PackageFormatter<'data> {
+    pub extra_fields: &'data [PackageField],
+    pub metas: &'data [PackageMeta],
     pub sort: Option<PackageField>,
 }
 
-impl<'a> PackageFormatter<'a> {
+impl<'data> PackageFormatter<'data> {
     pub fn print(&self) {
         let metas = self.ordered_metas();
         if self.extra_fields.is_empty() {
@@ -110,7 +110,7 @@ impl<'a> PackageFormatter<'a> {
         }
     }
 
-    fn ordered_metas(&self) -> Vec<&'a PackageMeta> {
+    fn ordered_metas(&self) -> Vec<&'data PackageMeta> {
         let mut metas: Vec<&PackageMeta> = self.metas.iter().collect();
         match self.sort {
             Some(PackageField::Version) => metas.sort_by(|a, b| a.version.cmp(&b.version)),
@@ -178,7 +178,7 @@ impl<'a> PackageFormatter<'a> {
     }
 }
 
-pub(crate) struct VersionDisplay<'a>(pub &'a Version);
+pub(crate) struct VersionDisplay<'data>(pub &'data Version);
 
 impl Display for VersionDisplay<'_> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {

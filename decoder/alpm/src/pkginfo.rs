@@ -41,7 +41,7 @@ const OPERATORS: [(&[u8], u8); 5] = [
     (b"=", CONSTRAINT_EQUAL),
 ];
 
-pub struct PkgInfo<'a>(pub &'a str);
+pub struct PkgInfo<'content>(pub &'content str);
 
 impl DecodeMeta for PkgInfo<'_> {
     fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {

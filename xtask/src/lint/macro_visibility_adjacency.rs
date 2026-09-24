@@ -9,8 +9,8 @@ use super::violation::Violation;
 
 const RULE: &str = "macro-visibility-adjacency";
 
-struct MacroBlock<'a> {
-    name: &'a str,
+struct MacroBlock<'source> {
+    name: &'source str,
     end_line: usize,
 }
 
@@ -43,7 +43,7 @@ pub fn check(path: &Path, contents: &str) -> Vec<Violation> {
     violations
 }
 
-fn find_macro_blocks<'a>(lines: &[&'a str]) -> Vec<MacroBlock<'a>> {
+fn find_macro_blocks<'source>(lines: &[&'source str]) -> Vec<MacroBlock<'source>> {
     let mut blocks = Vec::new();
     let mut index = 0;
 

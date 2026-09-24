@@ -42,7 +42,7 @@ const OPERATORS: [(&[u8], u8); 2] = [
     (b">=", CONSTRAINT_GREATER | CONSTRAINT_EQUAL),
 ];
 
-pub struct Props<'a>(pub &'a str);
+pub struct Props<'content>(pub &'content str);
 
 impl DecodeMeta for Props<'_> {
     fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {

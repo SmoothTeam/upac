@@ -177,14 +177,14 @@ impl FileHandle {
 }
 
 impl FileHandle {
-    pub fn stat_in_tree<'t>(&self, tree: &'t FileSystem<ObjectID>) -> Result<&'t Stat, RepoError> {
+    pub fn stat_in_tree<'tree>(&self, tree: &'tree FileSystem<ObjectID>) -> Result<&'tree Stat, RepoError> {
         let (parent, filename) = tree.root.split(self.path.as_os_str())?;
         let inode = parent.lookup(filename).ok_or(RepoError::NotFound)?;
 
         Ok(inode.stat(&tree.leaves))
     }
 
-    pub fn symlink_target_in_tree<'t>(&self, tree: &'t FileSystem<ObjectID>) -> Result<&'t OsStr, RepoError> {
+    pub fn symlink_target_in_tree<'tree>(&self, tree: &'tree FileSystem<ObjectID>) -> Result<&'tree OsStr, RepoError> {
         let (parent, filename) = tree.root.split(self.path.as_os_str())?;
         let inode = parent.lookup(filename).ok_or(RepoError::NotFound)?;
 
@@ -198,9 +198,9 @@ impl FileHandle {
         }
     }
 
-    pub fn list_in_tree<'t>(
-        &self, tree: &'t FileSystem<ObjectID>,
-    ) -> Result<impl Iterator<Item = (&'t OsStr, &'t Inode<ObjectID>)>, RepoError> {
+    pub fn list_in_tree<'tree>(
+        &self, tree: &'tree FileSystem<ObjectID>,
+    ) -> Result<impl Iterator<Item = (&'tree OsStr, &'tree Inode<ObjectID>)>, RepoError> {
         Ok(tree.root.get_directory(self.path.as_os_str())?.sorted_entries())
     }
 }

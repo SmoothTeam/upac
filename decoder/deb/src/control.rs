@@ -40,8 +40,8 @@ const OPERATORS: [(&[u8], u8); 5] = [
     (b"=", CONSTRAINT_EQUAL),
 ];
 
-pub struct ControlFile<'a> {
-    pub content: &'a str,
+pub struct ControlFile<'content> {
+    pub content: &'content str,
     pub license: Option<String>,
 }
 

@@ -66,7 +66,7 @@ impl From<FsKind> for FsKindAbi {
 }
 
 impl ValueEnum for FsKind {
-    fn value_variants<'a>() -> &'a [Self] {
+    fn value_variants<'variants>() -> &'variants [Self] {
         &[
             FsKind(FsKindAbi::Ext4),
             FsKind(FsKindAbi::Btrfs),
@@ -96,7 +96,7 @@ impl From<PartitionKindClapArg> for PartitionKind {
 }
 
 impl ValueEnum for PartitionKindClapArg {
-    fn value_variants<'a>() -> &'a [Self] {
+    fn value_variants<'variants>() -> &'variants [Self] {
         &[
             PartitionKindClapArg(PartitionKind::Linux),
             PartitionKindClapArg(PartitionKind::Root),
@@ -123,7 +123,7 @@ impl From<InitramfsGeneratorClapArg> for InitramfsGenerator {
 }
 
 impl ValueEnum for InitramfsGeneratorClapArg {
-    fn value_variants<'a>() -> &'a [Self] {
+    fn value_variants<'variants>() -> &'variants [Self] {
         &[
             InitramfsGeneratorClapArg(InitramfsGenerator::Dracut),
             InitramfsGeneratorClapArg(InitramfsGenerator::Mkinitcpio),
@@ -158,7 +158,7 @@ impl BootPlugin {
 }
 
 impl ValueEnum for BootPlugin {
-    fn value_variants<'a>() -> &'a [Self] {
+    fn value_variants<'variants>() -> &'variants [Self] {
         &[
             BootPlugin::Uki,
             BootPlugin::SystemdBoot,
