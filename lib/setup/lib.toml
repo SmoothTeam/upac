@@ -54,13 +54,19 @@ settle_interval_ms = 100
 # assembles `--source` has to put it there, same assumption already made for the systemd-boot/
 # rEFInd binaries.
 #
+# config_dir is system_dir's `/etc` counterpart: an optional source-relative directory mirroring the
+# target's `/etc`, imported by `ImportSystemStage` into the config tree after every package's own
+# `etc/`, so its files win on the same path. It is how config that no package ships reaches a
+# freshly bootstrapped system (e.g. `/etc/upac.d/{decoders,boot-plugins}/*.toml`, which the new
+# system's own `up` needs). Unlike the packages' `etc/`, it is imported even with `empty_config`.
+#
 # composefs_setup_root_unit_path (relative to `system_dir`, i.e. also relative to real `/usr`) is
 # where `ImportSystemStage` requires to find a `composefs-setup-root.service` unit — hard error
 # (`BootstrapError::ComposefsSetupRootUnitNotFound`) if missing, since a genesis'd disk cannot boot at
 # all without it. `ImportSystemStage` deliberately does NOT create the unit's `*.target.wants/`
 # enablement symlink itself — `initrd-root-fs.target` only exists inside the initrd's own systemd
 # instance, so wanting it from the real root's unit tree is a no-op after switch-root. The dracut
-# module under `hooks/dracut/37composefs/` creates that enablement at initrd-build time instead
+# module under `hook/dracut/37composefs/` creates that enablement at initrd-build time instead
 # (`$SYSTEMCTL --root "${initdir}" add-wants`), which is the only place it can actually take effect.
 #
 # initramfs_filename is fixed by composefs-boot itself, not our choice — `UsrLibModulesVmlinuz::
@@ -72,6 +78,7 @@ settle_interval_ms = 100
 scratch_filename = "genesis-packages.redb"
 
 composefs_setup_root_unit_path = "lib/systemd/system/composefs-setup-root.service"
+config_dir = "config"
 efi_linux_dir = "EFI/Linux"
 system_dir = "system"
 

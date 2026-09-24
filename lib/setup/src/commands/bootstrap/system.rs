@@ -13,9 +13,9 @@ use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
 use super::error::BootstrapError;
-use super::{PrefixTree, ResolvedSourceDir, import_if_dir};
+use super::{ConfigState, PrefixTree, ResolvedSourceDir, import_if_dir};
 
-use crate::layout::genesis::{COMPOSEFS_SETUP_ROOT_UNIT_PATH, SYSTEM_DIR};
+use crate::layout::genesis::{COMPOSEFS_SETUP_ROOT_UNIT_PATH, CONFIG_DIR, SYSTEM_DIR};
 use crate::target::TargetSysroot;
 
 pub struct ImportSystemStage;
@@ -25,6 +25,7 @@ impl Stage<BootstrapError> for ImportSystemStage {
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), BootstrapError> {
         let mut prefix_tree = ctx_take!(context, PrefixTree);
+        let mut config_state = ctx_take!(context, ConfigState);
         let mut imported_ctx = ctx_take!(context, ImportContext);
 
         let resolved = ctx_get!(context, ResolvedSourceDir);
@@ -40,7 +41,17 @@ impl Stage<BootstrapError> for ImportSystemStage {
 
         import_if_dir!(repository, &mut prefix_tree, &system_dir, &mut imported_ctx, cancel);
 
+        let config_dir = resolved.join(CONFIG_DIR);
+        import_if_dir!(
+            repository,
+            &mut config_state.config_tree,
+            &config_dir,
+            &mut imported_ctx,
+            cancel
+        );
+
         context.put(imported_ctx);
+        context.put(config_state);
         context.put(prefix_tree);
 
         Ok((progress, StageResult::Advance, Box::new(NoRollback)))

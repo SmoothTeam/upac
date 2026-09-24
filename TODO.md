@@ -20,7 +20,7 @@ Near-term, concrete items. See `ROADMAP.md` for the bigger picture.
   a deliberate, recorded decision. Existing already-written records keep whatever locale was
   configured when they were created; add a separate command later to re-translate/normalize all
   existing records into the current configured locale, for users who want a fully consistent log
-  after changing it. `RuntimeSettings.locale` + `SUBJECT_LOADER` (`user/upac-cli/src/locale.rs`) are in place and every upac-cli auto-subject (`install`/`remove`/`update`/`file add`/`file remove`) renders through it. Still needed: `lib/setup/src/commands/bootstrap/deploy.rs`'s hardcoded `"genesis"` subject (`up-sp` has its own locale, so it needs the same config-driven treatment on its side), plus the separate normalize-locale command.
+  after changing it. `RuntimeSettings.locale` + `SUBJECT_LOADER` (`user/upac-cli/src/locale.rs`) are in place and every upac-cli auto-subject (`install`/`remove`/`update`/`file add`/`file remove`) renders through it. Still needed: `lib/setup/src/commands/bootstrap/deploy.rs`'s hardcoded `"genesis"` subject. Plan: `SetupBootstrapRequest` gains a `subject` field (like `InstallRequest`) and the lib stops hardcoding it; `up-sp bootstrap --language <lang>` (default `en`, never the live session's `$LANG`) renders `subject-genesis` through its own `SUBJECT_LOADER`; the same language should also land in the new system's `/etc/upac.d/upac.toml` as `locale.language` (now possible via `--source`'s `config/`, or by `up-sp` generating that file) so later `up` subjects match. Plus the separate normalize-locale command.
 
 ## upac-lib
 
@@ -49,7 +49,7 @@ state at `state/deploy/<hex>/`, `composefs=<hex>` cmdline karg) — no restructu
 the unit + the `system/` plumbing. The unit's `*.target.wants/` enablement is deliberately NOT
 created by this stage (a symlink to `initrd-root-fs.target.wants/` in the real root tree is a no-op
 — that target only exists inside the initrd's own systemd instance) — it's created instead by the
-dracut module at `hooks/dracut/37composefs/` at initrd-build time.
+dracut module at `hook/dracut/37composefs/` at initrd-build time.
 **Decided: upac packages/vendors `composefs-setup-root` itself** (same call for the systemd-boot/
 rEFInd binaries) rather than assuming the source distro already provides it — genesis-time import
 should also check whether one already exists under `system/` rather than blindly trusting our own
@@ -71,12 +71,3 @@ plain `is_uki: bool` and branch internally (`--uefi`/`-U` vs the plain-initramfs
 signing or a separate UKI-specific generation path is added, this needs splitting into distinct
 `run_<tool>`/`run_<tool>_with_uki` functions instead of a bool flag, so the two concerns (plain
 initramfs vs UKI build+sign) don't stay tangled inside one function.
-
-genesis has no `--source` sibling mechanism for seeding initial `/etc` content the way `system/`
-seeds extra `/usr` content — `/etc` is only ever populated from each individual package's own
-`etc/` payload (`ImportPackageStage`, `source_root.join("etc")` → `config_state.config_tree`).
-This means anything upac itself needs under `/etc` post-boot but that no real package ships (e.g.
-`/etc/upac.d/{decoders,boot-plugins}/*.toml` manifests for a genesis'd disk's own `up` to work)
-currently has no way to get there via genesis. Needs either a `config/` sibling to `system/`
-(imported into `config_state.config_tree` instead of `prefix_tree`) or a different answer for how
-those manifests reach a freshly-genesis'd system at all.
