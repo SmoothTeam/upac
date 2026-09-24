@@ -3,12 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::panic::{AssertUnwindSafe, catch_unwind};
-
-use upac_abi::error::{CError, ErrorKind};
+use upac_abi::error::CError;
 use upac_abi::request::mutated::CGcRequest;
 
-use upac_types::error::{try_convert_abi, write_error};
+use upac_types::error::{Error, try_convert_abi, write_abi_error};
 use upac_types::request::mutated::GcRequest;
 use upac_types::state::mutated::GcStateId;
 
@@ -21,19 +19,9 @@ use crate::mutated::gc::run;
 pub unsafe extern "C" fn gc(request_c: CGcRequest, err_out: *mut CError) -> i32 {
     let gc_request = try_convert_abi!(GcRequest::try_from(&request_c), err_out, GcStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(gc_request)));
+    match Error::catch(|| run(gc_request)) {
+        Ok(()) => 0,
 
-    match result {
-        Ok(Ok(())) => 0,
-
-        Ok(Err((state, error))) => {
-            unsafe { write_error(err_out, state, ErrorKind::from(error)) };
-            -1
-        }
-
-        Err(_) => {
-            unsafe { write_error(err_out, GcStateId::Setup, ErrorKind::Unexpected) };
-            -1
-        }
+        Err(error) => unsafe { write_abi_error(err_out, error) },
     }
 }

@@ -3,13 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::panic::{AssertUnwindSafe, catch_unwind};
-
-use upac_abi::error::{CError, ErrorKind};
+use upac_abi::error::CError;
 use upac_abi::request::partition::{CSetupPartitionAddRequest, CSetupPartitionTableRequest};
 use upac_abi::response::partition::CSetupPartitionAddResponse;
 
-use upac_types::error::{try_convert_abi, write_error};
+use upac_types::error::{Error, try_convert_abi, write_abi_error};
 use upac_types::request::partition::{SetupPartitionAddRequest, SetupPartitionTableRequest};
 use upac_types::state::setup::{PartitionAddStateId, PartitionTableStateId};
 
@@ -26,20 +24,10 @@ pub unsafe extern "C" fn partition_table(request_c: CSetupPartitionTableRequest,
         PartitionTableStateId
     );
 
-    let result = catch_unwind(AssertUnwindSafe(|| table::run(partition_table_request)));
+    match Error::catch(|| table::run(partition_table_request)) {
+        Ok(()) => 0,
 
-    match result {
-        Ok(Ok(())) => 0,
-
-        Ok(Err((state, error))) => {
-            unsafe { write_error(err_out, state, ErrorKind::from(error)) };
-            -1
-        }
-
-        Err(_) => {
-            unsafe { write_error(err_out, PartitionTableStateId::Setup, ErrorKind::Unexpected) };
-            -1
-        }
+        Err(error) => unsafe { write_abi_error(err_out, error) },
     }
 }
 
@@ -57,24 +45,14 @@ pub unsafe extern "C" fn partition_add(
         PartitionAddStateId
     );
 
-    let result = catch_unwind(AssertUnwindSafe(|| add::run(partition_add_request)));
-
-    match result {
-        Ok(Ok(response)) => {
+    match Error::catch(|| add::run(partition_add_request)) {
+        Ok(response) => {
             if !response_out.is_null() {
                 unsafe { *response_out = response.into() };
             }
             0
         }
 
-        Ok(Err((state, error))) => {
-            unsafe { write_error(err_out, state, ErrorKind::from(error)) };
-            -1
-        }
-
-        Err(_) => {
-            unsafe { write_error(err_out, PartitionAddStateId::Setup, ErrorKind::Unexpected) };
-            -1
-        }
+        Err(error) => unsafe { write_abi_error(err_out, error) },
     }
 }

@@ -3,12 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::panic::{AssertUnwindSafe, catch_unwind};
-
-use upac_abi::error::{CError, ErrorKind};
+use upac_abi::error::CError;
 use upac_abi::request::mutated::CUninstallRequest;
 
-use upac_types::error::{try_convert_abi, write_error};
+use upac_types::error::{Error, try_convert_abi, write_abi_error};
 use upac_types::request::mutated::UninstallRequest;
 use upac_types::state::mutated::UninstallStateId;
 
@@ -21,19 +19,9 @@ use crate::mutated::uninstaller::run;
 pub unsafe extern "C" fn uninstall(request_c: CUninstallRequest, err_out: *mut CError) -> i32 {
     let uninstall_request = try_convert_abi!(UninstallRequest::try_from(&request_c), err_out, UninstallStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(uninstall_request)));
+    match Error::catch(|| run(uninstall_request)) {
+        Ok(()) => 0,
 
-    match result {
-        Ok(Ok(())) => 0,
-
-        Ok(Err((state, error))) => {
-            unsafe { write_error(err_out, state, ErrorKind::from(error)) };
-            -1
-        }
-
-        Err(_) => {
-            unsafe { write_error(err_out, UninstallStateId::Setup, ErrorKind::Unexpected) };
-            -1
-        }
+        Err(error) => unsafe { write_abi_error(err_out, error) },
     }
 }

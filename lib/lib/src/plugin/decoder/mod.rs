@@ -22,7 +22,7 @@ use crate::plugin::decoder::error::DecoderError;
 pub mod dynamic_link;
 pub mod error;
 pub mod manifest;
-#[cfg(feature = "builtin-decoders")]
+#[cfg(all(feature = "builtin-decoders", not(feature = "dynamic-plugins")))]
 pub mod static_link;
 pub mod triggers;
 pub mod unpack;

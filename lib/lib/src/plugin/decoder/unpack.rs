@@ -31,7 +31,7 @@ use crate::plugin::decoder::dynamic_link::load_decoder_dynamic;
 #[cfg(feature = "dynamic-plugins")]
 use crate::plugin::decoder::manifest::DecoderManifests;
 
-#[cfg(feature = "builtin-decoders")]
+#[cfg(all(feature = "builtin-decoders", not(feature = "dynamic-plugins")))]
 use crate::plugin::decoder::static_link::static_decoders;
 
 #[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
@@ -58,7 +58,7 @@ pub struct PackageUnpacker {
     #[cfg(feature = "dynamic-plugins")]
     decoders: HashMap<String, DecoderPlugin>,
 
-    #[cfg(feature = "builtin-decoders")]
+    #[cfg(all(feature = "builtin-decoders", not(feature = "dynamic-plugins")))]
     static_decoders: Vec<(&'static str, &'static [&'static str], DecoderPlugin)>,
 }
 
@@ -102,9 +102,6 @@ impl PackageUnpacker {
         Ok(Self {
             manifests: DecoderManifests::new()?,
             decoders: HashMap::new(),
-
-            #[cfg(feature = "builtin-decoders")]
-            static_decoders: Vec::new(),
         })
     }
 
@@ -136,12 +133,6 @@ impl PackageUnpacker {
 impl PackageUnpacker {
     pub fn new() -> Result<Self, DecoderError> {
         Ok(Self {
-            #[cfg(feature = "dynamic-plugins")]
-            manifests: DecoderManifests::new()?,
-
-            #[cfg(feature = "dynamic-plugins")]
-            decoders: HashMap::new(),
-
             static_decoders: static_decoders(),
         })
     }

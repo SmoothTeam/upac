@@ -3,13 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::panic::{AssertUnwindSafe, catch_unwind};
-
-use upac_abi::error::{CError, ErrorKind};
+use upac_abi::error::CError;
 use upac_abi::request::unmutated::CListPrefixRequest;
 use upac_abi::response::unmutated::CListPrefixResponse;
 
-use upac_types::error::{try_convert_abi, write_error};
+use upac_types::error::{Error, try_convert_abi, write_abi_error};
 use upac_types::request::unmutated::ListPrefixRequest;
 use upac_types::state::unmutated::ListPrefixStateId;
 
@@ -25,24 +23,14 @@ pub unsafe extern "C" fn list_prefix(
 ) -> i32 {
     let list_prefix_request = try_convert_abi!(ListPrefixRequest::try_from(&request_c), err_out, ListPrefixStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(list_prefix_request)));
-
-    match result {
-        Ok(Ok(response)) => {
+    match Error::catch(|| run(list_prefix_request)) {
+        Ok(response) => {
             if !response_out.is_null() {
                 unsafe { *response_out = response.into() };
             }
             0
         }
 
-        Ok(Err((state, error))) => {
-            unsafe { write_error(err_out, state, ErrorKind::from(error)) };
-            -1
-        }
-
-        Err(_) => {
-            unsafe { write_error(err_out, ListPrefixStateId::Setup, ErrorKind::Unexpected) };
-            -1
-        }
+        Err(error) => unsafe { write_abi_error(err_out, error) },
     }
 }

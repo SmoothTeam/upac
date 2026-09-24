@@ -3,13 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::panic::{AssertUnwindSafe, catch_unwind};
-
-use upac_abi::error::{CError, ErrorKind};
+use upac_abi::error::CError;
 use upac_abi::request::unmutated::CDiffRequest;
 use upac_abi::response::unmutated::CDiffResponse;
 
-use upac_types::error::{try_convert_abi, write_error};
+use upac_types::error::{Error, try_convert_abi, write_abi_error};
 use upac_types::request::unmutated::DiffRequest;
 use upac_types::state::unmutated::DiffStateId;
 
@@ -23,24 +21,14 @@ use crate::unmutated::diff::run;
 pub unsafe extern "C" fn diff(request_c: CDiffRequest, response_out: *mut CDiffResponse, err_out: *mut CError) -> i32 {
     let diff_request = try_convert_abi!(DiffRequest::try_from(&request_c), err_out, DiffStateId);
 
-    let result = catch_unwind(AssertUnwindSafe(|| run(diff_request)));
-
-    match result {
-        Ok(Ok(response)) => {
+    match Error::catch(|| run(diff_request)) {
+        Ok(response) => {
             if !response_out.is_null() {
                 unsafe { *response_out = response.into() };
             }
             0
         }
 
-        Ok(Err((state, error))) => {
-            unsafe { write_error(err_out, state, ErrorKind::from(error)) };
-            -1
-        }
-
-        Err(_) => {
-            unsafe { write_error(err_out, DiffStateId::Setup, ErrorKind::Unexpected) };
-            -1
-        }
+        Err(error) => unsafe { write_abi_error(err_out, error) },
     }
 }
