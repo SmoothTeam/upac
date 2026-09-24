@@ -43,3 +43,11 @@ fn unsupported_deploy_fs_maps_to_invalid_entry() {
         ErrorKind::InvalidEntry
     );
 }
+
+#[test]
+fn not_esp_partition_maps_to_invalid_entry() {
+    assert_eq!(
+        ErrorKind::from(BootstrapError::NotEspPartition),
+        ErrorKind::InvalidEntry
+    );
+}

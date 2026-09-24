@@ -14,6 +14,7 @@ use upac_types::hook::ProgressEventBuilder;
 use super::RequestedMount;
 use super::error::BootstrapError;
 
+use crate::commands::partition::gpt::is_esp_partition;
 use crate::target::TargetSysroot;
 
 pub struct MountStage;
@@ -26,6 +27,10 @@ impl Stage<BootstrapError> for MountStage {
 
         if requested.deploy_fs == FsKind::Vfat {
             return Err(BootstrapError::UnsupportedDeployFs);
+        }
+
+        if !is_esp_partition(&requested.esp_device)? {
+            return Err(BootstrapError::NotEspPartition);
         }
 
         let target = TargetSysroot::new(
