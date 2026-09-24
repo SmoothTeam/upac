@@ -6,12 +6,10 @@
 use upac_abi::FileDiffKind;
 
 use upac_types::RequestedPrefixDigestRange;
-use upac_types::hook::Message;
 use upac_types::request::unmutated::DiffPrefixRequest;
 use upac_types::response::entry::DiffPrefixFileEntry;
 use upac_types::response::unmutated::DiffPrefixResponse;
 use upac_types::state::unmutated::DiffPrefixStateId;
-use upac_types::traits::MessageHook;
 
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
@@ -40,7 +38,7 @@ pub fn run(request: DiffPrefixRequest<'_>) -> Result<DiffPrefixResponse, (DiffPr
         from: request.from_prefix_digest.map(str::to_owned),
         to: request.to_prefix_digest.map(str::to_owned),
     });
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]);
 

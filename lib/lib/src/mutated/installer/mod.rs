@@ -9,11 +9,9 @@ use composefs::tree::FileSystem;
 
 use upac_types::TmpPath;
 use upac_types::decoder::DeclarativeTrigger;
-use upac_types::hook::Message;
 use upac_types::package::PackageTemp;
 use upac_types::request::mutated::InstallRequest;
 use upac_types::state::mutated::InstallStateId;
-use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
 
@@ -110,7 +108,7 @@ pub fn run(request: InstallRequest<'_>) -> Result<(), (InstallStateId, InstallEr
         allow_conflict_files: request.allow_conflict_files,
     });
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = assemble();
 

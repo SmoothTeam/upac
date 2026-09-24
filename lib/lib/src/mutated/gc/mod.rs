@@ -5,9 +5,7 @@
 
 use std::collections::VecDeque;
 
-use upac_types::hook::Message;
 use upac_types::request::mutated::GcRequest;
-use upac_types::traits::MessageHook;
 
 use upac_types::state::mutated::GcStateId;
 
@@ -42,7 +40,7 @@ pub fn run(request: GcRequest) -> Result<(), (GcStateId, GcError)> {
 
     let mut context = Context::new();
     context.put(deploy);
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![PruneStage, CollectRootsStage, CleaningStage]);
 

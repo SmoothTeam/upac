@@ -9,11 +9,9 @@ use composefs::tree::FileSystem;
 
 use upac_types::TmpPath;
 use upac_types::decoder::DeclarativeTrigger;
-use upac_types::hook::Message;
 use upac_types::package::PackageTemp;
 use upac_types::request::mutated::UpdateRequest;
 use upac_types::state::mutated::UpdateStateId;
-use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
 
@@ -117,7 +115,7 @@ pub fn run(request: UpdateRequest<'_>) -> Result<(), (UpdateStateId, UpdateError
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
     context.put(AllowDowngrade(request.allow_downgrade));
     context.put(AllowConflictFiles(request.allow_conflict_files));
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = assemble();
 

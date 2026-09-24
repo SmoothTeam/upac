@@ -5,10 +5,8 @@
 
 use std::collections::VecDeque;
 
-use upac_types::hook::Message;
 use upac_types::request::mutated::MimeSyncRequest;
 use upac_types::state::mutated::MimeStateId;
-use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
 
@@ -38,7 +36,7 @@ pub fn run(request: MimeSyncRequest) -> Result<(), (MimeStateId, MimeError)> {
     let cancel_token = unsafe { &*request.base.cancel_token };
 
     let mut context = Context::new();
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, RenderingStage, WritingStage]);
 

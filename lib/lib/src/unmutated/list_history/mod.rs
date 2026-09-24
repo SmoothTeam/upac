@@ -3,12 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::hook::Message;
 use upac_types::request::unmutated::ListHistoryRequest;
 use upac_types::response::entry::HistoryEntry;
 use upac_types::response::unmutated::ListHistoryResponse;
 use upac_types::state::unmutated::ListHistoryStateId;
-use upac_types::traits::MessageHook;
 
 use self::fetching::FetchingStage;
 
@@ -24,7 +22,7 @@ pub fn run(request: ListHistoryRequest) -> Result<ListHistoryResponse, (ListHist
     let cancel_token = unsafe { &*request.base.cancel_token };
 
     let mut context = Context::new();
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![FetchingStage]);
 

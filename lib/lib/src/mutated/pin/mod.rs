@@ -3,9 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::hook::Message;
 use upac_types::request::mutated::PinRequest;
-use upac_types::traits::MessageHook;
 
 use upac_types::state::mutated::PinStateId;
 
@@ -36,7 +34,7 @@ pub fn run(request: PinRequest<'_>) -> Result<(), (PinStateId, PinError)> {
     context.put(deploy);
     context.put(RequestedPrefixDigest(request.prefix_digest.to_owned()));
     context.put(RequestedPinned(request.pinned));
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![SetPinnedStage]);
 

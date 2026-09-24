@@ -4,12 +4,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_types::RequestedPrefixDigest;
-use upac_types::hook::Message;
 use upac_types::request::unmutated::ListConfigRequest;
 use upac_types::response::entry::ConfigCommitEntry;
 use upac_types::response::unmutated::ListConfigResponse;
 use upac_types::state::unmutated::ListConfigStateId;
-use upac_types::traits::MessageHook;
 
 use self::fetching::FetchingStage;
 
@@ -26,7 +24,7 @@ pub fn run(request: ListConfigRequest<'_>) -> Result<ListConfigResponse, (ListCo
 
     let mut context = Context::new();
     context.put(RequestedPrefixDigest(request.prefix_digest.map(str::to_owned)));
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![FetchingStage]);
 

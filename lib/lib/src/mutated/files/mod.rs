@@ -13,11 +13,9 @@ use uuid::Uuid;
 use upac_abi::{DiffFileSource, FileDiffKind};
 
 use upac_types::TmpPath;
-use upac_types::hook::Message;
 use upac_types::package::PackageInfo;
 use upac_types::request::mutated::FilesRequest;
 use upac_types::state::mutated::FilesStateId;
-use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
 
@@ -119,7 +117,7 @@ pub fn run(request: FilesRequest<'_>) -> Result<(), (FilesStateId, FilesError)> 
         message: request.message.map(str::to_owned),
     });
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = assemble();
 

@@ -5,13 +5,11 @@
 
 use upac_abi::{DiffFileSource, FileDiffKind};
 
-use upac_types::hook::Message;
 use upac_types::package::PackageMeta;
 use upac_types::request::unmutated::DiffRequest;
 use upac_types::response::entry::{DiffPackageEntry, DiffUntrackedFileEntry};
 use upac_types::response::unmutated::DiffResponse;
 use upac_types::state::unmutated::DiffStateId;
-use upac_types::traits::MessageHook;
 use upac_types::{RequestedConfigDigestRange, RequestedPrefixDigestRange};
 
 use self::comparing::ComparingStage;
@@ -51,7 +49,7 @@ pub fn run(request: DiffRequest<'_>) -> Result<DiffResponse, (DiffStateId, DiffE
         to: request.to_config_digest.map(str::to_owned),
     });
 
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]);
 

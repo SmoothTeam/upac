@@ -4,10 +4,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_types::TmpPath;
-use upac_types::hook::Message;
 use upac_types::request::mutated::RollbackRequest;
 use upac_types::state::mutated::RollbackStateId;
-use upac_types::traits::MessageHook;
 
 use upac_macro::ContextValue;
 
@@ -54,7 +52,7 @@ pub fn run(request: RollbackRequest<'_>) -> Result<(), (RollbackStateId, Rollbac
     context.put(RequestedConfigDigest(request.config_digest.to_owned()));
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
     context.put(TmpPath(request.tmp_path.to_owned()));
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = assemble();
 

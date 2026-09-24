@@ -4,10 +4,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_types::TmpPath;
-use upac_types::hook::Message;
 use upac_types::request::mutated::CommitRequest;
 use upac_types::state::mutated::CommitStateId;
-use upac_types::traits::MessageHook;
 
 use self::transaction::TransactionStage;
 
@@ -40,7 +38,7 @@ pub fn run(request: CommitRequest<'_>) -> Result<(), (CommitStateId, CommitError
         subject: request.subject.to_owned(),
         message: request.message.map(str::to_owned),
     });
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = assemble();
 

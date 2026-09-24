@@ -3,12 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::hook::Message;
 use upac_types::package::PackageMeta;
 use upac_types::request::unmutated::SearchInMetaRequest;
 use upac_types::response::unmutated::SearchInMetaResponse;
 use upac_types::state::unmutated::SearchInMetaStateId;
-use upac_types::traits::MessageHook;
 
 use self::searching::SearchingStage;
 
@@ -30,7 +28,7 @@ pub fn run(request: SearchInMetaRequest<'_>) -> Result<SearchInMetaResponse, (Se
     let mut context = Context::new();
     context.put(request.package);
     context.put(search);
-    context.put(Box::new(Message::new(request.base.on_hook, request.base.hook_ctx)) as Box<dyn MessageHook>);
+    context.put(request.base.message_hook());
 
     let orchestrator = SequentialOrchestrator::new(stages![SearchingStage]);
 
