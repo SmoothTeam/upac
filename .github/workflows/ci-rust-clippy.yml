@@ -37,8 +37,7 @@ jobs:
 
       - name: Clippy
         run: |
-          cargo clippy --workspace --all-targets --exclude upac-setup --exclude upac-setup-cli -- -D warnings
-          cargo clippy -p upac-setup -p upac-setup-cli --all-targets -- -D warnings
+          cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Lint style
         run: cargo xtask lint-style

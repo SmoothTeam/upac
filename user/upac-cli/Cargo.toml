@@ -30,8 +30,8 @@ path = "src/main.rs"
 [dependencies]
 upac-lib   = { workspace = true, optional = true, default-features = false }
 
-upac-abi   = { workspace = true }
-upac-types = { workspace = true }
+upac-lib-abi   = { workspace = true }
+upac-lib-types = { workspace = true }
 
 libloading    = { workspace = true, optional = true }
 colored       = { workspace = true }

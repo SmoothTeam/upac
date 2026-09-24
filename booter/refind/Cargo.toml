@@ -28,8 +28,8 @@ name = "upac_boot_refind"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-abi = { workspace = true }
-upac-types = { workspace = true }
+upac-lib-abi   = { workspace = true }
+upac-lib-types = { workspace = true }
 
 nix      = { workspace = true, features = ["ioctl"] }
 

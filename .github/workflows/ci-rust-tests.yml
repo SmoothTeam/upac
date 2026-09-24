@@ -35,4 +35,3 @@ jobs:
       - name: Test
         run: |
           cargo test --workspace --tests
-          cargo test -p upac-setup -p upac-setup-cli --tests

@@ -8,6 +8,7 @@ members = [
     "core/abi",
     "core/pki",
     "core/types",
+    "core/locale",
     "lib/lib",
     "lib/setup",
     "booter/uki",
@@ -44,9 +45,10 @@ dbg_macro = "warn"
 str_to_string = "warn"
 
 [workspace.dependencies]
-upac-macro        = { path = "core/macro" }
-upac-types        = { path = "core/types" }
-upac-abi          = { path = "core/abi" }
+upac-lib-macro  = { path = "core/macro" }
+upac-lib-types  = { path = "core/types" }
+upac-lib-abi    = { path = "core/abi" }
+upac-lib-locale = { path = "core/locale" }
 
 upac-lib = { path = "lib/lib", default-features = false }
 upac-lib-setup    = { path = "lib/setup" }
@@ -57,10 +59,10 @@ upac-booters-systemd-boot = { path = "booter/systemd-boot", default-features = f
 upac-booters-grub         = { path = "booter/grub", default-features = false }
 upac-booters-refind       = { path = "booter/refind", default-features = false }
 
-upac-decoders-alpm = { path = "decoder/alpm", package = "alpm", default-features = false }
-upac-decoders-deb  = { path = "decoder/deb", package = "deb", default-features = false }
-upac-decoders-rpm  = { path = "decoder/rpm", package = "rpm", default-features = false }
-upac-decoders-xbps = { path = "decoder/xbps", package = "xbps", default-features = false }
+upac-decoders-alpm = { path = "decoder/alpm", package = "upac-decoder-alpm", default-features = false }
+upac-decoders-deb  = { path = "decoder/deb", package = "upac-decoder-deb", default-features = false }
+upac-decoders-rpm  = { path = "decoder/rpm", package = "upac-decoder-rpm", default-features = false }
+upac-decoders-xbps = { path = "decoder/xbps", package = "upac-decoder-xbps", default-features = false }
 
 i18n-embed    = { version = "0.16", features = ["fluent-system", "desktop-requester", "filesystem-assets"] }
 composefs-oci = { version = "0.9.0", features = ["composefs-boot", "boot", "tar"] }

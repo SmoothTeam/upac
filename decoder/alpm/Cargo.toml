@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 [package]
-name = "alpm"
+name = "upac-decoder-alpm"
 description = "ALPM (.pkg.tar.*) package decoder plugin for upac, implementing pacman's package format"
 version.workspace = true
 
@@ -28,8 +28,8 @@ name = "upac_decoder_alpm"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-abi   = { workspace = true }
-upac-types = { workspace = true }
+upac-lib-abi   = { workspace = true }
+upac-lib-types = { workspace = true }
 
 flate2 = { workspace = true }
 tar    = { workspace = true }

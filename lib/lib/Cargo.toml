@@ -32,9 +32,9 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 upac-lib-pki      = { workspace = true }
 
-upac-macro        = { workspace = true }
-upac-types        = { workspace = true }
-upac-abi          = { workspace = true }
+upac-lib-macro = { workspace = true }
+upac-lib-types = { workspace = true }
+upac-lib-abi   = { workspace = true }
 
 upac-booters-uki          = { workspace = true, optional = true }
 upac-booters-systemd-boot = { workspace = true, optional = true }

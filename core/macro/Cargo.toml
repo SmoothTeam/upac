@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 [package]
-name = "upac-macro"
+name = "upac-lib-macro"
 description = "Derive macros for C-ABI struct plumbing used internally by upac-lib and upac-abi"
 version.workspace = true
 
@@ -26,6 +26,7 @@ include = ["/src"]
 workspace = true
 
 [lib]
+name = "upac_macro"
 proc-macro = true
 
 [dependencies]

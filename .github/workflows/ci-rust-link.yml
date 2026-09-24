@@ -40,5 +40,5 @@ jobs:
 
       - name: Build booters/decoders as standalone dlopen'd plugins
         run: |
-          cargo build -p upac-grub -p upac-refind -p upac-systemd-boot -p upac-uki \
-              -p alpm -p deb -p rpm -p xbps --features cdylib
+          cargo build -p upac-booters-grub -p upac-booters-refind -p upac-booters-systemd-boot -p upac-booters-uki \
+              -p upac-decoder-alpm -p upac-decoder-deb -p upac-decoder-rpm -p upac-decoder-xbps --features cdylib
