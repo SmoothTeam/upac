@@ -9,6 +9,13 @@ members = [
     "core/pki",
     "core/types",
     "core/locale",
+    "core/orchestrator",
+    "core/composefs",
+    "core/database",
+    "core/deploy",
+    "core/decoder-loader",
+    "core/hooks",
+    "core/boot-loader",
     "lib/lib",
     "lib/setup",
     "booter/uki",
@@ -45,10 +52,17 @@ dbg_macro = "warn"
 str_to_string = "warn"
 
 [workspace.dependencies]
-upac-lib-macro  = { path = "core/macro" }
-upac-lib-types  = { path = "core/types" }
-upac-lib-abi    = { path = "core/abi" }
-upac-lib-locale = { path = "core/locale" }
+upac-lib-macro          = { path = "core/macro" }
+upac-lib-types          = { path = "core/types" }
+upac-lib-abi            = { path = "core/abi" }
+upac-lib-locale         = { path = "core/locale" }
+upac-lib-orchestrator   = { path = "core/orchestrator" }
+upac-lib-composefs      = { path = "core/composefs" }
+upac-lib-database       = { path = "core/database" }
+upac-lib-deploy         = { path = "core/deploy" }
+upac-lib-decoder-loader = { path = "core/decoder-loader", default-features = false }
+upac-lib-hooks          = { path = "core/hooks" }
+upac-lib-boot-loader    = { path = "core/boot-loader", default-features = false }
 
 upac-lib = { path = "lib/lib", default-features = false }
 upac-lib-setup    = { path = "lib/setup" }
