@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+# overlay_opaque_xattr is the fixed extended-attribute name the Linux kernel's
+# overlayfs driver itself looks for to mark a directory opaque (§5.1's "carry
+# over the user's config edits" upper-layer walk) — an external kernel
+# contract, not something a distro/OEM would ever reconfigure, but kept here
+# rather than a bare Rust `const` for the same reason the boot-plugin GUIDs
+# live in `booter.toml`: one documented source of truth for fixed external
+# constants.
+[deployment]
+overlay_opaque_xattr = "trusted.overlay.opaque"
