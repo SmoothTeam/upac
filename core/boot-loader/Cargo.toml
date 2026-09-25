@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+[package]
+name = "upac-lib-boot-loader"
+description = "Loads upac's boot plugins (dlopen via manifests or statically linked) and writes composefs boot entries to the ESP"
+version.workspace = true
+
+edition.workspace = true
+rust-version.workspace = true
+
+license.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
+
+include = ["/src", "lib.toml", "build.rs"]
+
+[lints]
+workspace = true
+
+[lib]
+name = "upac_boot_loader"
+
+[dependencies]
+upac-lib-types     = { workspace = true }
+upac-lib-abi       = { workspace = true }
+upac-lib-composefs = { workspace = true }
+
+upac-booters-uki          = { workspace = true, optional = true }
+upac-booters-systemd-boot = { workspace = true, optional = true }
+upac-booters-grub         = { workspace = true, optional = true }
+upac-booters-refind       = { workspace = true, optional = true }
+
+libloading     = { workspace = true, optional = true }
+composefs      = { workspace = true }
+composefs-boot = { workspace = true }
+anyhow         = { workspace = true }
+serde          = { workspace = true }
+toml           = { workspace = true }
+
+[dev-dependencies]
+nix      = { workspace = true }
+tempfile = { workspace = true }
+
+[build-dependencies]
+toml = { workspace = true }
+
+[features]
+default = ["dynamic-plugins"]
+
+dynamic-plugins = ["dep:libloading"]
+
+builtin-booters = []
+
+builtin-uki          = ["dep:upac-booters-uki", "builtin-booters"]
+builtin-systemd-boot = ["dep:upac-booters-systemd-boot", "builtin-booters"]
+builtin-grub         = ["dep:upac-booters-grub", "builtin-booters"]
+builtin-refind       = ["dep:upac-booters-refind", "builtin-booters"]
+
+builtin-all-booters = ["builtin-uki", "builtin-systemd-boot", "builtin-grub", "builtin-refind"]

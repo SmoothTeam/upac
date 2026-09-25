@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+# Directory holding declarative boot-plugin manifests, same shape as
+# upac-lib-decoder-loader's [decoders]: small TOML files, one per plugin, naming the plugin
+# (name = "...") and the library to dlopen for it (library = "..."). A boot
+# plugin implements one-shot reboot selection (§5.2) for one specific
+# bootloader/firmware mechanism (UKI-direct, systemd-boot, grub, ...) —
+# resolved either by an explicit --boot <name> override, or, with none given,
+# by probing every installed plugin and using whichever one claims to manage
+# the current system's boot (a hard error if zero or more than one do).
+# manifest_extension (without the leading dot) names the manifest file
+# itself.
+[boot_plugins]
+boot_plugins_dir = "/etc/upac.d/boot-plugins"
+manifest_extension = "toml"
+
+# The fixed UKI-direct staging slots (§5.2/§5.3); the ESP mount points live in upac-lib-deploy's
+# [boot]. upac_uki_to_slot is the fixed stem the corresponding UEFI Boot####
+# entry is pre-registered against once, out of scope of this pipeline (`\EFI\Linux\upac-to.efi`) —
+# a content-addressed name would require a new Boot#### NVRAM entry each time, which nothing here
+# creates. upac_uki_from_slot is NOT a second independently-bootable slot — it's a staging name:
+# `write_boot_entry` writes the new image there first, then atomically renames it over
+# upac_uki_to_slot, so a crash mid-write never leaves the one file Boot#### actually points at
+# truncated (the upstream `composefs-boot` writer itself just does a plain, non-atomic
+# `fs::write`). BLS-style images (systemd-boot/grub/refind) use the prefix_digest itself as the
+# entry name instead — content-addressed, no staging needed, since those loaders rescan their
+# entries directory fresh every boot.
+[boot]
+upac_uki_to_slot = "upac-to"
+upac_uki_from_slot = "upac-from"
