@@ -142,7 +142,7 @@ impl ReadTransactionExt for ReadTransaction {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct SharedMemoryBackend(Arc<RwLock<Vec<u8>>>);
+pub(crate) struct SharedMemoryBackend(Arc<RwLock<Vec<u8>>>);
 
 impl SharedMemoryBackend {
     pub fn new() -> Self {
