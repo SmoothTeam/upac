@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+# Directory holding hook files (§5.8) and the path to the trusted root
+# certificate used to verify them. root_cert_path is a configurable file: a
+# distro/OEM plugs in its own root without rebuilding upac; hooks signed
+# under the old root stop verifying after the switch. hook_extension and
+# signature_extension (without the leading dot) name the hook file itself
+# and its detached signature sidecar (name.hook + name.hook.sig).
+[hooks]
+hooks_dir = "/etc/upac.d/hooks"
+root_cert_path = "/etc/upac.d/root.crt"
+hook_extension = "hook"
+signature_extension = "sig"

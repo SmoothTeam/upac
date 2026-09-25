@@ -1,0 +1,80 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+use std::collections::HashMap;
+
+use super::{HookError, HookFile, build_trigger_table};
+
+fn hook_file(priority: i32, triggers: &[(&str, &[&str])]) -> HookFile {
+    let mut triggers_map = HashMap::new();
+    for (format, names) in triggers {
+        triggers_map.insert(format.to_string(), names.iter().map(|name| name.to_string()).collect());
+    }
+
+    HookFile {
+        priority,
+        critical: false,
+        operation: None,
+        timing: None,
+        triggers: triggers_map,
+        steps: Vec::new(),
+    }
+}
+
+#[test]
+fn build_trigger_table_matches_single_hook() {
+    let hooks = vec![hook_file(0, &[("deb", &["postinst"])])];
+
+    let table = build_trigger_table(&hooks, "deb").unwrap();
+
+    assert_eq!(table.len(), 1);
+    assert_eq!(table[0].name, "postinst");
+    assert_eq!(table[0].hook_id, 0);
+}
+
+#[test]
+fn build_trigger_table_ignores_other_formats() {
+    let hooks = vec![hook_file(0, &[("rpm", &["posttrans"])])];
+
+    let table = build_trigger_table(&hooks, "deb").unwrap();
+
+    assert!(table.is_empty());
+}
+
+#[test]
+fn build_trigger_table_picks_higher_priority_hook() {
+    let hooks = vec![
+        hook_file(1, &[("deb", &["postinst"])]),
+        hook_file(5, &[("deb", &["postinst"])]),
+    ];
+
+    let table = build_trigger_table(&hooks, "deb").unwrap();
+
+    assert_eq!(table.len(), 1);
+    assert_eq!(table[0].hook_id, 1);
+}
+
+#[test]
+fn build_trigger_table_fails_on_priority_tie() {
+    let hooks = vec![
+        hook_file(3, &[("deb", &["postinst"])]),
+        hook_file(3, &[("deb", &["postinst"])]),
+    ];
+
+    let result = build_trigger_table(&hooks, "deb");
+
+    assert!(matches!(result, Err(HookError::TriggerConflict(name)) if name == "postinst"));
+}
+
+#[test]
+fn build_trigger_table_keeps_distinct_names_independent() {
+    let hooks = vec![hook_file(0, &[("deb", &["postinst", "postrm"])])];
+
+    let table = build_trigger_table(&hooks, "deb").unwrap();
+    let mut names: Vec<&str> = table.iter().map(|entry| entry.name.as_str()).collect();
+    names.sort();
+
+    assert_eq!(names, vec!["postinst", "postrm"]);
+}

@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+[package]
+name = "upac-lib-hooks"
+description = "upac's signed hook files: loading and verification, pipeline and declarative-trigger matching, execution with rollback"
+version.workspace = true
+
+edition.workspace = true
+rust-version.workspace = true
+
+license.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
+
+include = ["/src", "lib.toml", "build.rs"]
+
+[lints]
+workspace = true
+
+[lib]
+name = "upac_hooks"
+
+[dependencies]
+upac-lib-types        = { workspace = true }
+upac-lib-abi          = { workspace = true }
+upac-lib-pki          = { workspace = true }
+upac-lib-orchestrator = { workspace = true }
+
+serde = { workspace = true }
+toml  = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[build-dependencies]
+toml = { workspace = true }
