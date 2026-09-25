@@ -10,17 +10,20 @@ use composefs::repository::ImportContext;
 use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{ApplyTarget, FileProgress, FilesError, RequestedFilePackage, WorkingState};
+use upac_composefs::file::FileHandle;
 
-use crate::composefs::file::FileHandle;
-use crate::database::meta::MetaStore;
-use crate::database::{InMemory, MemoryDatabase};
-use crate::deploy::Deploy;
-use crate::deploy::digest::current_prefix_digest;
-use crate::layout::database::DATABASE_PATH;
-use crate::layout::deployment::CONFIG_DIR_NAME;
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_database::layout::database::DATABASE_PATH;
+use upac_database::meta::MetaStore;
+use upac_database::{InMemory, MemoryDatabase};
+
+use upac_deploy::Deploy;
+use upac_deploy::digest::current_prefix_digest;
+use upac_deploy::layout::deployment::CONFIG_DIR_NAME;
+
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{ApplyTarget, FileProgress, FilesError, RequestedFilePackage, WorkingState};
 
 pub struct OpenTransactionStage;
 

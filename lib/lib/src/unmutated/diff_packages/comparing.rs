@@ -12,10 +12,10 @@ use upac_types::DiffPackagesSnapshot;
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::DiffPackageEntry;
 
-use super::DiffPackagesError;
+use upac_orchestrator::context::{Context, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
-use crate::orchestrator::context::{Context, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use super::DiffPackagesError;
 
 pub struct ComparingStage;
 

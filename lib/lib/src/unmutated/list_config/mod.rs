@@ -9,10 +9,10 @@ use upac_types::response::entry::ConfigCommitEntry;
 use upac_types::response::unmutated::ListConfigResponse;
 use upac_types::state::unmutated::ListConfigStateId;
 
-use self::fetching::FetchingStage;
+use upac_orchestrator::context::Context;
+use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
 
-use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
+use self::fetching::FetchingStage;
 
 pub use self::error::ListConfigError;
 

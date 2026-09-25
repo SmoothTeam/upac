@@ -5,28 +5,25 @@
 
 use std::io::ErrorKind as IoErrorKind;
 
-use upac::boot::error::BootError;
-use upac::composefs::error::RepoError;
-use upac::database::error::{DatabaseError, DeployRecordError, DeployRecordsError};
-use upac::deploy::error::SysrootError;
 use upac::errors::CommonError;
-use upac::lock::LockError;
-use upac::plugin::boot::error::BootPluginError;
-use upac::plugin::decoder::error::DecoderError;
-use upac::scripts::error::HookError;
 
 use upac_abi::error::ErrorKind;
+
+use upac_boot_loader::entry::error::BootError;
+use upac_boot_loader::error::BootPluginError;
+use upac_composefs::error::RepoError;
+use upac_database::error::DatabaseError;
+use upac_decoder_loader::error::DecoderError;
+use upac_deploy::error::{DeployRecordError, DeployRecordsError, PruneError, SysrootError};
+use upac_hooks::error::HookError;
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::lock::LockError;
 
 #[test]
 fn common_error_no_payload_variants_map_directly() {
     let cases = [
         (CommonError::OutOfMemory, ErrorKind::OutOfMemory),
-        (CommonError::Cancelled, ErrorKind::Cancelled),
         (CommonError::AccessDenied, ErrorKind::PermissionDenied),
-        (CommonError::StageNotFound, ErrorKind::Unexpected),
-        (CommonError::StagePanicked, ErrorKind::Unexpected),
-        (CommonError::MissingResult, ErrorKind::Unexpected),
-        (CommonError::PipelineInvalid, ErrorKind::Unexpected),
         (CommonError::RuntimeInit(IoErrorKind::Other), ErrorKind::Unexpected),
     ];
 
@@ -139,5 +136,28 @@ fn common_error_from_deploy_records_error_unwraps_the_deploy_record_variant() {
     assert_eq!(
         CommonError::from(error),
         CommonError::DeployRecord(DeployRecordError::NotFound)
+    );
+}
+
+#[test]
+fn common_error_pipeline_variant_delegates_to_the_inner_conversion() {
+    let error = PipelineError::Cancelled;
+
+    assert_eq!(CommonError::from(error), CommonError::Pipeline(error));
+    assert_eq!(ErrorKind::from(CommonError::Pipeline(error)), ErrorKind::from(error));
+}
+
+#[test]
+fn prune_error_splits_into_the_matching_common_variants() {
+    let repo_error = RepoError::NoSpaceLeft;
+    let record_error = DeployRecordError::NotFound;
+
+    assert_eq!(
+        CommonError::from(PruneError::Repo(repo_error)),
+        CommonError::Repo(repo_error)
+    );
+    assert_eq!(
+        CommonError::from(PruneError::Records(DeployRecordsError::DeployRecord(record_error))),
+        CommonError::DeployRecord(record_error)
     );
 }

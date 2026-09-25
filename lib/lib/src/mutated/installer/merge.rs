@@ -12,18 +12,20 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{CommitInfo, InstallError, NewState};
+use upac_composefs::config::merge_config;
+use upac_composefs::overlay::{apply_overlay_upper, apply_tree_overlay};
+use upac_composefs::repository::commit_tree;
 
-use crate::composefs::overlay::{apply_overlay_upper, apply_tree_overlay};
-use crate::composefs::repository::commit_tree;
-use crate::config::merge_config;
-use crate::database::error::DeployRecordError;
-use crate::database::record::DeployRecord;
-use crate::deploy::Deploy;
-use crate::deploy::digest::current_prefix_digest;
-use crate::layout::deployment::CONFIG_DIR_NAME;
-use crate::orchestrator::context::{Context, ctx_get};
-use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use upac_deploy::Deploy;
+use upac_deploy::digest::current_prefix_digest;
+use upac_deploy::error::DeployRecordError;
+use upac_deploy::layout::deployment::CONFIG_DIR_NAME;
+use upac_deploy::record::DeployRecord;
+
+use upac_orchestrator::context::{Context, ctx_get};
+use upac_orchestrator::stage::{RollbackGuard, Stage, StageResult};
+
+use super::{CommitInfo, InstallError, NewState};
 
 pub struct MergeStage;
 

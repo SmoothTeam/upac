@@ -3,131 +3,20 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# Names of the redb tables inside the package database embedded in the image.
-# Changing a name means already-built images stop finding their tables when
-# reading their DB (tables are looked up by name) — data isn't lost, but
-# becomes unreachable through the API.
-#
-# database_path is where the redb file itself lives inside the mounted /usr
-# tree (relative to that tree's root, e.g. read via FileHandle::read_file
-# after Deploy::open_tree(prefix_digest), see doc §7). Changing it means
-# already-built images stop finding their own embedded DB on read.
-[database]
-packages_table_name = "packages"
-packages_by_name_table_name = "packages_by_name"
-packages_triggers_table_name = "packages_triggers"
-files_table_name = "files"
-files_by_path_table_name = "files_by_path"
-packages_meta_type_name = "upac::PackageMeta"
-packages_triggers_type_name = "upac::DeclarativeTrigger"
-files_entry_type_name = "upac::FileEntry"
-database_path = "share/upac/packages.redb"
-
 # Scratch filenames each mutating command's TransactionStage writes the rebuilt package database
 # to (inside the shared system tmp_path) before re-inserting it into the new /usr tree — purely
 # transient, read back once via File::open right after the write and never inspected afterward.
 # Kept distinct per command rather than one shared name so a stale leftover file in tmp_path
 # (e.g. after a crash) is still identifiable by which command wrote it.
+[database]
 installer_scratch_filename = "installer-packages.redb"
 update_scratch_filename = "update-packages.redb"
 uninstall_scratch_filename = "uninstall-packages.redb"
 files_scratch_filename = "files-packages.redb"
 
-# Names of the well-known directories on the deployment partition (deploy
-# records + composefs repo, see doc §3). Changing a name means existing
-# installs stop finding their deploys/repo on upgrade.
-#
-# prefix_digest_cmdline_param names the kernel cmdline parameter written at
-# boot entry creation (§5.2, "composefs.digest=D'") and read back at runtime
-# to resolve the currently booted deploy's prefix_digest — one name shared by
-# both sides.
-#
-# next_seq_path is a single monotonic counter file, sysroot-relative (not
-# per-deploy like deploys_dir), that hands out each new deploy record's `seq`
-# (doc §5.7: "a built-in marker for finding the array element following it").
-# config_dir_name is fixed relative to a single deploy record directory
-# (`state/deploy/<usr-digest>/`, doc §3) — its `upper`/`work` children are the
-# live overlayfs upper/work layers for that usr-digest's `/etc`, matching
-# `composefs-setup-root`'s own hardcoded layout expectation (upstream, not
-# something we get to pick freely). overlay_opaque_xattr is the fixed
-# extended-attribute name the Linux kernel's overlayfs driver itself looks
-# for to mark a directory opaque (§5.1's "carry over the user's config
-# edits" upper-layer walk) — an external kernel contract, not something a
-# distro/OEM would ever reconfigure, but kept here rather than a bare Rust
-# `const` for the same reason the boot-plugin GUIDs live in `booter.toml`:
-# one documented source of truth for fixed external constants.
-#
-# live_etc_dir is the real, absolute mount point of the running system's
-# /etc (doc §3 (13): overlayfs merge of config_dir_name/upper over the
-# current working_config) — used by `files add/remove --scope config` to
-# read the live, already-merged content of a path regardless of which
-# overlay layer it currently resolves from.
-[deployment]
-root_dir = "/"
-deploys_dir = "state/deploy"
-repo_dir = "composefs"
-sysroot_dir = "sysroot"
-record_filename = "meta.json"
-prefix_digest_cmdline_param = "composefs.digest"
-next_seq_path = "state/next-seq"
-config_dir_name = "etc"
-overlay_opaque_xattr = "trusted.overlay.opaque"
-live_etc_dir = "/etc"
-
-# Name of the abstract Unix socket address upac uses to hold its exclusive
-# process lock (bind() on this address — a second concurrent upac gets
-# EADDRINUSE). Changing the name doesn't break on-disk data compatibility,
-# but a concurrently running old and new upac version stop seeing each other
-# as competitors.
-[runtime]
-lock_address = "upac.lock"
-
-# Directory holding hook files (§5.8) and the path to the trusted root
-# certificate used to verify them. root_cert_path is a configurable file: a
-# distro/OEM plugs in its own root without rebuilding upac; hooks signed
-# under the old root stop verifying after the switch. hook_extension and
-# signature_extension (without the leading dot) name the hook file itself
-# and its detached signature sidecar (name.hook + name.hook.sig).
-[hooks]
-hooks_dir = "/etc/upac.d/hooks"
-root_cert_path = "/etc/upac.d/root.crt"
-hook_extension = "hook"
-signature_extension = "sig"
-
-# Directory holding declarative decoder manifests (§6): small TOML files, one
-# per decoder, each naming the package format it handles (format = "...",
-# singular — one decoder never covers more than one format), the file
-# extensions/archive variants of that format it can actually open (extensions
-# = [...] — e.g. alpm packages ship as pkg.tar/pkg.tar.gz/pkg.tar.xz/etc, all
-# one format but several file variants), the library to dlopen for it
-# (library = "..."), and the mime type that format registers as (mime =
-# "...", also singular — this is what binds the decoder backend to desktop
-# integration, see `up mime sync` / [mime] below). This is not the directory
-# the decoder .so files themselves live in — lib never scans or probes a .so
-# directly, it resolves the library name/path straight from the matching
-# manifest's `library` field on first use. manifest_extension (without the
-# leading dot) names the manifest file itself.
-[decoders]
-decoders_dir = "/etc/upac.d/decoders"
-manifest_extension = "toml"
-
-# Directory holding declarative boot-plugin manifests, same shape as
-# [decoders] above: small TOML files, one per plugin, naming the plugin
-# (name = "...") and the library to dlopen for it (library = "..."). A boot
-# plugin implements one-shot reboot selection (§5.2) for one specific
-# bootloader/firmware mechanism (UKI-direct, systemd-boot, grub, ...) —
-# resolved either by an explicit --boot <name> override, or, with none given,
-# by probing every installed plugin and using whichever one claims to manage
-# the current system's boot (a hard error if zero or more than one do).
-# manifest_extension (without the leading dot) names the manifest file
-# itself.
-[boot_plugins]
-boot_plugins_dir = "/etc/upac.d/boot-plugins"
-manifest_extension = "toml"
-
 # Paths `up mime sync` reads from/writes to when regenerating desktop
 # integration from the currently installed decoder manifests' mime fields
-# (see [decoders] above). mime_db_dir/applications_dir are the parent
+# (see upac-lib-decoder-loader's [decoders]). mime_db_dir/applications_dir are the parent
 # directories update-mime-database/update-desktop-database themselves take as
 # their argument (they rebuild the whole cache under that directory, not just
 # one file); mime_xml_path/desktop_file_path are the specific files this
@@ -144,22 +33,3 @@ applications_dir = "/usr/share/applications"
 update_mime_database_bin = "update-mime-database"
 update_desktop_database_bin = "update-desktop-database"
 shared_mime_info_xmlns = "http://www.freedesktop.org/standards/shared-mime-info"
-
-# ESP discovery and the fixed UKI-direct staging slots (§5.2/§5.3). esp_mount_primary/
-# esp_mount_fallback are tried in that order against the running system's mount table (same
-# rsmount::tables::MountInfo mechanism Deploy::device_path() already uses) — chapter 3 documents
-# the ESP as mounted at either. upac_uki_to_slot is the fixed stem the corresponding UEFI Boot####
-# entry is pre-registered against once, out of scope of this pipeline (`\EFI\Linux\upac-to.efi`) —
-# a content-addressed name would require a new Boot#### NVRAM entry each time, which nothing here
-# creates. upac_uki_from_slot is NOT a second independently-bootable slot — it's a staging name:
-# `write_boot_entry` writes the new image there first, then atomically renames it over
-# upac_uki_to_slot, so a crash mid-write never leaves the one file Boot#### actually points at
-# truncated (the upstream `composefs-boot` writer itself just does a plain, non-atomic
-# `fs::write`). BLS-style images (systemd-boot/grub/refind) use the prefix_digest itself as the
-# entry name instead — content-addressed, no staging needed, since those loaders rescan their
-# entries directory fresh every boot.
-[boot]
-esp_mount_primary = "/efi"
-esp_mount_fallback = "/boot"
-upac_uki_to_slot = "upac-to"
-upac_uki_from_slot = "upac-from"

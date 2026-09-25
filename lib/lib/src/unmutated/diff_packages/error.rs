@@ -5,13 +5,19 @@
 
 use upac_abi::error::ErrorKind;
 
-use crate::composefs::error::RepoError;
-use crate::database::error::DatabaseError;
-use crate::deploy::error::SysrootError;
+use upac_composefs::error::RepoError;
+
+use upac_database::error::DatabaseError;
+
+use upac_deploy::error::SysrootError;
+
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::lock::LockError;
+
 use crate::errors::{
-    CommonError, common_error_from, database_error_from, lock_error_from, repo_error_from, sysroot_error_from,
+    CommonError, common_error_from, database_error_from, lock_error_from, pipeline_error_from, repo_error_from,
+    sysroot_error_from,
 };
-use crate::lock::LockError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DiffPackagesError {
@@ -19,6 +25,8 @@ pub enum DiffPackagesError {
 }
 
 common_error_from!(DiffPackagesError);
+
+pipeline_error_from!(DiffPackagesError);
 
 database_error_from!(DiffPackagesError);
 

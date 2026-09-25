@@ -9,11 +9,12 @@ use upac_abi::{DiffFileSource, FileDiffKind};
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::{DiffFileCommonEntry, DiffPrefixFileEntry};
 
-use super::{DiffPrefixError, DiffPrefixSnapshot};
+use upac_database::attribution::FileAttribute;
 
-use crate::database::attribution::FileAttribute;
-use crate::orchestrator::context::{Context, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::context::{Context, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{DiffPrefixError, DiffPrefixSnapshot};
 
 pub struct ComparingStage;
 

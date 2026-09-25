@@ -12,15 +12,19 @@ use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::{FileEntry, FileEntryScope};
 
-use crate::composefs::file::{FileHandle, import_if_dir};
-use crate::database::files::{FileStore, FileStoreMut};
-use crate::database::meta::{MetaStore, MetaStoreMut};
-use crate::database::triggers::TriggerStoreMut;
-use crate::deploy::Deploy;
-use crate::errors::CommonError;
+use upac_composefs::file::{FileHandle, import_if_dir};
+
+use upac_database::files::{FileStore, FileStoreMut};
+use upac_database::meta::{MetaStore, MetaStoreMut};
+use upac_database::triggers::TriggerStoreMut;
+
+use upac_deploy::Deploy;
+
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
 use crate::mutated::update::{AllowDowngrade, ImportProgress, ImportedState, UpdateError};
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
 pub struct ImportPackageStage;
 
@@ -36,7 +40,10 @@ impl Stage<UpdateError> for ImportPackageStage {
 
         let deploy = ctx_get!(context, Deploy);
 
-        let (package, trigger) = import_progress.pending.pop_front().ok_or(CommonError::MissingResult)?;
+        let (package, trigger) = import_progress
+            .pending
+            .pop_front()
+            .ok_or(PipelineError::MissingResult)?;
 
         let repository = deploy.open_repository()?;
 

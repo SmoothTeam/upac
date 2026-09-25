@@ -6,13 +6,17 @@
 use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
-use crate::boot::write_boot_entry;
-use crate::composefs::repository::object_id_from_hex;
-use crate::deploy::{Deploy, find_esp_mount};
+use upac_boot_loader::BootPlugins;
+use upac_boot_loader::entry::write_boot_entry;
+
+use upac_composefs::repository::object_id_from_hex;
+
+use upac_deploy::{Deploy, find_esp_mount};
+
+use upac_orchestrator::context::{Context, ctx_get};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
 use crate::mutated::files::{FilesError, NewPrefixDigest, RequestedBootPlugin, ResolvedBootEntry};
-use crate::orchestrator::context::{Context, ctx_get};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use crate::plugin::boot::BootPlugins;
 
 pub struct CheckoutStage;
 

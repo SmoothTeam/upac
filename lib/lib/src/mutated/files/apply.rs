@@ -17,17 +17,20 @@ use upac_abi::{DiffFileSource, FileDiffKind};
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::{FileEntry, FileEntryScope};
 
-use super::{ApplyTarget, FileProgress, FilesError, RequestedFileOperation, WorkingState};
+use upac_composefs::error::RepoError;
+use upac_composefs::file::{FileHandle, stat_from_metadata};
+use upac_composefs::repository::ObjectID;
 
-use crate::composefs::error::RepoError;
-use crate::composefs::file::{FileHandle, stat_from_metadata};
-use crate::composefs::repository::ObjectID;
-use crate::database::files::FileStoreMut;
-use crate::deploy::Deploy;
-use crate::errors::CommonError;
-use crate::layout::deployment::LIVE_ETC_DIR;
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_database::files::FileStoreMut;
+
+use upac_deploy::Deploy;
+use upac_deploy::layout::deployment::LIVE_ETC_DIR;
+
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{ApplyTarget, FileProgress, FilesError, RequestedFileOperation, WorkingState};
 
 pub struct ApplyFileStage;
 
@@ -44,7 +47,7 @@ impl Stage<FilesError> for ApplyFileStage {
 
         let deploy = ctx_get!(context, Deploy);
 
-        let path = file_progress.pending.pop_front().ok_or(CommonError::MissingResult)?;
+        let path = file_progress.pending.pop_front().ok_or(PipelineError::MissingResult)?;
 
         match file_operation.scope {
             DiffFileSource::Prefix => {

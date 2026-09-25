@@ -15,19 +15,24 @@ use upac_abi::hook::CancelToken;
 use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
+use upac_composefs::error::RepoError;
+use upac_composefs::file::FileHandle;
+use upac_composefs::repository::commit_tree;
+
+use upac_database::InMemory;
+use upac_database::layout::database::DATABASE_PATH;
+
+use upac_deploy::Deploy;
+use upac_deploy::digest::current_prefix_digest;
+use upac_deploy::error::DeployRecordError;
+use upac_deploy::record::DeployRecord;
+
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::stage::{RollbackGuard, Stage, StageResult};
+
 use super::{CommitInfo, FilesError, NewPrefixDigest, WorkingState};
 
-use crate::composefs::error::RepoError;
-use crate::composefs::file::FileHandle;
-use crate::composefs::repository::commit_tree;
-use crate::database::InMemory;
-use crate::database::error::DeployRecordError;
-use crate::database::record::DeployRecord;
-use crate::deploy::Deploy;
-use crate::deploy::digest::current_prefix_digest;
-use crate::layout::database::{DATABASE_PATH, FILES_SCRATCH_FILENAME};
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use crate::layout::database::FILES_SCRATCH_FILENAME;
 
 pub struct CommitTransactionStage;
 

@@ -8,8 +8,10 @@ use std::io::ErrorKind as IoErrorKind;
 
 use upac_abi::error::ErrorKind;
 
-use crate::errors::{CommonError, common_error_from, lock_error_from};
-use crate::lock::LockError;
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::lock::LockError;
+
+use crate::errors::{CommonError, common_error_from, lock_error_from, pipeline_error_from};
 
 #[cfg(test)]
 #[path = "../../../tests/inline/mutated_mime_error.rs"]
@@ -23,6 +25,8 @@ pub enum MimeError {
 }
 
 common_error_from!(MimeError);
+
+pipeline_error_from!(MimeError);
 
 lock_error_from!(MimeError);
 

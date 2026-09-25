@@ -9,11 +9,12 @@ use upac_types::state::mutated::PinStateId;
 
 use upac_macro::ContextValue;
 
-use self::stage::SetPinnedStage;
+use upac_deploy::{Deploy, DeployMode};
 
-use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+
+use self::stage::SetPinnedStage;
 
 pub use self::error::PinError;
 

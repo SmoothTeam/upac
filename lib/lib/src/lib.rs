@@ -3,22 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
+mod errors;
+mod export;
 mod mutated;
 mod search;
 mod unmutated;
-
-pub mod boot;
-pub mod composefs;
-pub mod config;
-pub mod database;
-pub mod deploy;
-pub mod errors;
-pub mod export;
-pub mod fs;
-pub mod layout {
-    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
-}
-pub mod lock;
-pub mod orchestrator;
-pub mod plugin;
-pub mod scripts;

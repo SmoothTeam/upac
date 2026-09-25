@@ -11,13 +11,14 @@ use upac_types::state::mutated::GcStateId;
 
 use upac_macro::ContextValue;
 
+use upac_deploy::{Deploy, DeployMode};
+
+use upac_orchestrator::context::Context;
+use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+
 use self::cleaning::CleaningStage;
 use self::collect::CollectRootsStage;
 use self::pruning::PruneStage;
-
-use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
 
 pub use self::error::GcError;
 

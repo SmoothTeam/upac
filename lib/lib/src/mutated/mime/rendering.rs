@@ -13,12 +13,14 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
+use upac_decoder_loader::manifest::{DecoderManifest, DecoderManifests};
+
+use upac_orchestrator::context::{Context, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
 use super::{DesktopContent, MimeError, WriteProgress};
 
 use crate::layout::mime::{DESKTOP_FILE_PATH, MIME_XML_PATH, SHARED_MIME_INFO_XMLNS};
-use crate::orchestrator::context::{Context, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use crate::plugin::decoder::manifest::{DecoderManifest, DecoderManifests};
 
 pub struct RenderingStage;
 

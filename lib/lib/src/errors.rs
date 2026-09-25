@@ -7,14 +7,21 @@ use std::io::ErrorKind as IoErrorKind;
 
 use upac_abi::error::ErrorKind;
 
-use crate::boot::error::BootError;
-use crate::composefs::error::RepoError;
-use crate::database::error::{DatabaseError, DeployRecordError, DeployRecordsError};
-use crate::deploy::error::SysrootError;
-use crate::lock::LockError;
-use crate::plugin::boot::error::BootPluginError;
-use crate::plugin::decoder::error::DecoderError;
-use crate::scripts::error::HookError;
+use upac_boot_loader::entry::error::BootError;
+use upac_boot_loader::error::BootPluginError;
+
+use upac_composefs::error::RepoError;
+
+use upac_database::error::DatabaseError;
+
+use upac_decoder_loader::error::DecoderError;
+
+use upac_deploy::error::{DeployRecordError, DeployRecordsError, PruneError, SysrootError};
+
+use upac_hooks::error::HookError;
+
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::lock::LockError;
 
 macro_rules! common_error_from {
     ($name:ident) => {
@@ -26,6 +33,39 @@ macro_rules! common_error_from {
     };
 }
 pub(crate) use common_error_from;
+
+macro_rules! pipeline_error_from {
+    ($name:ident) => {
+        impl From<PipelineError> for $name {
+            fn from(error: PipelineError) -> Self {
+                $name::Common(CommonError::Pipeline(error))
+            }
+        }
+    };
+}
+pub(crate) use pipeline_error_from;
+
+macro_rules! hook_error_from {
+    ($name:ident) => {
+        impl From<HookError> for $name {
+            fn from(error: HookError) -> Self {
+                $name::Common(CommonError::Hook(error))
+            }
+        }
+    };
+}
+pub(crate) use hook_error_from;
+
+macro_rules! prune_error_from {
+    ($name:ident) => {
+        impl From<PruneError> for $name {
+            fn from(error: PruneError) -> Self {
+                $name::Common(CommonError::from(error))
+            }
+        }
+    };
+}
+pub(crate) use prune_error_from;
 
 macro_rules! database_error_from {
     ($name:ident) => {
@@ -146,12 +186,8 @@ pub(crate) use regex_error_from;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonError {
     OutOfMemory,
-    Cancelled,
     AccessDenied,
-    StageNotFound,
-    StagePanicked,
-    MissingResult,
-    PipelineInvalid,
+    Pipeline(PipelineError),
     RuntimeInit(IoErrorKind),
     Hook(HookError),
     Decoder(DecoderError),
@@ -168,13 +204,9 @@ impl From<CommonError> for ErrorKind {
     fn from(error: CommonError) -> Self {
         match error {
             CommonError::OutOfMemory => ErrorKind::OutOfMemory,
-            CommonError::Cancelled => ErrorKind::Cancelled,
             CommonError::AccessDenied => ErrorKind::PermissionDenied,
-            CommonError::StageNotFound
-            | CommonError::StagePanicked
-            | CommonError::MissingResult
-            | CommonError::PipelineInvalid
-            | CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
+            CommonError::Pipeline(pipeline_error) => pipeline_error.into(),
+            CommonError::RuntimeInit(_) => ErrorKind::Unexpected,
             CommonError::Hook(hook_error) => hook_error.into(),
             CommonError::Decoder(decoder_error) => decoder_error.into(),
             CommonError::Repo(repo_error) => repo_error.into(),
@@ -184,6 +216,21 @@ impl From<CommonError> for ErrorKind {
             CommonError::DeployRecord(deploy_record_error) => deploy_record_error.into(),
             CommonError::Boot(boot_error) => boot_error.into(),
             CommonError::BootPlugin(boot_plugin_error) => boot_plugin_error.into(),
+        }
+    }
+}
+
+impl From<PipelineError> for CommonError {
+    fn from(error: PipelineError) -> Self {
+        CommonError::Pipeline(error)
+    }
+}
+
+impl From<PruneError> for CommonError {
+    fn from(error: PruneError) -> Self {
+        match error {
+            PruneError::Records(records_error) => records_error.into(),
+            PruneError::Repo(repo_error) => CommonError::Repo(repo_error),
         }
     }
 }

@@ -6,12 +6,14 @@
 use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{CollectedRoots, GcError};
+use upac_composefs::repository::gc;
 
-use crate::composefs::repository::gc;
-use crate::deploy::Deploy;
-use crate::orchestrator::context::{Context, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_deploy::Deploy;
+
+use upac_orchestrator::context::{Context, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{CollectedRoots, GcError};
 
 pub struct CleaningStage;
 

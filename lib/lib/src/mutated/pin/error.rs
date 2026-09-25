@@ -5,10 +5,14 @@
 
 use upac_abi::error::ErrorKind;
 
-use crate::database::error::DeployRecordError;
-use crate::deploy::error::SysrootError;
-use crate::errors::{CommonError, common_error_from, deploy_record_error_from, lock_error_from, sysroot_error_from};
-use crate::lock::LockError;
+use upac_deploy::error::{DeployRecordError, SysrootError};
+
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::lock::LockError;
+
+use crate::errors::{
+    CommonError, common_error_from, deploy_record_error_from, lock_error_from, pipeline_error_from, sysroot_error_from,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PinError {
@@ -16,6 +20,8 @@ pub enum PinError {
 }
 
 common_error_from!(PinError);
+
+pipeline_error_from!(PinError);
 
 sysroot_error_from!(PinError);
 

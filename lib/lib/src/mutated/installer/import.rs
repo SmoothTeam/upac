@@ -12,16 +12,19 @@ use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::{FileEntry, FileEntryScope};
 
-use super::{ImportedState, InstallError, InstallProgress};
+use upac_composefs::file::import_if_dir;
 
-use crate::composefs::file::import_if_dir;
-use crate::database::files::FileStoreMut;
-use crate::database::meta::MetaStoreMut;
-use crate::database::triggers::TriggerStoreMut;
-use crate::deploy::Deploy;
-use crate::errors::CommonError;
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_database::files::FileStoreMut;
+use upac_database::meta::MetaStoreMut;
+use upac_database::triggers::TriggerStoreMut;
+
+use upac_deploy::Deploy;
+
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{ImportedState, InstallError, InstallProgress};
 
 pub struct ImportPackageStage;
 
@@ -35,7 +38,10 @@ impl Stage<InstallError> for ImportPackageStage {
 
         let deploy = ctx_get!(context, Deploy);
 
-        let (package, trigger) = install_progress.pending.pop_front().ok_or(CommonError::MissingResult)?;
+        let (package, trigger) = install_progress
+            .pending
+            .pop_front()
+            .ok_or(PipelineError::MissingResult)?;
 
         let repository = deploy.open_repository()?;
         let source_root = Path::new(&package.temp_package_path);

@@ -8,12 +8,13 @@ use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::{ConfigCommitEntry, HistoryEntry};
 
-use super::ListHistoryError;
+use upac_deploy::record::DeployRecord;
+use upac_deploy::{Deploy, DeployMode};
 
-use crate::database::record::DeployRecord;
-use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::context::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::ListHistoryError;
 
 pub struct FetchingStage;
 

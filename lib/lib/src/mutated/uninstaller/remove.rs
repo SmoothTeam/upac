@@ -9,15 +9,17 @@ use upac_types::hook::ProgressEventBuilder;
 
 use upac_types::response::entry::FileEntryScope;
 
-use super::{Purge, RemoveProgress, UninstallError, WorkingState};
+use upac_composefs::file::FileHandle;
 
-use crate::composefs::file::FileHandle;
-use crate::database::files::{FileStore, FileStoreMut};
-use crate::database::meta::{MetaStore, MetaStoreMut};
-use crate::database::triggers::TriggerStoreMut;
-use crate::errors::CommonError;
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_database::files::{FileStore, FileStoreMut};
+use upac_database::meta::{MetaStore, MetaStoreMut};
+use upac_database::triggers::TriggerStoreMut;
+
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{Purge, RemoveProgress, UninstallError, WorkingState};
 
 pub struct RemovePackageStage;
 
@@ -30,7 +32,10 @@ impl Stage<UninstallError> for RemovePackageStage {
 
         let purge = ctx_get!(context, Purge);
 
-        let uuid = remove_progress.pending.pop_front().ok_or(CommonError::MissingResult)?;
+        let uuid = remove_progress
+            .pending
+            .pop_front()
+            .ok_or(PipelineError::MissingResult)?;
 
         let subject = woking_state
             .database

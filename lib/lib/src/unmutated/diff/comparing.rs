@@ -12,11 +12,12 @@ use upac_types::hook::ProgressEventBuilder;
 use upac_types::package::{PackageMeta, Version};
 use upac_types::response::entry::{DiffFileCommonEntry, DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry};
 
-use super::{DiffError, DiffSnapshot};
+use upac_database::attribution::FileAttribute;
 
-use crate::database::attribution::FileAttribute;
-use crate::orchestrator::context::{Context, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::context::{Context, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{DiffError, DiffSnapshot};
 
 type PackageIdentity = (String, String, Option<String>);
 

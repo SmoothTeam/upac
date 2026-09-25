@@ -10,13 +10,14 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
+use upac_orchestrator::context::{Context, ctx_take};
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::fs::WrittenFile;
+use upac_orchestrator::stage::{RollbackGuard, Stage, StageResult};
+
 use super::{MimeError, WriteProgress};
 
-use crate::errors::CommonError;
-use crate::fs::WrittenFile;
 use crate::layout::mime::{APPLICATIONS_DIR, MIME_DB_DIR, UPDATE_DESKTOP_DATABASE_BIN, UPDATE_MIME_DATABASE_BIN};
-use crate::orchestrator::context::{Context, ctx_take};
-use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct WritingStage;
 
@@ -26,7 +27,7 @@ impl Stage<MimeError> for WritingStage {
     ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
         let mut write_progress = ctx_take!(context, WriteProgress);
 
-        let (path, content) = write_progress.pending.pop_front().ok_or(CommonError::MissingResult)?;
+        let (path, content) = write_progress.pending.pop_front().ok_or(PipelineError::MissingResult)?;
 
         let written_file = WrittenFile::write(Path::new(path), content.as_bytes())?;
 

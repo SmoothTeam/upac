@@ -3,17 +3,17 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-pub mod diff;
-pub mod diff_config;
-pub mod diff_packages;
-pub mod diff_prefix;
+pub(crate) mod diff;
+pub(crate) mod diff_config;
+pub(crate) mod diff_packages;
+pub(crate) mod diff_prefix;
 
-pub mod list_config;
-pub mod list_history;
-pub mod list_packages;
-pub mod list_prefix;
+pub(crate) mod list_config;
+pub(crate) mod list_history;
+pub(crate) mod list_packages;
+pub(crate) mod list_prefix;
 
-pub mod search_files;
-pub mod search_in_meta;
-pub mod search_in_package_files;
-pub mod search_meta;
+pub(crate) mod search_files;
+pub(crate) mod search_in_meta;
+pub(crate) mod search_in_package_files;
+pub(crate) mod search_meta;

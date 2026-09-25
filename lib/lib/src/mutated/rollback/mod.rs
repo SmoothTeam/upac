@@ -9,17 +9,20 @@ use upac_types::state::mutated::RollbackStateId;
 
 use upac_macro::ContextValue;
 
+use upac_boot_loader::BootPlugin;
+
+use upac_deploy::retention::RetentionStage;
+use upac_deploy::{Deploy, DeployMode};
+
+use upac_hooks::HookStage;
+use upac_hooks::pipeline::{Operation, PipelineTrigger};
+
+use upac_orchestrator::context::Context;
+use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+
 use self::checkout::CheckoutStage;
 use self::merge::MergeStage;
 use self::swap::SwapStage;
-
-use crate::deploy::retention::RetentionStage;
-use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
-use crate::plugin::boot::BootPlugin;
-use crate::scripts::HookStage;
-use crate::scripts::pipeline::{Operation, PipelineTrigger};
 
 pub use self::error::RollbackError;
 

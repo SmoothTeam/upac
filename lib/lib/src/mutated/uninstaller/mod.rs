@@ -15,6 +15,21 @@ use upac_types::{TmpPath, UninstallPackagesTargets};
 
 use upac_macro::ContextValue;
 
+use upac_boot_loader::BootPlugin;
+
+use upac_composefs::repository::ObjectID;
+
+use upac_database::MemoryDatabase;
+
+use upac_deploy::retention::RetentionStage;
+use upac_deploy::{Deploy, DeployMode};
+
+use upac_hooks::HookStage;
+use upac_hooks::pipeline::{Operation, PipelineTrigger};
+
+use upac_orchestrator::context::Context;
+use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+
 use self::checkout::CheckoutStage;
 use self::commit::CommitTransactionStage;
 use self::merge::MergeStage;
@@ -22,16 +37,6 @@ use self::open::OpenTransactionStage;
 use self::preparation::PreparationStage;
 use self::remove::RemovePackageStage;
 use self::swap::SwapStage;
-
-use crate::composefs::repository::ObjectID;
-use crate::database::MemoryDatabase;
-use crate::deploy::retention::RetentionStage;
-use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
-use crate::plugin::boot::BootPlugin;
-use crate::scripts::HookStage;
-use crate::scripts::pipeline::{Operation, PipelineTrigger};
 
 pub use self::error::UninstallError;
 

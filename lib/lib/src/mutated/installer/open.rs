@@ -11,15 +11,18 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{ImportedState, InstallError};
+use upac_composefs::file::FileHandle;
 
-use crate::composefs::file::FileHandle;
-use crate::database::{InMemory, MemoryDatabase};
-use crate::deploy::Deploy;
-use crate::deploy::digest::current_prefix_digest;
-use crate::layout::database::DATABASE_PATH;
-use crate::orchestrator::context::{Context, ctx_get};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_database::layout::database::DATABASE_PATH;
+use upac_database::{InMemory, MemoryDatabase};
+
+use upac_deploy::Deploy;
+use upac_deploy::digest::current_prefix_digest;
+
+use upac_orchestrator::context::{Context, ctx_get};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{ImportedState, InstallError};
 
 pub struct OpenTransactionStage;
 

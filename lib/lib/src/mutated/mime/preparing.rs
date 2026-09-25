@@ -9,13 +9,15 @@ use upac_abi::hook::CancelToken;
 
 use upac_types::hook::ProgressEventBuilder;
 
+use upac_decoder_loader::manifest::DecoderManifests;
+
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
 use super::{DesktopContent, MimeError};
 
 use crate::errors::CommonError;
 use crate::layout::mime;
-use crate::orchestrator::context::Context;
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use crate::plugin::decoder::manifest::DecoderManifests;
 
 pub struct PreparingStage;
 

@@ -7,14 +7,16 @@ use upac_types::TmpPath;
 use upac_types::request::mutated::CommitRequest;
 use upac_types::state::mutated::CommitStateId;
 
-use self::transaction::TransactionStage;
+use upac_deploy::retention::RetentionStage;
+use upac_deploy::{Deploy, DeployMode};
 
-use crate::deploy::retention::RetentionStage;
-use crate::deploy::{Deploy, DeployMode};
-use crate::orchestrator::context::Context;
-use crate::orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
-use crate::scripts::HookStage;
-use crate::scripts::pipeline::{Operation, PipelineTrigger};
+use upac_hooks::HookStage;
+use upac_hooks::pipeline::{Operation, PipelineTrigger};
+
+use upac_orchestrator::context::Context;
+use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+
+use self::transaction::TransactionStage;
 
 pub use self::error::CommitError;
 

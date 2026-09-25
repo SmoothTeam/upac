@@ -12,11 +12,13 @@ use upac_abi::hook::CancelToken;
 use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::stage::{RollbackGuard, Stage, StageResult};
+
 use super::{ImportProgress, UnpackState, UpdateError};
 
 use crate::errors::CommonError;
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{RollbackGuard, Stage, StageResult};
 
 pub struct PreparationStage;
 
@@ -34,7 +36,7 @@ impl Stage<UpdateError> for PreparationStage {
         let package_path = unpack_state
             .pending_paths
             .pop_front()
-            .ok_or(CommonError::MissingResult)?;
+            .ok_or(PipelineError::MissingResult)?;
         let index = import_progress.pending.len();
 
         let (package, trigger) = unpack_state

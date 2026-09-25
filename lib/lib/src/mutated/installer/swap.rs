@@ -8,10 +8,10 @@ use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::request::booter::BootPluginSetOneShotRequest;
 
-use super::{InstallError, ResolvedBootEntry};
+use upac_orchestrator::context::{Context, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
 
-use crate::orchestrator::context::{Context, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use super::{InstallError, ResolvedBootEntry};
 
 pub struct SwapStage;
 

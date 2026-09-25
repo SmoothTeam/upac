@@ -15,16 +15,21 @@ use upac_abi::hook::CancelToken;
 use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
+use upac_composefs::error::RepoError;
+use upac_composefs::file::FileHandle;
+use upac_composefs::repository::commit_tree;
+
+use upac_database::InMemory;
+use upac_database::layout::database::DATABASE_PATH;
+
+use upac_deploy::Deploy;
+
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
 use super::{ImportedState, NewState, UpdateError};
 
-use crate::composefs::error::RepoError;
-use crate::composefs::file::FileHandle;
-use crate::composefs::repository::commit_tree;
-use crate::database::InMemory;
-use crate::deploy::Deploy;
-use crate::layout::database::{DATABASE_PATH, UPDATE_SCRATCH_FILENAME};
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use crate::layout::database::UPDATE_SCRATCH_FILENAME;
 
 pub struct CommitTransactionStage;
 

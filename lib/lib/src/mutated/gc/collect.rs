@@ -6,13 +6,14 @@
 use upac_abi::hook::CancelToken;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::{CollectedRoots, DeployProgress, GcError};
+use upac_deploy::Deploy;
+use upac_deploy::record::DeployRecord;
 
-use crate::database::record::DeployRecord;
-use crate::deploy::Deploy;
-use crate::errors::CommonError;
-use crate::orchestrator::context::{Context, ctx_get, ctx_take};
-use crate::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::context::{Context, ctx_get, ctx_take};
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+
+use super::{CollectedRoots, DeployProgress, GcError};
 
 pub struct CollectRootsStage;
 
@@ -25,7 +26,10 @@ impl Stage<GcError> for CollectRootsStage {
 
         let deploy = ctx_get!(context, Deploy);
 
-        let prefix_digest = deploy_progress.pending.pop_front().ok_or(CommonError::MissingResult)?;
+        let prefix_digest = deploy_progress
+            .pending
+            .pop_front()
+            .ok_or(PipelineError::MissingResult)?;
 
         let record = DeployRecord::read(&deploy.deploy(&prefix_digest))?;
 
