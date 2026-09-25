@@ -20,6 +20,10 @@ use upac_abi::hook::CancelToken;
 use super::error::RepoError;
 use super::repository::ObjectID;
 
+#[cfg(test)]
+#[path = "../tests/inline/file.rs"]
+mod tests;
+
 #[macro_export]
 macro_rules! import_if_dir {
     ($repository:expr, $tree:expr, $source:expr, $import_ctx:expr, $cancel:expr) => {
@@ -66,7 +70,7 @@ impl FileHandle {
         Ok(())
     }
 
-    pub fn update_in_tree(&self, tree: &mut FileSystem<ObjectID>, stat: Stat) -> Result<(), RepoError> {
+    pub(crate) fn update_in_tree(&self, tree: &mut FileSystem<ObjectID>, stat: Stat) -> Result<(), RepoError> {
         tree.root.get_directory_mut(self.path.as_os_str())?.stat = stat;
 
         Ok(())
@@ -93,7 +97,7 @@ impl FileHandle {
         Ok(())
     }
 
-    pub fn copy_from_tree(
+    pub(crate) fn copy_from_tree(
         &self, dest_tree: &mut FileSystem<ObjectID>, source_tree: &FileSystem<ObjectID>, source_path: &Path,
     ) -> Result<(), RepoError> {
         let (source_parent, source_filename) = source_tree.root.split(source_path.as_os_str())?;
