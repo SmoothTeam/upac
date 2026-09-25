@@ -89,15 +89,18 @@ fn localize_arg(arg: Arg, path: &[String], loader: &FluentLanguageLoader) -> Arg
         _ => arg_key(&arg, path),
     };
 
-    let heading = if arg.is_positional() {
+    let default_heading = if arg.is_positional() {
         "clap-arguments"
     } else {
         "clap-options"
     };
 
-    let arg = match arg.get_help_heading() {
-        Some(_) => arg,
-        None => arg.help_heading(loader.get(heading)),
+    let arg = match arg.get_help_heading().map(heading_key) {
+        Some(custom_heading) => match translated(loader, &custom_heading) {
+            Some(heading) => arg.help_heading(heading),
+            None => arg,
+        },
+        None => arg.help_heading(loader.get(default_heading)),
     };
 
     match translated(loader, &key) {
@@ -115,6 +118,10 @@ fn collect_keys(command: &Command, path: &mut Vec<String>, keys: &mut Vec<String
         }
 
         keys.push(arg_key(arg, path));
+
+        if let Some(heading) = arg.get_help_heading() {
+            keys.push(heading_key(heading));
+        }
     }
 
     for subcommand in command.get_subcommands() {
@@ -154,6 +161,10 @@ fn arg_key(arg: &Arg, path: &[String]) -> String {
     }
 
     format!("arg-{}-{name}", path.join("-"))
+}
+
+fn heading_key(heading: &str) -> String {
+    format!("heading-{}", heading.to_lowercase().replace([' ', '_'], "-"))
 }
 
 fn help_template(loader: &FluentLanguageLoader) -> StyledStr {

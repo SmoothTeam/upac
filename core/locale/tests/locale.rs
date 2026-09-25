@@ -54,6 +54,8 @@ struct CreateArgs {
     label: Option<String>,
     #[arg(long)]
     version: bool,
+    #[arg(long, help_heading = "placement")]
+    shelf: Option<String>,
 }
 
 #[test]
@@ -91,6 +93,15 @@ fn rendered_help_uses_the_localized_headings() {
     assert!(help.contains("USAGE: "), "{help}");
     assert!(help.contains("OPTS:"), "{help}");
     assert!(help.contains("Show help"), "{help}");
+}
+
+#[test]
+fn a_custom_help_heading_is_localized_through_its_key() {
+    let mut command = localize::<TestLocale>(Cli::command());
+    let help = command.find_subcommand_mut("create").unwrap().render_help().to_string();
+
+    assert!(help.contains("PLACE:"), "{help}");
+    assert!(help.contains("Which shelf to use"), "{help}");
 }
 
 #[test]

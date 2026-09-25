@@ -2,6 +2,8 @@ about = Demo tool
 about-create = Create a thing
 arg-create-size = Size of the thing
 arg-create-version = Show the version column
+arg-create-shelf = Which shelf to use
+heading-placement = PLACE
 
 clap-usage = USAGE
 clap-options = OPTS
