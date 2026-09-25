@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+# Name of the abstract Unix socket address upac uses to hold its exclusive
+# process lock (bind() on this address — a second concurrent upac gets
+# EADDRINUSE). Changing the name doesn't break on-disk data compatibility,
+# but a concurrently running old and new upac version stop seeing each other
+# as competitors.
+[runtime]
+lock_address = "upac.lock"
