@@ -21,7 +21,7 @@ fn string_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
             let #ident = object
                 .get(stringify!(#ident))
                 .and_then(serde_json::Value::as_str)
-                .ok_or(crate::database::error::DeployRecordError::InvalidField)?
+                .ok_or(DeployRecordError::InvalidField)?
                 .to_string();
         },
     )
@@ -34,7 +34,7 @@ fn u64_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
             let #ident = object
                 .get(stringify!(#ident))
                 .and_then(serde_json::Value::as_u64)
-                .ok_or(crate::database::error::DeployRecordError::InvalidField)?;
+                .ok_or(DeployRecordError::InvalidField)?;
         },
     )
 }
@@ -73,7 +73,7 @@ fn composite_codec(ident: &Ident, ty: &Type) -> (TokenStream2, TokenStream2) {
         quote! { object.insert(stringify!(#ident).to_string(), self.#ident.to_json()); },
         quote! {
             let #ident = #ty::from_json(
-                object.get(stringify!(#ident)).ok_or(crate::database::error::DeployRecordError::InvalidField)?,
+                object.get(stringify!(#ident)).ok_or(DeployRecordError::InvalidField)?,
             )?;
         },
     )
@@ -91,13 +91,13 @@ fn vec_string_codec(ident: &Ident) -> (TokenStream2, TokenStream2) {
             let #ident = object
                 .get(stringify!(#ident))
                 .and_then(serde_json::Value::as_array)
-                .ok_or(crate::database::error::DeployRecordError::InvalidField)?
+                .ok_or(DeployRecordError::InvalidField)?
                 .iter()
                 .map(|element| {
                     element
                         .as_str()
                         .map(str::to_string)
-                        .ok_or(crate::database::error::DeployRecordError::InvalidField)
+                        .ok_or(DeployRecordError::InvalidField)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
         },
@@ -116,7 +116,7 @@ fn vec_composite_codec(ident: &Ident, element: &Type) -> (TokenStream2, TokenStr
             let #ident = object
                 .get(stringify!(#ident))
                 .and_then(serde_json::Value::as_array)
-                .ok_or(crate::database::error::DeployRecordError::InvalidField)?
+                .ok_or(DeployRecordError::InvalidField)?
                 .iter()
                 .map(#element::from_json)
                 .collect::<Result<Vec<_>, _>>()?;
@@ -170,8 +170,8 @@ fn codec_impl(name: &Ident, encodes: &[TokenStream2], decodes: &[TokenStream2], 
                 serde_json::Value::Object(object)
             }
 
-            pub fn from_json(value: &serde_json::Value) -> Result<#name, crate::database::error::DeployRecordError> {
-                let object = value.as_object().ok_or(crate::database::error::DeployRecordError::InvalidField)?;
+            pub fn from_json(value: &serde_json::Value) -> Result<#name, DeployRecordError> {
+                let object = value.as_object().ok_or(DeployRecordError::InvalidField)?;
                 #(#decodes)*
 
                 Ok(#name {
