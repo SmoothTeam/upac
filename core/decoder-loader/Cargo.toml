@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+[package]
+name = "upac-lib-decoder-loader"
+description = "Loads upac's package-format decoder plugins (dlopen via manifests or statically linked) and unpacks packages through them"
+version.workspace = true
+
+edition.workspace = true
+rust-version.workspace = true
+
+license.workspace = true
+
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+keywords.workspace = true
+categories.workspace = true
+
+include = ["/src", "lib.toml", "build.rs"]
+
+[lints]
+workspace = true
+
+[lib]
+name = "upac_decoder_loader"
+
+[dependencies]
+upac-lib-macro = { workspace = true }
+upac-lib-types = { workspace = true }
+upac-lib-abi   = { workspace = true }
+
+upac-decoders-alpm = { workspace = true, optional = true }
+upac-decoders-deb  = { workspace = true, optional = true }
+upac-decoders-rpm  = { workspace = true, optional = true }
+upac-decoders-xbps = { workspace = true, optional = true }
+
+libloading = { workspace = true, optional = true }
+serde      = { workspace = true }
+toml       = { workspace = true }
+sha2       = { workspace = true }
+
+mime = "0.3.17"
+
+[build-dependencies]
+toml = { workspace = true }
+
+[features]
+default = ["dynamic-plugins"]
+
+dynamic-plugins = ["dep:libloading"]
+
+builtin-decoders = []
+
+builtin-alpm = ["dep:upac-decoders-alpm", "builtin-decoders"]
+builtin-deb  = ["dep:upac-decoders-deb", "builtin-decoders"]
+builtin-rpm  = ["dep:upac-decoders-rpm", "builtin-decoders"]
+builtin-xbps = ["dep:upac-decoders-xbps", "builtin-decoders"]
+
+builtin-all-decoders = ["builtin-alpm", "builtin-deb", "builtin-rpm", "builtin-xbps"]
