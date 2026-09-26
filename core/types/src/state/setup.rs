@@ -15,12 +15,14 @@ pub enum BootstrapStateId {
     EnumeratePackages = 2,
     UnpackPackage = 3,
     ImportPackage = 4,
-    ImportSystem = 5,
-    Kernel = 6,
-    EmbedDatabase = 7,
-    WriteDeployRecord = 8,
-    StageBoot = 9,
-    Setup = 10,
+    RecordPackage = 5,
+    ImportSystem = 6,
+    Kernel = 7,
+    EmbedDatabase = 8,
+    Commit = 9,
+    WriteDeployRecord = 10,
+    StageBoot = 11,
+    Setup = 12,
 }
 
 impl_command_state!(BootstrapStateId, Bootstrap);

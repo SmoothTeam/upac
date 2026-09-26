@@ -15,8 +15,8 @@ use upac_abi::response::entry::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
     CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
+use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
 use upac_abi::types::{COwned, CSlice, CVec};
-use upac_abi::{DiffFileSource, FileDiffKind};
 
 fn valid_version() -> CVersion {
     CVersion {
@@ -121,7 +121,7 @@ fn valid_diff_common() -> CDiffFileCommonEntry {
     CDiffFileCommonEntry {
         struct_size: size_of::<CDiffFileCommonEntry>(),
         path: CSlice::from_owned(b"/etc/upac.conf".to_vec()),
-        kind: FileDiffKind::Modified,
+        kind: FileDiffKind::Modified.into(),
     }
 }
 
@@ -147,7 +147,7 @@ fn diff_file_entry_common_validate_rejects_empty_path() {
     let common = CDiffFileCommonEntry {
         struct_size: size_of::<CDiffFileCommonEntry>(),
         path: CSlice { ptr: null(), len: 0 },
-        kind: FileDiffKind::Modified,
+        kind: FileDiffKind::Modified.into(),
     };
 
     assert_eq!(unsafe { common.validate() }, Err(ErrorKind::InvalidEntry));
@@ -157,7 +157,7 @@ fn valid_diff_prefix_file_entry() -> CDiffPrefixFileEntry {
     CDiffPrefixFileEntry {
         struct_size: size_of::<CDiffPrefixFileEntry>(),
         common: valid_diff_common(),
-        source: DiffFileSource::Prefix,
+        source: DiffFileSource::Prefix.into(),
         package_name: CSlice::from_owned(b"upac".to_vec()),
         is_user: false,
     }
@@ -209,7 +209,7 @@ fn valid_diff_untracked_file_entry() -> CDiffUntrackedFileEntry {
     CDiffUntrackedFileEntry {
         struct_size: size_of::<CDiffUntrackedFileEntry>(),
         common: valid_diff_common(),
-        source: DiffFileSource::Config,
+        source: DiffFileSource::Config.into(),
     }
 }
 

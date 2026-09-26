@@ -12,7 +12,7 @@ use composefs::tree::FileSystem;
 use nix::fcntl::AT_FDCWD;
 use tempfile::{Builder, TempDir};
 
-use upac_abi::BootResourceKind;
+use upac_abi::plugin::BootResourceKind;
 use upac_boot_loader::entry::error::BootError;
 use upac_boot_loader::entry::write_boot_entry;
 use upac_composefs::file::FileHandle;

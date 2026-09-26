@@ -12,7 +12,7 @@ use composefs::repository::{ImportContext, Repository};
 use composefs::tree::FileSystem;
 
 use upac_abi::hook::CancelToken;
-use upac_abi::{DiffFileSource, FileDiffKind};
+use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
 
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::{FileEntry, FileEntryScope};

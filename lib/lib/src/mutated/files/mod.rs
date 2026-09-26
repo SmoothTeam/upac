@@ -10,7 +10,7 @@ use composefs::tree::FileSystem;
 
 use uuid::Uuid;
 
-use upac_abi::{DiffFileSource, FileDiffKind};
+use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
 
 use upac_types::TmpPath;
 use upac_types::package::PackageInfo;

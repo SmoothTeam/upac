@@ -28,7 +28,7 @@ use syn::{
     Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, TypePtr, TypeReference, parse_macro_input,
 };
 
-use crate::common::{PRIMITIVES, SHARED_TYPES, generic_arg, is_str_type, segment_name};
+use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_type, segment_name};
 
 fn is_str_ref(ty: &Type) -> bool {
     matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
@@ -101,6 +101,11 @@ fn primitive_from_c(ident: &Ident) -> TokenStream2 {
     quote! { value.#ident }
 }
 
+fn abi_enum_from_c(ident: &Ident, name: &str) -> TokenStream2 {
+    let rust_ty = format_ident!("{name}");
+    quote! { #rust_ty::try_from(value.#ident)? }
+}
+
 fn composite_from_c(ident: &Ident, name: &str) -> TokenStream2 {
     let rust_ty = format_ident!("{name}");
     quote! { #rust_ty::try_from(&value.#ident)? }
@@ -111,7 +116,8 @@ fn field_path_from_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
         "String" => string_from_c(ident),
         "Option" => option_from_c(ident, segment),
         "Vec" => vec_from_c(ident, segment),
-        name if PRIMITIVES.contains(&name) || SHARED_TYPES.contains(&name) => primitive_from_c(ident),
+        name if PRIMITIVES.contains(&name) => primitive_from_c(ident),
+        name if ABI_ENUMS.contains(&name) => abi_enum_from_c(ident, name),
         name => composite_from_c(ident, name),
     }
 }

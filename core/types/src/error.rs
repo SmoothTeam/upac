@@ -46,7 +46,7 @@ impl Error {
         let converted = unsafe { error.validate() }.and_then(|()| Error::try_from(error));
 
         Err(converted.unwrap_or_else(|kind| Error {
-            domain: error.domain,
+            domain: ErrorDomain::try_from(error.domain).unwrap_or(ErrorDomain::Unknown),
             state: error.state,
             kind,
         }))

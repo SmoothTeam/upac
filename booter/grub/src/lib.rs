@@ -4,14 +4,13 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::BOOT_ABI_VERSION;
-use upac_abi::BootResourceKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::request::booter::{
-    CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
+    CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 
 use upac_types::request::booter::{
-    BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
+    BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
 };
 use upac_types::traits::Booter;
 
@@ -23,16 +22,14 @@ mod error;
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
-macro_rules! write_error {
-    ($err_out:expr, $error:expr) => {
-        if !$err_out.is_null() {
-            unsafe { *$err_out = $error.into() };
-        }
+macro_rules! error_code {
+    ($error:expr) => {
+        u32::from(ErrorKind::from($error)) as i32
     };
 }
 
 /// # Safety
-/// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::BootPluginAbiVersionFn`.
+/// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::plugin::BootPluginAbiVersionFn`.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn boot_abi_version() -> u32 {
     BOOT_ABI_VERSION
@@ -41,19 +38,17 @@ pub unsafe extern "C" fn boot_abi_version() -> u32 {
 /// # Safety
 /// Touches no pointers — `unsafe extern "C"` only to match the ABI calling convention.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn boot_resource_kind() -> BootResourceKind {
-    Grub::boot_resource_kind()
+pub unsafe extern "C" fn boot_resource_kind() -> u8 {
+    Grub::boot_resource_kind().into()
 }
 
 /// # Safety
 /// `request`, if non-null, must point to a valid, initialized `CBootPluginSetOneShotRequest` for the
-/// duration of the call. `err_out`, if non-null, must point to writable `ErrorKind` storage.
+/// duration of the call.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotRequest, err_out: *mut ErrorKind) -> i32 {
+pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotRequest) -> i32 {
     if request.is_null() {
-        write_error!(err_out, GrubError::InvalidRequest);
-
-        return -1;
+        return error_code!(GrubError::InvalidRequest);
     }
 
     let result = BootPluginSetOneShotRequest::try_from(unsafe { &*request })
@@ -63,28 +58,20 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotReque
     match result {
         Ok(()) => 0,
 
-        Err(error) => {
-            write_error!(err_out, error);
-
-            -1
-        }
+        Err(error) => error_code!(error),
     }
 }
 
 /// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginConfirmSuccsesBootRequest` for the
-/// duration of the call. `err_out`, if non-null, must point to writable `ErrorKind` storage.
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginConfirmSuccessBootRequest` for the
+/// duration of the call.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn confirm_boot(
-    request: *const CBootPluginConfirmSuccsesBootRequest, err_out: *mut ErrorKind,
-) -> i32 {
+pub unsafe extern "C" fn confirm_boot(request: *const CBootPluginConfirmSuccessBootRequest) -> i32 {
     if request.is_null() {
-        write_error!(err_out, GrubError::InvalidRequest);
-
-        return -1;
+        return error_code!(GrubError::InvalidRequest);
     }
 
-    let result = BootPluginConfirmSuccsesBootRequest::try_from(unsafe { &*request })
+    let result = BootPluginConfirmSuccessBootRequest::try_from(unsafe { &*request })
         .map_err(GrubError::from)
         .and_then(|request| {
             Grub::new().and_then(|mut grub| grub.confirm_boot(&request.entry_name, &request.esp_mount_point))
@@ -93,23 +80,17 @@ pub unsafe extern "C" fn confirm_boot(
     match result {
         Ok(()) => 0,
 
-        Err(error) => {
-            write_error!(err_out, error);
-
-            -1
-        }
+        Err(error) => error_code!(error),
     }
 }
 
 /// # Safety
 /// `request`, if non-null, must point to a valid, initialized `CBootPluginInstallRequest` for the
-/// duration of the call. `err_out`, if non-null, must point to writable `ErrorKind` storage.
+/// duration of the call.
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest, err_out: *mut ErrorKind) -> i32 {
+pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i32 {
     if request.is_null() {
-        write_error!(err_out, GrubError::InvalidRequest);
-
-        return -1;
+        return error_code!(GrubError::InvalidRequest);
     }
 
     let result = BootPluginInstallRequest::try_from(unsafe { &*request })
@@ -131,10 +112,6 @@ pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest, err_
     match result {
         Ok(()) => 0,
 
-        Err(error) => {
-            write_error!(err_out, error);
-
-            -1
-        }
+        Err(error) => error_code!(error),
     }
 }

@@ -5,7 +5,8 @@
 
 use libloading::Library;
 
-use upac_abi::{BOOT_ABI_VERSION, BootPluginAbiVersionFn, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
+use upac_abi::BOOT_ABI_VERSION;
+use upac_abi::plugin::{BootPluginAbiVersionFn, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 
 use super::BootPlugin;
 use super::error::BootPluginError;

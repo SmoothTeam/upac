@@ -43,7 +43,7 @@ impl Stage<FilesError> for CheckoutStage {
             digest,
             &esp_mount,
             new_prefix,
-            plugin.boot_resource_kind(),
+            plugin.boot_resource_kind()?,
         )?;
 
         context.put(ResolvedBootEntry {

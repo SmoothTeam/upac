@@ -8,9 +8,9 @@ use std::io::{BufReader, Read};
 
 use sha2::{Digest, Sha256};
 
-use upac_abi::FreeDecodeResponseFn;
 use upac_abi::hook::CancelToken;
 use upac_abi::package::{CPackageDependency, CPackageMeta};
+use upac_abi::plugin::FreeDecodeResponseFn;
 use upac_abi::response::decoder::CDecodeResponse;
 use upac_abi::types::{COwned, CSlice, CVec};
 

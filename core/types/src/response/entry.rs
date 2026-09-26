@@ -9,8 +9,8 @@ use upac_abi::response::entry::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
+use upac_abi::response::entry::{DiffFileSource, FileDiffKind, PackageDiffKind};
 use upac_abi::types::{COwned, CSlice, CVec};
-use upac_abi::{DiffFileSource, FileDiffKind, PackageDiffKind};
 
 use upac_macro::{CTryToRust, RedbCodec, RustToC};
 

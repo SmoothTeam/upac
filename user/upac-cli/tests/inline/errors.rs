@@ -70,6 +70,26 @@ fn lib_error_display_covers_every_error_kind() {
         (ErrorKind::NotInitialized, "Not initialized"),
         (ErrorKind::AbiMismatch, "ABI mismatch"),
         (ErrorKind::InvalidEntry, "Invalid entry"),
+        (
+            ErrorKind::NotAPartition,
+            "Not a partition: pass a partition such as /dev/vda1, not a whole disk",
+        ),
+        (
+            ErrorKind::WrongPartitionType,
+            "The partition has a different GPT type than required",
+        ),
+        (
+            ErrorKind::UnsupportedFilesystem,
+            "No supported filesystem on the partition: format it first (up-sp format create)",
+        ),
+        (
+            ErrorKind::ToolNotInstalled,
+            "A required program is not installed on this system (e.g. dracut or mkinitcpio for --initramfs-generator)",
+        ),
+        (
+            ErrorKind::ToolFailed,
+            "An external program failed; see its output above",
+        ),
     ];
 
     for (kind, expected) in cases {

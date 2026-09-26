@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use upac_abi::PackageDiffKind;
 use upac_abi::hook::CancelToken;
+use upac_abi::response::entry::PackageDiffKind;
 
 use upac_types::DiffPackagesSnapshot;
 use upac_types::hook::ProgressEventBuilder;

@@ -3,11 +3,34 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::{CFree, CNew, CValidate};
+use upac_macro::{CEnum, CFree, CNew, CValidate};
 
 use crate::package::CVersion;
 use crate::types::{CSlice, CVec};
-use crate::{DiffFileSource, FileDiffKind, PackageDiffKind};
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
+pub enum FileDiffKind {
+    Added = 0,
+    Removed = 1,
+    Modified = 2,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
+pub enum PackageDiffKind {
+    Added = 0,
+    Removed = 1,
+    Modified = 2,
+    FilesChanged = 3,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
+pub enum DiffFileSource {
+    Prefix = 0,
+    Config = 1,
+}
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
@@ -15,7 +38,7 @@ pub struct CDiffPackageEntry {
     pub struct_size: usize,
 
     pub name: CSlice,
-    pub kind: PackageDiffKind,
+    pub kind: u8,
     pub version: CVersion,
     pub files: CVec<CDiffPrefixFileEntry>,
 }
@@ -26,7 +49,7 @@ pub struct CDiffFileCommonEntry {
     pub struct_size: usize,
 
     pub path: CSlice,
-    pub kind: FileDiffKind,
+    pub kind: u8,
 }
 
 #[repr(C)]
@@ -35,7 +58,7 @@ pub struct CDiffPrefixFileEntry {
     pub struct_size: usize,
 
     pub common: CDiffFileCommonEntry,
-    pub source: DiffFileSource,
+    pub source: u8,
     pub package_name: CSlice,
     pub is_user: bool,
 }
@@ -56,7 +79,7 @@ pub struct CDiffUntrackedFileEntry {
     pub struct_size: usize,
 
     pub common: CDiffFileCommonEntry,
-    pub source: DiffFileSource,
+    pub source: u8,
 }
 
 #[repr(C)]

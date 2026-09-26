@@ -9,8 +9,8 @@ use clap::Args as ClapArgs;
 
 use i18n_embed_fl::fl;
 
-use upac_abi::FileDiffKind;
 use upac_abi::error::ErrorDomain;
+use upac_abi::response::entry::FileDiffKind;
 
 use upac_types::package::PackageInfo;
 use upac_types::request::mutated::FilesRequest;

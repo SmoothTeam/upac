@@ -3,11 +3,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use upac_abi::response::entry::DiffFileSource;
+
 use upac_types::package::{PackageMeta, Version};
 
 use crate::locale;
 
-use super::{DisplayPakcageMetaArgs, PackageField, PackageFormatter, SizeDisplay, VersionDisplay};
+use super::{DiffSourceDisplay, DisplayPakcageMetaArgs, PackageField, PackageFormatter, SizeDisplay, VersionDisplay};
 
 fn meta(name: &str, version_raw: &str, installed_size: u64) -> PackageMeta {
     PackageMeta {
@@ -179,4 +181,10 @@ fn extra_fields_includes_every_flag_when_all_are_set() {
         PackageField::Checksum,
     ]);
     assert_eq!(field_bytes(&args.extra_fields()), expected);
+}
+
+#[test]
+fn diff_source_display_names_each_source() {
+    assert_eq!(DiffSourceDisplay(DiffFileSource::Prefix).to_string(), "prefix");
+    assert_eq!(DiffSourceDisplay(DiffFileSource::Config).to_string(), "config");
 }

@@ -11,8 +11,8 @@ use upac_abi::request::mutated::{
 use upac_abi::error::ErrorKind;
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CRequestBase;
+use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
 use upac_abi::types::{COwned, CSlice, CVec};
-use upac_abi::{DiffFileSource, FileDiffKind};
 
 use upac_macro::{CTryToRust, RustToC};
 

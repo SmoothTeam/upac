@@ -15,7 +15,7 @@ use upac_composefs::diff::TreeDiff;
 use upac_composefs::file::FileHandle;
 use upac_composefs::repository::ObjectID;
 
-use upac_abi::FileDiffKind;
+use upac_abi::response::entry::FileDiffKind;
 
 fn scratch_dir(name: &str) -> TempDir {
     Builder::new().prefix(name).tempdir().unwrap()

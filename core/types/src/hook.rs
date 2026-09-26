@@ -7,15 +7,13 @@ use std::ffi::{CString, c_void};
 use std::mem::size_of;
 use std::ptr::null;
 
-use upac_abi::HookMessageFn;
-use upac_abi::hook::{CProgressEvent, HookAck};
+use upac_abi::hook::{CProgressEvent, HookAck, HookMessageFn};
 use upac_abi::types::CSlice;
 
 use super::traits::MessageHook;
 
 pub struct ProgressEventBuilder {
     stage: u32,
-    phase: u32,
     subject: Option<CString>,
     current: u64,
     total: u64,
@@ -25,7 +23,6 @@ impl ProgressEventBuilder {
     pub fn new(stage: u32) -> Self {
         Self {
             stage,
-            phase: 0,
             subject: None,
             current: 0,
             total: 0,
@@ -34,11 +31,6 @@ impl ProgressEventBuilder {
 
     pub fn stage(&self) -> u32 {
         self.stage
-    }
-
-    pub fn phase(mut self, phase: u32) -> Self {
-        self.phase = phase;
-        self
     }
 
     pub fn subject(mut self, subject: impl Into<String>) -> Self {
@@ -64,7 +56,6 @@ impl ProgressEventBuilder {
         CProgressEvent {
             struct_size: size_of::<CProgressEvent>(),
             stage: self.stage,
-            phase: self.phase,
             subject,
             current: self.current,
             total: self.total,
@@ -92,6 +83,8 @@ impl MessageHook for Message {
             return HookAck::Delivered;
         };
 
-        unsafe { hook_message(event as *const CProgressEvent, self.hook_message_context) }
+        let ack = unsafe { hook_message(event as *const CProgressEvent, self.hook_message_context) };
+
+        HookAck::try_from(ack).unwrap_or(HookAck::Delivered)
     }
 }

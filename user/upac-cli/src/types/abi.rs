@@ -7,8 +7,8 @@ use std::mem::MaybeUninit;
 
 use anyhow::Result;
 
-use upac_abi::DiffFileSource;
 use upac_abi::error::CError;
+use upac_abi::response::entry::DiffFileSource;
 use upac_abi::types::CValidatable;
 
 use upac_types::error::Error as AbiError;

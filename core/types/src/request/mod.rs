@@ -5,9 +5,9 @@
 
 use std::os::raw::c_void;
 
-use upac_abi::HookMessageFn;
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::CancelToken;
+use upac_abi::hook::HookMessageFn;
 use upac_abi::request::CRequestBase;
 
 use upac_macro::{CTryToRust, RustToC};

@@ -91,3 +91,16 @@ fn write_abi_error_tolerates_a_null_out_pointer() {
 
     assert_eq!(unsafe { write_abi_error(null_mut(), error) }, -1);
 }
+
+#[test]
+fn check_falls_back_to_the_unknown_domain_for_an_out_of_range_value() {
+    let c_error = CError {
+        domain: u32::MAX,
+        ..CError::from(Error::new(RollbackStateId::Setup, ErrorKind::NotFound))
+    };
+
+    let error = Error::check(-1, &c_error).unwrap_err();
+
+    assert_eq!(error.domain, ErrorDomain::Unknown);
+    assert_eq!(error.kind, ErrorKind::InvalidEntry);
+}

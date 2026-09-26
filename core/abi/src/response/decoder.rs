@@ -5,8 +5,8 @@
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::FreeDecodeResponseFn;
 use crate::package::{CPackageDependency, CPackageMeta};
+use crate::plugin::FreeDecodeResponseFn;
 use crate::types::{CSlice, CVec};
 
 #[repr(C)]

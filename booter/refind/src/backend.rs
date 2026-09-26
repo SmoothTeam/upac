@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use nix::{ioctl_read, ioctl_write_ptr};
 
-use upac_abi::BootResourceKind;
+use upac_abi::plugin::BootResourceKind;
 
 use upac_types::traits::Booter;
 

@@ -5,8 +5,8 @@
 
 use std::mem::MaybeUninit;
 
-use upac_abi::DecodeFn;
 use upac_abi::hook::CancelToken;
+use upac_abi::plugin::DecodeFn;
 use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::response::decoder::CDecodeResponse;
 

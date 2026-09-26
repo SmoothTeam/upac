@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::hook::CancelToken;
-use upac_abi::{DiffFileSource, FileDiffKind};
+use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
 
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::response::entry::{DiffFileCommonEntry, DiffPrefixFileEntry};

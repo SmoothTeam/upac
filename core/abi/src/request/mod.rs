@@ -7,9 +7,7 @@ use std::os::raw::c_void;
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use super::HookMessageFn;
-
-use crate::hook::CancelToken;
+use crate::hook::{CancelToken, HookMessageFn};
 
 pub mod booter;
 pub mod bootstrap;

@@ -5,7 +5,7 @@
 
 use upac_abi::error::ErrorKind;
 use upac_abi::request::booter::{
-    CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
+    CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 use upac_abi::types::{COwned, CSlice};
 
@@ -17,7 +17,7 @@ pub struct BootPluginSetOneShotRequest {
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct BootPluginConfirmSuccsesBootRequest {
+pub struct BootPluginConfirmSuccessBootRequest {
     pub entry_name: String,
 
     pub esp_mount_point: String,

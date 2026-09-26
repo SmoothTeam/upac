@@ -3,12 +3,18 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::{CFree, CNew, CValidate};
+use upac_macro::{CEnum, CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
 use crate::types::CSlice;
-use crate::{FsKind, InitramfsGenerator};
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
+pub enum InitramfsGenerator {
+    Dracut = 0,
+    Mkinitcpio = 1,
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
@@ -23,13 +29,14 @@ pub struct CSetupBootstrapRequest {
     pub esp_device: CSlice,
     #[optional]
     pub deploy_device: CSlice,
-    pub deploy_fs: FsKind,
 
     #[optional]
     pub mount_point: CSlice,
+    #[optional]
+    pub tmp_path: CSlice,
     pub source: CSlice,
     pub empty_config: bool,
     pub pinned: bool,
     pub boot_plugin: CSlice,
-    pub initramfs_generator: InitramfsGenerator,
+    pub initramfs_generator: u8,
 }

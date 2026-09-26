@@ -42,7 +42,7 @@ impl Stage<UpdateError> for CheckoutStage {
             digest,
             &esp_mount,
             &new_state.prefix_digest,
-            plugin.boot_resource_kind(),
+            plugin.boot_resource_kind()?,
         )?;
 
         context.put(ResolvedBootEntry {

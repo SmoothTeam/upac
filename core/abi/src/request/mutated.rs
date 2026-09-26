@@ -9,7 +9,6 @@ use super::CRequestBase;
 
 use crate::package::CPackageInfo;
 use crate::types::{CSlice, CVec};
-use crate::{DiffFileSource, FileDiffKind};
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
@@ -104,10 +103,10 @@ pub struct CFilesRequest {
     #[optional]
     pub message: CSlice,
     pub files: CVec<CSlice>,
-    pub file_kind: FileDiffKind,
+    pub file_kind: u8,
     pub file_package: *const CPackageInfo,
 
-    pub scope: DiffFileSource,
+    pub scope: u8,
 }
 
 #[repr(C)]

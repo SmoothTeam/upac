@@ -8,7 +8,7 @@ use std::path::Path;
 
 use composefs::tree::FileSystem;
 
-use upac_abi::FileDiffKind;
+use upac_abi::response::entry::FileDiffKind;
 
 use super::diff::TreeDiff;
 use super::error::RepoError;

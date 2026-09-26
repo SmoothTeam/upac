@@ -15,7 +15,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, parse_macro_input};
 
-use crate::common::{PRIMITIVES, SHARED_TYPES, generic_arg, is_str_type, segment_name};
+use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_type, segment_name};
 
 fn is_str_ref(ty: &Type) -> bool {
     matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
@@ -35,6 +35,10 @@ fn option_to_c(ident: &Ident) -> TokenStream2 {
 
 fn primitive_to_c(ident: &Ident) -> TokenStream2 {
     quote! { value.#ident }
+}
+
+fn abi_enum_to_c(ident: &Ident) -> TokenStream2 {
+    quote! { value.#ident.into() }
 }
 
 fn composite_to_c(ident: &Ident, name: &str) -> TokenStream2 {
@@ -72,7 +76,8 @@ fn field_path_to_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
         "String" => string_to_c(ident),
         "Option" => option_to_c(ident),
         "Vec" => vec_to_c(ident, segment),
-        name if PRIMITIVES.contains(&name) || SHARED_TYPES.contains(&name) => primitive_to_c(ident),
+        name if PRIMITIVES.contains(&name) => primitive_to_c(ident),
+        name if ABI_ENUMS.contains(&name) => abi_enum_to_c(ident),
         name => composite_to_c(ident, name),
     }
 }

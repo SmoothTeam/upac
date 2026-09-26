@@ -25,13 +25,13 @@ mod tests;
 /// call that this hook is registered for (guaranteed by construction: callers keep their
 /// `ProgressState` on the stack for exactly that call, calling `ctx_ptr()` only after it's in
 /// its final resting place).
-pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_void) -> HookAck {
+pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_void) -> u8 {
     let state = unsafe { &mut *ctx.cast::<ProgressState>() };
     let event = unsafe { &*event };
 
     state.apply(event);
 
-    HookAck::Delivered
+    HookAck::Delivered.into()
 }
 
 pub struct ProgressState {

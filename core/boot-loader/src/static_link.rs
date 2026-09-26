@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::{BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
+use upac_abi::plugin::{BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 
 use super::BootPlugin;
 use super::error::BootPluginError;

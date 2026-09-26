@@ -6,11 +6,11 @@
 //! Proc-macro crate for UPAC. Each derive reflects over a struct's (or
 //! enum's) fields at compile time to generate boilerplate that would
 //! otherwise need `inline for (std.meta.fields)`-style manual maintenance:
+//!   CEnum          - TryFrom<uN>/From<Enum> for a #[repr(uN)] enum carried as its raw integer
 //!   CFree          - unsafe free() releasing every owned C-ABI buffer
 //!   CNew           - new(...) constructor, one param per field, struct_size computed
 //!   RustToC        - Rust domain type -> its C-ABI mirror (outbound)
 //!   CTryToRust     - C-ABI struct -> Rust domain type, fallible (inbound)
-//!   CToRust        - C-ABI struct -> Rust domain type, infallible (inbound)
 //!   CValidate      - unsafe validate() checking struct_size + every field
 //!   ContextValue   - Deref/DerefMut/From<T> for a single-field tuple struct
 //!   FromStageIndex - orchestrator stage index -> enum variant (by position)
@@ -24,9 +24,9 @@
 
 use proc_macro::TokenStream;
 
+mod c_enum;
 mod c_free;
 mod c_new;
-mod c_to_rust;
 mod c_try_to_rust;
 mod c_validate;
 mod common;
@@ -36,6 +36,11 @@ mod json_codec;
 mod redb_codec;
 mod rust_to_c;
 mod stage_key;
+
+#[proc_macro_derive(CEnum)]
+pub fn derive_c_enum(input: TokenStream) -> TokenStream {
+    c_enum::expand(input)
+}
 
 #[proc_macro_derive(CFree)]
 pub fn derive_cfree(input: TokenStream) -> TokenStream {
@@ -55,11 +60,6 @@ pub fn derive_rust_to_c(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CTryToRust)]
 pub fn derive_c_try_to_rust(input: TokenStream) -> TokenStream {
     c_try_to_rust::expand(input)
-}
-
-#[proc_macro_derive(CToRust)]
-pub fn derive_c_to_rust(input: TokenStream) -> TokenStream {
-    c_to_rust::expand(input)
 }
 
 #[proc_macro_derive(CValidate, attributes(optional, non_empty))]

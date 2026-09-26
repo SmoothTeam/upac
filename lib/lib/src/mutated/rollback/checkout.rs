@@ -42,7 +42,7 @@ impl Stage<RollbackError> for CheckoutStage {
             digest,
             &esp_mount,
             target,
-            plugin.boot_resource_kind(),
+            plugin.boot_resource_kind()?,
         )?;
 
         context.put(ResolvedBootEntry {

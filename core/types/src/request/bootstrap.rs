@@ -6,8 +6,8 @@
 use upac_abi::error::ErrorKind;
 use upac_abi::request::CRequestBase;
 use upac_abi::request::bootstrap::CSetupBootstrapRequest;
+use upac_abi::request::bootstrap::InitramfsGenerator;
 use upac_abi::types::{COwned, CSlice};
-use upac_abi::{FsKind, InitramfsGenerator};
 
 use upac_macro::{CTryToRust, RustToC};
 
@@ -20,9 +20,9 @@ pub struct SetupBootstrapRequest<'data> {
     pub disk: Option<&'data str>,
     pub esp_device: Option<&'data str>,
     pub deploy_device: Option<&'data str>,
-    pub deploy_fs: FsKind,
 
     pub mount_point: Option<&'data str>,
+    pub tmp_path: Option<&'data str>,
     pub source: &'data str,
     pub empty_config: bool,
     pub pinned: bool,

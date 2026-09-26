@@ -9,12 +9,12 @@ use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
-use upac_abi::{FileDiffKind, PackageDiffKind};
+use upac_abi::response::entry::{FileDiffKind, PackageDiffKind};
 
 use upac_types::request::unmutated::DiffRequest;
 use upac_types::response::entry::{DiffPackageEntry, DiffUntrackedFileEntry};
 
-use crate::commands::display::VersionDisplay;
+use crate::commands::display::{DiffSourceDisplay, VersionDisplay};
 use crate::types::{CommandContext, query, request_base};
 
 #[derive(ClapArgs)]
@@ -62,7 +62,12 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
             FileDiffKind::Modified => ("~".yellow().bold(), path.yellow()),
         };
 
-        println!("{} {} ({})", marker, colored_path.bold(), entry.source.as_str());
+        println!(
+            "{} {} ({})",
+            marker,
+            colored_path.bold(),
+            DiffSourceDisplay(entry.source)
+        );
     }
 
     Ok(())

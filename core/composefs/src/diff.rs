@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use composefs::tree::{Directory, FileSystem, Inode, Leaf, LeafContent, RegularFile};
 
-use upac_abi::FileDiffKind;
+use upac_abi::response::entry::FileDiffKind;
 
 use super::repository::ObjectID;
 

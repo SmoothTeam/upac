@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use upac_abi::hook::CancelToken;
-use upac_abi::{FileDiffKind, PackageDiffKind};
+use upac_abi::response::entry::{FileDiffKind, PackageDiffKind};
 
 use upac_types::hook::ProgressEventBuilder;
 use upac_types::package::{PackageMeta, Version};

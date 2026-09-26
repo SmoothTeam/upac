@@ -5,7 +5,8 @@
 
 use libloading::Library;
 
-use upac_abi::{DECODER_ABI_VERSION, DecodeFn, DecodePluginAbiVersionFn};
+use upac_abi::DECODER_ABI_VERSION;
+use upac_abi::plugin::{DecodeFn, DecodePluginAbiVersionFn};
 
 use super::DecoderPlugin;
 use super::error::DecoderError;

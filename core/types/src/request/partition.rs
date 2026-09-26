@@ -3,9 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::PartitionKind;
 use upac_abi::error::ErrorKind;
 use upac_abi::request::CRequestBase;
+use upac_abi::request::partition::PartitionKind;
 use upac_abi::request::partition::{CSetupPartitionAddRequest, CSetupPartitionTableRequest};
 use upac_abi::types::{COwned, CSlice};
 

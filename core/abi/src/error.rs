@@ -7,11 +7,12 @@ use std::ffi::FromBytesWithNulError;
 use std::mem::size_of;
 use std::str::Utf8Error;
 
-use upac_macro::CValidate;
+use upac_macro::{CEnum, CValidate};
 
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
 pub enum ErrorDomain {
+    Unknown,
     Uninstall,
     Install,
     Rollback,
@@ -40,21 +41,26 @@ pub enum ErrorDomain {
 }
 
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
 pub enum ErrorKind {
-    Unexpected,
-    OutOfMemory,
-    NotFound,
-    AlreadyExists,
-    PermissionDenied,
-    InvalidPath,
-    NoSpaceLeft,
-    Cancelled,
-    ReadFailed,
-    WriteFailed,
-    NotInitialized,
-    AbiMismatch,
-    InvalidEntry,
+    Unexpected = 1,
+    OutOfMemory = 2,
+    NotFound = 3,
+    AlreadyExists = 4,
+    PermissionDenied = 5,
+    InvalidPath = 6,
+    NoSpaceLeft = 7,
+    Cancelled = 8,
+    ReadFailed = 9,
+    WriteFailed = 10,
+    NotInitialized = 11,
+    AbiMismatch = 12,
+    InvalidEntry = 13,
+    NotAPartition = 14,
+    WrongPartitionType = 15,
+    UnsupportedFilesystem = 16,
+    ToolNotInstalled = 17,
+    ToolFailed = 18,
 }
 
 impl From<FromBytesWithNulError> for ErrorKind {
@@ -74,18 +80,18 @@ impl From<Utf8Error> for ErrorKind {
 pub struct CError {
     pub struct_size: usize,
 
-    pub domain: ErrorDomain,
+    pub domain: u32,
     pub state: u32,
-    pub kind: ErrorKind,
+    pub kind: u32,
 }
 
 impl Default for CError {
     fn default() -> Self {
         CError {
             struct_size: size_of::<CError>(),
-            domain: ErrorDomain::Uninstall,
+            domain: ErrorDomain::Unknown.into(),
             state: 0,
-            kind: ErrorKind::Unexpected,
+            kind: ErrorKind::Unexpected.into(),
         }
     }
 }

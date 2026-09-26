@@ -13,7 +13,7 @@ use upac_pki::signature::HookSignature;
 
 use upac_types::hook::ProgressEventBuilder;
 
-use upac_orchestrator::stage::{ConcurrentStage, StageResult};
+use upac_orchestrator::stage::{ConcurrentStage, RollbackGuard, StageResult};
 
 use super::error::HookError;
 use super::file::HookFile;
@@ -190,8 +190,6 @@ fn create_symlink_step_execute_and_rollback() {
 
 #[test]
 fn executed_steps_rollback_guard_unwinds_in_reverse_order() {
-    use upac_orchestrator::stage::RollbackGuard;
-
     let dir = scratch_dir("rollback-order");
     let a = dir.path().join("a");
     let b = dir.path().join("b");

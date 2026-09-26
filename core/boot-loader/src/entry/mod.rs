@@ -14,7 +14,7 @@ use composefs_boot::bootloader::{BootEntry, get_boot_resources};
 use composefs_boot::cmdline::ComposefsCmdline;
 use composefs_boot::write_boot::write_boot_simple;
 
-use upac_abi::BootResourceKind;
+use upac_abi::plugin::BootResourceKind;
 
 use upac_composefs::repository::ObjectID;
 

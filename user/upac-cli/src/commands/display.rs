@@ -9,6 +9,8 @@ use clap::{Args as ClapArgs, ValueEnum};
 use colored::Colorize;
 use strum::AsRefStr;
 
+use upac_abi::response::entry::DiffFileSource;
+
 use upac_types::package::PackageMeta;
 use upac_types::package::Version;
 
@@ -188,6 +190,17 @@ impl Display for VersionDisplay<'_> {
             write!(formatter, "{}:{}", version.epoch, version.raw)
         } else {
             write!(formatter, "{}", version.raw)
+        }
+    }
+}
+
+pub(crate) struct DiffSourceDisplay(pub DiffFileSource);
+
+impl Display for DiffSourceDisplay {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        match self.0 {
+            DiffFileSource::Prefix => write!(formatter, "prefix"),
+            DiffFileSource::Config => write!(formatter, "config"),
         }
     }
 }

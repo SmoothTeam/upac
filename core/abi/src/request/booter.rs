@@ -17,7 +17,7 @@ pub struct CBootPluginSetOneShotRequest {
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CBootPluginConfirmSuccsesBootRequest {
+pub struct CBootPluginConfirmSuccessBootRequest {
     pub struct_size: usize,
 
     pub entry_name: CSlice,

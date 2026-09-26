@@ -3,12 +3,17 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::ffi::c_void;
 use std::sync::atomic::{AtomicU8, Ordering};
+
+use upac_macro::CEnum;
 
 use crate::types::CSlice;
 
+pub type HookMessageFn = unsafe extern "C" fn(event: *const CProgressEvent, ctx: *mut c_void) -> u8;
+
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
 pub enum HookAck {
     Delivered = 0,
     Retry = 1,
@@ -18,7 +23,6 @@ pub enum HookAck {
 pub struct CProgressEvent {
     pub struct_size: usize,
     pub stage: u32,
-    pub phase: u32,
     pub subject: CSlice,
     pub current: u64,
     pub total: u64,
@@ -28,8 +32,6 @@ pub struct CProgressEvent {
 pub struct CancelToken {
     cancelled: AtomicU8,
 }
-
-unsafe impl Sync for CancelToken {}
 
 impl CancelToken {
     pub const fn new() -> Self {
@@ -55,11 +57,4 @@ impl Default for CancelToken {
     fn default() -> Self {
         Self::new()
     }
-}
-
-#[repr(C)]
-pub struct CHookPreInstall {
-    pub packages_count: u32,
-    pub required_space: u64,
-    pub free_space: u64,
 }

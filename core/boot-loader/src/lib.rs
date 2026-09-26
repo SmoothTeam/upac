@@ -3,16 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::mem::MaybeUninit;
-
 use upac_abi::error::ErrorKind;
+use upac_abi::plugin::{BootResourceKind, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 use upac_abi::request::booter::{
-    CBootPluginConfirmSuccsesBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
+    CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
-use upac_abi::{BootResourceKind, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 
 use upac_types::request::booter::{
-    BootPluginConfirmSuccsesBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
+    BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
 };
 
 use self::error::BootPluginError;
@@ -81,31 +79,33 @@ pub struct BootPlugin {
 }
 
 impl BootPlugin {
-    pub fn boot_resource_kind(&self) -> BootResourceKind {
-        unsafe { (self.boot_resource_kind)() }
+    pub fn boot_resource_kind(&self) -> Result<BootResourceKind, BootPluginError> {
+        let kind = unsafe { (self.boot_resource_kind)() };
+
+        BootResourceKind::try_from(kind).map_err(BootPluginError::Reported)
     }
 
     pub fn set_one_shot(&self, request: BootPluginSetOneShotRequest) -> Result<(), BootPluginError> {
         let request: CBootPluginSetOneShotRequest = request.into();
 
-        let mut error = MaybeUninit::<ErrorKind>::uninit();
-
-        let response_code = unsafe { (self.set_one_shot)(&request, error.as_mut_ptr()) };
+        let response_code = unsafe { (self.set_one_shot)(&request) };
         if response_code != 0 {
-            return Err(BootPluginError::Reported(unsafe { error.assume_init() }));
+            return Err(BootPluginError::Reported(
+                ErrorKind::try_from(response_code as u32).unwrap_or(ErrorKind::InvalidEntry),
+            ));
         }
 
         Ok(())
     }
 
-    pub fn confirm_boot(&self, request: BootPluginConfirmSuccsesBootRequest) -> Result<(), BootPluginError> {
-        let request: CBootPluginConfirmSuccsesBootRequest = request.into();
+    pub fn confirm_boot(&self, request: BootPluginConfirmSuccessBootRequest) -> Result<(), BootPluginError> {
+        let request: CBootPluginConfirmSuccessBootRequest = request.into();
 
-        let mut error = MaybeUninit::<ErrorKind>::uninit();
-
-        let response_code = unsafe { (self.confirm_boot)(&request, error.as_mut_ptr()) };
+        let response_code = unsafe { (self.confirm_boot)(&request) };
         if response_code != 0 {
-            return Err(BootPluginError::Reported(unsafe { error.assume_init() }));
+            return Err(BootPluginError::Reported(
+                ErrorKind::try_from(response_code as u32).unwrap_or(ErrorKind::InvalidEntry),
+            ));
         }
 
         Ok(())
@@ -114,11 +114,11 @@ impl BootPlugin {
     pub fn install(&self, request: BootPluginInstallRequest) -> Result<(), BootPluginError> {
         let request: CBootPluginInstallRequest = request.into();
 
-        let mut error = MaybeUninit::<ErrorKind>::uninit();
-
-        let response_code = unsafe { (self.install)(&request, error.as_mut_ptr()) };
+        let response_code = unsafe { (self.install)(&request) };
         if response_code != 0 {
-            return Err(BootPluginError::Reported(unsafe { error.assume_init() }));
+            return Err(BootPluginError::Reported(
+                ErrorKind::try_from(response_code as u32).unwrap_or(ErrorKind::InvalidEntry),
+            ));
         }
 
         Ok(())

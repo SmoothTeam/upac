@@ -17,7 +17,6 @@ fn event(stage: u32, current: u64, total: u64, subject: CSlice) -> CProgressEven
     CProgressEvent {
         struct_size: size_of::<CProgressEvent>(),
         stage,
-        phase: 0,
         subject,
         current,
         total,

@@ -124,6 +124,11 @@ fn error_kind_message(kind: ErrorKind) -> String {
         ErrorKind::NotInitialized => fl!(LOADER, "err-not-initialized"),
         ErrorKind::AbiMismatch => fl!(LOADER, "err-abi-mismatch"),
         ErrorKind::InvalidEntry => fl!(LOADER, "err-invalid-entry"),
+        ErrorKind::NotAPartition => fl!(LOADER, "err-not-a-partition"),
+        ErrorKind::WrongPartitionType => fl!(LOADER, "err-wrong-partition-type"),
+        ErrorKind::UnsupportedFilesystem => fl!(LOADER, "err-unsupported-filesystem"),
+        ErrorKind::ToolNotInstalled => fl!(LOADER, "err-tool-not-installed"),
+        ErrorKind::ToolFailed => fl!(LOADER, "err-tool-failed"),
     }
 }
 

@@ -9,7 +9,7 @@ use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
-use upac_abi::PackageDiffKind;
+use upac_abi::response::entry::PackageDiffKind;
 
 use upac_types::request::unmutated::DiffPackagesRequest;
 use upac_types::response::entry::DiffPackageEntry;

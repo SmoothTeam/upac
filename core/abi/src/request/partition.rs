@@ -3,12 +3,19 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::{CFree, CNew, CValidate};
+use upac_macro::{CEnum, CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
-use crate::PartitionKind;
 use crate::types::CSlice;
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
+pub enum PartitionKind {
+    Esp = 0,
+    Root = 1,
+    Linux = 2,
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
@@ -31,5 +38,5 @@ pub struct CSetupPartitionAddRequest {
     pub device_path: CSlice,
     pub label: CSlice,
     pub size_mib: u64,
-    pub kind: PartitionKind,
+    pub kind: u8,
 }
