@@ -318,7 +318,7 @@ impl FileHandle {
     }
 }
 
-pub(crate) fn stat_from_metadata(metadata: &Metadata) -> Stat {
+pub fn stat_from_metadata(metadata: &Metadata) -> Stat {
     Stat {
         st_mode: metadata.mode(),
         st_uid: metadata.uid(),
