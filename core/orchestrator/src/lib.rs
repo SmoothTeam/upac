@@ -3,236 +3,245 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::any::TypeId;
-use std::sync::Arc;
+use std::any::{Any, TypeId};
+use std::collections::HashSet;
 
-use tokio::runtime::Runtime;
-use tokio::task::JoinSet;
-
+use upac_abi::error::ErrorKind;
 use upac_abi::hook::CancelToken;
-use upac_types::hook::ProgressEventBuilder;
+
+use upac_types::traits::CommandState;
 
 use self::context::Context;
-use self::cursor::Cursor;
-use self::error::{OrchestratorError, PipelineError};
-use self::lock::Lock;
-use self::stage::{ConcurrentStage, Stage, StageResult};
+use self::error::PipelineError;
+use self::lock::{Lock, LockError};
+use self::orchestrator::Orchestrator;
+use self::pipeline::{EachStep, ParallelRunner, Step, StepKind};
+use self::progress::ProgressEventBuilder;
+use self::stage::Stage;
 
-mod cursor;
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
+mod orchestrator;
 
 pub mod context;
 pub mod error;
-pub mod fs;
 pub mod lock;
+pub mod pipeline;
+pub mod progress;
 pub mod stage;
-
-#[macro_export]
-macro_rules! run_mutating {
-    ($orchestrator:expr, $context:expr, $cancel:expr, $state:ty, $error:ty) => {
-        if $orchestrator.validate(&$context).is_err() {
-            Err((
-                <$state>::Setup,
-                <$error>::from($crate::error::PipelineError::PipelineInvalid),
-            ))
-        } else {
-            $orchestrator
-                .run_exclusive(&mut $context, $cancel)
-                .map_err(|failure| match failure {
-                    $crate::error::OrchestratorError::Setup(lock_error) => {
-                        (<$state>::Setup, <$error>::from(lock_error))
-                    }
-                    $crate::error::OrchestratorError::Stage(index, error) => (<$state>::from_stage_index(index), error),
-                })
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! run_unmutated {
-    ($orchestrator:expr, $context:expr, $cancel:expr, $state:ty, $error:ty, $($take:ty),+) => {
-        if $orchestrator.validate(&$context).is_err() {
-            Err((<$state>::Setup, <$error>::from($crate::error::PipelineError::PipelineInvalid)))
-        } else {
-            (|| {
-                $orchestrator
-                    .run_concurrent(&mut $context, $cancel)
-                    .map_err(|(index, error)| (<$state>::from_stage_index(index), error))?;
-
-                Ok(($(
-                    $context.take::<$take>().ok_or((
-                        <$state>::Setup,
-                        <$error>::from($crate::error::PipelineError::MissingResult),
-                    ))?,
-                )+))
-            })()
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! stages {
-    [$($stage:expr),+ $(,)?] => {
-        vec![$(Box::new($stage)),+]
-    };
-}
 
 pub type StagePipelineError = TypeId;
 
-pub trait Orchestrator<E>: Sized {
-    fn run_exclusive(self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>>;
-
-    fn run_concurrent(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)>;
+enum StartedStage<'run, E> {
+    Sequential(&'run dyn Stage<E>),
+    Parallel(&'run dyn ParallelRunner<E>),
 }
 
+impl<E> StartedStage<'_, E> {
+    fn rollback(&self, context: &mut Context) -> Result<(), ErrorKind> {
+        match self {
+            StartedStage::Sequential(stage) => stage.rollback(context),
+            StartedStage::Parallel(runner) => runner.rollback(),
+        }
+    }
+}
+
+pub trait OrchestratorRun<E: From<PipelineError> + 'static>: Orchestrator<E> + Sized {
+    fn run_mutating<S: CommandState>(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (S, E)>
+    where
+        E: From<LockError>,
+    {
+        self.validate(context)
+            .map_err(|_| (S::VALIDATION, E::from(PipelineError::PipelineInvalid)))?;
+
+        let _lock = Lock::acquire().map_err(|lock_error| (S::VALIDATION, E::from(lock_error)))?;
+
+        self.execute(context, cancel)
+            .map_err(|(index, error)| (S::from_stage_index(index), error))
+    }
+
+    fn run_unmutated<R: Any, S: CommandState>(self, context: &mut Context, cancel: &CancelToken) -> Result<R, (S, E)> {
+        let available = self
+            .validate(context)
+            .map_err(|_| (S::VALIDATION, E::from(PipelineError::PipelineInvalid)))?;
+
+        if !available.contains(&TypeId::of::<R>()) {
+            return Err((S::VALIDATION, PipelineError::PipelineInvalid.into()));
+        }
+
+        self.execute(context, cancel)
+            .map_err(|(index, error)| (S::from_stage_index(index), error))?;
+
+        context.take::<R>().map_err(|error| (S::VALIDATION, error.into()))
+    }
+}
+
+impl<E: From<PipelineError> + 'static, O: Orchestrator<E>> OrchestratorRun<E> for O {}
+
 pub struct SequentialOrchestrator<E> {
-    cursor: Cursor<E>,
+    steps: Vec<Step<E>>,
 }
 
 impl<E: 'static> SequentialOrchestrator<E> {
-    pub fn new(stages: Vec<Box<dyn Stage<E>>>) -> Self {
-        Self {
-            cursor: Cursor::new(stages),
-        }
-    }
-
-    pub fn validate(&self, context: &Context) -> Result<(), StagePipelineError> {
-        let mut available = context.type_ids();
-
-        for stage in self.cursor.stages() {
-            for required_stage in stage.requires() {
-                if !available.contains(&required_stage) {
-                    return Err(required_stage);
-                }
-            }
-
-            available.extend(stage.provides());
-        }
-
-        Ok(())
+    pub fn new(steps: Vec<Step<E>>) -> Self {
+        Self { steps }
     }
 }
 
 impl<E: From<PipelineError> + 'static> Orchestrator<E> for SequentialOrchestrator<E> {
-    fn run_exclusive(mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>> {
-        let _lock = Lock::acquire()?;
+    fn validate(&self, context: &Context) -> Result<HashSet<TypeId>, StagePipelineError> {
+        let mut available = context.type_ids();
 
-        Self::run(&mut self.cursor, context, cancel)?;
+        for step in &self.steps {
+            match &step.kind {
+                StepKind::Once(stage) => Self::validate_stage(stage.as_ref(), &mut available)?,
+                StepKind::Each(each) => {
+                    if !available.remove(&each.items_type) {
+                        return Err(each.items_type);
+                    }
+
+                    available.insert(each.item_type);
+
+                    for stage in &each.body {
+                        Self::validate_stage(stage.as_ref(), &mut available)?;
+                    }
+
+                    available.remove(&each.item_type);
+                }
+                StepKind::Parallel(parallel) => {
+                    if !available.remove(&parallel.items_type) {
+                        return Err(parallel.items_type);
+                    }
+                }
+            }
+        }
+
+        Ok(available)
+    }
+
+    fn execute(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
+        let mut started = Vec::new();
+
+        Self::run_steps(&self.steps, context, cancel, &mut started)
+            .map_err(|(index, error)| (index, Self::unwind(&started, context, error)))
+    }
+}
+
+impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
+    fn validate_stage(stage: &dyn Stage<E>, available: &mut HashSet<TypeId>) -> Result<(), StagePipelineError> {
+        for required in stage.requires() {
+            if !available.contains(&required) {
+                return Err(required);
+            }
+        }
+
+        available.extend(stage.provides());
 
         Ok(())
     }
 
-    fn run_concurrent(mut self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
-        Self::run(&mut self.cursor, context, cancel)
+    fn run_steps<'run>(
+        steps: &'run [Step<E>], context: &mut Context, cancel: &CancelToken, started: &mut Vec<StartedStage<'run, E>>,
+    ) -> Result<(), (usize, E)> {
+        let mut index = 0;
+
+        for step in steps {
+            match &step.kind {
+                StepKind::Once(stage) => {
+                    Self::check_cancel(cancel, index)?;
+                    started.push(StartedStage::Sequential(stage.as_ref()));
+
+                    let before = ProgressEventBuilder::new(index as u32);
+                    let progress = ProgressEventBuilder::new(index as u32);
+
+                    Self::run_stage(stage.as_ref(), context, cancel, before, progress)
+                        .map_err(|error| (index, error))?;
+                }
+                StepKind::Each(each) => Self::run_each(each, index, context, cancel, started)?,
+                StepKind::Parallel(parallel) => {
+                    Self::check_cancel(cancel, index)?;
+                    started.push(StartedStage::Parallel(parallel.runner.as_ref()));
+
+                    context.send_progress(&ProgressEventBuilder::new(index as u32));
+                    parallel
+                        .runner
+                        .run_all(context, cancel, index)
+                        .map_err(|error| (index, error))?;
+                }
+            }
+
+            index += step.stage_count();
+        }
+
+        Ok(())
     }
-}
 
-impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E>
-where
-    Self: Orchestrator<E>,
-{
-    fn run(cursor: &mut Cursor<E>, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
-        let mut previous = None;
+    fn run_each<'run>(
+        each: &'run EachStep<E>, first_index: usize, context: &mut Context, cancel: &CancelToken,
+        started: &mut Vec<StartedStage<'run, E>>,
+    ) -> Result<(), (usize, E)> {
+        let items = (each.take_items)(context).unwrap_or_default();
+        let total = items.len() as u64;
+        let mut body_started = vec![false; each.body.len()];
 
-        while let Some(index) = cursor.next(context, cancel, previous.take())? {
-            previous = Some(Self::run_stage(
-                cursor.stages()[index].as_ref(),
-                index,
-                context,
-                cancel,
-            )?);
+        for (position, item) in items.into_iter().enumerate() {
+            context.put_boxed(each.item_type, item);
+
+            for (offset, stage) in each.body.iter().enumerate() {
+                let index = first_index + offset;
+                Self::check_cancel(cancel, index)?;
+
+                if !body_started[offset] {
+                    body_started[offset] = true;
+                    started.push(StartedStage::Sequential(stage.as_ref()));
+                }
+
+                let before = ProgressEventBuilder::new(index as u32).progress(position as u64, total);
+                let progress = ProgressEventBuilder::new(index as u32).progress(position as u64 + 1, total);
+
+                Self::run_stage(stage.as_ref(), context, cancel, before, progress).map_err(|error| (index, error))?;
+            }
+
+            context.discard(each.item_type);
         }
 
         Ok(())
     }
 
     fn run_stage(
-        stage: &dyn Stage<E>, index: usize, context: &mut Context, cancel: &CancelToken,
-    ) -> Result<StageResult, (usize, E)> {
-        context.send_progress(&ProgressEventBuilder::new(index as u32));
+        stage: &dyn Stage<E>, context: &mut Context, cancel: &CancelToken, before: ProgressEventBuilder,
+        progress: ProgressEventBuilder,
+    ) -> Result<(), E> {
+        context.send_progress(&before);
 
-        let progress = ProgressEventBuilder::new(index as u32);
-
-        let (progress, result, guard) = match stage.run(context, cancel, progress) {
-            Ok(outcome) => outcome,
-            Err(error) => {
-                context.unwind();
-                return Err((index, error));
-            }
-        };
-
+        let progress = stage.run(context, cancel, progress)?;
         context.send_progress(&progress);
-        context.rollback.push(guard);
-
-        Ok(result)
-    }
-}
-
-pub struct ParallelOrchestrator<E> {
-    stages: Vec<Box<dyn ConcurrentStage<E>>>,
-    runtime: Arc<Runtime>,
-}
-
-impl<E: 'static> ParallelOrchestrator<E> {
-    pub fn new(stages: Vec<Box<dyn ConcurrentStage<E>>>, runtime: Arc<Runtime>) -> Self {
-        Self { stages, runtime }
-    }
-}
-
-impl<E: From<PipelineError> + Send + 'static> Orchestrator<E> for ParallelOrchestrator<E> {
-    fn run_exclusive(self, context: &mut Context, cancel: &CancelToken) -> Result<(), OrchestratorError<E>> {
-        let _lock = Lock::acquire()?;
-
-        Self::run_parallel(self.stages, &self.runtime, context, cancel)?;
 
         Ok(())
     }
 
-    fn run_concurrent(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
-        Self::run_parallel(self.stages, &self.runtime, context, cancel)
-    }
-}
-
-impl<E: From<PipelineError> + Send + 'static> ParallelOrchestrator<E>
-where
-    Self: Orchestrator<E>,
-{
-    fn run_parallel(
-        stages: Vec<Box<dyn ConcurrentStage<E>>>, runtime: &Runtime, context: &mut Context, cancel: &CancelToken,
-    ) -> Result<(), (usize, E)> {
+    fn check_cancel(cancel: &CancelToken, index: usize) -> Result<(), (usize, E)> {
         if cancel.is_cancelled() {
-            return Err((0, PipelineError::Cancelled.into()));
+            return Err((index, PipelineError::Cancelled.into()));
         }
 
-        runtime.block_on(Self::run_batch(stages, context))
+        Ok(())
     }
 
-    async fn run_batch(stages: Vec<Box<dyn ConcurrentStage<E>>>, context: &mut Context) -> Result<(), (usize, E)> {
-        let mut set = JoinSet::new();
+    fn unwind(started: &[StartedStage<'_, E>], context: &mut Context, error: E) -> E {
+        let mut rollback_failed = false;
 
-        for stage in stages {
-            set.spawn_blocking(move || stage.run(ProgressEventBuilder::new(0)));
-        }
-
-        while let Some(outcome) = set.join_next().await {
-            match outcome {
-                Ok(Ok((progress, _result, guard))) => {
-                    context.send_progress(&progress);
-                    context.rollback.push(guard);
-                }
-                Ok(Err(error)) => {
-                    context.unwind();
-                    return Err((0, error));
-                }
-                Err(_) => {
-                    context.unwind();
-                    return Err((0, PipelineError::StagePanicked.into()));
-                }
+        for stage in started.iter().rev() {
+            if stage.rollback(context).is_err() {
+                rollback_failed = true;
             }
         }
 
-        Ok(())
+        if rollback_failed {
+            return PipelineError::RollbackFailed.into();
+        }
+
+        error
     }
 }

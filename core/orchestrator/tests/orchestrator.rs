@@ -7,15 +7,19 @@ use std::any::TypeId;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use upac_abi::error::ErrorKind;
+use upac_abi::error::{ErrorDomain, ErrorKind};
 use upac_abi::hook::CancelToken;
-use upac_orchestrator::context::Context;
-use upac_orchestrator::error::{OrchestratorError, PipelineError};
-use upac_orchestrator::lock::LockError;
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator};
 
-use upac_types::hook::ProgressEventBuilder;
+use upac_types::traits::CommandState;
+
+use upac_orchestrator::context::Context;
+use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::pipeline::Step;
+use upac_orchestrator::progress::ProgressEventBuilder;
+use upac_orchestrator::stage::{ParallelStage, Stage};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
+
+type Log = Arc<Mutex<Vec<String>>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TestError {
@@ -29,377 +33,772 @@ impl From<PipelineError> for TestError {
     }
 }
 
-struct TrackingGuard {
-    label: &'static str,
-    rolled_back: Arc<Mutex<Vec<&'static str>>>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TestState {
+    Validation,
+    Stage(usize),
 }
 
-impl RollbackGuard for TrackingGuard {
-    fn rollback(&mut self) -> Result<(), ErrorKind> {
-        self.rolled_back.lock().unwrap().push(self.label);
-        Ok(())
+impl CommandState for TestState {
+    const DOMAIN: ErrorDomain = ErrorDomain::Unknown;
+    const VALIDATION: Self = TestState::Validation;
+
+    fn as_u32(self) -> u32 {
+        match self {
+            TestState::Validation => 0,
+            TestState::Stage(index) => index as u32 + 1,
+        }
+    }
+
+    fn from_stage_index(index: usize) -> Self {
+        TestState::Stage(index)
+    }
+}
+
+struct Done;
+
+struct FinishStage;
+
+impl Stage<TestError> for FinishStage {
+    fn provides(&self) -> Vec<TypeId> {
+        vec![TypeId::of::<Done>()]
+    }
+
+    fn run(
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        context.put(Done);
+
+        Ok(progress)
     }
 }
 
 struct RecordingStage {
     label: &'static str,
-    ran: Arc<Mutex<Vec<&'static str>>>,
-    rolled_back: Arc<Mutex<Vec<&'static str>>>,
+    log: Log,
 }
 
 impl Stage<TestError> for RecordingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        self.ran.lock().unwrap().push(self.label);
+    ) -> Result<ProgressEventBuilder, TestError> {
+        self.log.lock().unwrap().push(format!("run:{}", self.label));
 
-        Ok((
-            progress,
-            StageResult::Advance,
-            Box::new(TrackingGuard {
-                label: self.label,
-                rolled_back: Arc::clone(&self.rolled_back),
-            }),
-        ))
+        Ok(progress)
+    }
+
+    fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
+        self.log.lock().unwrap().push(format!("rollback:{}", self.label));
+
+        Ok(())
     }
 }
 
 struct FailingStage {
     label: &'static str,
+    log: Log,
 }
 
 impl Stage<TestError> for FailingStage {
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
+    ) -> Result<ProgressEventBuilder, TestError> {
+        self.log.lock().unwrap().push(format!("run:{}", self.label));
+
         Err(TestError::Stage(self.label))
     }
-}
 
-struct MarkerStage {
-    ran: Arc<Mutex<Vec<&'static str>>>,
-}
+    fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
+        self.log.lock().unwrap().push(format!("rollback:{}", self.label));
 
-impl Stage<TestError> for MarkerStage {
-    fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        self.ran.lock().unwrap().push("a");
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }
 
-struct RepeatBackToMarkerStage {
-    attempts: AtomicUsize,
-    ran: Arc<Mutex<Vec<&'static str>>>,
+struct ItemRecordingStage {
+    label: &'static str,
+    log: Log,
 }
 
-impl Stage<TestError> for RepeatBackToMarkerStage {
+impl Stage<TestError> for ItemRecordingStage {
+    fn requires(&self) -> Vec<TypeId> {
+        vec![TypeId::of::<u32>()]
+    }
+
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        self.ran.lock().unwrap().push("b");
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        let item = context.get::<u32>()?;
+        self.log.lock().unwrap().push(format!("{}:{item}", self.label));
 
-        let result = if self.attempts.fetch_add(1, Ordering::SeqCst) == 0 {
-            StageResult::RepeatBack(TypeId::of::<MarkerStage>())
-        } else {
-            StageResult::Advance
-        };
+        Ok(progress)
+    }
 
-        Ok((progress, result, Box::new(NoRollback)))
+    fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
+        self.log.lock().unwrap().push(format!("rollback:{}", self.label));
+
+        Ok(())
     }
 }
 
-struct ProvidesMarker;
+struct FailOnItemStage {
+    fail_on: u32,
+    log: Log,
+}
 
-struct ProvidesStage;
+impl Stage<TestError> for FailOnItemStage {
+    fn requires(&self) -> Vec<TypeId> {
+        vec![TypeId::of::<u32>()]
+    }
 
-impl Stage<TestError> for ProvidesStage {
+    fn run(
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        let item = *context.get::<u32>()?;
+
+        if item == self.fail_on {
+            return Err(TestError::Stage("fail-on-item"));
+        }
+
+        Ok(progress)
+    }
+
+    fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
+        self.log.lock().unwrap().push("rollback:fail-on-item".to_owned());
+
+        Ok(())
+    }
+}
+
+struct PushingStage;
+
+impl Stage<TestError> for PushingStage {
+    fn requires(&self) -> Vec<TypeId> {
+        vec![TypeId::of::<u32>()]
+    }
+
     fn provides(&self) -> Vec<TypeId> {
-        vec![TypeId::of::<ProvidesMarker>()]
+        vec![TypeId::of::<Vec<u64>>()]
     }
 
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        let item = *context.get::<u32>()?;
+        context.push(u64::from(item) * 10);
+
+        Ok(progress)
     }
 }
 
-struct RequiresMarkerStage;
+struct WideItemRecordingStage {
+    log: Log,
+}
+
+impl Stage<TestError> for WideItemRecordingStage {
+    fn requires(&self) -> Vec<TypeId> {
+        vec![TypeId::of::<u64>()]
+    }
+
+    fn run(
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        let item = context.get::<u64>()?;
+        self.log.lock().unwrap().push(format!("wide:{item}"));
+
+        Ok(progress)
+    }
+}
+
+struct CancellingStage;
+
+impl Stage<TestError> for CancellingStage {
+    fn run(
+        &self, _context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        cancel.cancel();
+
+        Ok(progress)
+    }
+}
+
+struct BrokenRollbackStage;
+
+impl Stage<TestError> for BrokenRollbackStage {
+    fn run(
+        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        Ok(progress)
+    }
+
+    fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
+        Err(ErrorKind::WriteFailed)
+    }
+}
+
+struct Marker;
+
+struct ProvidesMarkerStage;
+
+impl Stage<TestError> for ProvidesMarkerStage {
+    fn provides(&self) -> Vec<TypeId> {
+        vec![TypeId::of::<Marker>()]
+    }
+
+    fn run(
+        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        context.put(Marker);
+
+        Ok(progress)
+    }
+}
+
+struct RequiresMarkerStage {
+    log: Log,
+}
 
 impl Stage<TestError> for RequiresMarkerStage {
     fn requires(&self) -> Vec<TypeId> {
-        vec![TypeId::of::<ProvidesMarker>()]
+        vec![TypeId::of::<Marker>()]
     }
 
     fn run(
         &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+    ) -> Result<ProgressEventBuilder, TestError> {
+        self.log.lock().unwrap().push("run:requires-marker".to_owned());
+
+        Ok(progress)
     }
 }
 
-#[test]
-fn run_concurrent_runs_all_stages_in_declaration_order() {
-    let ran = Arc::new(Mutex::new(Vec::new()));
-    let rolled_back = Arc::new(Mutex::new(Vec::new()));
+struct ParallelRecordingStage {
+    seen: Arc<Mutex<Vec<u32>>>,
+    rolled_back: Arc<AtomicUsize>,
+}
 
-    let orchestrator: SequentialOrchestrator<TestError> = SequentialOrchestrator::new(vec![
-        Box::new(RecordingStage {
-            label: "a",
-            ran: Arc::clone(&ran),
-            rolled_back: Arc::clone(&rolled_back),
-        }),
-        Box::new(RecordingStage {
-            label: "b",
-            ran: Arc::clone(&ran),
-            rolled_back: Arc::clone(&rolled_back),
-        }),
-    ]);
-    let mut context = Context::new();
-    let cancel = CancelToken::new();
+impl ParallelStage<TestError, u32> for ParallelRecordingStage {
+    fn run(
+        &self, item: u32, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        self.seen.lock().unwrap().push(item);
 
-    let result = orchestrator.run_concurrent(&mut context, &cancel);
+        Ok(progress)
+    }
 
-    assert_eq!(result, Ok(()));
-    assert_eq!(*ran.lock().unwrap(), vec!["a", "b"]);
+    fn rollback(&self) -> Result<(), ErrorKind> {
+        self.rolled_back.fetch_add(1, Ordering::SeqCst);
+
+        Ok(())
+    }
+}
+
+struct ParallelFailingStage {
+    fail_on: u32,
+    rolled_back: Arc<AtomicUsize>,
+}
+
+impl ParallelStage<TestError, u32> for ParallelFailingStage {
+    fn run(
+        &self, item: u32, _cancel: &CancelToken, progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        if item == self.fail_on {
+            return Err(TestError::Stage("parallel"));
+        }
+
+        Ok(progress)
+    }
+
+    fn rollback(&self) -> Result<(), ErrorKind> {
+        self.rolled_back.fetch_add(1, Ordering::SeqCst);
+
+        Ok(())
+    }
+}
+
+struct ParallelPanickingStage;
+
+impl ParallelStage<TestError, u32> for ParallelPanickingStage {
+    fn run(
+        &self, _item: u32, _cancel: &CancelToken, _progress: ProgressEventBuilder,
+    ) -> Result<ProgressEventBuilder, TestError> {
+        panic!("parallel stage panicked on purpose");
+    }
+}
+
+fn new_log() -> Log {
+    Arc::new(Mutex::new(Vec::new()))
+}
+
+fn logged(log: &Log) -> Vec<String> {
+    log.lock().unwrap().clone()
+}
+
+fn run(
+    mut steps: Vec<Step<TestError>>, context: &mut Context, cancel: &CancelToken,
+) -> Result<Done, (TestState, TestError)> {
+    steps.push(Step::once(Box::new(FinishStage)));
+
+    SequentialOrchestrator::new(steps).run_unmutated(context, cancel)
 }
 
 #[test]
-fn run_concurrent_stops_and_unwinds_previous_stages_in_reverse_order_on_failure() {
-    let ran = Arc::new(Mutex::new(Vec::new()));
-    let rolled_back = Arc::new(Mutex::new(Vec::new()));
+fn once_stages_run_in_declaration_order() {
+    let log = new_log();
 
-    let orchestrator: SequentialOrchestrator<TestError> = SequentialOrchestrator::new(vec![
-        Box::new(RecordingStage {
+    let steps = stages![
+        RecordingStage {
             label: "a",
-            ran: Arc::clone(&ran),
-            rolled_back: Arc::clone(&rolled_back),
-        }),
-        Box::new(RecordingStage {
+            log: Arc::clone(&log)
+        },
+        RecordingStage {
             label: "b",
-            ran: Arc::clone(&ran),
-            rolled_back: Arc::clone(&rolled_back),
-        }),
-        Box::new(FailingStage { label: "c" }),
-    ]);
-    let mut context = Context::new();
-    let cancel = CancelToken::new();
+            log: Arc::clone(&log)
+        },
+    ];
 
-    let result = orchestrator.run_concurrent(&mut context, &cancel);
-
-    assert_eq!(result, Err((2, TestError::Stage("c"))));
-    assert_eq!(*ran.lock().unwrap(), vec!["a", "b"]);
-    assert_eq!(*rolled_back.lock().unwrap(), vec!["b", "a"]);
+    assert!(run(steps, &mut Context::default(), &CancelToken::new()).is_ok());
+    assert_eq!(logged(&log), vec!["run:a", "run:b"]);
 }
 
 #[test]
-fn run_concurrent_returns_cancelled_error_when_cancel_requested_before_start() {
-    let ran = Arc::new(Mutex::new(Vec::new()));
-    let rolled_back = Arc::new(Mutex::new(Vec::new()));
+fn a_failure_rolls_back_every_started_stage_in_reverse_order_including_the_failing_one() {
+    let log = new_log();
 
-    let orchestrator: SequentialOrchestrator<TestError> = SequentialOrchestrator::new(vec![Box::new(RecordingStage {
-        label: "a",
-        ran: Arc::clone(&ran),
-        rolled_back: Arc::clone(&rolled_back),
-    })]);
-    let mut context = Context::new();
+    let steps = stages![
+        RecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        FailingStage {
+            label: "fail",
+            log: Arc::clone(&log)
+        },
+        RecordingStage {
+            label: "c",
+            log: Arc::clone(&log)
+        },
+    ];
+
+    let result = run(steps, &mut Context::default(), &CancelToken::new());
+
+    assert_eq!(result.err(), Some((TestState::Stage(1), TestError::Stage("fail"))));
+    assert_eq!(logged(&log), vec!["run:a", "run:fail", "rollback:fail", "rollback:a"]);
+}
+
+#[test]
+fn cancelling_before_the_first_stage_runs_nothing() {
+    let log = new_log();
     let cancel = CancelToken::new();
     cancel.cancel();
 
-    let result = orchestrator.run_concurrent(&mut context, &cancel);
+    let steps = stages![RecordingStage {
+        label: "a",
+        log: Arc::clone(&log)
+    }];
 
-    assert_eq!(result, Err((0, TestError::Pipeline(PipelineError::Cancelled))));
-    assert!(ran.lock().unwrap().is_empty());
+    let result = run(steps, &mut Context::default(), &cancel);
+
+    assert_eq!(
+        result.err(),
+        Some((TestState::Stage(0), TestError::Pipeline(PipelineError::Cancelled)))
+    );
+    assert!(logged(&log).is_empty());
 }
 
 #[test]
-fn run_concurrent_jumps_back_to_matching_stage_type_on_repeat_back() {
-    let ran = Arc::new(Mutex::new(Vec::new()));
+fn cancelling_between_stages_stops_before_the_next_stage_and_rolls_back() {
+    let log = new_log();
 
-    let orchestrator: SequentialOrchestrator<TestError> = SequentialOrchestrator::new(vec![
-        Box::new(MarkerStage { ran: Arc::clone(&ran) }),
-        Box::new(RepeatBackToMarkerStage {
-            attempts: AtomicUsize::new(0),
-            ran: Arc::clone(&ran),
+    let steps = stages![
+        RecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        CancellingStage,
+        RecordingStage {
+            label: "c",
+            log: Arc::clone(&log)
+        },
+    ];
+
+    let result = run(steps, &mut Context::default(), &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((TestState::Stage(2), TestError::Pipeline(PipelineError::Cancelled)))
+    );
+    assert_eq!(logged(&log), vec!["run:a", "rollback:a"]);
+}
+
+#[test]
+fn a_failed_rollback_replaces_the_stage_error_and_still_unwinds_the_rest() {
+    let log = new_log();
+
+    let steps = stages![
+        RecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        BrokenRollbackStage,
+        FailingStage {
+            label: "fail",
+            log: Arc::clone(&log)
+        },
+    ];
+
+    let result = run(steps, &mut Context::default(), &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((TestState::Stage(2), TestError::Pipeline(PipelineError::RollbackFailed)))
+    );
+    assert_eq!(logged(&log), vec!["run:a", "run:fail", "rollback:fail", "rollback:a"]);
+}
+
+#[test]
+fn each_runs_its_body_for_every_item_in_order() {
+    let log = new_log();
+    let mut context = Context::default();
+    context.put(vec![1u32, 2]);
+
+    let steps = stages![each::<u32>(
+        ItemRecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        ItemRecordingStage {
+            label: "b",
+            log: Arc::clone(&log)
+        },
+    )];
+
+    assert!(run(steps, &mut context, &CancelToken::new()).is_ok());
+    assert_eq!(logged(&log), vec!["a:1", "b:1", "a:2", "b:2"]);
+}
+
+#[test]
+fn each_takes_the_list_and_leaves_no_item_behind() {
+    let mut context = Context::default();
+    context.put(vec![1u32, 2]);
+
+    let steps = stages![each::<u32>(ItemRecordingStage {
+        label: "a",
+        log: new_log()
+    })];
+
+    assert!(run(steps, &mut context, &CancelToken::new()).is_ok());
+    assert!(context.get::<Vec<u32>>().is_err());
+    assert!(context.get::<u32>().is_err());
+}
+
+#[test]
+fn each_over_an_empty_list_runs_nothing() {
+    let log = new_log();
+    let mut context = Context::default();
+    context.put(Vec::<u32>::new());
+
+    let steps = stages![each::<u32>(ItemRecordingStage {
+        label: "a",
+        log: Arc::clone(&log)
+    })];
+
+    assert!(run(steps, &mut context, &CancelToken::new()).is_ok());
+    assert!(logged(&log).is_empty());
+}
+
+#[test]
+fn stages_inside_each_keep_flat_indices() {
+    let log = new_log();
+    let mut context = Context::default();
+    context.put(vec![1u32, 2]);
+
+    let steps = stages![
+        RecordingStage {
+            label: "x",
+            log: Arc::clone(&log)
+        },
+        each::<u32>(
+            ItemRecordingStage {
+                label: "a",
+                log: Arc::clone(&log)
+            },
+            FailOnItemStage {
+                fail_on: 2,
+                log: Arc::clone(&log)
+            },
+        ),
+    ];
+
+    let result = run(steps, &mut context, &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((TestState::Stage(2), TestError::Stage("fail-on-item")))
+    );
+}
+
+#[test]
+fn each_rolls_back_every_started_body_stage_once() {
+    let log = new_log();
+    let mut context = Context::default();
+    context.put(vec![1u32, 2, 3]);
+
+    let steps = stages![each::<u32>(
+        ItemRecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        FailOnItemStage {
+            fail_on: 2,
+            log: Arc::clone(&log)
+        },
+    )];
+
+    assert!(run(steps, &mut context, &CancelToken::new()).is_err());
+    assert_eq!(logged(&log), vec!["a:1", "a:2", "rollback:fail-on-item", "rollback:a"]);
+}
+
+#[test]
+fn pushed_results_feed_the_next_each() {
+    let log = new_log();
+    let mut context = Context::default();
+    context.put(vec![1u32, 2]);
+
+    let steps = stages![
+        each::<u32>(PushingStage),
+        each::<u64>(WideItemRecordingStage { log: Arc::clone(&log) }),
+    ];
+
+    assert!(run(steps, &mut context, &CancelToken::new()).is_ok());
+    assert_eq!(logged(&log), vec!["wide:10", "wide:20"]);
+}
+
+#[test]
+fn each_without_its_list_is_rejected_before_anything_runs() {
+    let log = new_log();
+
+    let steps = stages![
+        RecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        each::<u32>(ItemRecordingStage {
+            label: "b",
+            log: Arc::clone(&log)
         }),
-    ]);
-    let mut context = Context::new();
-    let cancel = CancelToken::new();
+    ];
 
-    let result = orchestrator.run_concurrent(&mut context, &cancel);
+    let result = run(steps, &mut Context::default(), &CancelToken::new());
 
-    assert_eq!(result, Ok(()));
-    assert_eq!(*ran.lock().unwrap(), vec!["a", "b", "a", "b"]);
+    assert_eq!(
+        result.err(),
+        Some((
+            TestState::Validation,
+            TestError::Pipeline(PipelineError::PipelineInvalid)
+        ))
+    );
+    assert!(logged(&log).is_empty());
 }
 
 #[test]
-fn validate_fails_when_required_dependency_is_never_provided() {
-    let orchestrator: SequentialOrchestrator<TestError> =
-        SequentialOrchestrator::new(vec![Box::new(RequiresMarkerStage)]);
-    let context = Context::new();
+fn the_item_is_not_available_after_its_each() {
+    let mut context = Context::default();
+    context.put(vec![1u32]);
 
-    assert_eq!(orchestrator.validate(&context), Err(TypeId::of::<ProvidesMarker>()));
+    let steps = stages![
+        each::<u32>(ItemRecordingStage {
+            label: "a",
+            log: new_log()
+        }),
+        ItemRecordingStage {
+            label: "b",
+            log: new_log()
+        },
+    ];
+
+    let result = run(steps, &mut context, &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((
+            TestState::Validation,
+            TestError::Pipeline(PipelineError::PipelineInvalid)
+        ))
+    );
 }
 
 #[test]
-fn validate_passes_when_earlier_stage_provides_the_dependency() {
-    let orchestrator: SequentialOrchestrator<TestError> =
-        SequentialOrchestrator::new(vec![Box::new(ProvidesStage), Box::new(RequiresMarkerStage)]);
-    let context = Context::new();
+fn a_requirement_nobody_provides_is_rejected_before_anything_runs() {
+    let log = new_log();
 
-    assert!(orchestrator.validate(&context).is_ok());
+    let steps = stages![
+        RecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        RequiresMarkerStage { log: Arc::clone(&log) },
+    ];
+
+    let result = run(steps, &mut Context::default(), &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((
+            TestState::Validation,
+            TestError::Pipeline(PipelineError::PipelineInvalid)
+        ))
+    );
+    assert!(logged(&log).is_empty());
 }
 
 #[test]
-fn validate_passes_when_context_already_holds_the_dependency() {
-    let orchestrator: SequentialOrchestrator<TestError> =
-        SequentialOrchestrator::new(vec![Box::new(RequiresMarkerStage)]);
-    let mut context = Context::new();
-    context.put(ProvidesMarker);
+fn a_requirement_provided_by_an_earlier_stage_passes() {
+    let log = new_log();
 
-    assert!(orchestrator.validate(&context).is_ok());
+    let steps = stages![ProvidesMarkerStage, RequiresMarkerStage { log: Arc::clone(&log) }];
+
+    assert!(run(steps, &mut Context::default(), &CancelToken::new()).is_ok());
+    assert_eq!(logged(&log), vec!["run:requires-marker"]);
+}
+
+#[test]
+fn a_requirement_already_in_the_context_passes() {
+    let log = new_log();
+    let mut context = Context::default();
+    context.put(Marker);
+
+    let steps = stages![RequiresMarkerStage { log: Arc::clone(&log) }];
+
+    assert!(run(steps, &mut context, &CancelToken::new()).is_ok());
+}
+
+#[test]
+fn run_unmutated_rejects_a_pipeline_that_never_provides_the_result() {
+    let log = new_log();
+    let orchestrator = SequentialOrchestrator::new(stages![RecordingStage {
+        label: "a",
+        log: Arc::clone(&log)
+    }]);
+
+    let result = orchestrator.run_unmutated::<Done, TestState>(&mut Context::default(), &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((
+            TestState::Validation,
+            TestError::Pipeline(PipelineError::PipelineInvalid)
+        ))
+    );
+    assert!(logged(&log).is_empty());
+}
+
+#[test]
+fn parallel_runs_the_stage_on_every_item() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let mut context = Context::default();
+    context.put(vec![1u32, 2, 3]);
+
+    let steps = stages![parallel::<u32>(ParallelRecordingStage {
+        seen: Arc::clone(&seen),
+        rolled_back: Arc::new(AtomicUsize::new(0)),
+    })];
+
+    assert!(run(steps, &mut context, &CancelToken::new()).is_ok());
+
+    let mut seen = seen.lock().unwrap().clone();
+    seen.sort();
+    assert_eq!(seen, vec![1, 2, 3]);
+}
+
+#[test]
+fn a_parallel_failure_rolls_back_the_parallel_stage_and_the_stages_before_it() {
+    let log = new_log();
+    let rolled_back = Arc::new(AtomicUsize::new(0));
+    let mut context = Context::default();
+    context.put(vec![1u32, 2, 3]);
+
+    let steps = stages![
+        RecordingStage {
+            label: "a",
+            log: Arc::clone(&log)
+        },
+        parallel::<u32>(ParallelFailingStage {
+            fail_on: 2,
+            rolled_back: Arc::clone(&rolled_back),
+        }),
+    ];
+
+    let result = run(steps, &mut context, &CancelToken::new());
+
+    assert_eq!(result.err(), Some((TestState::Stage(1), TestError::Stage("parallel"))));
+    assert_eq!(rolled_back.load(Ordering::SeqCst), 1);
+    assert_eq!(logged(&log), vec!["run:a", "rollback:a"]);
+}
+
+#[test]
+fn a_parallel_panic_is_reported_as_stage_panicked() {
+    let mut context = Context::default();
+    context.put(vec![1u32]);
+
+    let steps = stages![parallel::<u32>(ParallelPanickingStage)];
+
+    let result = run(steps, &mut context, &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((TestState::Stage(0), TestError::Pipeline(PipelineError::StagePanicked)))
+    );
+}
+
+#[test]
+fn parallel_without_its_list_is_rejected_before_anything_runs() {
+    let steps = stages![parallel::<u32>(ParallelPanickingStage)];
+
+    let result = run(steps, &mut Context::default(), &CancelToken::new());
+
+    assert_eq!(
+        result.err(),
+        Some((
+            TestState::Validation,
+            TestError::Pipeline(PipelineError::PipelineInvalid)
+        ))
+    );
 }
 
 #[test]
 fn context_put_get_take_round_trip() {
-    let mut context = Context::new();
+    let mut context = Context::default();
     context.put(42u32);
 
-    assert_eq!(context.get::<u32>(), Some(&42));
-    assert_eq!(context.take::<u32>(), Some(42));
-    assert_eq!(context.get::<u32>(), None);
+    assert_eq!(context.get::<u32>(), Ok(&42));
+    assert_eq!(context.take::<u32>(), Ok(42));
+    assert_eq!(context.get::<u32>(), Err(PipelineError::MissingResult));
 }
 
 #[test]
-fn context_runtime_is_lazily_created_and_reused() {
-    let mut context = Context::new();
+fn context_push_collects_values_into_a_list() {
+    let mut context = Context::default();
+    context.push(1u32);
+    context.push(2u32);
 
-    let first = context.runtime().unwrap();
-    let second = context.runtime().unwrap();
-
-    assert!(Arc::ptr_eq(&first, &second));
-}
-
-struct RepeatNTimesStage {
-    repeat_count: usize,
-    attempts: Arc<Mutex<usize>>,
-}
-
-impl Stage<TestError> for RepeatNTimesStage {
-    fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        let mut attempts = self.attempts.lock().unwrap();
-        *attempts += 1;
-
-        let result = if *attempts <= self.repeat_count {
-            StageResult::Repeat
-        } else {
-            StageResult::Advance
-        };
-
-        Ok((progress, result, Box::new(NoRollback)))
-    }
+    assert_eq!(context.get::<Vec<u32>>(), Ok(&vec![1, 2]));
 }
 
 #[test]
-fn run_concurrent_repeats_the_same_stage_until_it_advances() {
-    let attempts = Arc::new(Mutex::new(0));
+fn replace_returns_the_value_it_overwrites() {
+    let mut context = Context::default();
+    context.put(1u32);
 
-    let orchestrator: SequentialOrchestrator<TestError> =
-        SequentialOrchestrator::new(vec![Box::new(RepeatNTimesStage {
-            repeat_count: 3,
-            attempts: Arc::clone(&attempts),
-        })]);
-    let mut context = Context::new();
-    let cancel = CancelToken::new();
-
-    let result = orchestrator.run_concurrent(&mut context, &cancel);
-
-    assert_eq!(result, Ok(()));
-    assert_eq!(*attempts.lock().unwrap(), 4);
+    assert_eq!(context.replace(2u32), Some(1));
+    assert_eq!(context.get::<u32>(), Ok(&2));
 }
 
-struct NeverRunStage;
-
-struct RepeatBackToUnreachedStage;
-
-impl Stage<TestError> for RepeatBackToUnreachedStage {
-    fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        Ok((
-            progress,
-            StageResult::RepeatBack(TypeId::of::<NeverRunStage>()),
-            Box::new(NoRollback),
-        ))
-    }
-}
-
+#[cfg(debug_assertions)]
 #[test]
-fn run_concurrent_fails_with_stage_not_found_when_repeat_back_targets_an_unreached_stage() {
-    let orchestrator: SequentialOrchestrator<TestError> =
-        SequentialOrchestrator::new(vec![Box::new(RepeatBackToUnreachedStage)]);
-    let mut context = Context::new();
-    let cancel = CancelToken::new();
-
-    let result = orchestrator.run_concurrent(&mut context, &cancel);
-
-    assert_eq!(result, Err((0, TestError::Pipeline(PipelineError::StageNotFound))));
-}
-
-struct CancellingStage {
-    cancel_token: Arc<CancelToken>,
-    ran: Arc<Mutex<Vec<&'static str>>>,
-}
-
-impl Stage<TestError> for CancellingStage {
-    fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), TestError> {
-        self.ran.lock().unwrap().push("cancelling");
-        self.cancel_token.cancel();
-
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
-    }
-}
-
-#[test]
-fn run_concurrent_returns_cancelled_error_when_cancelled_between_stages() {
-    let ran = Arc::new(Mutex::new(Vec::new()));
-    let cancel = Arc::new(CancelToken::new());
-
-    let orchestrator: SequentialOrchestrator<TestError> = SequentialOrchestrator::new(vec![
-        Box::new(CancellingStage {
-            cancel_token: Arc::clone(&cancel),
-            ran: Arc::clone(&ran),
-        }),
-        Box::new(RecordingStage {
-            label: "never",
-            ran: Arc::clone(&ran),
-            rolled_back: Arc::new(Mutex::new(Vec::new())),
-        }),
-    ]);
-    let mut context = Context::new();
-
-    let result = orchestrator.run_concurrent(&mut context, &cancel);
-
-    assert_eq!(result, Err((1, TestError::Pipeline(PipelineError::Cancelled))));
-    assert_eq!(*ran.lock().unwrap(), vec!["cancelling"]);
-}
-
-#[test]
-fn orchestrator_error_from_lock_error_is_the_setup_variant() {
-    let error: OrchestratorError<TestError> = LockError::Busy.into();
-
-    assert!(matches!(error, OrchestratorError::Setup(LockError::Busy)));
-}
-
-#[test]
-fn orchestrator_error_from_stage_tuple_is_the_stage_variant() {
-    let error: OrchestratorError<TestError> = (3usize, TestError::Stage("x")).into();
-
-    assert!(matches!(error, OrchestratorError::Stage(3, TestError::Stage("x"))));
+#[should_panic(expected = "was already filled")]
+fn put_into_an_occupied_slot_panics_in_debug_builds() {
+    let mut context = Context::default();
+    context.put(1u32);
+    context.put(2u32);
 }

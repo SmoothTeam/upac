@@ -1,0 +1,94 @@
+// SPDX-FileCopyrightText: 2026 JustPav
+// SPDX-FileCopyrightText: 2026 SmoothTeam
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+use std::ffi::{CString, c_void};
+use std::mem::size_of;
+use std::ptr::null;
+
+use upac_abi::hook::{CProgressEvent, HookAck, HookMessageFn};
+use upac_abi::types::CSlice;
+
+use upac_types::request::RequestBase;
+
+pub struct ProgressEventBuilder {
+    stage: u32,
+    subject: Option<CString>,
+    current: u64,
+    total: u64,
+}
+
+impl ProgressEventBuilder {
+    pub fn new(stage: u32) -> Self {
+        Self {
+            stage,
+            subject: None,
+            current: 0,
+            total: 0,
+        }
+    }
+
+    pub fn stage(&self) -> u32 {
+        self.stage
+    }
+
+    pub fn subject(mut self, subject: impl Into<String>) -> Self {
+        self.subject = CString::new(subject.into()).ok();
+        self
+    }
+
+    pub fn progress(mut self, current: u64, total: u64) -> Self {
+        self.current = current;
+        self.total = total;
+        self
+    }
+
+    pub fn build(&self) -> CProgressEvent {
+        let subject = match &self.subject {
+            Some(subject) => CSlice {
+                ptr: subject.as_ptr().cast(),
+                len: subject.as_bytes().len(),
+            },
+            None => CSlice { ptr: null(), len: 0 },
+        };
+
+        CProgressEvent {
+            struct_size: size_of::<CProgressEvent>(),
+            stage: self.stage,
+            subject,
+            current: self.current,
+            total: self.total,
+        }
+    }
+}
+
+pub struct Message {
+    hook_message: Option<HookMessageFn>,
+    hook_message_context: *mut c_void,
+}
+
+impl Message {
+    pub fn new(hook_message: Option<HookMessageFn>, hook_message_context: *mut c_void) -> Self {
+        Self {
+            hook_message,
+            hook_message_context,
+        }
+    }
+
+    pub fn send(&self, event: &CProgressEvent) -> HookAck {
+        let Some(hook_message) = self.hook_message else {
+            return HookAck::Delivered;
+        };
+
+        let ack = unsafe { hook_message(event as *const CProgressEvent, self.hook_message_context) };
+
+        HookAck::try_from(ack).unwrap_or(HookAck::Delivered)
+    }
+}
+
+impl From<&RequestBase> for Message {
+    fn from(base: &RequestBase) -> Self {
+        Message::new(base.on_hook, base.hook_ctx)
+    }
+}

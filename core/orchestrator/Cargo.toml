@@ -32,10 +32,7 @@ name = "upac_orchestrator"
 upac-lib-types = { workspace = true }
 upac-lib-abi   = { workspace = true }
 
-nix      = { workspace = true }
-tempfile = { workspace = true }
-
-tokio = { version = "1", features = ["rt"] }
+nix = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }

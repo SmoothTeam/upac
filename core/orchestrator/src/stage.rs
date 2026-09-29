@@ -3,26 +3,15 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 
 use upac_abi::error::ErrorKind;
 use upac_abi::hook::CancelToken;
-use upac_types::hook::ProgressEventBuilder;
 
 use super::context::Context;
+use super::progress::ProgressEventBuilder;
 
-#[derive(Clone, Copy)]
-pub enum StageResult {
-    Advance,
-    Repeat,
-    RepeatBack(TypeId),
-}
-
-pub trait RollbackGuard: Send + 'static {
-    fn rollback(&mut self) -> Result<(), ErrorKind>;
-}
-
-pub trait Stage<E>: Any {
+pub trait Stage<E> {
     fn requires(&self) -> Vec<TypeId> {
         Vec::new()
     }
@@ -33,19 +22,17 @@ pub trait Stage<E>: Any {
 
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), E>;
+    ) -> Result<ProgressEventBuilder, E>;
+
+    fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
+        Ok(())
+    }
 }
 
-pub trait ConcurrentStage<E>: Send + 'static {
-    fn run(
-        self: Box<Self>, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), E>;
-}
+pub trait ParallelStage<E, T>: Send + Sync {
+    fn run(&self, item: T, cancel: &CancelToken, progress: ProgressEventBuilder) -> Result<ProgressEventBuilder, E>;
 
-pub struct NoRollback;
-
-impl RollbackGuard for NoRollback {
-    fn rollback(&mut self) -> Result<(), ErrorKind> {
+    fn rollback(&self) -> Result<(), ErrorKind> {
         Ok(())
     }
 }
