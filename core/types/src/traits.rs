@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::error::ErrorDomain;
-use upac_abi::hook::{CProgressEvent, HookAck};
 use upac_abi::plugin::BootResourceKind;
 
 use super::error::DecodeError;
@@ -15,6 +14,8 @@ pub trait CommandState: Copy {
     const VALIDATION: Self;
 
     fn as_u32(self) -> u32;
+
+    fn from_stage_index(index: usize) -> Self;
 }
 
 pub trait Booter: Sized {
@@ -39,8 +40,4 @@ pub trait Booter: Sized {
 
 pub trait DecodeMeta {
     fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError>;
-}
-
-pub trait MessageHook {
-    fn send(&self, event: &CProgressEvent) -> HookAck;
 }

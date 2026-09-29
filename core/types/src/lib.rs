@@ -3,59 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::ContextValue;
-
-use self::package::{PackageInfo, PackageMeta};
-
-pub mod codec;
 pub mod decoder;
 pub mod error;
-pub mod hook;
 pub mod package;
 pub mod request;
 pub mod response;
 pub mod settings;
 pub mod state;
 pub mod traits;
-
-macro_rules! as_str_method {
-    ($name:ty) => {
-        impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str {
-                &self.0
-            }
-        }
-    };
-}
-
-#[derive(ContextValue)]
-pub struct UninstallPackagesTargets(pub Vec<PackageInfo>);
-
-impl UninstallPackagesTargets {
-    pub fn entries(&self) -> &[PackageInfo] {
-        &self.0
-    }
-}
-
-#[derive(ContextValue)]
-pub struct TmpPath(pub String);
-
-as_str_method!(TmpPath);
-
-#[derive(ContextValue)]
-pub struct RequestedPrefixDigest(pub Option<String>);
-
-pub struct RequestedPrefixDigestRange {
-    pub from: Option<String>,
-    pub to: Option<String>,
-}
-
-pub struct RequestedConfigDigestRange {
-    pub from: Option<String>,
-    pub to: Option<String>,
-}
-
-pub struct DiffPackagesSnapshot {
-    pub from: Vec<PackageMeta>,
-    pub to: Vec<PackageMeta>,
-}

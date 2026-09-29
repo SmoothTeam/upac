@@ -33,5 +33,4 @@ upac-lib-macro = { workspace = true }
 upac-lib-abi   = { workspace = true }
 
 serde = { workspace = true }
-sha2  = { workspace = true }
 toml  = { workspace = true }

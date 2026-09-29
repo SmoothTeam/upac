@@ -12,7 +12,7 @@ const RUNTIME_CONFIG_PATH: &str = "/etc/upac.d/upac.toml";
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct GcSettings {
-    pub retention_depth: u64,
+    pub retention_depth: usize,
 }
 
 impl Default for GcSettings {

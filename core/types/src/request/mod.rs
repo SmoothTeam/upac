@@ -12,9 +12,6 @@ use upac_abi::request::CRequestBase;
 
 use upac_macro::{CTryToRust, RustToC};
 
-use crate::hook::Message;
-use crate::traits::MessageHook;
-
 pub mod booter;
 pub mod bootstrap;
 pub mod decoder;
@@ -28,10 +25,4 @@ pub struct RequestBase {
     pub on_hook: Option<HookMessageFn>,
     pub hook_ctx: *mut c_void,
     pub cancel_token: *mut CancelToken,
-}
-
-impl RequestBase {
-    pub fn message_hook(&self) -> Box<dyn MessageHook> {
-        Box::new(Message::new(self.on_hook, self.hook_ctx))
-    }
 }

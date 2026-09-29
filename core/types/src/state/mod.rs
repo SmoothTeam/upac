@@ -16,6 +16,10 @@ macro_rules! impl_command_state {
             fn as_u32(self) -> u32 {
                 self as u32
             }
+
+            fn from_stage_index(index: usize) -> Self {
+                $name::from_stage_index(index)
+            }
         }
     };
 }

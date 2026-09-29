@@ -3,8 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::package::{CPackageMeta, CVersion};
-use upac_types::package::{PackageMeta, Version};
+use upac_abi::package::{CPackageDependency, CPackageMeta, CVersion};
+use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_GREATER};
+use upac_types::package::{PackageDependency, PackageMeta, Version};
 
 fn sample_version() -> Version {
     Version {
@@ -54,4 +55,36 @@ fn package_meta_c_round_trip_preserves_value() {
     assert_eq!(restored.installed_size, original.installed_size);
 
     unsafe { c_meta.free() };
+}
+
+#[test]
+fn dependency_without_a_version_round_trips_as_none() {
+    let original = PackageDependency {
+        name: "glibc".to_owned(),
+        constraint: CONSTRAINT_ANY,
+        version: None,
+    };
+
+    let c_dependency = CPackageDependency::from(original);
+    let restored = PackageDependency::try_from(&c_dependency).unwrap();
+
+    assert_eq!(restored.constraint, CONSTRAINT_ANY);
+    assert_eq!(restored.version, None);
+    unsafe { c_dependency.free() };
+}
+
+#[test]
+fn dependency_with_a_version_round_trips_as_some() {
+    let original = PackageDependency {
+        name: "glibc".to_owned(),
+        constraint: CONSTRAINT_GREATER,
+        version: Some(sample_version()),
+    };
+
+    let c_dependency = CPackageDependency::from(original);
+    let restored = PackageDependency::try_from(&c_dependency).unwrap();
+
+    assert_eq!(restored.constraint, CONSTRAINT_GREATER);
+    assert_eq!(restored.version, Some(sample_version()));
+    unsafe { c_dependency.free() };
 }

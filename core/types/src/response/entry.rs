@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use serde::{Deserialize, Serialize};
+
 use upac_abi::error::ErrorKind;
 use upac_abi::package::CVersion;
 use upac_abi::response::entry::{
@@ -12,35 +14,18 @@ use upac_abi::response::entry::{
 use upac_abi::response::entry::{DiffFileSource, FileDiffKind, PackageDiffKind};
 use upac_abi::types::{COwned, CSlice, CVec};
 
-use upac_macro::{CTryToRust, RedbCodec, RustToC};
+use upac_macro::{CTryToRust, RustToC};
 
-use crate::codec::RedbCodable;
 use crate::package::Version;
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileEntryScope {
     Prefix = 0,
     Config = 1,
 }
 
-impl RedbCodable for FileEntryScope {
-    fn redb_encode(&self, buf: &mut Vec<u8>) {
-        buf.push(*self as u8);
-    }
-
-    fn redb_decode(data: &[u8], offset: &mut usize) -> FileEntryScope {
-        let value = data[*offset];
-        *offset += 1;
-
-        match value {
-            1 => FileEntryScope::Config,
-            _ => FileEntryScope::Prefix,
-        }
-    }
-}
-
-#[derive(Debug, Clone, RedbCodec)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileEntry {
     pub path: String,
     pub is_user: bool,

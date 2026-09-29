@@ -5,13 +5,14 @@
 
 use std::cmp::Ordering;
 
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Serialize};
 
+use upac_abi::CONSTRAINT_ANY;
 use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageDependency, CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::types::{COwned, CSlice};
 
-use upac_macro::{CTryToRust, RedbCodec, RustToC};
+use upac_macro::{CTryToRust, RustToC};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum VersionToken<'raw> {
@@ -19,7 +20,7 @@ enum VersionToken<'raw> {
     Numeric(u64),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, CTryToRust, RedbCodec, RustToC)]
+#[derive(Debug, Clone, PartialEq, Eq, CTryToRust, RustToC, Serialize, Deserialize)]
 pub struct Version {
     pub epoch: u32,
     pub raw: String,
@@ -46,17 +47,6 @@ impl Version {
                 raw: raw.to_owned(),
             },
         }
-    }
-}
-
-impl<'de> Deserialize<'de> for Version {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let raw = String::deserialize(deserializer)?;
-
-        Ok(Version::parse(&raw))
     }
 }
 
@@ -125,14 +115,7 @@ impl Version {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct PackageTemp {
-    pub meta: PackageMeta,
-    pub temp_package_path: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, CTryToRust, RedbCodec, RustToC)]
-#[serde(default)]
+#[derive(Debug, Clone, Default, CTryToRust, RustToC, Serialize, Deserialize)]
 pub struct PackageMeta {
     pub name: String,
     pub version: Version,
@@ -166,7 +149,8 @@ impl From<PackageMeta> for PackageInfo {
 pub struct PackageDependency {
     pub name: String,
     pub constraint: u8,
-    pub version: Version,
+    #[none_if(constraint == CONSTRAINT_ANY)]
+    pub version: Option<Version>,
 }
 
 #[derive(Debug)]
