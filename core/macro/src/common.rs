@@ -6,7 +6,12 @@
 //! Consts and type-introspection helpers shared by more than one derive
 //! macro in this crate.
 
-use syn::{GenericArgument, PathArguments, PathSegment, Type};
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
+use syn::{
+    BinOp, Error, Expr, ExprBinary, Field, GenericArgument, Ident, PathArguments, PathSegment, Result as SynResult,
+    Type,
+};
 
 pub(crate) const PRIMITIVES: &[&str] = &[
     "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize", "bool", "f32", "f64",
@@ -73,4 +78,55 @@ pub(crate) fn segment_name(ty: &Type) -> Option<String> {
 
 pub(crate) fn is_str_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(path) if path.path.is_ident("str"))
+}
+
+pub(crate) struct FieldCondition {
+    pub field: Ident,
+    pub value: Expr,
+}
+
+impl FieldCondition {
+    pub(crate) fn on(&self, receiver: TokenStream2) -> TokenStream2 {
+        let FieldCondition { field, value } = self;
+        quote! { #receiver.#field == #value }
+    }
+}
+
+pub(crate) fn field_condition(field: &Field, attr_name: &str) -> Option<SynResult<FieldCondition>> {
+    let attr = field.attrs.iter().find(|attr| attr.path().is_ident(attr_name))?;
+
+    Some(attr.parse_args::<ExprBinary>().and_then(|binary| {
+        if !matches!(binary.op, BinOp::Eq(_)) {
+            return Err(Error::new_spanned(binary.op, "expected `field == value`"));
+        }
+
+        let condition_field = match binary.left.as_ref() {
+            Expr::Path(path) => path.path.get_ident().cloned(),
+            _ => None,
+        };
+        let Some(condition_field) = condition_field else {
+            return Err(Error::new_spanned(
+                &binary.left,
+                "expected a field name on the left of `==`",
+            ));
+        };
+
+        Ok(FieldCondition {
+            field: condition_field,
+            value: *binary.right,
+        })
+    }))
+}
+
+pub(crate) fn option_inner_name(ty: &Type) -> Option<String> {
+    let Type::Path(type_path) = ty else {
+        return None;
+    };
+
+    let segment = type_path.path.segments.last()?;
+    if segment.ident != "Option" {
+        return None;
+    }
+
+    generic_arg(segment).and_then(segment_name)
 }

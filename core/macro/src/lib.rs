@@ -15,7 +15,7 @@
 //!   ContextValue   - Deref/DerefMut/From<T> for a single-field tuple struct
 //!   FromStageIndex - orchestrator stage index -> enum variant (by position)
 //!   StageKey       - enum variant -> "stage_snake_case" gettext key (by name)
-//!   RedbCodec      - encode_into()/decode_from() for the redb key-value store
+//!   stage          - attribute on `impl Stage`: requires()/provides() from the run body's context use
 //!   JsonCodec      - to_json()/from_json() for on-disk records outside the redb DB
 //!
 //! `#[proc_macro_derive]` functions must live at the crate root, so each of
@@ -33,8 +33,8 @@ mod common;
 mod context_value;
 mod from_stage_index;
 mod json_codec;
-mod redb_codec;
 mod rust_to_c;
+mod stage;
 mod stage_key;
 
 #[proc_macro_derive(CEnum)]
@@ -52,17 +52,17 @@ pub fn derive_c_new(input: TokenStream) -> TokenStream {
     c_new::expand(input)
 }
 
-#[proc_macro_derive(RustToC)]
+#[proc_macro_derive(RustToC, attributes(none_if))]
 pub fn derive_rust_to_c(input: TokenStream) -> TokenStream {
     rust_to_c::expand(input)
 }
 
-#[proc_macro_derive(CTryToRust)]
+#[proc_macro_derive(CTryToRust, attributes(none_if))]
 pub fn derive_c_try_to_rust(input: TokenStream) -> TokenStream {
     c_try_to_rust::expand(input)
 }
 
-#[proc_macro_derive(CValidate, attributes(optional, non_empty))]
+#[proc_macro_derive(CValidate, attributes(optional, non_empty, bitflags, skip_if))]
 pub fn derive_cvalidate(input: TokenStream) -> TokenStream {
     c_validate::expand(input)
 }
@@ -82,12 +82,12 @@ pub fn derive_stage_key(input: TokenStream) -> TokenStream {
     stage_key::expand(input)
 }
 
-#[proc_macro_derive(RedbCodec)]
-pub fn derive_redb_codec(input: TokenStream) -> TokenStream {
-    redb_codec::expand(input)
-}
-
 #[proc_macro_derive(JsonCodec)]
 pub fn derive_json_codec(input: TokenStream) -> TokenStream {
     json_codec::expand(input)
+}
+
+#[proc_macro_attribute]
+pub fn stage(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    stage::expand(item)
 }

@@ -28,7 +28,9 @@ use syn::{
     Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, TypePtr, TypeReference, parse_macro_input,
 };
 
-use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_type, segment_name};
+use crate::common::{
+    ABI_ENUMS, FieldCondition, PRIMITIVES, field_condition, generic_arg, is_str_type, option_inner_name, segment_name,
+};
 
 fn is_str_ref(ty: &Type) -> bool {
     matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
@@ -182,6 +184,23 @@ fn field_from_c_fallible(ident: &Ident, ty: &Type) -> TokenStream2 {
     }
 }
 
+fn conditional_option_from_c(ident: &Ident, ty: &Type, condition: &FieldCondition) -> TokenStream2 {
+    let Some(inner_name) = option_inner_name(ty) else {
+        return quote! { compile_error!("CTryToRust: #[none_if] requires an Option<T> field") };
+    };
+
+    let rust_ty = format_ident!("{inner_name}");
+    let is_none = condition.on(quote! { value });
+
+    quote! {
+        if #is_none {
+            None
+        } else {
+            Some(#rust_ty::try_from(&value.#ident)?)
+        }
+    }
+}
+
 fn try_from_impl(
     name: &Ident, c_name: &Ident, lifetime: Option<&Lifetime>, field_values: &[TokenStream2],
 ) -> TokenStream2 {
@@ -246,7 +265,11 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
                 .into();
         };
 
-        let value = field_from_c_fallible(ident, &field.ty);
+        let value = match field_condition(field, "none_if") {
+            None => field_from_c_fallible(ident, &field.ty),
+            Some(Ok(condition)) => conditional_option_from_c(ident, &field.ty, &condition),
+            Some(Err(error)) => return error.to_compile_error().into(),
+        };
         field_values.push(quote! { #ident: #value, });
     }
 

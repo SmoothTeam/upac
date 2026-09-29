@@ -12,24 +12,31 @@ use proc_macro2::TokenStream as TokenStream2;
 
 use quote::quote;
 
-use syn::{Data, DeriveInput, Error, Field, Fields, Ident, PathSegment, Type, TypePtr, parse_macro_input};
+use syn::{
+    Data, DeriveInput, Error, Expr, Field, Fields, Ident, PathSegment, Result as SynResult, Type, TypePtr,
+    parse_macro_input,
+};
 
-use crate::common::{generic_arg, is_validatable_composite, segment_name};
+use crate::common::{field_condition, generic_arg, is_validatable_composite, segment_name};
 
 fn has_attr(field: &Field, name: &str) -> bool {
     field.attrs.iter().any(|attr| attr.path().is_ident(name))
 }
 
-fn cslice_validate(ident: &Ident, optional: bool) -> TokenStream2 {
+fn cslice_validate(ident: &Ident, optional: bool, non_empty: bool) -> TokenStream2 {
+    let empty_check = empty_check(ident, non_empty);
+
     if optional {
         quote! {
             if !self.#ident.ptr.is_null() {
                 unsafe { self.#ident.validate()? };
+                #empty_check
             }
         }
     } else {
         quote! {
             unsafe { self.#ident.validate()?; }
+            #empty_check
         }
     }
 }
@@ -40,7 +47,7 @@ fn composite_validate(ident: &Ident) -> TokenStream2 {
     }
 }
 
-fn cvec_empty_check(ident: &Ident, non_empty: bool) -> TokenStream2 {
+fn empty_check(ident: &Ident, non_empty: bool) -> TokenStream2 {
     if non_empty {
         quote! {
             if self.#ident.len == 0 {
@@ -64,7 +71,7 @@ fn cvec_element_check(ident: &Ident, seg: &PathSegment) -> TokenStream2 {
 }
 
 fn cvec_validate(ident: &Ident, seg: &PathSegment, non_empty: bool) -> TokenStream2 {
-    let empty_check = cvec_empty_check(ident, non_empty);
+    let empty_check = empty_check(ident, non_empty);
     let element_check = cvec_element_check(ident, seg);
 
     quote! {
@@ -76,7 +83,7 @@ fn cvec_validate(ident: &Ident, seg: &PathSegment, non_empty: bool) -> TokenStre
 
 fn field_path_validate(ident: &Ident, seg: &PathSegment, optional: bool, non_empty: bool) -> TokenStream2 {
     match seg.ident.to_string().as_str() {
-        "CSlice" => cslice_validate(ident, optional),
+        "CSlice" => cslice_validate(ident, optional, non_empty),
         "CVec" => cvec_validate(ident, seg, non_empty),
         name if is_validatable_composite(name) => composite_validate(ident),
         _ => quote! {},
@@ -115,6 +122,20 @@ fn field_ptr_validate(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
     }
 }
 
+fn bitflags_validate(ident: &Ident, field: &Field) -> SynResult<TokenStream2> {
+    let Some(attr) = field.attrs.iter().find(|attr| attr.path().is_ident("bitflags")) else {
+        return Ok(quote! {});
+    };
+
+    let mask = attr.parse_args::<Expr>()?;
+
+    Ok(quote! {
+        if self.#ident == 0 || self.#ident & !(#mask) != 0 {
+            return Err(crate::error::ErrorKind::InvalidEntry);
+        }
+    })
+}
+
 fn field_validate(field: &Field) -> TokenStream2 {
     let Some(ident) = field.ident.as_ref() else {
         return quote! { compile_error!("CValidate only supports named fields") };
@@ -122,13 +143,36 @@ fn field_validate(field: &Field) -> TokenStream2 {
     let optional = has_attr(field, "optional");
     let non_empty = has_attr(field, "non_empty");
 
-    match &field.ty {
+    let type_validation = match &field.ty {
         Type::Path(tp) => match tp.path.segments.last() {
             Some(seg) => field_path_validate(ident, seg, optional, non_empty),
             None => quote! {},
         },
         Type::Ptr(ptr) => field_ptr_validate(ident, ptr),
         _ => quote! {},
+    };
+
+    let bitflags_validation = match bitflags_validate(ident, field) {
+        Ok(tokens) => tokens,
+        Err(error) => return error.to_compile_error(),
+    };
+
+    let validation = quote! {
+        #type_validation
+        #bitflags_validation
+    };
+
+    match field_condition(field, "skip_if") {
+        None => validation,
+        Some(Ok(condition)) => {
+            let skipped = condition.on(quote! { self });
+            quote! {
+                if !(#skipped) {
+                    #validation
+                }
+            }
+        }
+        Some(Err(error)) => error.to_compile_error(),
     }
 }
 
