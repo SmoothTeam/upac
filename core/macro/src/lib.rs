@@ -32,7 +32,6 @@ mod c_validate;
 mod common;
 mod context_value;
 mod from_stage_index;
-mod json_codec;
 mod rust_to_c;
 mod stage;
 mod stage_key;
@@ -80,11 +79,6 @@ pub fn derive_from_stage_index(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(StageKey)]
 pub fn derive_stage_key(input: TokenStream) -> TokenStream {
     stage_key::expand(input)
-}
-
-#[proc_macro_derive(JsonCodec)]
-pub fn derive_json_codec(input: TokenStream) -> TokenStream {
-    json_codec::expand(input)
 }
 
 #[proc_macro_attribute]
