@@ -7,17 +7,14 @@ use std::fs::{create_dir, read_dir, read_to_string, remove_dir_all};
 use std::io::ErrorKind as IoErrorKind;
 use std::path::{Path, PathBuf};
 
-use composefs::repository::Repository;
-
 use nix::mount::{MsFlags, mount};
 use nix::sched::{CloneFlags, unshare};
 
 use rsmount::tables::MountInfo;
 
 use upac_composefs::error::RepoError;
-use upac_composefs::file::FileHandle;
 use upac_composefs::fs::WrittenFile;
-use upac_composefs::repository::{self, ObjectID};
+use upac_composefs::{Digest, Repo};
 
 use upac_database::layout::database::DATABASE_PATH;
 use upac_database::transaction::TransactionStore;
@@ -54,7 +51,7 @@ impl From<SysrootMode> for MsFlags {
 }
 
 pub struct Sysroot {
-    repository: Repository<ObjectID>,
+    repo: Repo,
     deploys_dir: PathBuf,
 }
 
@@ -98,29 +95,26 @@ impl Sysroot {
             return Err(SysrootError::RepoDirNotFound);
         }
 
-        let repository = repository::open(&repo_dir)?;
+        let repo = Repo::open(&repo_dir)?;
 
-        Ok(Self {
-            repository,
-            deploys_dir,
-        })
+        Ok(Self { repo, deploys_dir })
     }
 
-    pub fn repository(&self) -> &Repository<ObjectID> {
-        &self.repository
+    pub fn repo(&self) -> &Repo {
+        &self.repo
     }
 
-    pub fn prefix(&self, prefix_digest: &str) -> Result<PrefixDeploy, PrefixReadError> {
-        let tree = repository::open_tree(&self.repository, prefix_digest)?;
+    pub fn prefix(&self, prefix_digest: &Digest) -> Result<PrefixDeploy, PrefixReadError> {
+        let tree = self.repo.open_tree(prefix_digest)?;
 
-        let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&self.repository, &tree)?;
+        let database_bytes = tree.read_file(DATABASE_PATH)?;
         let database = MemoryDatabase::open_in_memory(database_bytes)?;
         let transaction = database.get_transaction()?.ok_or(PrefixReadError::TransactionMissing)?;
 
         Ok(PrefixDeploy::read(
-            prefix_digest.to_owned(),
+            prefix_digest.clone(),
             transaction,
-            &self.deploys_dir.join(prefix_digest),
+            &self.deploys_dir.join(prefix_digest.to_hex()),
         )?)
     }
 
@@ -134,8 +128,8 @@ impl Sysroot {
                 continue;
             }
 
-            if let Some(prefix_digest) = entry.file_name().to_str() {
-                prefixes.push(self.prefix(prefix_digest)?);
+            if let Some(prefix_hex) = entry.file_name().to_str() {
+                prefixes.push(self.prefix(&Digest::from_hex(prefix_hex)?)?);
             }
         }
 
@@ -145,7 +139,7 @@ impl Sysroot {
     pub fn running_prefix(&self) -> Result<PrefixDeploy, PrefixReadError> {
         let running_digest = read_to_string(RUNNING_PREFIX_PATH).map_err(PrefixMetaError::from)?;
 
-        self.prefix(running_digest.trim())
+        self.prefix(&Digest::from_hex(running_digest.trim())?)
     }
 
     pub fn next_prefix(&self) -> Result<PrefixDeploy, PrefixReadError> {
@@ -156,17 +150,17 @@ impl Sysroot {
 
     pub fn set_next_prefix(&self, prefix: &PrefixDeploy) -> Result<WrittenFile, PrefixMetaError> {
         let pointer = PrefixPointer {
-            prefix_digest: prefix.digest().to_owned(),
+            prefix_digest: prefix.digest().clone(),
         };
 
         pointer.write(&self.deploys_dir.join(NEXT_PREFIX_FILENAME))
     }
 
     pub fn create_prefix(&self, prefix: &PrefixDeploy) -> Result<(), PrefixCreateError> {
-        let prefix_dir = self.deploys_dir.join(prefix.digest());
+        let prefix_dir = self.deploys_dir.join(prefix.digest().to_hex());
 
         if prefix_dir.try_exists()? {
-            return Err(PrefixCreateError::AlreadyExists(prefix.digest().to_owned()));
+            return Err(PrefixCreateError::AlreadyExists(prefix.digest().clone()));
         }
 
         create_dir(&prefix_dir)?;
@@ -180,20 +174,20 @@ impl Sysroot {
     }
 
     pub fn save_prefix(&self, prefix: &PrefixDeploy) -> Result<WrittenFile, PrefixMetaError> {
-        prefix.write(&self.deploys_dir.join(prefix.digest()))
+        prefix.write(&self.deploys_dir.join(prefix.digest().to_hex()))
     }
 
-    pub fn remove_prefix(&self, prefix_digest: &str) -> Result<(), RepoError> {
-        match remove_dir_all(self.deploys_dir.join(prefix_digest)) {
+    pub fn remove_prefix(&self, prefix_digest: &Digest) -> Result<(), RepoError> {
+        match remove_dir_all(self.deploys_dir.join(prefix_digest.to_hex())) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == IoErrorKind::NotFound => Ok(()),
             Err(error) => Err(error.into()),
         }
     }
 
-    pub fn live_etc_upper_dir(&self, prefix_digest: &str) -> PathBuf {
+    pub fn live_etc_upper_dir(&self, prefix_digest: &Digest) -> PathBuf {
         self.deploys_dir
-            .join(prefix_digest)
+            .join(prefix_digest.to_hex())
             .join(CONFIG_DIR_NAME)
             .join(LIVE_ETC_UPPER_DIR_NAME)
     }

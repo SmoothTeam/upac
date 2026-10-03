@@ -6,17 +6,16 @@
 use std::fs::{File, create_dir_all, write};
 use std::path::Path;
 
-use composefs::fsverity::FsVerityHashValue;
 use composefs::generic_tree::Stat;
-use composefs::repository::ImportContext;
-use composefs::tree::FileSystem;
+use composefs::repository::{Repository, RepositoryConfig};
+
+use nix::fcntl::AT_FDCWD;
 
 use tempfile::TempDir;
 
 use upac_types::transaction::{Transaction, TransactionKind};
 
-use upac_composefs::file::FileHandle;
-use upac_composefs::repository::{commit_tree, init_insecure};
+use upac_composefs::{Digest, ObjectID};
 
 use upac_database::layout::database::DATABASE_PATH;
 use upac_database::transaction::TransactionStoreMut;
@@ -32,17 +31,25 @@ fn scratch_root() -> TempDir {
     let scratch = TempDir::new().unwrap();
 
     create_dir_all(scratch.path().join(DEPLOYS_DIR)).unwrap();
-    create_dir_all(scratch.path().join(REPO_DIR)).unwrap();
-    init_insecure(&scratch.path().join(REPO_DIR)).unwrap();
+    Repository::<ObjectID>::init_path(
+        AT_FDCWD,
+        scratch.path().join(REPO_DIR),
+        RepositoryConfig::default().set_insecure(),
+    )
+    .unwrap();
 
     scratch
+}
+
+fn digest(seed: u8) -> Digest {
+    Digest::from_hex(&format!("{seed:02x}").repeat(32)).unwrap()
 }
 
 fn transaction() -> Transaction {
     Transaction::new(None, TransactionKind::Install, "install foo".to_owned(), None)
 }
 
-fn commit_prefix_tree(sysroot: &Sysroot, scratch: &Path, transaction: Option<&Transaction>) -> String {
+fn commit_prefix_tree(sysroot: &Sysroot, scratch: &Path, transaction: Option<&Transaction>) -> Digest {
     let mut database = MemoryDatabase::new_in_memory().unwrap();
     if let Some(transaction) = transaction {
         database.set_transaction(transaction).unwrap();
@@ -51,32 +58,25 @@ fn commit_prefix_tree(sysroot: &Sysroot, scratch: &Path, transaction: Option<&Tr
     let database_path = scratch.join("packages.redb");
     write(&database_path, database.into_bytes().unwrap()).unwrap();
 
-    let mut tree = FileSystem::new(Stat::uninitialized());
-    FileHandle::new("share")
-        .insert_in_tree(&mut tree, Stat::uninitialized())
-        .unwrap();
-    FileHandle::new("share/upac")
-        .insert_in_tree(&mut tree, Stat::uninitialized())
-        .unwrap();
-    FileHandle::new(DATABASE_PATH)
-        .insert_file(
-            sysroot.repository(),
-            &mut tree,
-            &File::open(&database_path).unwrap(),
-            Stat::uninitialized(),
-            &mut ImportContext::default(),
-        )
-        .unwrap();
+    let mut tree = sysroot.repo().empty_tree();
+    tree.insert_dir("share", Stat::uninitialized()).unwrap();
+    tree.insert_dir("share/upac", Stat::uninitialized()).unwrap();
+    tree.insert_file(
+        DATABASE_PATH,
+        &File::open(&database_path).unwrap(),
+        Stat::uninitialized(),
+    )
+    .unwrap();
 
-    commit_tree(sysroot.repository(), tree).unwrap().to_hex()
+    tree.commit().unwrap()
 }
 
 fn new_prefix(sysroot: &Sysroot, scratch: &Path) -> PrefixDeploy {
     let transaction = transaction();
-    let digest = commit_prefix_tree(sysroot, scratch, Some(&transaction));
-    let config = ConfigDeploy::new("config-1".to_owned(), "install".to_owned(), None);
+    let prefix_digest = commit_prefix_tree(sysroot, scratch, Some(&transaction));
+    let config = ConfigDeploy::new(digest(11), "install".to_owned(), None);
 
-    PrefixDeploy::new(digest, transaction, config)
+    PrefixDeploy::new(prefix_digest, transaction, config)
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn creating_an_existing_prefix_fails() {
 
     assert_eq!(
         sysroot.create_prefix(&prefix),
-        Err(PrefixCreateError::AlreadyExists(prefix.digest().to_owned()))
+        Err(PrefixCreateError::AlreadyExists(prefix.digest().clone()))
     );
 }
 
@@ -132,7 +132,7 @@ fn saved_changes_are_read_back() {
     sysroot.create_prefix(&prefix).unwrap();
 
     prefix.set_pinned(true);
-    prefix.add_config(ConfigDeploy::new("config-2".to_owned(), "commit".to_owned(), None));
+    prefix.add_config(ConfigDeploy::new(digest(12), "commit".to_owned(), None));
     sysroot.save_prefix(&prefix).unwrap();
 
     assert_eq!(sysroot.prefix(prefix.digest()), Ok(prefix));
@@ -169,9 +169,9 @@ fn removing_a_prefix_deletes_it_and_repeating_it_is_harmless() {
 fn a_tree_without_a_transaction_cannot_be_read_as_a_prefix() {
     let scratch = scratch_root();
     let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let digest = commit_prefix_tree(&sysroot, scratch.path(), None);
+    let tree_digest = commit_prefix_tree(&sysroot, scratch.path(), None);
 
-    assert_eq!(sysroot.prefix(&digest), Err(PrefixReadError::TransactionMissing));
+    assert_eq!(sysroot.prefix(&tree_digest), Err(PrefixReadError::TransactionMissing));
 }
 
 #[test]
@@ -182,11 +182,11 @@ fn the_live_etc_upper_dir_lives_inside_the_prefix_dir() {
     let expected = scratch
         .path()
         .join(DEPLOYS_DIR)
-        .join("prefix-digest")
+        .join(digest(1).to_hex())
         .join(CONFIG_DIR_NAME)
         .join(LIVE_ETC_UPPER_DIR_NAME);
 
-    assert_eq!(sysroot.live_etc_upper_dir("prefix-digest"), expected);
+    assert_eq!(sysroot.live_etc_upper_dir(&digest(1)), expected);
 }
 
 #[test]

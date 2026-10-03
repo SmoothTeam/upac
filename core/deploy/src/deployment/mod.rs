@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use upac_composefs::Digest;
 use upac_composefs::fs::WrittenFile;
 
 use upac_types::transaction::Transaction;
@@ -23,7 +24,7 @@ pub(crate) mod meta;
 mod tests;
 
 pub trait Deployment {
-    fn digest(&self) -> &str;
+    fn digest(&self) -> &Digest;
     fn subject(&self) -> &str;
     fn message(&self) -> Option<&str>;
     fn timestamp(&self) -> u64;
@@ -31,13 +32,13 @@ pub trait Deployment {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrefixDeploy {
-    digest: String,
+    digest: Digest,
     transaction: Transaction,
     state: PrefixMetaState,
 }
 
 impl PrefixDeploy {
-    pub fn new(digest: String, transaction: Transaction, first_config: ConfigDeploy) -> Self {
+    pub fn new(digest: Digest, transaction: Transaction, first_config: ConfigDeploy) -> Self {
         Self {
             digest,
             transaction,
@@ -49,7 +50,7 @@ impl PrefixDeploy {
         }
     }
 
-    pub(crate) fn read(digest: String, transaction: Transaction, deploy_dir: &Path) -> Result<Self, PrefixMetaError> {
+    pub(crate) fn read(digest: Digest, transaction: Transaction, deploy_dir: &Path) -> Result<Self, PrefixMetaError> {
         Ok(Self {
             digest,
             transaction,
@@ -81,8 +82,8 @@ impl PrefixDeploy {
         self.state.configs.get(config_index)
     }
 
-    pub fn referenced_trees(&self) -> Vec<&str> {
-        let mut trees = vec![self.digest.as_str()];
+    pub fn referenced_trees(&self) -> Vec<&Digest> {
+        let mut trees = vec![&self.digest];
         trees.extend(self.state.configs.iter().map(|config| config.digest()));
 
         trees
@@ -109,7 +110,7 @@ impl PrefixDeploy {
 }
 
 impl Deployment for PrefixDeploy {
-    fn digest(&self) -> &str {
+    fn digest(&self) -> &Digest {
         &self.digest
     }
 

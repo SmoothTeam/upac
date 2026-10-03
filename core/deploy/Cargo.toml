@@ -34,15 +34,15 @@ upac-lib-abi       = { workspace = true }
 upac-lib-composefs = { workspace = true }
 upac-lib-database  = { workspace = true }
 
-composefs = { workspace = true }
-nix       = { workspace = true }
-serde     = { workspace = true }
+nix   = { workspace = true }
+serde = { workspace = true }
 
 serde_json = "1.0.151"
 rsmount    = "0.2"
 
 [dev-dependencies]
-tempfile = { workspace = true }
+composefs = { workspace = true }
+tempfile  = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }

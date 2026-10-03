@@ -13,6 +13,7 @@ use serde_json::Error as SerdeJsonError;
 
 use upac_abi::error::ErrorKind;
 
+use upac_composefs::Digest;
 use upac_composefs::error::RepoError;
 
 use upac_database::error::DatabaseError;
@@ -167,7 +168,7 @@ impl From<PrefixReadError> for ErrorKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrefixCreateError {
-    AlreadyExists(String),
+    AlreadyExists(Digest),
     Meta(PrefixMetaError),
 }
 

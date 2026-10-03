@@ -7,18 +7,20 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+use upac_composefs::Digest;
+
 use super::Deployment;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConfigDeploy {
-    digest: String,
+    digest: Digest,
     subject: String,
     message: Option<String>,
     timestamp: u64,
 }
 
 impl ConfigDeploy {
-    pub fn new(digest: String, subject: String, message: Option<String>) -> Self {
+    pub fn new(digest: Digest, subject: String, message: Option<String>) -> Self {
         Self {
             digest,
             subject,
@@ -32,7 +34,7 @@ impl ConfigDeploy {
 }
 
 impl Deployment for ConfigDeploy {
-    fn digest(&self) -> &str {
+    fn digest(&self) -> &Digest {
         &self.digest
     }
 

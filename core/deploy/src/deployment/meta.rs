@@ -8,6 +8,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use upac_composefs::Digest;
 use upac_composefs::fs::WrittenFile;
 
 use super::super::error::PrefixMetaError;
@@ -37,7 +38,7 @@ impl PrefixMetaState {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct PrefixPointer {
-    pub(crate) prefix_digest: String,
+    pub(crate) prefix_digest: Digest,
 }
 
 impl PrefixPointer {

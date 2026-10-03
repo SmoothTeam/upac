@@ -9,10 +9,16 @@ use tempfile::TempDir;
 
 use upac_types::transaction::{Transaction, TransactionKind};
 
+use upac_composefs::Digest;
+
 use super::super::error::PrefixMetaError;
 use super::super::layout::deployment::PREFIX_META_FILENAME;
 use super::PrefixDeploy;
 use super::config::ConfigDeploy;
+
+fn digest(seed: u8) -> Digest {
+    Digest::from_hex(&format!("{seed:02x}").repeat(32)).unwrap()
+}
 
 fn transaction() -> Transaction {
     Transaction::new(None, TransactionKind::Install, "install foo".to_owned(), None)
@@ -20,9 +26,9 @@ fn transaction() -> Transaction {
 
 fn prefix() -> PrefixDeploy {
     PrefixDeploy::new(
-        "prefix-digest".to_owned(),
+        digest(1),
         transaction(),
-        ConfigDeploy::new("config-1".to_owned(), "install".to_owned(), None),
+        ConfigDeploy::new(digest(11), "install".to_owned(), None),
     )
 }
 
@@ -31,17 +37,12 @@ fn writing_and_reading_back_keeps_the_mutable_state() {
     let scratch = TempDir::new().unwrap();
 
     let mut written = prefix();
-    written.add_config(ConfigDeploy::new("config-2".to_owned(), "commit".to_owned(), None));
+    written.add_config(ConfigDeploy::new(digest(12), "commit".to_owned(), None));
     written.switch_config(0).unwrap();
     written.set_pinned(true);
     written.write(scratch.path()).unwrap();
 
-    let read_back = PrefixDeploy::read(
-        "prefix-digest".to_owned(),
-        written.transaction().clone(),
-        scratch.path(),
-    )
-    .unwrap();
+    let read_back = PrefixDeploy::read(digest(1), written.transaction().clone(), scratch.path()).unwrap();
 
     assert_eq!(read_back, written);
 }
@@ -63,7 +64,7 @@ fn the_meta_file_holds_only_the_mutable_state() {
 fn reading_a_prefix_without_a_meta_file_fails_with_not_found() {
     let scratch = TempDir::new().unwrap();
 
-    let result = PrefixDeploy::read("prefix-digest".to_owned(), transaction(), scratch.path());
+    let result = PrefixDeploy::read(digest(1), transaction(), scratch.path());
 
     assert_eq!(result.err(), Some(PrefixMetaError::NotFound));
 }
