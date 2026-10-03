@@ -3,13 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::io::Error as IoError;
-
-use anyhow::Error as AnyhowError;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use nix::errno::Errno;
-
-use rsblkid::probe::{ProbeBuilderError, ProbeError};
 
 use rsmount::errors::MountInfoError;
 
@@ -19,18 +15,16 @@ use upac_abi::error::ErrorKind;
 
 use upac_composefs::error::RepoError;
 
+use upac_database::error::DatabaseError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SysrootError {
     MountInfoUnavailable,
-    RootDeviceNotFound,
-    CanonicalDeviceNotFound,
+    SysrootNotMounted,
     SysrootDirUnavailable,
     DeploysDirNotFound,
     RepoDirNotFound,
-    ProbeUnavailable,
-    FilesystemTypeNotFound,
-    CurrentPrefixDigestNotFound,
-    EspNotFound,
+    Repository(RepoError),
     System(Errno),
 }
 
@@ -40,21 +34,15 @@ impl From<MountInfoError> for SysrootError {
     }
 }
 
-impl From<ProbeBuilderError> for SysrootError {
-    fn from(_: ProbeBuilderError) -> Self {
-        SysrootError::ProbeUnavailable
-    }
-}
-
-impl From<ProbeError> for SysrootError {
-    fn from(_: ProbeError) -> Self {
-        SysrootError::ProbeUnavailable
-    }
-}
-
 impl From<IoError> for SysrootError {
     fn from(_: IoError) -> Self {
         SysrootError::SysrootDirUnavailable
+    }
+}
+
+impl From<RepoError> for SysrootError {
+    fn from(error: RepoError) -> Self {
+        SysrootError::Repository(error)
     }
 }
 
@@ -64,110 +52,142 @@ impl From<Errno> for SysrootError {
     }
 }
 
-impl From<AnyhowError> for SysrootError {
-    fn from(_: AnyhowError) -> Self {
-        SysrootError::CurrentPrefixDigestNotFound
-    }
-}
-
 impl From<SysrootError> for ErrorKind {
     fn from(error: SysrootError) -> Self {
         match error {
             SysrootError::MountInfoUnavailable => ErrorKind::Unexpected,
-            SysrootError::RootDeviceNotFound => ErrorKind::NotFound,
-            SysrootError::CanonicalDeviceNotFound => ErrorKind::NotFound,
+            SysrootError::SysrootNotMounted => ErrorKind::NotFound,
             SysrootError::SysrootDirUnavailable => ErrorKind::NotFound,
             SysrootError::DeploysDirNotFound => ErrorKind::NotFound,
             SysrootError::RepoDirNotFound => ErrorKind::NotFound,
-            SysrootError::ProbeUnavailable => ErrorKind::Unexpected,
-            SysrootError::FilesystemTypeNotFound => ErrorKind::NotFound,
-            SysrootError::CurrentPrefixDigestNotFound => ErrorKind::NotFound,
-            SysrootError::EspNotFound => ErrorKind::NotFound,
+            SysrootError::Repository(error) => error.into(),
             SysrootError::System(_) => ErrorKind::Unexpected,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeployRecordError {
+pub enum PrefixMetaError {
     NotFound,
     AccessDenied,
     MalformedJson,
-    InvalidField,
     WriteFailed,
 }
 
-impl From<IoError> for DeployRecordError {
+impl From<IoError> for PrefixMetaError {
     fn from(error: IoError) -> Self {
         match error.kind() {
-            std::io::ErrorKind::NotFound => DeployRecordError::NotFound,
-            std::io::ErrorKind::PermissionDenied => DeployRecordError::AccessDenied,
-            _ => DeployRecordError::WriteFailed,
+            IoErrorKind::NotFound => PrefixMetaError::NotFound,
+            IoErrorKind::PermissionDenied => PrefixMetaError::AccessDenied,
+            _ => PrefixMetaError::WriteFailed,
         }
     }
 }
 
-impl From<SerdeJsonError> for DeployRecordError {
+impl From<SerdeJsonError> for PrefixMetaError {
     fn from(_: SerdeJsonError) -> Self {
-        DeployRecordError::MalformedJson
+        PrefixMetaError::MalformedJson
     }
 }
 
-impl From<DeployRecordError> for ErrorKind {
-    fn from(error: DeployRecordError) -> Self {
+impl From<PrefixMetaError> for ErrorKind {
+    fn from(error: PrefixMetaError) -> Self {
         match error {
-            DeployRecordError::NotFound => ErrorKind::NotFound,
-            DeployRecordError::AccessDenied => ErrorKind::PermissionDenied,
-            DeployRecordError::MalformedJson | DeployRecordError::InvalidField => ErrorKind::ReadFailed,
-            DeployRecordError::WriteFailed => ErrorKind::WriteFailed,
+            PrefixMetaError::NotFound => ErrorKind::NotFound,
+            PrefixMetaError::AccessDenied => ErrorKind::PermissionDenied,
+            PrefixMetaError::MalformedJson => ErrorKind::ReadFailed,
+            PrefixMetaError::WriteFailed => ErrorKind::WriteFailed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrefixDeployError {
+    ConfigNotFound(usize),
+}
+
+impl From<PrefixDeployError> for ErrorKind {
+    fn from(error: PrefixDeployError) -> Self {
+        match error {
+            PrefixDeployError::ConfigNotFound(_) => ErrorKind::NotFound,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrefixReadError {
+    Sysroot(SysrootError),
+    Repo(RepoError),
+    Database(DatabaseError),
+    Meta(PrefixMetaError),
+    TransactionMissing,
+}
+
+impl From<SysrootError> for PrefixReadError {
+    fn from(error: SysrootError) -> Self {
+        PrefixReadError::Sysroot(error)
+    }
+}
+
+impl From<IoError> for PrefixReadError {
+    fn from(error: IoError) -> Self {
+        PrefixReadError::Sysroot(error.into())
+    }
+}
+
+impl From<RepoError> for PrefixReadError {
+    fn from(error: RepoError) -> Self {
+        PrefixReadError::Repo(error)
+    }
+}
+
+impl From<DatabaseError> for PrefixReadError {
+    fn from(error: DatabaseError) -> Self {
+        PrefixReadError::Database(error)
+    }
+}
+
+impl From<PrefixMetaError> for PrefixReadError {
+    fn from(error: PrefixMetaError) -> Self {
+        PrefixReadError::Meta(error)
+    }
+}
+
+impl From<PrefixReadError> for ErrorKind {
+    fn from(error: PrefixReadError) -> Self {
+        match error {
+            PrefixReadError::Sysroot(error) => error.into(),
+            PrefixReadError::Repo(error) => error.into(),
+            PrefixReadError::Database(error) => error.into(),
+            PrefixReadError::Meta(error) => error.into(),
+            PrefixReadError::TransactionMissing => ErrorKind::ReadFailed,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DeployRecordsError {
-    Sysroot(SysrootError),
-    DeployRecord(DeployRecordError),
+pub enum PrefixCreateError {
+    AlreadyExists(String),
+    Meta(PrefixMetaError),
 }
 
-impl From<SysrootError> for DeployRecordsError {
-    fn from(error: SysrootError) -> Self {
-        DeployRecordsError::Sysroot(error)
+impl From<PrefixMetaError> for PrefixCreateError {
+    fn from(error: PrefixMetaError) -> Self {
+        PrefixCreateError::Meta(error)
     }
 }
 
-impl From<DeployRecordError> for DeployRecordsError {
-    fn from(error: DeployRecordError) -> Self {
-        DeployRecordsError::DeployRecord(error)
+impl From<IoError> for PrefixCreateError {
+    fn from(error: IoError) -> Self {
+        PrefixCreateError::Meta(error.into())
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ConfigDigestResolveError {
-    Records(DeployRecordsError),
-    NotFound(String),
-}
-
-impl From<DeployRecordsError> for ConfigDigestResolveError {
-    fn from(error: DeployRecordsError) -> Self {
-        ConfigDigestResolveError::Records(error)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PruneError {
-    Records(DeployRecordsError),
-    Repo(RepoError),
-}
-
-impl From<DeployRecordsError> for PruneError {
-    fn from(error: DeployRecordsError) -> Self {
-        PruneError::Records(error)
-    }
-}
-
-impl From<RepoError> for PruneError {
-    fn from(error: RepoError) -> Self {
-        PruneError::Repo(error)
+impl From<PrefixCreateError> for ErrorKind {
+    fn from(error: PrefixCreateError) -> Self {
+        match error {
+            PrefixCreateError::AlreadyExists(_) => ErrorKind::InvalidEntry,
+            PrefixCreateError::Meta(error) => error.into(),
+        }
     }
 }

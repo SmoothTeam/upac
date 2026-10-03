@@ -3,245 +3,198 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::cmp::Reverse;
-use std::collections::HashSet;
-use std::fs::{create_dir_all, read_dir, remove_dir, remove_dir_all};
+use std::fs::{create_dir, read_dir, read_to_string, remove_dir_all};
+use std::io::ErrorKind as IoErrorKind;
 use std::path::{Path, PathBuf};
 
 use composefs::repository::Repository;
-use composefs::tree::FileSystem;
 
-use nix::mount::{MsFlags, mount, umount};
+use nix::mount::{MsFlags, mount};
 use nix::sched::{CloneFlags, unshare};
-
-use rsblkid::device::TagName;
-use rsblkid::probe::Probe;
-use rsblkid::utils::evaluation::find_canonical_device_name_from_path;
 
 use rsmount::tables::MountInfo;
 
-use upac_types::settings::RuntimeSettings;
-
 use upac_composefs::error::RepoError;
+use upac_composefs::file::FileHandle;
+use upac_composefs::fs::WrittenFile;
 use upac_composefs::repository::{self, ObjectID};
 
-use self::digest::current_prefix_digest;
-use self::error::{PruneError, SysrootError};
-use self::layout::boot::{ESP_MOUNT_FALLBACK, ESP_MOUNT_PRIMARY};
-use self::layout::deployment::{DEPLOYS_DIR, NEXT_SEQ_PATH, REPO_DIR, ROOT_DIR, SYSROOT_DIR};
-use self::record::DeployRecord;
+use upac_database::layout::database::DATABASE_PATH;
+use upac_database::transaction::TransactionStore;
+use upac_database::{InMemory, MemoryDatabase};
 
-pub mod digest;
+use self::deployment::Deployment;
+use self::deployment::PrefixDeploy;
+use self::deployment::meta::PrefixPointer;
+use self::error::{PrefixCreateError, PrefixMetaError, PrefixReadError, SysrootError};
+use self::layout::deployment::{
+    CONFIG_DIR_NAME, DEPLOYS_DIR, LIVE_ETC_UPPER_DIR_NAME, NEXT_PREFIX_FILENAME, REPO_DIR, ROOT_DIR,
+    RUNNING_PREFIX_PATH, SYSROOT_DIR,
+};
+
+pub mod deployment;
 pub mod error;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
-pub mod record;
-pub mod retention;
-
-#[cfg(test)]
-#[path = "../tests/inline/deploy.rs"]
-mod tests;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeployMode {
+pub enum SysrootMode {
     ReadOnly,
     ReadWrite,
 }
 
-impl From<DeployMode> for MsFlags {
-    fn from(mode: DeployMode) -> Self {
+impl From<SysrootMode> for MsFlags {
+    fn from(mode: SysrootMode) -> Self {
         match mode {
-            DeployMode::ReadOnly => MsFlags::MS_RDONLY,
-            DeployMode::ReadWrite => MsFlags::empty(),
+            SysrootMode::ReadOnly => MsFlags::MS_RDONLY,
+            SysrootMode::ReadWrite => MsFlags::empty(),
         }
     }
 }
 
-pub struct Deploy {
-    sysroot: PathBuf,
-    deploy: PathBuf,
-    repo: PathBuf,
+pub struct Sysroot {
+    repository: Repository<ObjectID>,
+    deploys_dir: PathBuf,
 }
 
-impl Deploy {
-    pub fn new(mode: DeployMode) -> Result<Self, SysrootError> {
-        let device_path = Self::device_path()?;
-        let filesystem_type = Self::filesystem_type(device_path.as_path())?;
-        let sysroot = Self::sysroot_path()?;
+impl Sysroot {
+    pub fn new(mode: SysrootMode) -> Result<Self, SysrootError> {
+        let sysroot_path = Path::new(ROOT_DIR).join(SYSROOT_DIR);
+
+        let mut mount_table = MountInfo::new()?;
+        mount_table.import_mountinfo()?;
+        if mount_table.find_target(&sysroot_path).is_none() {
+            return Err(SysrootError::SysrootNotMounted);
+        }
 
         unshare(CloneFlags::CLONE_NEWNS)?;
         mount(
             None::<&str>,
-            "/",
+            ROOT_DIR,
             None::<&str>,
             MsFlags::MS_REC | MsFlags::MS_PRIVATE,
             None::<&str>,
         )?;
         mount(
-            Some(&device_path),
-            &sysroot,
-            Some(filesystem_type.as_str()),
-            mode.into(),
+            None::<&str>,
+            &sysroot_path,
+            None::<&str>,
+            MsFlags::MS_REMOUNT | MsFlags::MS_BIND | MsFlags::from(mode),
             None::<&str>,
         )?;
 
-        let deploy = sysroot.join(DEPLOYS_DIR);
-        if !deploy.try_exists()? {
+        Self::open(&sysroot_path)
+    }
+
+    pub fn open(root: &Path) -> Result<Self, SysrootError> {
+        let deploys_dir = root.join(DEPLOYS_DIR);
+        if !deploys_dir.try_exists()? {
             return Err(SysrootError::DeploysDirNotFound);
         }
 
-        let repo = sysroot.join(REPO_DIR);
-        if !repo.try_exists()? {
+        let repo_dir = root.join(REPO_DIR);
+        if !repo_dir.try_exists()? {
             return Err(SysrootError::RepoDirNotFound);
         }
 
-        Ok(Self { sysroot, deploy, repo })
+        let repository = repository::open(&repo_dir)?;
+
+        Ok(Self {
+            repository,
+            deploys_dir,
+        })
     }
 
-    pub fn deploy(&self, prefix_digest: &str) -> PathBuf {
-        self.deploy.join(prefix_digest)
+    pub fn repository(&self) -> &Repository<ObjectID> {
+        &self.repository
     }
 
-    pub fn next_seq_path(&self) -> PathBuf {
-        self.sysroot.join(NEXT_SEQ_PATH)
+    pub fn prefix(&self, prefix_digest: &str) -> Result<PrefixDeploy, PrefixReadError> {
+        let tree = repository::open_tree(&self.repository, prefix_digest)?;
+
+        let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&self.repository, &tree)?;
+        let database = MemoryDatabase::open_in_memory(database_bytes)?;
+        let transaction = database.get_transaction()?.ok_or(PrefixReadError::TransactionMissing)?;
+
+        Ok(PrefixDeploy::read(
+            prefix_digest.to_owned(),
+            transaction,
+            &self.deploys_dir.join(prefix_digest),
+        )?)
     }
 
-    pub fn deploys(&self) -> Result<Vec<String>, SysrootError> {
-        let mut digests = Vec::new();
+    pub fn prefixes(&self) -> Result<Vec<PrefixDeploy>, PrefixReadError> {
+        let mut prefixes = Vec::new();
 
-        for entry in read_dir(&self.deploy)? {
+        for entry in read_dir(&self.deploys_dir)? {
             let entry = entry?;
 
             if !entry.file_type()?.is_dir() {
                 continue;
             }
 
-            if let Some(digest) = entry.file_name().to_str() {
-                digests.push(digest.to_owned());
+            if let Some(prefix_digest) = entry.file_name().to_str() {
+                prefixes.push(self.prefix(prefix_digest)?);
             }
         }
 
-        Ok(digests)
+        Ok(prefixes)
     }
 
-    pub fn prune_deploys(&self) -> Result<Vec<String>, PruneError> {
-        let retention_depth = RuntimeSettings::load().gc.retention_depth as usize;
+    pub fn running_prefix(&self) -> Result<PrefixDeploy, PrefixReadError> {
+        let running_digest = read_to_string(RUNNING_PREFIX_PATH).map_err(PrefixMetaError::from)?;
 
-        let mut deploy_records = DeployRecord::read_all(self)?;
-        deploy_records.sort_by_key(|record| Reverse(record.seq));
+        self.prefix(running_digest.trim())
+    }
 
-        let mut pinned_deploys: HashSet<&String> = HashSet::new();
+    pub fn next_prefix(&self) -> Result<PrefixDeploy, PrefixReadError> {
+        let pointer = PrefixPointer::read(&self.deploys_dir.join(NEXT_PREFIX_FILENAME))?;
 
-        if let Ok(current_deploy_name) = current_prefix_digest()
-            && let Some(index) = deploy_records
-                .iter()
-                .position(|record| record.prefix_digest == current_deploy_name)
-        {
-            pinned_deploys.insert(&deploy_records[index].prefix_digest);
+        self.prefix(&pointer.prefix_digest)
+    }
 
-            if let Some(previous) = deploy_records.get(index + 1) {
-                pinned_deploys.insert(&previous.prefix_digest);
-            }
+    pub fn set_next_prefix(&self, prefix: &PrefixDeploy) -> Result<WrittenFile, PrefixMetaError> {
+        let pointer = PrefixPointer {
+            prefix_digest: prefix.digest().to_owned(),
+        };
+
+        pointer.write(&self.deploys_dir.join(NEXT_PREFIX_FILENAME))
+    }
+
+    pub fn create_prefix(&self, prefix: &PrefixDeploy) -> Result<(), PrefixCreateError> {
+        let prefix_dir = self.deploys_dir.join(prefix.digest());
+
+        if prefix_dir.try_exists()? {
+            return Err(PrefixCreateError::AlreadyExists(prefix.digest().to_owned()));
         }
 
-        for record in &deploy_records {
-            if record.pinned {
-                pinned_deploys.insert(&record.prefix_digest);
-            }
+        create_dir(&prefix_dir)?;
+
+        if let Err(error) = prefix.write(&prefix_dir) {
+            let _ = self.remove_prefix(prefix.digest());
+            return Err(error.into());
         }
 
-        for record in deploy_records.iter().take(retention_depth) {
-            pinned_deploys.insert(&record.prefix_digest);
-        }
-
-        let mut removed_deploys_names = Vec::new();
-        for record in &deploy_records {
-            if pinned_deploys.contains(&record.prefix_digest) {
-                continue;
-            }
-
-            remove_dir_all(self.deploy(&record.prefix_digest)).map_err(RepoError::from)?;
-            removed_deploys_names.push(record.prefix_digest.clone());
-        }
-
-        Ok(removed_deploys_names)
+        Ok(())
     }
 
-    pub fn repo(&self) -> &Path {
-        &self.repo
+    pub fn save_prefix(&self, prefix: &PrefixDeploy) -> Result<WrittenFile, PrefixMetaError> {
+        prefix.write(&self.deploys_dir.join(prefix.digest()))
     }
 
-    pub fn open_repository(&self) -> Result<Repository<ObjectID>, RepoError> {
-        repository::open(&self.repo)
-    }
-
-    pub fn open_tree(&self, name: &str) -> Result<FileSystem<ObjectID>, RepoError> {
-        repository::open_tree(&self.open_repository()?, name)
-    }
-
-    fn sysroot_path() -> Result<PathBuf, SysrootError> {
-        let sysroot = Path::new(ROOT_DIR).join(SYSROOT_DIR);
-        create_dir_all(&sysroot)?;
-
-        Ok(sysroot)
-    }
-
-    fn device_path() -> Result<PathBuf, SysrootError> {
-        let mut table = MountInfo::new()?;
-        table.import_mountinfo()?;
-
-        let raw_device_path = table
-            .find_target(ROOT_DIR)
-            .and_then(|entry| entry.source_path())
-            .ok_or(SysrootError::RootDeviceNotFound)?;
-
-        find_canonical_device_name_from_path(raw_device_path).ok_or(SysrootError::CanonicalDeviceNotFound)
-    }
-
-    fn filesystem_type(device_path: &Path) -> Result<String, SysrootError> {
-        let mut probe = Probe::builder()
-            .scan_device(device_path)
-            .scan_device_superblocks(true)
-            .build()?;
-
-        probe.find_device_properties();
-
-        let tag = probe
-            .lookup_device_property_value(TagName::Type)
-            .ok_or(SysrootError::FilesystemTypeNotFound)?;
-
-        Ok(tag.value().to_owned())
-    }
-}
-
-impl Drop for Deploy {
-    fn drop(&mut self) {
-        let _ = umount(&self.sysroot);
-        let _ = remove_dir(&self.sysroot);
-    }
-}
-
-pub fn find_esp_mount() -> Result<PathBuf, SysrootError> {
-    let mut mount_table = MountInfo::new()?;
-    mount_table.import_mountinfo()?;
-
-    for candidate_for_mount in [ESP_MOUNT_PRIMARY, ESP_MOUNT_FALLBACK] {
-        if mount_table.find_target(candidate_for_mount).is_some() {
-            return Ok(PathBuf::from(candidate_for_mount));
+    pub fn remove_prefix(&self, prefix_digest: &str) -> Result<(), RepoError> {
+        match remove_dir_all(self.deploys_dir.join(prefix_digest)) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == IoErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.into()),
         }
     }
 
-    Err(SysrootError::EspNotFound)
-}
-
-#[cfg(test)]
-impl Deploy {
-    pub(crate) fn for_testing(deploy_dir: PathBuf) -> Self {
-        Deploy {
-            sysroot: deploy_dir.clone(),
-            deploy: deploy_dir,
-            repo: PathBuf::new(),
-        }
+    pub fn live_etc_upper_dir(&self, prefix_digest: &str) -> PathBuf {
+        self.deploys_dir
+            .join(prefix_digest)
+            .join(CONFIG_DIR_NAME)
+            .join(LIVE_ETC_UPPER_DIR_NAME)
     }
 }
