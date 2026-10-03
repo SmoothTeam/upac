@@ -10,7 +10,8 @@ use composefs::tree::{Directory, FileSystem, Inode, Leaf, LeafContent, RegularFi
 
 use upac_abi::response::entry::FileDiffKind;
 
-use super::repository::ObjectID;
+use super::super::ObjectID;
+use super::Tree;
 
 macro_rules! advance_subtree {
     ($differ:expr, $prefix:expr, $entries:expr, $next:expr, $name:expr, $inode:expr, $side:expr) => {{
@@ -34,14 +35,14 @@ impl Side {
     }
 }
 
-pub struct TreeDiff<'tree> {
+struct TreeDiff<'tree> {
     from_leaves: &'tree [Leaf<ObjectID>],
     to_leaves: &'tree [Leaf<ObjectID>],
     changes: Vec<(String, FileDiffKind)>,
 }
 
 impl<'tree> TreeDiff<'tree> {
-    pub fn run(from: &'tree FileSystem<ObjectID>, to: &'tree FileSystem<ObjectID>) -> Vec<(String, FileDiffKind)> {
+    fn run(from: &'tree FileSystem<ObjectID>, to: &'tree FileSystem<ObjectID>) -> Vec<(String, FileDiffKind)> {
         let mut differ = Self {
             from_leaves: &from.leaves,
             to_leaves: &to.leaves,
@@ -154,5 +155,11 @@ impl<'tree> TreeDiff<'tree> {
 
     fn path_to_string(path: &Path) -> String {
         path.to_string_lossy().into_owned()
+    }
+}
+
+impl Tree {
+    pub fn diff(&self, other: &Tree) -> Vec<(String, FileDiffKind)> {
+        TreeDiff::run(&self.filesystem, &other.filesystem)
     }
 }
