@@ -12,3 +12,8 @@
 # constants.
 [deployment]
 overlay_opaque_xattr = "trusted.overlay.opaque"
+
+# new_file_mode is the permission set WrittenFile gives a file it creates from scratch; an existing
+# file keeps its own permissions across the atomic replace.
+[fs]
+new_file_mode = 0o644

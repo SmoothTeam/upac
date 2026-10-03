@@ -11,5 +11,6 @@ pub mod config;
 pub mod diff;
 pub mod error;
 pub mod file;
+pub mod fs;
 pub mod overlay;
 pub mod repository;
