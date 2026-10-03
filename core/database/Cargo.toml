@@ -32,9 +32,11 @@ name = "upac_database"
 upac-lib-types = { workspace = true }
 upac-lib-abi   = { workspace = true }
 
-uuid = { workspace = true }
+uuid  = { workspace = true }
+serde = { workspace = true }
 
-redb = { version = "4.1.0", features = ["uuid"] }
+redb     = { version = "4.1.0", features = ["uuid"] }
+postcard = { version = "1.1", features = ["alloc"] }
 
 twox-hash = "2.1.3"
 

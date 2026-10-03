@@ -3,19 +3,19 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use redb::{ReadableDatabase, ReadableTable, TypeName, Value as RedbValue};
+use redb::{ReadableDatabase, ReadableTable};
 
 use twox_hash::xxhash3_64::Hasher as XxHasher;
 
 use uuid::Uuid;
 
-use upac_types::codec::RedbCodable;
 use upac_types::response::entry::FileEntry;
 
 use super::error::DatabaseError;
-use super::{FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadTransactionExt, ReadableSource};
-
-use super::layout::database::FILES_ENTRY_TYPE_NAME;
+use super::{
+    FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadTransactionExt, ReadableSource, record_decode,
+    record_encode,
+};
 
 pub trait FileStore {
     fn path_hash(path: &str) -> u64 {
@@ -59,7 +59,7 @@ impl<T: ReadableSource> FileStore for T {
                 break;
             }
 
-            out.push(value.value().0);
+            out.push(record_decode(value.value())?);
         }
 
         Ok(out)
@@ -76,7 +76,7 @@ impl<T: ReadableSource> FileStore for T {
             let (key, value) = entry?;
             let (uuid, _hash) = key.value();
 
-            out.push((uuid, value.value().0));
+            out.push((uuid, record_decode(value.value())?));
         }
 
         Ok(out)
@@ -90,7 +90,7 @@ impl FileStoreMut for MemoryDatabase {
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
         let already_user_owned = match files.get((uuid, hash))? {
-            Some(existing) => existing.value().0.is_user,
+            Some(existing) => record_decode::<FileEntry>(existing.value())?.is_user,
             None => false,
         };
 
@@ -98,7 +98,7 @@ impl FileStoreMut for MemoryDatabase {
             return Ok(());
         }
 
-        files.insert((uuid, hash), StoredFileEntry::from_ref(entry))?;
+        files.insert((uuid, hash), record_encode(entry)?.as_slice())?;
 
         drop(files);
         transaction.open_table(FILES_UUID_HASH_TABLE)?.insert(hash, uuid)?;
@@ -116,7 +116,7 @@ impl FileStoreMut for MemoryDatabase {
         let transaction = self.database.begin_write()?;
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
-        let entry = files.get((uuid, hash))?.ok_or(DatabaseError::FileNotFound)?.value().0;
+        let entry: FileEntry = record_decode(files.get((uuid, hash))?.ok_or(DatabaseError::FileNotFound)?.value())?;
 
         if entry.is_user {
             return Err(DatabaseError::AccessDenied);
@@ -136,7 +136,7 @@ impl FileStoreMut for MemoryDatabase {
         let transaction = self.database.begin_write()?;
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
-        let entry = files.get((uuid, hash))?.ok_or(DatabaseError::FileNotFound)?.value().0;
+        let entry: FileEntry = record_decode(files.get((uuid, hash))?.ok_or(DatabaseError::FileNotFound)?.value())?;
 
         if !entry.is_user {
             return Err(DatabaseError::AccessDenied);
@@ -149,47 +149,5 @@ impl FileStoreMut for MemoryDatabase {
         transaction.commit()?;
 
         Ok(entry)
-    }
-}
-
-#[derive(Debug)]
-#[repr(transparent)]
-pub(crate) struct StoredFileEntry(pub(crate) FileEntry);
-
-impl StoredFileEntry {
-    fn from_ref(entry: &FileEntry) -> &StoredFileEntry {
-        unsafe { &*(entry as *const FileEntry as *const StoredFileEntry) }
-    }
-}
-
-impl RedbValue for StoredFileEntry {
-    type AsBytes<'bytes> = Vec<u8>;
-    type SelfType<'bytes> = StoredFileEntry;
-
-    fn fixed_width() -> Option<usize> {
-        None
-    }
-
-    fn from_bytes<'bytes>(data: &'bytes [u8]) -> StoredFileEntry
-    where
-        Self: 'bytes,
-    {
-        let mut offset = 0;
-
-        StoredFileEntry(FileEntry::redb_decode(data, &mut offset))
-    }
-
-    fn as_bytes<'bytes, 'value: 'bytes>(value: &'bytes StoredFileEntry) -> Vec<u8>
-    where
-        Self: 'value,
-    {
-        let mut buf = Vec::new();
-
-        value.0.redb_encode(&mut buf);
-        buf
-    }
-
-    fn type_name() -> TypeName {
-        TypeName::new(FILES_ENTRY_TYPE_NAME)
     }
 }

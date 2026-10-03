@@ -12,16 +12,16 @@ use redb::{
     ReadableDatabase, StorageBackend, TableDefinition, TableError, Value,
 };
 
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+
 use uuid::Uuid;
 
 use self::error::DatabaseError;
-use self::files::StoredFileEntry;
 use self::layout::database::{
     FILES_BY_PATH_TABLE_NAME, FILES_TABLE_NAME, PACKAGES_BY_NAME_TABLE_NAME, PACKAGES_TABLE_NAME,
-    PACKAGES_TRIGGERS_TABLE_NAME,
+    PACKAGES_TRIGGERS_TABLE_NAME, TRANSACTION_TABLE_NAME,
 };
-use self::meta::StoredPackageMeta;
-use self::triggers::StoredTriggers;
 
 pub mod attribution;
 pub mod error;
@@ -30,17 +30,26 @@ pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
 pub mod meta;
+pub mod transaction;
 pub mod triggers;
 
-pub(crate) const PACKAGES_UUID_TABLE: TableDefinition<Uuid, StoredPackageMeta> =
-    TableDefinition::new(PACKAGES_TABLE_NAME);
+pub(crate) const PACKAGES_UUID_TABLE: TableDefinition<Uuid, &[u8]> = TableDefinition::new(PACKAGES_TABLE_NAME);
 pub(crate) const PACKAGES_HASH_TABLE: TableDefinition<u64, Uuid> = TableDefinition::new(PACKAGES_BY_NAME_TABLE_NAME);
-pub(crate) const PACKAGES_TRIGGERS_TABLE: TableDefinition<Uuid, StoredTriggers> =
+pub(crate) const PACKAGES_TRIGGERS_TABLE: TableDefinition<Uuid, &[u8]> =
     TableDefinition::new(PACKAGES_TRIGGERS_TABLE_NAME);
 
-pub(crate) const FILES_UUID_TABLE: TableDefinition<(Uuid, u64), StoredFileEntry> =
-    TableDefinition::new(FILES_TABLE_NAME);
+pub(crate) const FILES_UUID_TABLE: TableDefinition<(Uuid, u64), &[u8]> = TableDefinition::new(FILES_TABLE_NAME);
 pub(crate) const FILES_UUID_HASH_TABLE: TableDefinition<u64, Uuid> = TableDefinition::new(FILES_BY_PATH_TABLE_NAME);
+
+pub(crate) const TRANSACTION_TABLE: TableDefinition<(), &[u8]> = TableDefinition::new(TRANSACTION_TABLE_NAME);
+
+pub(crate) fn record_encode<T: Serialize + ?Sized>(record: &T) -> Result<Vec<u8>, DatabaseError> {
+    postcard::to_allocvec(record).map_err(|_| DatabaseError::WriteError)
+}
+
+pub(crate) fn record_decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, DatabaseError> {
+    postcard::from_bytes(bytes).map_err(|_| DatabaseError::ReadError)
+}
 
 pub trait InMemory {
     fn new_in_memory() -> Result<Self, DatabaseError>

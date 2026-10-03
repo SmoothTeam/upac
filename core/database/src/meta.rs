@@ -3,36 +3,30 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use redb::{ReadableDatabase, ReadableTable, TypeName, Value as RedbValue};
+use redb::{ReadableDatabase, ReadableTable};
 
 use twox_hash::xxhash3_64::Hasher as XxHasher;
 
 use uuid::Uuid;
 
-use upac_types::codec::{RedbCodable, write_len_prefixed, write_opt_str};
 use upac_types::package::PackageMeta;
 
 use super::error::DatabaseError;
-use super::{MemoryDatabase, PACKAGES_HASH_TABLE, PACKAGES_UUID_TABLE, ReadTransactionExt, ReadableSource};
-
-use super::layout::database::PACKAGES_META_TYPE_NAME;
+use super::{
+    MemoryDatabase, PACKAGES_HASH_TABLE, PACKAGES_UUID_TABLE, ReadTransactionExt, ReadableSource, record_decode,
+    record_encode,
+};
 
 pub trait MetaStore {
-    fn identity_hash(name: &str, arch: &str, arch_sub: Option<&str>) -> u64 {
-        let mut buf = Vec::new();
-
-        write_len_prefixed(&mut buf, name.as_bytes());
-        write_len_prefixed(&mut buf, arch.as_bytes());
-        write_opt_str(&mut buf, arch_sub);
-
-        XxHasher::oneshot(&buf)
+    fn identity_hash(name: &str, arch: &str, arch_sub: Option<&str>) -> Result<u64, DatabaseError> {
+        Ok(XxHasher::oneshot(&record_encode(&(name, arch, arch_sub))?))
     }
 
     fn lookup_uuid(
         by_name: &impl ReadableTable<u64, Uuid>, name: &str, arch: &str, arch_sub: Option<&str>,
     ) -> Result<Option<Uuid>, DatabaseError> {
         Ok(by_name
-            .get(Self::identity_hash(name, arch, arch_sub))?
+            .get(Self::identity_hash(name, arch, arch_sub)?)?
             .map(|guard| guard.value()))
     }
 
@@ -65,7 +59,10 @@ impl<T: ReadableSource> MetaStore for T {
             return Ok(None);
         };
 
-        Ok(packages.get(uuid)?.map(|guard| guard.value().0))
+        packages
+            .get(uuid)?
+            .map(|guard| record_decode(guard.value()))
+            .transpose()
     }
 
     fn list_packages_metas(&self) -> Result<Vec<PackageMeta>, DatabaseError> {
@@ -77,7 +74,7 @@ impl<T: ReadableSource> MetaStore for T {
 
         for entry in packages.iter()? {
             let (_uuid, meta) = entry?;
-            out.push(meta.value().0);
+            out.push(record_decode(meta.value())?);
         }
 
         Ok(out)
@@ -91,9 +88,9 @@ impl MetaStoreMut for MemoryDatabase {
 
         transaction
             .open_table(PACKAGES_UUID_TABLE)?
-            .insert(uuid, StoredPackageMeta::from_ref(meta))?;
+            .insert(uuid, record_encode(meta)?.as_slice())?;
 
-        let hash = Self::identity_hash(&meta.name, &meta.arch, meta.arch_sub.as_deref());
+        let hash = Self::identity_hash(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
         transaction.open_table(PACKAGES_HASH_TABLE)?.insert(hash, uuid)?;
 
         transaction.commit()?;
@@ -109,7 +106,7 @@ impl MetaStoreMut for MemoryDatabase {
 
         transaction
             .open_table(PACKAGES_UUID_TABLE)?
-            .insert(uuid, StoredPackageMeta::from_ref(meta))?;
+            .insert(uuid, record_encode(meta)?.as_slice())?;
 
         drop(by_name);
         transaction.commit()?;
@@ -124,59 +121,15 @@ impl MetaStoreMut for MemoryDatabase {
         let mut by_name = transaction.open_table(PACKAGES_HASH_TABLE)?;
         let uuid = Self::lookup_uuid(&by_name, name, arch, arch_sub)?.ok_or(DatabaseError::PackageNotFound)?;
 
-        by_name.remove(Self::identity_hash(name, arch, arch_sub))?;
+        by_name.remove(Self::identity_hash(name, arch, arch_sub)?)?;
 
         let mut packages = transaction.open_table(PACKAGES_UUID_TABLE)?;
-        let removed = packages.remove(uuid)?.ok_or(DatabaseError::PackageNotFound)?.value().0;
+        let removed = record_decode(packages.remove(uuid)?.ok_or(DatabaseError::PackageNotFound)?.value())?;
 
         drop(by_name);
         drop(packages);
         transaction.commit()?;
 
         Ok(removed)
-    }
-}
-
-#[derive(Debug)]
-#[repr(transparent)]
-pub(crate) struct StoredPackageMeta(pub(crate) PackageMeta);
-
-impl StoredPackageMeta {
-    fn from_ref(meta: &PackageMeta) -> &StoredPackageMeta {
-        // SAFETY: `StoredPackageMeta` is `#[repr(transparent)]` over `PackageMeta`, so the two share
-        // identical layout and this reference cast is sound.
-        unsafe { &*(meta as *const PackageMeta as *const StoredPackageMeta) }
-    }
-}
-
-impl RedbValue for StoredPackageMeta {
-    type AsBytes<'bytes> = Vec<u8>;
-    type SelfType<'bytes> = StoredPackageMeta;
-
-    fn fixed_width() -> Option<usize> {
-        None
-    }
-
-    fn from_bytes<'bytes>(data: &'bytes [u8]) -> StoredPackageMeta
-    where
-        Self: 'bytes,
-    {
-        let mut offset = 0;
-
-        StoredPackageMeta(PackageMeta::redb_decode(data, &mut offset))
-    }
-
-    fn as_bytes<'bytes, 'value: 'bytes>(value: &'bytes StoredPackageMeta) -> Vec<u8>
-    where
-        Self: 'value,
-    {
-        let mut buf = Vec::new();
-
-        value.0.redb_encode(&mut buf);
-        buf
-    }
-
-    fn type_name() -> TypeName {
-        TypeName::new(PACKAGES_META_TYPE_NAME)
     }
 }

@@ -3,17 +3,16 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use redb::{ReadableDatabase, TypeName, Value as RedbValue};
+use redb::ReadableDatabase;
 
 use uuid::Uuid;
 
-use upac_types::codec::RedbCodable;
 use upac_types::decoder::DeclarativeTrigger;
 
 use super::error::DatabaseError;
-use super::{MemoryDatabase, PACKAGES_TRIGGERS_TABLE, ReadTransactionExt, ReadableSource};
-
-use super::layout::database::PACKAGES_TRIGGERS_TYPE_NAME;
+use super::{
+    MemoryDatabase, PACKAGES_TRIGGERS_TABLE, ReadTransactionExt, ReadableSource, record_decode, record_encode,
+};
 
 pub trait TriggerStore {
     fn get_declarative_triggers(&self, uuid: Uuid) -> Result<Option<DeclarativeTrigger>, DatabaseError>;
@@ -31,7 +30,10 @@ impl<T: ReadableSource> TriggerStore for T {
             return Ok(None);
         };
 
-        Ok(triggers.get(uuid)?.map(|guard| guard.value().0))
+        triggers
+            .get(uuid)?
+            .map(|guard| record_decode(guard.value()))
+            .transpose()
     }
 }
 
@@ -41,7 +43,7 @@ impl TriggerStoreMut for MemoryDatabase {
 
         transaction
             .open_table(PACKAGES_TRIGGERS_TABLE)?
-            .insert(uuid, StoredTriggers::from_ref(trigger))?;
+            .insert(uuid, record_encode(trigger)?.as_slice())?;
 
         transaction.commit()?;
         Ok(())
@@ -54,49 +56,5 @@ impl TriggerStoreMut for MemoryDatabase {
 
         transaction.commit()?;
         Ok(())
-    }
-}
-
-#[derive(Debug)]
-#[repr(transparent)]
-pub(crate) struct StoredTriggers(pub(crate) DeclarativeTrigger);
-
-impl StoredTriggers {
-    fn from_ref(trigger: &DeclarativeTrigger) -> &StoredTriggers {
-        // SAFETY: `StoredTriggers` is `#[repr(transparent)]` over `DeclarativeTrigger`, so the two
-        // share identical layout and this reference cast is sound.
-        unsafe { &*(trigger as *const DeclarativeTrigger as *const StoredTriggers) }
-    }
-}
-
-impl RedbValue for StoredTriggers {
-    type AsBytes<'bytes> = Vec<u8>;
-    type SelfType<'bytes> = StoredTriggers;
-
-    fn fixed_width() -> Option<usize> {
-        None
-    }
-
-    fn from_bytes<'bytes>(data: &'bytes [u8]) -> StoredTriggers
-    where
-        Self: 'bytes,
-    {
-        let mut offset = 0;
-
-        StoredTriggers(DeclarativeTrigger::redb_decode(data, &mut offset))
-    }
-
-    fn as_bytes<'bytes, 'value: 'bytes>(value: &'bytes StoredTriggers) -> Vec<u8>
-    where
-        Self: 'value,
-    {
-        let mut buf = Vec::new();
-
-        value.0.redb_encode(&mut buf);
-        buf
-    }
-
-    fn type_name() -> TypeName {
-        TypeName::new(PACKAGES_TRIGGERS_TYPE_NAME)
     }
 }
