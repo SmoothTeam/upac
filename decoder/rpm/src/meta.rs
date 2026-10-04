@@ -3,10 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-
-use upac_types::error::DecodeError;
-use upac_types::package::{DecodedPackageMeta, PackageDependency, PackageMeta, Version};
+use upac_types::decoder::DecodeError;
+use upac_types::package::{
+    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+};
 use upac_types::traits::DecodeMeta;
 
 use super::header::Header;
@@ -19,12 +19,6 @@ const SENSE_LESS: i32 = 0x02;
 const SENSE_GREATER: i32 = 0x04;
 const SENSE_EQUAL: i32 = 0x08;
 const SENSE_RPMLIB: i32 = 0x0100_0000;
-
-const SENSE_FLAGS: [(i32, u8); 3] = [
-    (SENSE_LESS, CONSTRAINT_LESS),
-    (SENSE_GREATER, CONSTRAINT_GREATER),
-    (SENSE_EQUAL, CONSTRAINT_EQUAL),
-];
 
 impl DecodeMeta for Header {
     fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
@@ -72,24 +66,23 @@ impl Header {
                 continue;
             }
 
-            let raw_version = versions.get(index).cloned().unwrap_or_default();
+            let constraint = VersionConstraint::from_orderings(
+                flag & SENSE_LESS != 0,
+                flag & SENSE_EQUAL != 0,
+                flag & SENSE_GREATER != 0,
+            );
 
-            dependencies.push(PackageDependency {
-                name,
-                constraint: Self::sense_to_constraint(flag),
-                version: Version::parse(&raw_version),
-            });
+            let requirement = match (constraint, versions.get(index)) {
+                (Some(constraint), Some(raw_version)) if !raw_version.is_empty() => VersionRequirement::Bounded {
+                    constraint,
+                    version: Version::parse(raw_version),
+                },
+                _ => VersionRequirement::Any,
+            };
+
+            dependencies.push(PackageDependency { name, requirement });
         }
 
         Ok(dependencies)
-    }
-
-    fn sense_to_constraint(flag: i32) -> u8 {
-        let constraint = SENSE_FLAGS
-            .iter()
-            .filter(|(sense, _)| flag & sense != 0)
-            .fold(0, |acc, (_, constraint)| acc | constraint);
-
-        if constraint == 0 { CONSTRAINT_ANY } else { constraint }
     }
 }

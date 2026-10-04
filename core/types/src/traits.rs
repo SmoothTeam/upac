@@ -3,10 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::error::ErrorDomain;
-use upac_abi::plugin::BootResourceKind;
-
-use super::error::DecodeError;
+use super::booter::BootResourceKind;
+use super::decoder::DecodeError;
+use super::error::ErrorDomain;
 use super::package::DecodedPackageMeta;
 
 pub trait CommandState: Copy {

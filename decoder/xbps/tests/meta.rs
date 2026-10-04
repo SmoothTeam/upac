@@ -3,14 +3,20 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-
 use upac_decoder_xbps::meta::Props;
 
-use upac_types::error::DecodeError;
+use upac_types::decoder::DecodeError;
+use upac_types::package::{Version, VersionConstraint, VersionRequirement};
 use upac_types::traits::DecodeMeta;
 
 const CHECKSUM: [u8; 32] = [7; 32];
+
+fn bounded(constraint: VersionConstraint, raw_version: &str) -> VersionRequirement {
+    VersionRequirement::Bounded {
+        constraint,
+        version: Version::parse(raw_version),
+    }
+}
 
 fn plist(entries: &str) -> String {
     format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\">\n<dict>\n{entries}</dict>\n</plist>\n")
@@ -120,19 +126,32 @@ fn parses_dependencies_with_all_constraint_operators() {
     assert_eq!(decoded.dependencies.len(), 4);
 
     assert_eq!(decoded.dependencies[0].name, "bash");
-    assert_eq!(decoded.dependencies[0].constraint, CONSTRAINT_ANY);
+    assert_eq!(decoded.dependencies[0].requirement, VersionRequirement::Any);
 
     assert_eq!(decoded.dependencies[1].name, "glibc");
     assert_eq!(
-        decoded.dependencies[1].constraint,
-        CONSTRAINT_GREATER | CONSTRAINT_EQUAL
+        decoded.dependencies[1].requirement,
+        bounded(VersionConstraint::GreaterOrEqual, "2.34")
     );
-    assert_eq!(decoded.dependencies[1].version.raw, "2.34");
 
     assert_eq!(decoded.dependencies[2].name, "libssl");
-    assert_eq!(decoded.dependencies[2].constraint, CONSTRAINT_LESS | CONSTRAINT_EQUAL);
-    assert_eq!(decoded.dependencies[2].version.raw, "3");
+    assert_eq!(
+        decoded.dependencies[2].requirement,
+        bounded(VersionConstraint::LessOrEqual, "3")
+    );
 
     assert_eq!(decoded.dependencies[3].name, "coreutils");
-    assert_eq!(decoded.dependencies[3].constraint, CONSTRAINT_ANY);
+    assert_eq!(decoded.dependencies[3].requirement, VersionRequirement::Any);
+}
+
+#[test]
+fn a_dependency_operator_without_a_version_is_malformed() {
+    for dependency in ["glibc>=", "glibc>=2:"] {
+        let xml =
+            plist(&(scalar("pkgname", "foo") + &scalar("version", "1.2.3") + &array("run_depends", &[dependency])));
+
+        let result = Props(&xml).decode(CHECKSUM);
+
+        assert_eq!(result.unwrap_err(), DecodeError::MalformedMetadata);
+    }
 }

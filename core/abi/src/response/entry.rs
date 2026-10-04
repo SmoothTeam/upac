@@ -3,34 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::{CEnum, CFree, CNew, CValidate};
+use upac_macro::{CFree, CNew, CValidate};
 
 use crate::package::CVersion;
 use crate::types::{CSlice, CVec};
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum FileDiffKind {
-    Added = 0,
-    Removed = 1,
-    Modified = 2,
-}
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum PackageDiffKind {
-    Added = 0,
-    Removed = 1,
-    Modified = 2,
-    FilesChanged = 3,
-}
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum DiffFileSource {
-    Prefix = 0,
-    Config = 1,
-}
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]

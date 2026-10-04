@@ -10,7 +10,8 @@ use efivar::Error as EfivarError;
 
 use uuid::Error as UuidError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::booter::BootError;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RefindError {
@@ -61,14 +62,14 @@ impl From<ErrorKind> for RefindError {
     }
 }
 
-impl From<RefindError> for ErrorKind {
+impl From<RefindError> for BootError {
     fn from(error: RefindError) -> Self {
         match error {
-            RefindError::EfiUnavailable => ErrorKind::NotInitialized,
-            RefindError::ToolNotFound => ErrorKind::NotFound,
-            RefindError::PermissionDenied => ErrorKind::PermissionDenied,
-            RefindError::InvalidRequest => ErrorKind::InvalidEntry,
-            RefindError::Unexpected => ErrorKind::Unexpected,
+            RefindError::EfiUnavailable => BootError::EfiUnavailable,
+            RefindError::ToolNotFound => BootError::ToolNotInstalled,
+            RefindError::PermissionDenied => BootError::PermissionDenied,
+            RefindError::InvalidRequest => BootError::InvalidRequest,
+            RefindError::Unexpected => BootError::Unexpected,
         }
     }
 }

@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineError {

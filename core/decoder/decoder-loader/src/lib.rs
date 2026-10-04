@@ -5,11 +5,12 @@
 
 use std::mem::MaybeUninit;
 
-use upac_abi::hook::CancelToken;
 use upac_abi::plugin::DecodeFn;
 use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::response::decoder::CDecodeResponse;
 
+use upac_types::CancelToken;
+use upac_types::plugin::plugin_result;
 use upac_types::request::decoder::DecodeRequest;
 use upac_types::response::decoder::DecodeResponse;
 
@@ -42,19 +43,19 @@ impl DecoderPlugin {
         &self, package_path: &str, output_dir: &str, checksum: [u8; 32], cancel: &CancelToken,
     ) -> Result<DecodeResponse, DecoderError> {
         let request: CDecodeRequest = DecodeRequest {
-            package_path: package_path.to_owned(),
-            output_dir: output_dir.to_owned(),
+            package_path,
+            output_dir,
             checksum,
-            cancel_token: cancel as *const CancelToken as *mut CancelToken,
+            cancel_token: cancel,
         }
         .into();
 
         let mut response = MaybeUninit::<CDecodeResponse>::uninit();
 
-        let code = unsafe { (self.decode)(&request, response.as_mut_ptr()) };
-        if code != 0 {
-            return Err(DecoderError::Failed(code));
-        }
+        let status = unsafe { (self.decode)(&request, response.as_mut_ptr()) };
+        unsafe { request.free() };
+
+        plugin_result(status).map_err(|error| error.map_or(DecoderError::InvalidResponse, DecoderError::Failed))?;
 
         let response = unsafe { response.assume_init() };
 

@@ -5,7 +5,7 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
-use upac_types::error::DecodeError;
+use upac_types::decoder::DecodeError;
 
 use super::rpm::LEAD_SIZE;
 

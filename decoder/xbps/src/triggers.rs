@@ -3,39 +3,34 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::decoder::DecoderTrigger;
+use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
-use super::xbps::{INSTALL_ENTRY, REMOVE_ENTRY};
+use super::xbps::{INSTALL_ENTRY, POST_ACTION, PRE_ACTION, REMOVE_ENTRY};
 
-pub fn scan(install_present: bool, remove_present: bool) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
+pub fn scan(install_present: bool, remove_present: bool) -> Vec<PackageTrigger> {
+    TriggerPosition::ALL
+        .into_iter()
+        .filter_map(|position| {
+            let (entry, action) = native(position);
+            let present = if entry == INSTALL_ENTRY {
+                install_present
+            } else {
+                remove_present
+            };
 
-    for trigger in DecoderTrigger::ALL {
-        let name = native(trigger);
-        let declared = if name == INSTALL_ENTRY {
-            install_present
-        } else {
-            remove_present
-        };
-        let already_added = names.iter().any(|existing| existing == name);
-
-        if declared && !already_added {
-            names.push(name.to_owned());
-        }
-    }
-
-    names
+            present.then(|| PackageTrigger {
+                position,
+                name: format!("{entry} {action}"),
+            })
+        })
+        .collect()
 }
 
-/// XBPS has no separate install-vs-upgrade or pre-vs-post script *files* — a single `INSTALL`
-/// script is invoked with a `pre`/`post` argument for both fresh installs and upgrades, and a
-/// single `REMOVE` script likewise covers both removal positions.
-fn native(trigger: DecoderTrigger) -> &'static str {
-    match trigger {
-        DecoderTrigger::PreInstall
-        | DecoderTrigger::PostInstall
-        | DecoderTrigger::PreUpgrade
-        | DecoderTrigger::PostUpgrade => INSTALL_ENTRY,
-        DecoderTrigger::PreRemove | DecoderTrigger::PostRemove => REMOVE_ENTRY,
+fn native(position: TriggerPosition) -> (&'static str, &'static str) {
+    match position {
+        TriggerPosition::PreInstall | TriggerPosition::PreUpgrade => (INSTALL_ENTRY, PRE_ACTION),
+        TriggerPosition::PostInstall | TriggerPosition::PostUpgrade => (INSTALL_ENTRY, POST_ACTION),
+        TriggerPosition::PreRemove => (REMOVE_ENTRY, PRE_ACTION),
+        TriggerPosition::PostRemove => (REMOVE_ENTRY, POST_ACTION),
     }
 }

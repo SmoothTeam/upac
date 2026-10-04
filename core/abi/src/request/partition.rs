@@ -3,19 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::{CEnum, CFree, CNew, CValidate};
+use upac_macro::{CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
 use crate::types::CSlice;
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum PartitionKind {
-    Esp = 0,
-    Root = 1,
-    Linux = 2,
-}
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]

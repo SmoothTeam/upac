@@ -3,19 +3,26 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::error::ErrorKind;
 use upac_abi::request::CRequestBase;
-use upac_abi::request::partition::PartitionKind;
 use upac_abi::request::partition::{CSetupPartitionAddRequest, CSetupPartitionTableRequest};
 use upac_abi::types::{COwned, CSlice};
 
-use upac_macro::{CTryToRust, RustToC};
+use upac_macro::{CEnum, CTryToRust, RustToC};
 
 use super::RequestBase;
+use crate::error::ErrorKind;
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
+pub enum PartitionKind {
+    Esp = 0,
+    Root = 1,
+    Linux = 2,
+}
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct SetupPartitionTableRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
 
     pub device_path: &'data str,
     pub force_wipe: bool,
@@ -23,7 +30,7 @@ pub struct SetupPartitionTableRequest<'data> {
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct SetupPartitionAddRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
 
     pub device_path: &'data str,
     pub label: &'data str,

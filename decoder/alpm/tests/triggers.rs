@@ -3,7 +3,16 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_types::decoder::{PackageTrigger, TriggerPosition};
+
 use upac_decoder_alpm::triggers;
+
+fn positions(triggers: &[PackageTrigger]) -> Vec<(TriggerPosition, &str)> {
+    triggers
+        .iter()
+        .map(|trigger| (trigger.position, trigger.name.as_str()))
+        .collect()
+}
 
 #[test]
 fn finds_no_triggers_in_empty_content() {
@@ -18,7 +27,14 @@ fn finds_all_declared_lifecycle_functions_in_declaration_order() {
 
     let triggers = triggers::scan(content);
 
-    assert_eq!(triggers, vec!["pre_install", "post_install", "post_remove"]);
+    assert_eq!(
+        positions(&triggers),
+        vec![
+            (TriggerPosition::PreInstall, "pre_install"),
+            (TriggerPosition::PostInstall, "post_install"),
+            (TriggerPosition::PostRemove, "post_remove"),
+        ]
+    );
 }
 
 #[test]
@@ -36,5 +52,8 @@ fn ignores_indented_occurrences() {
 
     let triggers = triggers::scan(content);
 
-    assert_eq!(triggers, vec!["post_install"]);
+    assert_eq!(
+        positions(&triggers),
+        vec![(TriggerPosition::PostInstall, "post_install")]
+    );
 }

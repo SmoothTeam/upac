@@ -7,7 +7,8 @@ use std::ffi::c_void;
 use std::ptr::null_mut;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use upac_abi::hook::{CProgressEvent, HookAck};
+use upac_abi::hook::CProgressEvent;
+use upac_types::progress::HookAck;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::progress::{Message, ProgressEventBuilder};

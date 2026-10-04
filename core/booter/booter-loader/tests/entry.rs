@@ -12,11 +12,11 @@ use composefs::tree::FileSystem;
 use nix::fcntl::AT_FDCWD;
 use tempfile::{Builder, TempDir};
 
-use upac_abi::plugin::BootResourceKind;
-use upac_boot_loader::entry::error::BootError;
+use upac_boot_loader::entry::error::BootEntryError;
 use upac_boot_loader::entry::write_boot_entry;
 use upac_composefs::file::FileHandle;
 use upac_composefs::repository::ObjectID;
+use upac_types::booter::BootResourceKind;
 
 fn scratch_dir(name: &str) -> TempDir {
     Builder::new().prefix(name).tempdir().unwrap()
@@ -87,7 +87,7 @@ fn write_boot_entry_fails_when_the_tree_has_no_boot_resource() {
         BootResourceKind::Bls,
     );
 
-    assert_eq!(result.unwrap_err(), BootError::NoBootResource);
+    assert_eq!(result.unwrap_err(), BootEntryError::NoBootResource);
 }
 
 #[test]
@@ -108,5 +108,5 @@ fn write_boot_entry_fails_when_the_tree_has_more_than_one_boot_resource() {
         BootResourceKind::Bls,
     );
 
-    assert_eq!(result.unwrap_err(), BootError::AmbiguousBootResource);
+    assert_eq!(result.unwrap_err(), BootEntryError::AmbiguousBootResource);
 }

@@ -3,9 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::sync::atomic::AtomicU8;
+
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::hook::CancelToken;
 use crate::types::CSlice;
 
 #[repr(C)]
@@ -18,5 +19,5 @@ pub struct CDecodeRequest {
 
     pub checksum: [u8; 32],
 
-    pub cancel_token: *mut CancelToken,
+    pub cancel_token: *const AtomicU8,
 }

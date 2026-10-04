@@ -5,7 +5,7 @@
 
 use std::ptr::{null, null_mut};
 
-use upac_abi::error::ErrorKind;
+use upac_abi::error::AbiError;
 use upac_abi::types::{CBorrowed, COwned, CSlice, CVec};
 
 #[test]
@@ -25,6 +25,15 @@ fn cslice_owned_round_trips_through_as_str() {
 }
 
 #[test]
+fn cslice_owned_empty_is_allocated_and_round_trips() {
+    let owned = CSlice::from_owned(Vec::new());
+
+    assert!(!owned.ptr.is_null());
+    assert_eq!(unsafe { owned.as_str() }, Ok(""));
+    assert_eq!(unsafe { owned.into_owned() }, Vec::<u8>::new());
+}
+
+#[test]
 fn cslice_borrowed_round_trips_through_as_slice() {
     let bytes = b"borrowed".to_vec();
     let borrowed = CSlice::from_borrowed(bytes.as_slice());
@@ -36,7 +45,7 @@ fn cslice_borrowed_round_trips_through_as_slice() {
 fn cslice_null_validate_fails() {
     let slice = CSlice { ptr: null(), len: 0 };
 
-    assert_eq!(unsafe { slice.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { slice.validate() }, Err(AbiError::InvalidEntry));
 }
 
 #[test]
@@ -45,6 +54,16 @@ fn cvec_owned_round_trips() {
 
     assert_eq!(unsafe { vec.as_slice() }, &[1, 2, 3]);
     assert_eq!(unsafe { vec.into_owned() }, vec![1, 2, 3]);
+}
+
+#[test]
+fn cvec_owned_moves_heap_owning_elements_without_dropping_them() {
+    let vec: CVec<String> = CVec::from_owned(vec!["first".to_owned(), "second".to_owned()]);
+
+    assert_eq!(
+        unsafe { vec.into_owned() },
+        vec!["first".to_owned(), "second".to_owned()]
+    );
 }
 
 #[test]
@@ -63,5 +82,5 @@ fn cvec_null_with_nonzero_len_fails_validate() {
         len: 3,
     };
 
-    assert_eq!(unsafe { vec.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { vec.validate() }, Err(AbiError::InvalidEntry));
 }

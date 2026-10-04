@@ -3,31 +3,32 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::decoder::DecoderTrigger;
+use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
 use super::deb::{POSTINST_FILE, POSTRM_FILE, PREINST_FILE, PRERM_FILE};
 
-pub fn scan(scripts_present: &[String]) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
+pub fn scan(scripts_present: &[String]) -> Vec<PackageTrigger> {
+    TriggerPosition::ALL
+        .into_iter()
+        .filter_map(|position| {
+            let name = native_name(position);
 
-    for trigger in DecoderTrigger::ALL {
-        let name = native_name(trigger);
-        let declared = scripts_present.iter().any(|script| script == name);
-        let already_added = names.iter().any(|existing| existing == name);
-
-        if declared && !already_added {
-            names.push(name.to_owned());
-        }
-    }
-
-    names
+            scripts_present
+                .iter()
+                .any(|script| script == name)
+                .then(|| PackageTrigger {
+                    position,
+                    name: name.to_owned(),
+                })
+        })
+        .collect()
 }
 
-fn native_name(trigger: DecoderTrigger) -> &'static str {
-    match trigger {
-        DecoderTrigger::PreInstall | DecoderTrigger::PreUpgrade => PREINST_FILE,
-        DecoderTrigger::PostInstall | DecoderTrigger::PostUpgrade => POSTINST_FILE,
-        DecoderTrigger::PreRemove => PRERM_FILE,
-        DecoderTrigger::PostRemove => POSTRM_FILE,
+fn native_name(position: TriggerPosition) -> &'static str {
+    match position {
+        TriggerPosition::PreInstall | TriggerPosition::PreUpgrade => PREINST_FILE,
+        TriggerPosition::PostInstall | TriggerPosition::PostUpgrade => POSTINST_FILE,
+        TriggerPosition::PreRemove => PRERM_FILE,
+        TriggerPosition::PostRemove => POSTRM_FILE,
     }
 }

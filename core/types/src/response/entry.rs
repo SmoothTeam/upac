@@ -5,17 +5,17 @@
 
 use serde::{Deserialize, Serialize};
 
-use upac_abi::error::ErrorKind;
 use upac_abi::package::CVersion;
 use upac_abi::response::entry::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPackageEntry, CDiffPrefixFileEntry,
     CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
-use upac_abi::response::entry::{DiffFileSource, FileDiffKind, PackageDiffKind};
 use upac_abi::types::{COwned, CSlice, CVec};
 
 use upac_macro::{CTryToRust, RustToC};
 
+use crate::diff::{DiffFileSource, FileDiffKind, PackageDiffKind};
+use crate::error::ErrorKind;
 use crate::package::Version;
 
 #[repr(u8)]

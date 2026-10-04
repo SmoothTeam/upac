@@ -5,14 +5,14 @@
 
 //! `#[derive(CEnum)]` — for a fieldless `#[repr(uN)]` enum carried over the
 //! C ABI as its raw integer, generates `TryFrom<uN>` (unknown values become
-//! `ErrorKind::InvalidEntry`) and `From<Enum> for uN`.
+//! `AbiError::InvalidEntry`) and `From<Enum> for uN`.
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Attribute, Data, DeriveInput, Error, Fields, Ident, parse_macro_input};
 
-const REPRS: &[&str] = &["u8", "u16", "u32"];
+const REPRS: &[&str] = &["u8", "u16", "u32", "i32"];
 
 fn repr_type(attrs: &[Attribute]) -> Option<Ident> {
     attrs
@@ -25,12 +25,12 @@ fn repr_type(attrs: &[Attribute]) -> Option<Ident> {
 fn c_enum_impl(name: &Ident, repr: &Ident, arms: &[TokenStream2]) -> TokenStream2 {
     quote! {
         impl TryFrom<#repr> for #name {
-            type Error = crate::error::ErrorKind;
+            type Error = ::upac_abi::error::AbiError;
 
-            fn try_from(value: #repr) -> Result<Self, crate::error::ErrorKind> {
+            fn try_from(value: #repr) -> Result<Self, ::upac_abi::error::AbiError> {
                 match value {
                     #(#arms)*
-                    _ => Err(crate::error::ErrorKind::InvalidEntry),
+                    _ => Err(::upac_abi::error::AbiError::InvalidEntry),
                 }
             }
         }
@@ -57,9 +57,12 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     };
 
     let Some(repr) = repr_type(&input.attrs) else {
-        return Error::new_spanned(name, "CEnum requires #[repr(u8)], #[repr(u16)] or #[repr(u32)]")
-            .to_compile_error()
-            .into();
+        return Error::new_spanned(
+            name,
+            "CEnum requires #[repr(u8)], #[repr(u16)], #[repr(u32)] or #[repr(i32)]",
+        )
+        .to_compile_error()
+        .into();
     };
 
     let mut arms = Vec::new();

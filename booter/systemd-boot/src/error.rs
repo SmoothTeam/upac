@@ -10,7 +10,8 @@ use efivar::Error as EfivarError;
 
 use uuid::Error as UuidError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::booter::BootError;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemdBootError {
@@ -61,14 +62,14 @@ impl From<ErrorKind> for SystemdBootError {
     }
 }
 
-impl From<SystemdBootError> for ErrorKind {
+impl From<SystemdBootError> for BootError {
     fn from(error: SystemdBootError) -> Self {
         match error {
-            SystemdBootError::EfiUnavailable => ErrorKind::NotInitialized,
-            SystemdBootError::ToolNotFound => ErrorKind::NotFound,
-            SystemdBootError::PermissionDenied => ErrorKind::PermissionDenied,
-            SystemdBootError::InvalidRequest => ErrorKind::InvalidEntry,
-            SystemdBootError::Unexpected => ErrorKind::Unexpected,
+            SystemdBootError::EfiUnavailable => BootError::EfiUnavailable,
+            SystemdBootError::ToolNotFound => BootError::ToolNotInstalled,
+            SystemdBootError::PermissionDenied => BootError::PermissionDenied,
+            SystemdBootError::InvalidRequest => BootError::InvalidRequest,
+            SystemdBootError::Unexpected => BootError::Unexpected,
         }
     }
 }

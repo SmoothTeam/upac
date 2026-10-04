@@ -10,27 +10,21 @@
 //! Two modes, picked automatically from the target struct's own generics:
 //!   no lifetime   -> owned mode: `String`/`Vec<String>`/`Option<String>` fields
 //!                    are copied out of the C-ABI buffers (`.to_owned()`), a
-//!                    `*mut T` field stays a raw pointer (null-checked only
-//!                    when the pointee is `CancelToken`, the one type that's
-//!                    never optional; anything else, e.g. `*mut c_void`
-//!                    hook contexts, passes through unchecked).
+//!                    `*mut T` field stays a raw pointer and passes through
+//!                    unchecked (e.g. `*mut c_void` hook contexts).
 //!   `Name<'a>`    -> borrowed mode: `&'a str`/`Vec<&'a str>`/`Option<&'a str>`
 //!                    fields borrow directly from the C-ABI buffers (no
-//!                    allocation at all), and a `&'a T` field null-checks
-//!                    then dereferences the matching `*mut T` on the C side.
+//!                    allocation at all), and a `&'a T` field is built by
+//!                    `T::from_ptr` from the matching raw pointer on the C side.
 //! Which mode applies is entirely driven by how each field is written on
 //! the Rust struct — nothing needs to be passed in by the caller.
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use syn::{
-    Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, TypePtr, TypeReference, parse_macro_input,
-};
+use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, TypeReference, parse_macro_input};
 
-use crate::common::{
-    ABI_ENUMS, FieldCondition, PRIMITIVES, field_condition, generic_arg, is_str_type, option_inner_name, segment_name,
-};
+use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_type, segment_name};
 
 fn is_str_ref(ty: &Type) -> bool {
     matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
@@ -73,7 +67,7 @@ fn vec_from_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
                 unsafe { value.#ident.as_slice() }
                     .iter()
                     .map(<&str>::try_from)
-                    .collect::<Result<Vec<_>, ErrorKind>>()?
+                    .collect::<Result<Vec<_>, ::upac_abi::error::AbiError>>()?
             }
         };
     }
@@ -86,7 +80,7 @@ fn vec_from_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
                     .iter()
                     .map(<&str>::try_from)
                     .map(|element| element.map(str::to_owned))
-                    .collect::<Result<Vec<_>, ErrorKind>>()?
+                    .collect::<Result<Vec<_>, ::upac_abi::error::AbiError>>()?
             }
         },
         Some(name) if PRIMITIVES.contains(&name) => quote! {
@@ -124,41 +118,14 @@ fn field_path_from_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
     }
 }
 
-fn pointee_name(ptr: &TypePtr) -> Option<String> {
-    match ptr.elem.as_ref() {
-        Type::Path(type_path) => type_path.path.segments.last().map(|segment| segment.ident.to_string()),
-        _ => None,
-    }
-}
-
-fn ptr_from_c(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
-    if pointee_name(ptr).as_deref() == Some("CancelToken") {
-        return quote! {
-            {
-                if value.#ident.is_null() {
-                    return Err(ErrorKind::InvalidEntry);
-                }
-                value.#ident
-            }
-        };
-    }
-
-    quote! { value.#ident }
-}
-
 fn reference_from_c(ident: &Ident, reference: &TypeReference) -> TokenStream2 {
     if is_str_type(&reference.elem) {
         return quote! { (&value.#ident).try_into()? };
     }
 
-    quote! {
-        {
-            if value.#ident.is_null() {
-                return Err(ErrorKind::InvalidEntry);
-            }
-            unsafe { &*value.#ident }
-        }
-    }
+    let referenced = &reference.elem;
+
+    quote! { unsafe { <#referenced>::from_ptr(value.#ident)? } }
 }
 
 fn field_from_c_fallible(ident: &Ident, ty: &Type) -> TokenStream2 {
@@ -166,8 +133,8 @@ fn field_from_c_fallible(ident: &Ident, ty: &Type) -> TokenStream2 {
         return quote! { value.#ident };
     }
 
-    if let Type::Ptr(ptr) = ty {
-        return ptr_from_c(ident, ptr);
+    if let Type::Ptr(_) = ty {
+        return quote! { value.#ident };
     }
 
     if let Type::Reference(reference) = ty {
@@ -181,23 +148,6 @@ fn field_from_c_fallible(ident: &Ident, ty: &Type) -> TokenStream2 {
     match type_path.path.segments.last() {
         Some(segment) => field_path_from_c(ident, segment),
         None => quote! { compile_error!("CTryToRust: unsupported field type") },
-    }
-}
-
-fn conditional_option_from_c(ident: &Ident, ty: &Type, condition: &FieldCondition) -> TokenStream2 {
-    let Some(inner_name) = option_inner_name(ty) else {
-        return quote! { compile_error!("CTryToRust: #[none_if] requires an Option<T> field") };
-    };
-
-    let rust_ty = format_ident!("{inner_name}");
-    let is_none = condition.on(quote! { value });
-
-    quote! {
-        if #is_none {
-            None
-        } else {
-            Some(#rust_ty::try_from(&value.#ident)?)
-        }
     }
 }
 
@@ -265,11 +215,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
                 .into();
         };
 
-        let value = match field_condition(field, "none_if") {
-            None => field_from_c_fallible(ident, &field.ty),
-            Some(Ok(condition)) => conditional_option_from_c(ident, &field.ty, &condition),
-            Some(Err(error)) => return error.to_compile_error().into(),
-        };
+        let value = field_from_c_fallible(ident, &field.ty);
         field_values.push(quote! { #ident: #value, });
     }
 

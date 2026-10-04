@@ -6,10 +6,10 @@
 use std::any::TypeId;
 use std::collections::HashSet;
 
-use upac_abi::hook::CancelToken;
-
 use super::StagePipelineError;
 use super::context::Context;
+
+use upac_types::CancelToken;
 
 pub trait Orchestrator<E> {
     fn validate(&self, context: &Context) -> Result<HashSet<TypeId>, StagePipelineError>;

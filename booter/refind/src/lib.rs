@@ -4,11 +4,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::BOOT_ABI_VERSION;
-use upac_abi::error::ErrorKind;
 use upac_abi::request::booter::{
     CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 
+use upac_types::booter::BootError;
+use upac_types::plugin::plugin_status;
 use upac_types::request::booter::{
     BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
 };
@@ -21,12 +22,6 @@ mod backend;
 mod error;
 
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
-
-macro_rules! error_code {
-    ($error:expr) => {
-        u32::from(ErrorKind::from($error)) as i32
-    };
-}
 
 /// # Safety
 /// Touches no pointers — `unsafe extern "C"` only to match `upac_abi::plugin::BootPluginAbiVersionFn`.
@@ -48,18 +43,14 @@ pub unsafe extern "C" fn boot_resource_kind() -> u8 {
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotRequest) -> i32 {
     if request.is_null() {
-        return error_code!(RefindError::InvalidRequest);
+        return plugin_status(Err(BootError::InvalidRequest));
     }
 
     let result = BootPluginSetOneShotRequest::try_from(unsafe { &*request })
         .map_err(RefindError::from)
         .and_then(|request| Refind::new().and_then(|mut refind| refind.set_one_shot(&request.entry_name)));
 
-    match result {
-        Ok(()) => 0,
-
-        Err(error) => error_code!(error),
-    }
+    plugin_status(result.map_err(BootError::from))
 }
 
 /// # Safety
@@ -68,7 +59,7 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotReque
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn confirm_boot(request: *const CBootPluginConfirmSuccessBootRequest) -> i32 {
     if request.is_null() {
-        return error_code!(RefindError::InvalidRequest);
+        return plugin_status(Err(BootError::InvalidRequest));
     }
 
     let result = BootPluginConfirmSuccessBootRequest::try_from(unsafe { &*request })
@@ -77,11 +68,7 @@ pub unsafe extern "C" fn confirm_boot(request: *const CBootPluginConfirmSuccessB
             Refind::new().and_then(|mut refind| refind.confirm_boot(&request.entry_name, &request.esp_mount_point))
         });
 
-    match result {
-        Ok(()) => 0,
-
-        Err(error) => error_code!(error),
-    }
+    plugin_status(result.map_err(BootError::from))
 }
 
 /// # Safety
@@ -90,7 +77,7 @@ pub unsafe extern "C" fn confirm_boot(request: *const CBootPluginConfirmSuccessB
 #[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
 pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i32 {
     if request.is_null() {
-        return error_code!(RefindError::InvalidRequest);
+        return plugin_status(Err(BootError::InvalidRequest));
     }
 
     let result = BootPluginInstallRequest::try_from(unsafe { &*request })
@@ -109,9 +96,5 @@ pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i
             })
         });
 
-    match result {
-        Ok(()) => 0,
-
-        Err(error) => error_code!(error),
-    }
+    plugin_status(result.map_err(BootError::from))
 }

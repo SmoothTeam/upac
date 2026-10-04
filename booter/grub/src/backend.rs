@@ -8,7 +8,7 @@ use std::io::ErrorKind as IoErrorKind;
 use std::path::Path;
 use std::process::Command;
 
-use upac_abi::plugin::BootResourceKind;
+use upac_types::booter::BootResourceKind;
 
 use upac_types::traits::Booter;
 

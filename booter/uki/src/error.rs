@@ -8,7 +8,8 @@ use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use efivar::Error as EfivarError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::booter::BootError;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UkiError {
@@ -54,15 +55,15 @@ impl From<ErrorKind> for UkiError {
     }
 }
 
-impl From<UkiError> for ErrorKind {
+impl From<UkiError> for BootError {
     fn from(error: UkiError) -> Self {
         match error {
-            UkiError::EfiUnavailable => ErrorKind::NotInitialized,
-            UkiError::PermissionDenied => ErrorKind::PermissionDenied,
-            UkiError::EntryNotFound => ErrorKind::NotFound,
-            UkiError::NoFreeBootId => ErrorKind::OutOfMemory,
-            UkiError::InvalidRequest => ErrorKind::InvalidEntry,
-            UkiError::Unexpected => ErrorKind::Unexpected,
+            UkiError::EfiUnavailable => BootError::EfiUnavailable,
+            UkiError::PermissionDenied => BootError::PermissionDenied,
+            UkiError::EntryNotFound => BootError::EntryNotFound,
+            UkiError::NoFreeBootId => BootError::NoFreeBootId,
+            UkiError::InvalidRequest => BootError::InvalidRequest,
+            UkiError::Unexpected => BootError::Unexpected,
         }
     }
 }

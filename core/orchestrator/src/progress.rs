@@ -7,8 +7,9 @@ use std::ffi::{CString, c_void};
 use std::mem::size_of;
 use std::ptr::null;
 
-use upac_abi::hook::{CProgressEvent, HookAck, HookMessageFn};
+use upac_abi::hook::{CProgressEvent, HookMessageFn};
 use upac_abi::types::CSlice;
+use upac_types::progress::HookAck;
 
 use upac_types::request::RequestBase;
 

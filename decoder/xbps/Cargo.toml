@@ -28,8 +28,9 @@ name = "upac_decoder_xbps"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-lib-abi   = { workspace = true }
-upac-lib-types = { workspace = true }
+upac-lib-abi         = { workspace = true }
+upac-lib-types       = { workspace = true }
+upac-lib-decoder-kit = { workspace = true }
 
 flate2    = { workspace = true }
 quick-xml = { workspace = true }

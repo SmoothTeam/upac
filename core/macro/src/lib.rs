@@ -51,12 +51,12 @@ pub fn derive_c_new(input: TokenStream) -> TokenStream {
     c_new::expand(input)
 }
 
-#[proc_macro_derive(RustToC, attributes(none_if))]
+#[proc_macro_derive(RustToC)]
 pub fn derive_rust_to_c(input: TokenStream) -> TokenStream {
     rust_to_c::expand(input)
 }
 
-#[proc_macro_derive(CTryToRust, attributes(none_if))]
+#[proc_macro_derive(CTryToRust)]
 pub fn derive_c_try_to_rust(input: TokenStream) -> TokenStream {
     c_try_to_rust::expand(input)
 }

@@ -6,9 +6,8 @@
 use std::any::{Any, TypeId};
 use std::collections::HashSet;
 
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
-
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 use upac_types::traits::CommandState;
 
 use self::context::Context;

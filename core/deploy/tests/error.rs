@@ -13,7 +13,7 @@ use upac_composefs::error::RepoError;
 
 use upac_deploy::error::SysrootError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 #[test]
 fn mount_info_error_maps_to_mount_info_unavailable() {

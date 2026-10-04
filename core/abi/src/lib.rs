@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+extern crate self as upac_abi;
+
 pub mod error;
 pub mod hook;
 pub mod memory;

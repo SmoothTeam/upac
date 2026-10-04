@@ -6,7 +6,7 @@
 use std::any::{Any, TypeId, type_name};
 use std::collections::{HashMap, HashSet};
 
-use upac_abi::hook::HookAck;
+use upac_types::progress::HookAck;
 
 use super::error::PipelineError;
 use super::layout::progress::HOOK_RETRY_LIMIT;

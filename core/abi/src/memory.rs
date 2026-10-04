@@ -29,7 +29,7 @@ pub unsafe fn alloc_bytes(count: usize) -> *mut u8 {
 /// `string.ptr` must be null or have been allocated via `alloc_bytes`/`CSlice::from_owned`, and must not
 /// be freed more than once.
 pub unsafe fn free_cslice(string: &CSlice) {
-    if string.ptr.is_null() || string.len == 0 {
+    if string.ptr.is_null() {
         return;
     }
     unsafe { free(string.ptr as *mut c_void) };

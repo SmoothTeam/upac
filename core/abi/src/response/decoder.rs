@@ -5,9 +5,9 @@
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::package::{CPackageDependency, CPackageMeta};
+use crate::package::{CPackageDependency, CPackageMeta, CPackageTrigger};
 use crate::plugin::FreeDecodeResponseFn;
-use crate::types::{CSlice, CVec};
+use crate::types::CVec;
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
@@ -17,7 +17,7 @@ pub struct CDecodeResponse {
     pub meta: CPackageMeta,
 
     pub dependencies: CVec<CPackageDependency>,
-    pub declarative_triggers: CVec<CSlice>,
+    pub triggers: CVec<CPackageTrigger>,
 
     pub free: FreeDecodeResponseFn,
 }

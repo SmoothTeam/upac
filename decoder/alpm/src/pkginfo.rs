@@ -5,11 +5,11 @@
 
 use std::collections::HashMap;
 
-use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-
-use upac_types::decoder::parse_constraint_prefix;
-use upac_types::error::DecodeError;
-use upac_types::package::{DecodedPackageMeta, PackageDependency, PackageMeta, Version};
+use upac_decoder_kit::parse_constraint_prefix;
+use upac_types::decoder::DecodeError;
+use upac_types::package::{
+    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+};
 use upac_types::traits::DecodeMeta;
 
 use super::alpm::{
@@ -33,19 +33,19 @@ macro_rules! numeric_field {
     };
 }
 
-const OPERATORS: [(&[u8], u8); 5] = [
-    (b"<=", CONSTRAINT_LESS | CONSTRAINT_EQUAL),
-    (b">=", CONSTRAINT_GREATER | CONSTRAINT_EQUAL),
-    (b"<", CONSTRAINT_LESS),
-    (b">", CONSTRAINT_GREATER),
-    (b"=", CONSTRAINT_EQUAL),
+const OPERATORS: [(&[u8], VersionConstraint); 5] = [
+    (b"<=", VersionConstraint::LessOrEqual),
+    (b">=", VersionConstraint::GreaterOrEqual),
+    (b"<", VersionConstraint::Less),
+    (b">", VersionConstraint::Greater),
+    (b"=", VersionConstraint::Equal),
 ];
 
 pub struct PkgInfo<'content>(pub &'content str);
 
 impl DecodeMeta for PkgInfo<'_> {
     fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
-        let (mut fields, dependencies) = self.parse_fields();
+        let (mut fields, dependencies) = self.parse_fields()?;
 
         let name = required_field!(fields, PKGINFO_NAME_KEY);
         let version = required_field!(fields, PKGINFO_VERSION_KEY);
@@ -79,7 +79,7 @@ impl DecodeMeta for PkgInfo<'_> {
 }
 
 impl PkgInfo<'_> {
-    fn parse_fields(&self) -> (HashMap<&str, String>, Vec<PackageDependency>) {
+    fn parse_fields(&self) -> Result<(HashMap<&str, String>, Vec<PackageDependency>), DecodeError> {
         let mut fields: HashMap<&str, String> = HashMap::new();
         let mut dependencies = Vec::new();
 
@@ -94,16 +94,16 @@ impl PkgInfo<'_> {
             };
 
             if key == PKGINFO_DEPEND_KEY {
-                dependencies.push(Self::parse_dependency(value));
+                dependencies.push(Self::parse_dependency(value)?);
             } else {
                 fields.insert(key, value.to_owned());
             }
         }
 
-        (fields, dependencies)
+        Ok((fields, dependencies))
     }
 
-    fn parse_dependency(value: &str) -> PackageDependency {
+    fn parse_dependency(value: &str) -> Result<PackageDependency, DecodeError> {
         let bytes = value.as_bytes();
 
         for index in 0..bytes.len() {
@@ -111,17 +111,20 @@ impl PkgInfo<'_> {
                 continue;
             };
 
-            return PackageDependency {
+            let version = Version::parse(&value[index + operator_len..]);
+            if version.raw.is_empty() {
+                return Err(DecodeError::MalformedMetadata);
+            }
+
+            return Ok(PackageDependency {
                 name: value[..index].to_owned(),
-                constraint,
-                version: Version::parse(&value[index + operator_len..]),
-            };
+                requirement: VersionRequirement::Bounded { constraint, version },
+            });
         }
 
-        PackageDependency {
+        Ok(PackageDependency {
             name: value.to_owned(),
-            constraint: CONSTRAINT_ANY,
-            version: Version::default(),
-        }
+            requirement: VersionRequirement::Any,
+        })
     }
 }

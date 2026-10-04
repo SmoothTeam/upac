@@ -108,6 +108,11 @@ files_entry = "files.plist"
 install_entry = "INSTALL"
 remove_entry = "REMOVE"
 
+# The action argument xbps passes to the INSTALL/REMOVE scripts, telling them whether they run
+# before or after the files are unpacked/removed.
+pre_action = "pre"
+post_action = "post"
+
 # props.plist's own <key> names, per xbps's property-list metadata format.
 pkgname_key = "pkgname"
 version_key = "version"

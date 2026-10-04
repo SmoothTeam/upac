@@ -14,11 +14,11 @@ use composefs_boot::bootloader::{BootEntry, get_boot_resources};
 use composefs_boot::cmdline::ComposefsCmdline;
 use composefs_boot::write_boot::write_boot_simple;
 
-use upac_abi::plugin::BootResourceKind;
+use upac_types::booter::BootResourceKind;
 
-use upac_composefs::repository::ObjectID;
+use upac_composefs::ObjectID;
 
-use self::error::BootError;
+use self::error::BootEntryError;
 
 use super::layout::boot::UPAC_UKI_TO_SLOT;
 
@@ -47,12 +47,12 @@ impl WrittenBootEntry {
 pub fn write_boot_entry(
     repository: &Repository<ObjectID>, tree: &FileSystem<ObjectID>, digest: ObjectID, boot_partition: &Path,
     prefix_digest: &str, wanted: BootResourceKind,
-) -> Result<WrittenBootEntry, BootError> {
+) -> Result<WrittenBootEntry, BootEntryError> {
     let rooted_tree = wrap_under_usr(tree);
     let entries = get_boot_resources(&rooted_tree, repository)?;
 
     if entries.is_empty() {
-        return Err(BootError::NoBootResource);
+        return Err(BootEntryError::NoBootResource);
     }
 
     let mut matching: Vec<_> = entries
@@ -70,9 +70,9 @@ pub fn write_boot_entry(
         .collect();
 
     if matching.len() > 1 {
-        return Err(BootError::AmbiguousBootResource);
+        return Err(BootEntryError::AmbiguousBootResource);
     }
-    let entry = matching.pop().ok_or(BootError::UnsupportedBootResource)?;
+    let entry = matching.pop().ok_or(BootEntryError::UnsupportedBootResource)?;
 
     let written = match &entry {
         BootEntry::Type1(_) | BootEntry::UsrLibModulesVmLinuz(_) => WrittenBootEntry::Bls(prefix_digest.to_owned()),

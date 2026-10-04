@@ -5,6 +5,7 @@
 
 use upac_macro::{CFree, CNew, CValidate};
 
+use crate::CONSTRAINT_ANY;
 use crate::types::CSlice;
 
 #[repr(C)]
@@ -53,6 +54,18 @@ pub struct CPackageDependency {
     pub struct_size: usize,
 
     pub name: CSlice,
+    #[bitflags(CONSTRAINT_ANY)]
     pub constraint: u8,
+    #[skip_if(constraint == CONSTRAINT_ANY)]
     pub version: CVersion,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
+pub struct CPackageTrigger {
+    pub struct_size: usize,
+
+    pub position: u8,
+    #[non_empty]
+    pub name: CSlice,
 }

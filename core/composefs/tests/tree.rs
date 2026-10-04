@@ -14,10 +14,10 @@ use nix::fcntl::AT_FDCWD;
 
 use tempfile::{Builder, TempDir};
 
-use upac_abi::hook::CancelToken;
-
 use upac_composefs::error::RepoError;
 use upac_composefs::{Digest, ObjectID, Repo};
+
+use upac_types::CancelToken;
 
 fn scratch_dir(name: &str) -> TempDir {
     Builder::new().prefix(name).tempdir().unwrap()

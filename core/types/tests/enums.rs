@@ -3,11 +3,13 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::error::{ErrorDomain, ErrorKind};
-use upac_abi::hook::HookAck;
-use upac_abi::plugin::BootResourceKind;
-use upac_abi::request::format::FsKind;
-use upac_abi::response::entry::PackageDiffKind;
+use upac_abi::error::AbiError;
+
+use upac_types::booter::BootResourceKind;
+use upac_types::diff::PackageDiffKind;
+use upac_types::error::{ErrorDomain, ErrorKind};
+use upac_types::progress::HookAck;
+use upac_types::request::format::FsKind;
 
 #[test]
 fn a_known_value_round_trips_through_its_raw_integer() {
@@ -24,10 +26,10 @@ fn a_known_value_round_trips_through_its_raw_integer() {
 
 #[test]
 fn an_out_of_range_value_is_an_invalid_entry() {
-    assert_eq!(FsKind::try_from(4), Err(ErrorKind::InvalidEntry));
-    assert_eq!(BootResourceKind::try_from(u8::MAX), Err(ErrorKind::InvalidEntry));
-    assert_eq!(HookAck::try_from(2), Err(ErrorKind::InvalidEntry));
-    assert_eq!(ErrorDomain::try_from(u32::MAX), Err(ErrorKind::InvalidEntry));
+    assert_eq!(FsKind::try_from(4), Err(AbiError::InvalidEntry));
+    assert_eq!(BootResourceKind::try_from(u8::MAX), Err(AbiError::InvalidEntry));
+    assert_eq!(HookAck::try_from(2), Err(AbiError::InvalidEntry));
+    assert_eq!(ErrorDomain::try_from(u32::MAX), Err(AbiError::InvalidEntry));
 }
 
 #[test]
@@ -37,6 +39,6 @@ fn the_unknown_domain_is_zero() {
 
 #[test]
 fn zero_is_success_and_never_an_error_kind() {
-    assert_eq!(ErrorKind::try_from(0), Err(ErrorKind::InvalidEntry));
+    assert_eq!(ErrorKind::try_from(0), Err(AbiError::InvalidEntry));
     assert_eq!(u32::from(ErrorKind::Unexpected), 1);
 }

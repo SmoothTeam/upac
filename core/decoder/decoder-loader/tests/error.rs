@@ -9,7 +9,8 @@ use mime::Mime;
 
 use upac_decoder_loader::error::DecoderError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::decoder::DecodeError;
+use upac_types::error::ErrorKind;
 
 #[test]
 fn abi_error_kind_maps_to_invalid_response() {
@@ -48,7 +49,7 @@ fn every_variant_maps_to_the_documented_error_kind() {
             DecoderError::AbiMismatch { got: 1, expected: 2 },
             ErrorKind::AbiMismatch,
         ),
-        (DecoderError::Failed(-1), ErrorKind::Unexpected),
+        (DecoderError::Failed(DecodeError::Cancelled), ErrorKind::Cancelled),
         (DecoderError::InvalidResponse, ErrorKind::InvalidEntry),
         (DecoderError::Io(IoErrorKind::NotFound), ErrorKind::ReadFailed),
         (DecoderError::Manifest, ErrorKind::InvalidEntry),

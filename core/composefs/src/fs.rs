@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use tempfile::NamedTempFile;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 use super::layout::fs::NEW_FILE_MODE;
 

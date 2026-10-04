@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use composefs::generic_tree::Stat;
 use composefs::tree::{Inode, Leaf, LeafContent, RegularFile};
 
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
 
 use super::super::ObjectID;
 use super::super::error::RepoError;

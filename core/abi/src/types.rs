@@ -4,16 +4,16 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::ffi::CStr;
-use std::mem::{forget, size_of};
+use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, null, null_mut};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
-use crate::error::ErrorKind;
+use crate::error::AbiError;
 use crate::memory::{alloc_bytes, free_cslice, free_cvec, free_cvec_owning};
 
-pub fn check_size<T>(struct_size: usize) -> Result<(), ErrorKind> {
+pub fn check_size<T>(struct_size: usize) -> Result<(), AbiError> {
     if struct_size != size_of::<T>() {
-        return Err(ErrorKind::AbiMismatch);
+        return Err(AbiError::AbiMismatch);
     }
     Ok(())
 }
@@ -44,7 +44,7 @@ pub trait CValidatable {
     /// # Safety
     /// Same contract as the inherent `validate()` this forwards to — the receiver must be a
     /// freshly-received C-ABI struct that hasn't yet been trusted for reads.
-    unsafe fn validate(&self) -> Result<(), ErrorKind>;
+    unsafe fn validate(&self) -> Result<(), AbiError>;
 }
 
 #[repr(C)]
@@ -58,9 +58,9 @@ impl CSlice {
     /// # Safety
     /// `self.ptr`, if non-null, must point to at least `self.len + 1` readable bytes, the last of which
     /// is the NUL terminator, valid for the lifetime of the returned reference.
-    pub unsafe fn as_cstr(&self) -> Result<&CStr, ErrorKind> {
+    pub unsafe fn as_cstr(&self) -> Result<&CStr, AbiError> {
         if self.ptr.is_null() {
-            return Err(ErrorKind::InvalidEntry);
+            return Err(AbiError::InvalidEntry);
         }
         let bytes = unsafe { from_raw_parts(self.ptr, self.len + 1) };
         Ok(CStr::from_bytes_with_nul(bytes)?)
@@ -78,7 +78,7 @@ impl CSlice {
 
     /// # Safety
     /// Same contract as `as_cstr`.
-    pub unsafe fn as_str(&self) -> Result<&str, ErrorKind> {
+    pub unsafe fn as_str(&self) -> Result<&str, AbiError> {
         Ok(unsafe { self.as_cstr()?.to_str()? })
     }
 
@@ -95,7 +95,7 @@ impl CSlice {
     /// # Safety
     /// Same contract as `as_cstr` — this is the entry point that checks an untrusted, C-supplied
     /// slice is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
+    pub unsafe fn validate(&self) -> Result<(), AbiError> {
         unsafe { self.as_cstr().map(|_| ()) }
     }
 
@@ -119,17 +119,17 @@ impl CBorrowed for CSlice {
 }
 
 impl<'slice> TryFrom<&'slice CSlice> for &'slice str {
-    type Error = ErrorKind;
+    type Error = AbiError;
 
-    fn try_from(slice: &'slice CSlice) -> Result<Self, ErrorKind> {
+    fn try_from(slice: &'slice CSlice) -> Result<Self, AbiError> {
         unsafe { slice.as_str() }
     }
 }
 
 impl<'slice> TryFrom<&'slice CSlice> for Option<&'slice str> {
-    type Error = ErrorKind;
+    type Error = AbiError;
 
-    fn try_from(slice: &'slice CSlice) -> Result<Self, ErrorKind> {
+    fn try_from(slice: &'slice CSlice) -> Result<Self, AbiError> {
         if slice.ptr.is_null() {
             return Ok(None);
         }
@@ -188,9 +188,9 @@ impl<T> CVec<T> {
     /// # Safety
     /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `T` values — this is the
     /// entry point that checks an untrusted, C-supplied vector is safe to read further.
-    pub unsafe fn validate(&self) -> Result<(), ErrorKind> {
+    pub unsafe fn validate(&self) -> Result<(), AbiError> {
         if self.ptr.is_null() && self.len > 0 {
-            return Err(ErrorKind::InvalidEntry);
+            return Err(AbiError::InvalidEntry);
         }
         Ok(())
     }
@@ -245,11 +245,12 @@ impl<T> CBorrowed for CVec<T> {
 
 impl<'vec, T, U> TryFrom<&'vec CVec<T>> for Vec<U>
 where
-    U: TryFrom<&'vec T, Error = ErrorKind>,
+    U: TryFrom<&'vec T>,
+    U::Error: From<AbiError>,
 {
-    type Error = ErrorKind;
+    type Error = U::Error;
 
-    fn try_from(vec: &'vec CVec<T>) -> Result<Self, ErrorKind> {
+    fn try_from(vec: &'vec CVec<T>) -> Result<Self, U::Error> {
         unsafe { vec.validate()? };
         unsafe { vec.as_slice() }.iter().map(U::try_from).collect()
     }
@@ -258,7 +259,7 @@ where
 impl<T> COwned for CVec<T> {
     type Owned = Vec<T>;
 
-    fn from_owned(value: Vec<T>) -> Self {
+    fn from_owned(mut value: Vec<T>) -> Self {
         let len = value.len();
         if len == 0 {
             return CVec {
@@ -268,8 +269,10 @@ impl<T> COwned for CVec<T> {
         }
 
         let ptr = unsafe { alloc_bytes(len * size_of::<T>()) } as *mut T;
-        unsafe { copy_nonoverlapping(value.as_ptr(), ptr, len) };
-        forget(value);
+        unsafe {
+            copy_nonoverlapping(value.as_ptr(), ptr, len);
+            value.set_len(0);
+        }
 
         CVec { ptr, len }
     }

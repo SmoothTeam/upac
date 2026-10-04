@@ -5,9 +5,10 @@
 
 use std::mem::size_of;
 use std::ptr::{null, null_mut};
+use std::sync::atomic::AtomicU8;
 
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
+use upac_abi::CONSTRAINT_ANY;
+use upac_abi::error::AbiError;
 use upac_abi::memory::free_cslice;
 use upac_abi::package::{CPackageDependency, CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::request::CRequestBase;
@@ -15,7 +16,6 @@ use upac_abi::response::entry::{
     CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
     CHistoryEntry, CPrefixEntry, CSearchFileEntry,
 };
-use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
 use upac_abi::types::{COwned, CSlice, CVec};
 
 fn valid_version() -> CVersion {
@@ -23,6 +23,14 @@ fn valid_version() -> CVersion {
         struct_size: size_of::<CVersion>(),
         epoch: 0,
         raw: CSlice::from_owned(b"1.0.0".to_vec()),
+    }
+}
+
+fn absent_version() -> CVersion {
+    CVersion {
+        struct_size: size_of::<CVersion>(),
+        epoch: 0,
+        raw: CSlice { ptr: null(), len: 0 },
     }
 }
 
@@ -55,7 +63,7 @@ fn version_validate_rejects_wrong_struct_size() {
     let mut version = valid_version();
     version.struct_size = 0;
 
-    assert_eq!(unsafe { version.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { version.validate() }, Err(AbiError::AbiMismatch));
     unsafe { version.free() };
 }
 
@@ -67,7 +75,7 @@ fn version_validate_rejects_empty_raw() {
         raw: CSlice { ptr: null(), len: 0 },
     };
 
-    assert_eq!(unsafe { version.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { version.validate() }, Err(AbiError::InvalidEntry));
 }
 
 #[test]
@@ -83,7 +91,7 @@ fn package_meta_validate_rejects_invalid_nested_version() {
     let mut meta = valid_package_meta();
     meta.version.struct_size = 0;
 
-    assert_eq!(unsafe { meta.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { meta.validate() }, Err(AbiError::AbiMismatch));
     unsafe { meta.free() };
 }
 
@@ -96,7 +104,7 @@ fn package_info_validate_rejects_missing_required_field() {
         arch_sub: CSlice { ptr: null(), len: 0 },
     };
 
-    assert_eq!(unsafe { info.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { info.validate() }, Err(AbiError::InvalidEntry));
     unsafe { free_cslice(&info.arch) };
 }
 
@@ -110,10 +118,63 @@ fn dependency_validate_rejects_invalid_nested_version() {
     };
     dependency.version.struct_size = 0;
 
-    assert_eq!(unsafe { dependency.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { dependency.validate() }, Err(AbiError::AbiMismatch));
     unsafe {
         free_cslice(&dependency.name);
         dependency.version.free();
+    }
+}
+
+#[test]
+fn version_validate_rejects_a_non_null_empty_raw() {
+    let version = CVersion {
+        struct_size: size_of::<CVersion>(),
+        epoch: 0,
+        raw: CSlice::from_owned(Vec::new()),
+    };
+
+    assert_eq!(unsafe { version.validate() }, Err(AbiError::InvalidEntry));
+    unsafe { version.free() };
+}
+
+#[test]
+fn dependency_validate_accepts_any_version_without_one() {
+    let dependency = CPackageDependency {
+        struct_size: size_of::<CPackageDependency>(),
+        name: CSlice::from_owned(b"glibc".to_vec()),
+        constraint: CONSTRAINT_ANY,
+        version: absent_version(),
+    };
+
+    assert_eq!(unsafe { dependency.validate() }, Ok(()));
+    unsafe { free_cslice(&dependency.name) };
+}
+
+#[test]
+fn dependency_validate_requires_a_version_for_a_specific_constraint() {
+    let dependency = CPackageDependency {
+        struct_size: size_of::<CPackageDependency>(),
+        name: CSlice::from_owned(b"glibc".to_vec()),
+        constraint: 0b010,
+        version: absent_version(),
+    };
+
+    assert_eq!(unsafe { dependency.validate() }, Err(AbiError::InvalidEntry));
+    unsafe { free_cslice(&dependency.name) };
+}
+
+#[test]
+fn dependency_validate_rejects_constraint_bits_outside_the_mask() {
+    for constraint in [0, 0b1000] {
+        let dependency = CPackageDependency {
+            struct_size: size_of::<CPackageDependency>(),
+            name: CSlice::from_owned(b"glibc".to_vec()),
+            constraint,
+            version: absent_version(),
+        };
+
+        assert_eq!(unsafe { dependency.validate() }, Err(AbiError::InvalidEntry));
+        unsafe { free_cslice(&dependency.name) };
     }
 }
 
@@ -121,7 +182,7 @@ fn valid_diff_common() -> CDiffFileCommonEntry {
     CDiffFileCommonEntry {
         struct_size: size_of::<CDiffFileCommonEntry>(),
         path: CSlice::from_owned(b"/etc/upac.conf".to_vec()),
-        kind: FileDiffKind::Modified.into(),
+        kind: 2,
     }
 }
 
@@ -138,7 +199,7 @@ fn diff_file_entry_common_validate_rejects_wrong_struct_size() {
     let mut common = valid_diff_common();
     common.struct_size = 0;
 
-    assert_eq!(unsafe { common.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { common.validate() }, Err(AbiError::AbiMismatch));
     unsafe { common.free() };
 }
 
@@ -147,17 +208,17 @@ fn diff_file_entry_common_validate_rejects_empty_path() {
     let common = CDiffFileCommonEntry {
         struct_size: size_of::<CDiffFileCommonEntry>(),
         path: CSlice { ptr: null(), len: 0 },
-        kind: FileDiffKind::Modified.into(),
+        kind: 2,
     };
 
-    assert_eq!(unsafe { common.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { common.validate() }, Err(AbiError::InvalidEntry));
 }
 
 fn valid_diff_prefix_file_entry() -> CDiffPrefixFileEntry {
     CDiffPrefixFileEntry {
         struct_size: size_of::<CDiffPrefixFileEntry>(),
         common: valid_diff_common(),
-        source: DiffFileSource::Prefix.into(),
+        source: 0,
         package_name: CSlice::from_owned(b"upac".to_vec()),
         is_user: false,
     }
@@ -176,7 +237,7 @@ fn diff_prefix_file_entry_validate_rejects_invalid_nested_common() {
     let mut entry = valid_diff_prefix_file_entry();
     entry.common.struct_size = 0;
 
-    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { entry.validate() }, Err(AbiError::AbiMismatch));
     unsafe { entry.free() };
 }
 
@@ -201,7 +262,7 @@ fn diff_config_file_entry_validate_rejects_invalid_nested_common() {
     let mut entry = valid_diff_config_file_entry();
     entry.common.struct_size = 0;
 
-    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { entry.validate() }, Err(AbiError::AbiMismatch));
     unsafe { entry.free() };
 }
 
@@ -209,7 +270,7 @@ fn valid_diff_untracked_file_entry() -> CDiffUntrackedFileEntry {
     CDiffUntrackedFileEntry {
         struct_size: size_of::<CDiffUntrackedFileEntry>(),
         common: valid_diff_common(),
-        source: DiffFileSource::Config.into(),
+        source: 1,
     }
 }
 
@@ -226,7 +287,7 @@ fn diff_untracked_file_entry_validate_rejects_invalid_nested_common() {
     let mut entry = valid_diff_untracked_file_entry();
     entry.common.struct_size = 0;
 
-    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { entry.validate() }, Err(AbiError::AbiMismatch));
     unsafe { entry.free() };
 }
 
@@ -253,7 +314,7 @@ fn config_commit_entry_validate_rejects_missing_config_digest() {
     unsafe { free_cslice(&entry.config_digest) };
     entry.config_digest = CSlice { ptr: null(), len: 0 };
 
-    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { entry.validate() }, Err(AbiError::InvalidEntry));
     unsafe { entry.free() };
 }
 
@@ -280,7 +341,7 @@ fn search_file_entry_validate_rejects_missing_path() {
     unsafe { free_cslice(&entry.path) };
     entry.path = CSlice { ptr: null(), len: 0 };
 
-    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { entry.validate() }, Err(AbiError::InvalidEntry));
     unsafe { entry.free() };
 }
 
@@ -309,7 +370,7 @@ fn prefix_entry_validate_rejects_missing_prefix_digest() {
     unsafe { free_cslice(&entry.prefix_digest) };
     entry.prefix_digest = CSlice { ptr: null(), len: 0 };
 
-    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::InvalidEntry));
+    assert_eq!(unsafe { entry.validate() }, Err(AbiError::InvalidEntry));
     unsafe { entry.free() };
 }
 
@@ -348,7 +409,7 @@ fn history_entry_validate_rejects_an_invalid_config_history_element() {
         len: history.len(),
     };
 
-    assert_eq!(unsafe { entry.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { entry.validate() }, Err(AbiError::AbiMismatch));
 
     unsafe {
         history[0].free();
@@ -360,7 +421,7 @@ fn history_entry_validate_rejects_an_invalid_config_history_element() {
     }
 }
 
-fn valid_request_base(cancel_token: &mut CancelToken) -> CRequestBase {
+fn valid_request_base(cancel_token: &AtomicU8) -> CRequestBase {
     CRequestBase {
         struct_size: size_of::<CRequestBase>(),
         on_hook: None,
@@ -371,25 +432,16 @@ fn valid_request_base(cancel_token: &mut CancelToken) -> CRequestBase {
 
 #[test]
 fn request_base_validate_ok_for_well_formed() {
-    let mut cancel_token = CancelToken::new();
+    let cancel_token = AtomicU8::new(0);
 
-    assert!(unsafe { valid_request_base(&mut cancel_token).validate() }.is_ok());
-}
-
-#[test]
-fn request_base_validate_rejects_a_null_cancel_token() {
-    let mut cancel_token = CancelToken::new();
-    let mut base = valid_request_base(&mut cancel_token);
-    base.cancel_token = null_mut();
-
-    assert_eq!(unsafe { base.validate() }, Err(ErrorKind::InvalidEntry));
+    assert!(unsafe { valid_request_base(&cancel_token).validate() }.is_ok());
 }
 
 #[test]
 fn request_base_validate_rejects_wrong_struct_size() {
-    let mut cancel_token = CancelToken::new();
-    let mut base = valid_request_base(&mut cancel_token);
+    let cancel_token = AtomicU8::new(0);
+    let mut base = valid_request_base(&cancel_token);
     base.struct_size = 0;
 
-    assert_eq!(unsafe { base.validate() }, Err(ErrorKind::AbiMismatch));
+    assert_eq!(unsafe { base.validate() }, Err(AbiError::AbiMismatch));
 }

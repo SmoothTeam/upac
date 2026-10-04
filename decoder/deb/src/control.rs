@@ -5,11 +5,11 @@
 
 use std::collections::HashMap;
 
-use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-
-use upac_types::decoder::parse_constraint_prefix;
-use upac_types::error::DecodeError;
-use upac_types::package::{DecodedPackageMeta, PackageDependency, PackageMeta, Version};
+use upac_decoder_kit::parse_constraint_prefix;
+use upac_types::decoder::DecodeError;
+use upac_types::package::{
+    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+};
 use upac_types::traits::DecodeMeta;
 
 use super::deb::{
@@ -32,12 +32,12 @@ macro_rules! numeric_field {
     };
 }
 
-const OPERATORS: [(&[u8], u8); 5] = [
-    (b"<<", CONSTRAINT_LESS),
-    (b"<=", CONSTRAINT_LESS | CONSTRAINT_EQUAL),
-    (b">>", CONSTRAINT_GREATER),
-    (b">=", CONSTRAINT_GREATER | CONSTRAINT_EQUAL),
-    (b"=", CONSTRAINT_EQUAL),
+const OPERATORS: [(&[u8], VersionConstraint); 5] = [
+    (b"<<", VersionConstraint::Less),
+    (b"<=", VersionConstraint::LessOrEqual),
+    (b">>", VersionConstraint::Greater),
+    (b">=", VersionConstraint::GreaterOrEqual),
+    (b"=", VersionConstraint::Equal),
 ];
 
 pub struct ControlFile<'content> {
@@ -47,7 +47,7 @@ pub struct ControlFile<'content> {
 
 impl DecodeMeta for ControlFile<'_> {
     fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
-        let (mut fields, dependencies) = self.parse_fields();
+        let (mut fields, dependencies) = self.parse_fields()?;
 
         let name = required_field!(fields, CONTROL_NAME_KEY);
         let raw_version = required_field!(fields, CONTROL_VERSION_KEY);
@@ -72,7 +72,7 @@ impl DecodeMeta for ControlFile<'_> {
 }
 
 impl ControlFile<'_> {
-    fn parse_fields(&self) -> (HashMap<&str, String>, Vec<PackageDependency>) {
+    fn parse_fields(&self) -> Result<(HashMap<&str, String>, Vec<PackageDependency>), DecodeError> {
         let mut fields: HashMap<&str, String> = HashMap::new();
         let mut dependencies = Vec::new();
 
@@ -87,16 +87,16 @@ impl ControlFile<'_> {
             };
 
             if key == CONTROL_DEPENDS_KEY {
-                dependencies.extend(Self::parse_depends(value));
+                dependencies.extend(Self::parse_depends(value)?);
             } else {
                 fields.insert(key, value.to_owned());
             }
         }
 
-        (fields, dependencies)
+        Ok((fields, dependencies))
     }
 
-    fn parse_depends(value: &str) -> Vec<PackageDependency> {
+    fn parse_depends(value: &str) -> Result<Vec<PackageDependency>, DecodeError> {
         value
             .split(',')
             .filter_map(|group| group.split('|').next())
@@ -104,7 +104,7 @@ impl ControlFile<'_> {
             .collect()
     }
 
-    fn parse_dependency(raw: &str) -> PackageDependency {
+    fn parse_dependency(raw: &str) -> Result<PackageDependency, DecodeError> {
         let raw = raw.trim();
         let bytes = raw.as_bytes();
 
@@ -121,17 +121,20 @@ impl ControlFile<'_> {
                 None => version_part,
             };
 
-            return PackageDependency {
+            let version = Version::parse(version_str);
+            if version.raw.is_empty() {
+                return Err(DecodeError::MalformedMetadata);
+            }
+
+            return Ok(PackageDependency {
                 name,
-                constraint,
-                version: Version::parse(version_str),
-            };
+                requirement: VersionRequirement::Bounded { constraint, version },
+            });
         }
 
-        PackageDependency {
+        Ok(PackageDependency {
             name: raw.to_owned(),
-            constraint: CONSTRAINT_ANY,
-            version: Version::default(),
-        }
+            requirement: VersionRequirement::Any,
+        })
     }
 }

@@ -10,11 +10,11 @@ use quick_xml::escape::resolve_xml_entity;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
-use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-
-use upac_types::decoder::parse_constraint_prefix;
-use upac_types::error::DecodeError;
-use upac_types::package::{DecodedPackageMeta, PackageDependency, PackageMeta, Version};
+use upac_decoder_kit::parse_constraint_prefix;
+use upac_types::decoder::DecodeError;
+use upac_types::package::{
+    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+};
 use upac_types::traits::DecodeMeta;
 
 use super::xbps::{
@@ -37,9 +37,9 @@ macro_rules! numeric_field {
     };
 }
 
-const OPERATORS: [(&[u8], u8); 2] = [
-    (b"<=", CONSTRAINT_LESS | CONSTRAINT_EQUAL),
-    (b">=", CONSTRAINT_GREATER | CONSTRAINT_EQUAL),
+const OPERATORS: [(&[u8], VersionConstraint); 2] = [
+    (b"<=", VersionConstraint::LessOrEqual),
+    (b">=", VersionConstraint::GreaterOrEqual),
 ];
 
 pub struct Props<'content>(pub &'content str);
@@ -66,7 +66,10 @@ impl DecodeMeta for Props<'_> {
             installed_size,
         };
 
-        let dependencies = run_depends.iter().map(|dep| Self::parse_dependency(dep)).collect();
+        let dependencies = run_depends
+            .iter()
+            .map(|dep| Self::parse_dependency(dep))
+            .collect::<Result<_, _>>()?;
 
         Ok(DecodedPackageMeta { meta, dependencies })
     }
@@ -123,7 +126,7 @@ impl Props<'_> {
         Ok((fields, run_depends))
     }
 
-    fn parse_dependency(raw: &str) -> PackageDependency {
+    fn parse_dependency(raw: &str) -> Result<PackageDependency, DecodeError> {
         let bytes = raw.as_bytes();
 
         for index in 0..bytes.len() {
@@ -131,20 +134,20 @@ impl Props<'_> {
                 continue;
             };
 
-            let name = raw[..index].to_owned();
-            let version = raw[index + operator_len..].to_owned();
+            let version = Version::parse(&raw[index + operator_len..]);
+            if version.raw.is_empty() {
+                return Err(DecodeError::MalformedMetadata);
+            }
 
-            return PackageDependency {
-                name,
-                constraint,
-                version: Version::parse(&version),
-            };
+            return Ok(PackageDependency {
+                name: raw[..index].to_owned(),
+                requirement: VersionRequirement::Bounded { constraint, version },
+            });
         }
 
-        PackageDependency {
+        Ok(PackageDependency {
             name: raw.to_owned(),
-            constraint: CONSTRAINT_ANY,
-            version: Version::default(),
-        }
+            requirement: VersionRequirement::Any,
+        })
     }
 }

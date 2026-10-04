@@ -8,7 +8,7 @@ use std::os::fd::{AsRawFd, OwnedFd};
 use nix::errno::Errno;
 use nix::sys::socket::{AddressFamily, SockFlag, SockType, UnixAddr, bind, socket};
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 use super::layout::runtime::LOCK_ADDRESS;
 

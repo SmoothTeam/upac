@@ -12,7 +12,7 @@ use nix::fcntl::AT_FDCWD;
 
 use tempfile::{Builder, TempDir};
 
-use upac_abi::response::entry::FileDiffKind;
+use upac_types::diff::FileDiffKind;
 
 use upac_composefs::tree::Tree;
 use upac_composefs::{ObjectID, Repo};

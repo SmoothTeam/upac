@@ -16,9 +16,9 @@ use upac_composefs::error::RepoError;
 use upac_composefs::fs::WrittenFile;
 use upac_composefs::{Digest, Repo};
 
+use upac_database::MemoryDatabase;
 use upac_database::layout::database::DATABASE_PATH;
 use upac_database::transaction::TransactionStore;
-use upac_database::{InMemory, MemoryDatabase};
 
 use self::deployment::Deployment;
 use self::deployment::PrefixDeploy;
@@ -165,9 +165,13 @@ impl Sysroot {
 
         create_dir(&prefix_dir)?;
 
-        if let Err(error) = prefix.write(&prefix_dir) {
+        let populated = create_dir(prefix_dir.join(CONFIG_DIR_NAME))
+            .map_err(PrefixCreateError::from)
+            .and_then(|()| prefix.write(&prefix_dir).map_err(PrefixCreateError::from));
+
+        if let Err(error) = populated {
             let _ = self.remove_prefix(prefix.digest());
-            return Err(error.into());
+            return Err(error);
         }
 
         Ok(())

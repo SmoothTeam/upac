@@ -5,7 +5,8 @@
 
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
-use upac_abi::error::ErrorKind;
+use upac_types::booter::BootError;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GrubError {
@@ -34,13 +35,13 @@ impl From<ErrorKind> for GrubError {
     }
 }
 
-impl From<GrubError> for ErrorKind {
+impl From<GrubError> for BootError {
     fn from(error: GrubError) -> Self {
         match error {
-            GrubError::ToolNotFound => ErrorKind::NotFound,
-            GrubError::PermissionDenied => ErrorKind::PermissionDenied,
-            GrubError::InvalidRequest => ErrorKind::InvalidEntry,
-            GrubError::Unexpected => ErrorKind::Unexpected,
+            GrubError::ToolNotFound => BootError::ToolNotInstalled,
+            GrubError::PermissionDenied => BootError::PermissionDenied,
+            GrubError::InvalidRequest => BootError::InvalidRequest,
+            GrubError::Unexpected => BootError::Unexpected,
         }
     }
 }

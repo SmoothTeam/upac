@@ -3,7 +3,16 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_types::decoder::{PackageTrigger, TriggerPosition};
+
 use upac_decoder_deb::triggers;
+
+fn positions(triggers: &[PackageTrigger]) -> Vec<(TriggerPosition, &str)> {
+    triggers
+        .iter()
+        .map(|trigger| (trigger.position, trigger.name.as_str()))
+        .collect()
+}
 
 #[test]
 fn finds_no_triggers_when_no_scripts_are_present() {
@@ -18,7 +27,13 @@ fn a_bare_preinst_covers_both_install_and_upgrade_positions() {
 
     let triggers = triggers::scan(&scripts);
 
-    assert_eq!(triggers, vec!["preinst"]);
+    assert_eq!(
+        positions(&triggers),
+        vec![
+            (TriggerPosition::PreInstall, "preinst"),
+            (TriggerPosition::PreUpgrade, "preinst")
+        ]
+    );
 }
 
 #[test]
@@ -30,10 +45,19 @@ fn finds_all_four_maintainer_scripts() {
         "postrm".to_owned(),
     ];
 
-    let mut triggers = triggers::scan(&scripts);
-    triggers.sort();
+    let triggers = triggers::scan(&scripts);
 
-    assert_eq!(triggers, vec!["postinst", "postrm", "preinst", "prerm"]);
+    assert_eq!(
+        positions(&triggers),
+        vec![
+            (TriggerPosition::PreInstall, "preinst"),
+            (TriggerPosition::PostInstall, "postinst"),
+            (TriggerPosition::PreUpgrade, "preinst"),
+            (TriggerPosition::PostUpgrade, "postinst"),
+            (TriggerPosition::PreRemove, "prerm"),
+            (TriggerPosition::PostRemove, "postrm"),
+        ]
+    );
 }
 
 #[test]

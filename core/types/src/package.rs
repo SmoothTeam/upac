@@ -4,15 +4,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::cmp::Ordering;
+use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
-use upac_abi::CONSTRAINT_ANY;
-use upac_abi::error::ErrorKind;
 use upac_abi::package::{CPackageDependency, CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::types::{COwned, CSlice};
+use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
 
 use upac_macro::{CTryToRust, RustToC};
+
+use crate::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum VersionToken<'raw> {
@@ -145,12 +147,106 @@ impl From<PackageMeta> for PackageInfo {
     }
 }
 
-#[derive(Debug, Clone, CTryToRust, RustToC)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VersionConstraint {
+    Less,
+    LessOrEqual,
+    Equal,
+    NotEqual,
+    GreaterOrEqual,
+    Greater,
+}
+
+impl VersionConstraint {
+    pub fn from_orderings(less: bool, equal: bool, greater: bool) -> Option<VersionConstraint> {
+        match (less, equal, greater) {
+            (true, false, false) => Some(VersionConstraint::Less),
+            (true, true, false) => Some(VersionConstraint::LessOrEqual),
+            (false, true, false) => Some(VersionConstraint::Equal),
+            (true, false, true) => Some(VersionConstraint::NotEqual),
+            (false, true, true) => Some(VersionConstraint::GreaterOrEqual),
+            (false, false, true) => Some(VersionConstraint::Greater),
+            _ => None,
+        }
+    }
+
+    fn from_wire_bits(bits: u8) -> Option<VersionConstraint> {
+        VersionConstraint::from_orderings(
+            bits & CONSTRAINT_LESS != 0,
+            bits & CONSTRAINT_EQUAL != 0,
+            bits & CONSTRAINT_GREATER != 0,
+        )
+    }
+
+    fn wire_bits(self) -> u8 {
+        match self {
+            VersionConstraint::Less => CONSTRAINT_LESS,
+            VersionConstraint::LessOrEqual => CONSTRAINT_LESS | CONSTRAINT_EQUAL,
+            VersionConstraint::Equal => CONSTRAINT_EQUAL,
+            VersionConstraint::NotEqual => CONSTRAINT_LESS | CONSTRAINT_GREATER,
+            VersionConstraint::GreaterOrEqual => CONSTRAINT_GREATER | CONSTRAINT_EQUAL,
+            VersionConstraint::Greater => CONSTRAINT_GREATER,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VersionRequirement {
+    Any,
+    Bounded {
+        constraint: VersionConstraint,
+        version: Version,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageDependency {
     pub name: String,
-    pub constraint: u8,
-    #[none_if(constraint == CONSTRAINT_ANY)]
-    pub version: Option<Version>,
+    pub requirement: VersionRequirement,
+}
+
+impl From<PackageDependency> for CPackageDependency {
+    fn from(dependency: PackageDependency) -> Self {
+        let (constraint, version) = match dependency.requirement {
+            VersionRequirement::Any => (
+                CONSTRAINT_ANY,
+                CVersion {
+                    struct_size: size_of::<CVersion>(),
+                    epoch: 0,
+                    raw: CSlice::from_slice(None),
+                },
+            ),
+            VersionRequirement::Bounded { constraint, version } => (constraint.wire_bits(), CVersion::from(version)),
+        };
+
+        CPackageDependency {
+            struct_size: size_of::<CPackageDependency>(),
+            name: CSlice::from_owned(dependency.name.into_bytes()),
+            constraint,
+            version,
+        }
+    }
+}
+
+impl TryFrom<&CPackageDependency> for PackageDependency {
+    type Error = ErrorKind;
+
+    fn try_from(dependency: &CPackageDependency) -> Result<Self, ErrorKind> {
+        unsafe { dependency.validate()? };
+
+        let requirement = match dependency.constraint {
+            CONSTRAINT_ANY => VersionRequirement::Any,
+            bits => VersionRequirement::Bounded {
+                constraint: VersionConstraint::from_wire_bits(bits).ok_or(ErrorKind::InvalidEntry)?,
+                version: Version::try_from(&dependency.version)?,
+            },
+        };
+
+        Ok(PackageDependency {
+            name: <&str>::try_from(&dependency.name)?.to_owned(),
+            requirement,
+        })
+    }
 }
 
 #[derive(Debug)]

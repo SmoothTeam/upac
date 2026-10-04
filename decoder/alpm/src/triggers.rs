@@ -3,27 +3,30 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::decoder::DecoderTrigger;
+use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
 use super::alpm::{POST_INSTALL_FN, POST_REMOVE_FN, POST_UPGRADE_FN, PRE_INSTALL_FN, PRE_REMOVE_FN, PRE_UPGRADE_FN};
 
-pub fn scan(content: &str) -> Vec<String> {
-    DecoderTrigger::ALL
+pub fn scan(content: &str) -> Vec<PackageTrigger> {
+    TriggerPosition::ALL
         .into_iter()
-        .map(native_name)
-        .filter(|name| declares_function(content, name))
-        .map(str::to_owned)
+        .map(|position| (position, native_name(position)))
+        .filter(|(_, name)| declares_function(content, name))
+        .map(|(position, name)| PackageTrigger {
+            position,
+            name: name.to_owned(),
+        })
         .collect()
 }
 
-fn native_name(trigger: DecoderTrigger) -> &'static str {
-    match trigger {
-        DecoderTrigger::PreInstall => PRE_INSTALL_FN,
-        DecoderTrigger::PostInstall => POST_INSTALL_FN,
-        DecoderTrigger::PreUpgrade => PRE_UPGRADE_FN,
-        DecoderTrigger::PostUpgrade => POST_UPGRADE_FN,
-        DecoderTrigger::PreRemove => PRE_REMOVE_FN,
-        DecoderTrigger::PostRemove => POST_REMOVE_FN,
+fn native_name(position: TriggerPosition) -> &'static str {
+    match position {
+        TriggerPosition::PreInstall => PRE_INSTALL_FN,
+        TriggerPosition::PostInstall => POST_INSTALL_FN,
+        TriggerPosition::PreUpgrade => PRE_UPGRADE_FN,
+        TriggerPosition::PostUpgrade => POST_UPGRADE_FN,
+        TriggerPosition::PreRemove => PRE_REMOVE_FN,
+        TriggerPosition::PostRemove => POST_REMOVE_FN,
     }
 }
 

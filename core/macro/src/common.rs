@@ -26,6 +26,7 @@ pub(crate) const ABI_ENUMS: &[&str] = &[
     "InitramfsGenerator",
     "ErrorDomain",
     "ErrorKind",
+    "TriggerPosition",
 ];
 
 pub(crate) const VALIDATABLE_LIB_ENTRYS_COMPOSITES: &[&str] = &[
@@ -40,8 +41,13 @@ pub(crate) const VALIDATABLE_LIB_ENTRYS_COMPOSITES: &[&str] = &[
     "CHistoryEntry",
 ];
 
-pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] =
-    &["CVersion", "CPackageMeta", "CPackageInfo", "CPackageDependency"];
+pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] = &[
+    "CVersion",
+    "CPackageMeta",
+    "CPackageInfo",
+    "CPackageDependency",
+    "CPackageTrigger",
+];
 
 pub(crate) const VALIDATABLE_LIB_REQUEST_COMPOSITES: &[&str] = &["CRequestBase"];
 
@@ -116,17 +122,4 @@ pub(crate) fn field_condition(field: &Field, attr_name: &str) -> Option<SynResul
             value: *binary.right,
         })
     }))
-}
-
-pub(crate) fn option_inner_name(ty: &Type) -> Option<String> {
-    let Type::Path(type_path) = ty else {
-        return None;
-    };
-
-    let segment = type_path.path.segments.last()?;
-    if segment.ident != "Option" {
-        return None;
-    }
-
-    generic_arg(segment).and_then(segment_name)
 }

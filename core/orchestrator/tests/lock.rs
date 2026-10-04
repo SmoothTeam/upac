@@ -7,7 +7,7 @@ use nix::errno::Errno;
 
 use upac_orchestrator::lock::LockError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 #[test]
 fn lock_error_from_errno_maps_known_errnos() {

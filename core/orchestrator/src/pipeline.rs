@@ -7,8 +7,8 @@ use std::any::{Any, TypeId};
 use std::marker::PhantomData;
 use std::thread::scope;
 
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 
 use super::context::Context;
 use super::error::PipelineError;

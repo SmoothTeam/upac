@@ -5,8 +5,8 @@
 
 use std::any::TypeId;
 
-use upac_abi::error::ErrorKind;
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 
 use super::context::Context;
 use super::progress::ProgressEventBuilder;

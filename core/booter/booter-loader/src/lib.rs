@@ -3,12 +3,13 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::error::ErrorKind;
-use upac_abi::plugin::{BootResourceKind, BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
+use upac_abi::plugin::{BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
 use upac_abi::request::booter::{
     CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 
+use upac_types::booter::BootResourceKind;
+use upac_types::plugin::plugin_result;
 use upac_types::request::booter::{
     BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
 };
@@ -30,6 +31,7 @@ mod static_link;
 
 pub mod entry;
 pub mod error;
+pub mod esp;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
@@ -82,45 +84,33 @@ impl BootPlugin {
     pub fn boot_resource_kind(&self) -> Result<BootResourceKind, BootPluginError> {
         let kind = unsafe { (self.boot_resource_kind)() };
 
-        BootResourceKind::try_from(kind).map_err(BootPluginError::Reported)
+        BootResourceKind::try_from(kind).map_err(|_| BootPluginError::InvalidResponse)
     }
 
     pub fn set_one_shot(&self, request: BootPluginSetOneShotRequest) -> Result<(), BootPluginError> {
         let request: CBootPluginSetOneShotRequest = request.into();
 
-        let response_code = unsafe { (self.set_one_shot)(&request) };
-        if response_code != 0 {
-            return Err(BootPluginError::Reported(
-                ErrorKind::try_from(response_code as u32).unwrap_or(ErrorKind::InvalidEntry),
-            ));
-        }
+        let status = unsafe { (self.set_one_shot)(&request) };
+        unsafe { request.free() };
 
-        Ok(())
+        plugin_result(status).map_err(|error| error.map_or(BootPluginError::InvalidResponse, BootPluginError::Failed))
     }
 
     pub fn confirm_boot(&self, request: BootPluginConfirmSuccessBootRequest) -> Result<(), BootPluginError> {
         let request: CBootPluginConfirmSuccessBootRequest = request.into();
 
-        let response_code = unsafe { (self.confirm_boot)(&request) };
-        if response_code != 0 {
-            return Err(BootPluginError::Reported(
-                ErrorKind::try_from(response_code as u32).unwrap_or(ErrorKind::InvalidEntry),
-            ));
-        }
+        let status = unsafe { (self.confirm_boot)(&request) };
+        unsafe { request.free() };
 
-        Ok(())
+        plugin_result(status).map_err(|error| error.map_or(BootPluginError::InvalidResponse, BootPluginError::Failed))
     }
 
     pub fn install(&self, request: BootPluginInstallRequest) -> Result<(), BootPluginError> {
         let request: CBootPluginInstallRequest = request.into();
 
-        let response_code = unsafe { (self.install)(&request) };
-        if response_code != 0 {
-            return Err(BootPluginError::Reported(
-                ErrorKind::try_from(response_code as u32).unwrap_or(ErrorKind::InvalidEntry),
-            ));
-        }
+        let status = unsafe { (self.install)(&request) };
+        unsafe { request.free() };
 
-        Ok(())
+        plugin_result(status).map_err(|error| error.map_or(BootPluginError::InvalidResponse, BootPluginError::Failed))
     }
 }

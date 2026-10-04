@@ -5,9 +5,9 @@
 
 use std::ptr::null_mut;
 
-use upac_abi::error::{CError, ErrorDomain, ErrorKind};
+use upac_abi::error::CError;
+use upac_types::error::{Error, ErrorDomain, ErrorKind, write_abi_error};
 
-use upac_types::error::{Error, write_abi_error};
 use upac_types::state::mutated::RollbackStateId;
 
 #[test]

@@ -51,7 +51,7 @@ fn empty_check(ident: &Ident, non_empty: bool) -> TokenStream2 {
     if non_empty {
         quote! {
             if self.#ident.len == 0 {
-                return Err(crate::error::ErrorKind::InvalidEntry);
+                return Err(::upac_abi::error::AbiError::InvalidEntry);
             }
         }
     } else {
@@ -100,19 +100,11 @@ fn field_ptr_validate(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
 
     let name = seg.ident.to_string();
 
-    if name == "CancelToken" {
-        return quote! {
-            if self.#ident.is_null() {
-                return Err(crate::error::ErrorKind::InvalidEntry);
-            }
-        };
-    }
-
     if is_validatable_composite(&name) {
         quote! {
             unsafe {
                 if self.#ident.is_null() {
-                    return Err(crate::error::ErrorKind::InvalidEntry);
+                    return Err(::upac_abi::error::AbiError::InvalidEntry);
                 }
                 (*self.#ident).validate()?;
             }
@@ -131,7 +123,7 @@ fn bitflags_validate(ident: &Ident, field: &Field) -> SynResult<TokenStream2> {
 
     Ok(quote! {
         if self.#ident == 0 || self.#ident & !(#mask) != 0 {
-            return Err(crate::error::ErrorKind::InvalidEntry);
+            return Err(::upac_abi::error::AbiError::InvalidEntry);
         }
     })
 }
@@ -179,7 +171,7 @@ fn field_validate(field: &Field) -> TokenStream2 {
 fn validate_impl(name: &Ident, validations: &[TokenStream2]) -> TokenStream2 {
     quote! {
         impl #name {
-            pub unsafe fn validate(&self) -> Result<(), crate::error::ErrorKind> {
+            pub unsafe fn validate(&self) -> Result<(), ::upac_abi::error::AbiError> {
                 crate::types::check_size::<#name>(self.struct_size)?;
                 #(#validations)*
                 Ok(())
@@ -187,7 +179,7 @@ fn validate_impl(name: &Ident, validations: &[TokenStream2]) -> TokenStream2 {
         }
 
         impl crate::types::CValidatable for #name {
-            unsafe fn validate(&self) -> Result<(), crate::error::ErrorKind> {
+            unsafe fn validate(&self) -> Result<(), ::upac_abi::error::AbiError> {
                 unsafe { #name::validate(self) }
             }
         }

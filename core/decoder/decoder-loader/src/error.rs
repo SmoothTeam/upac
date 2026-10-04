@@ -9,14 +9,15 @@ use std::io::ErrorKind as IoErrorKind;
 use mime::FromStrError as MimeParseError;
 use toml::de::Error as TomlError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::decoder::DecodeError;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DecoderError {
     Load,
     Symbol,
     AbiMismatch { got: u32, expected: u32 },
-    Failed(i32),
+    Failed(DecodeError),
     InvalidResponse,
     Io(IoErrorKind),
     Manifest,
@@ -56,7 +57,7 @@ impl From<DecoderError> for ErrorKind {
             DecoderError::Load => ErrorKind::NotFound,
             DecoderError::Symbol => ErrorKind::AbiMismatch,
             DecoderError::AbiMismatch { .. } => ErrorKind::AbiMismatch,
-            DecoderError::Failed(_) => ErrorKind::Unexpected,
+            DecoderError::Failed(error) => error.into(),
             DecoderError::InvalidResponse => ErrorKind::InvalidEntry,
             DecoderError::Io(_) => ErrorKind::ReadFailed,
             DecoderError::Manifest => ErrorKind::InvalidEntry,

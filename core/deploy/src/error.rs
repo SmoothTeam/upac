@@ -11,7 +11,7 @@ use rsmount::errors::MountInfoError;
 
 use serde_json::Error as SerdeJsonError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 use upac_composefs::Digest;
 use upac_composefs::error::RepoError;

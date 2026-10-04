@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 [package]
-name = "upac-lib-boot-loader"
+name = "upac-lib-booter-loader"
 description = "Loads upac's boot plugins (dlopen via manifests or statically linked) and writes composefs boot entries to the ESP"
 version.workspace = true
 
@@ -44,6 +44,8 @@ composefs-boot = { workspace = true }
 anyhow         = { workspace = true }
 serde          = { workspace = true }
 toml           = { workspace = true }
+
+rsmount = "0.2"
 
 [dev-dependencies]
 nix      = { workspace = true }

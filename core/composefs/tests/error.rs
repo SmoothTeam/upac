@@ -16,7 +16,7 @@ use hex::FromHexError;
 
 use upac_composefs::error::RepoError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 #[test]
 fn hex_error_maps_to_invalid_digest() {

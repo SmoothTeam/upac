@@ -11,10 +11,9 @@ use tar::Archive;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_abi::hook::CancelToken;
-
-use upac_types::decoder::read_to_string;
-use upac_types::error::DecodeError;
+use upac_decoder_kit::read_to_string;
+use upac_types::CancelToken;
+use upac_types::decoder::DecodeError;
 
 use super::alpm::{BUILDINFO_ENTRY, CHANGELOG_ENTRY, INSTALL_ENTRY, MTREE_ENTRY, PKGINFO_ENTRY};
 

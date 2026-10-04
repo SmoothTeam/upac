@@ -7,71 +7,23 @@ use std::ffi::FromBytesWithNulError;
 use std::mem::size_of;
 use std::str::Utf8Error;
 
-use upac_macro::{CEnum, CValidate};
+use upac_macro::CValidate;
 
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum ErrorDomain {
-    Unknown,
-    Uninstall,
-    Install,
-    Rollback,
-    Commit,
-    Files,
-    Update,
-    Gc,
-    Pin,
-    Mime,
-    ListPackages,
-    ListConfig,
-    ListPrefix,
-    ListHistory,
-    DiffPrefix,
-    DiffConfig,
-    DiffPackages,
-    Diff,
-    SearchMeta,
-    SearchFiles,
-    SearchInMeta,
-    SearchInPackageFiles,
-    Bootstrap,
-    PartitionTable,
-    PartitionAdd,
-    Format,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AbiError {
+    InvalidEntry,
+    AbiMismatch,
 }
 
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum ErrorKind {
-    Unexpected = 1,
-    OutOfMemory = 2,
-    NotFound = 3,
-    AlreadyExists = 4,
-    PermissionDenied = 5,
-    InvalidPath = 6,
-    NoSpaceLeft = 7,
-    Cancelled = 8,
-    ReadFailed = 9,
-    WriteFailed = 10,
-    NotInitialized = 11,
-    AbiMismatch = 12,
-    InvalidEntry = 13,
-    NotAPartition = 14,
-    WrongPartitionType = 15,
-    UnsupportedFilesystem = 16,
-    ToolNotInstalled = 17,
-    ToolFailed = 18,
-}
-
-impl From<FromBytesWithNulError> for ErrorKind {
+impl From<FromBytesWithNulError> for AbiError {
     fn from(_: FromBytesWithNulError) -> Self {
-        ErrorKind::InvalidEntry
+        AbiError::InvalidEntry
     }
 }
 
-impl From<Utf8Error> for ErrorKind {
+impl From<Utf8Error> for AbiError {
     fn from(_: Utf8Error) -> Self {
-        ErrorKind::InvalidEntry
+        AbiError::InvalidEntry
     }
 }
 
@@ -89,9 +41,9 @@ impl Default for CError {
     fn default() -> Self {
         CError {
             struct_size: size_of::<CError>(),
-            domain: ErrorDomain::Unknown.into(),
+            domain: 0,
             state: 0,
-            kind: ErrorKind::Unexpected.into(),
+            kind: 0,
         }
     }
 }

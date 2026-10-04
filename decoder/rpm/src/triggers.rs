@@ -3,31 +3,30 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::decoder::DecoderTrigger;
+use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
 use super::header::Header;
 use super::rpm::{POSTIN_NAME, POSTIN_TAG, POSTUN_NAME, POSTUN_TAG, PREIN_NAME, PREIN_TAG, PREUN_NAME, PREUN_TAG};
 
-pub fn scan(header: &Header) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
+pub fn scan(header: &Header) -> Vec<PackageTrigger> {
+    TriggerPosition::ALL
+        .into_iter()
+        .filter_map(|position| {
+            let (tag, name) = native(position);
 
-    for trigger in DecoderTrigger::ALL {
-        let (tag, name) = native(trigger);
-        let already_added = names.iter().any(|existing| existing == name);
-
-        if header.contains(tag) && !already_added {
-            names.push(name.to_owned());
-        }
-    }
-
-    names
+            header.contains(tag).then(|| PackageTrigger {
+                position,
+                name: name.to_owned(),
+            })
+        })
+        .collect()
 }
 
-fn native(trigger: DecoderTrigger) -> (u32, &'static str) {
-    match trigger {
-        DecoderTrigger::PreInstall | DecoderTrigger::PreUpgrade => (PREIN_TAG, PREIN_NAME),
-        DecoderTrigger::PostInstall | DecoderTrigger::PostUpgrade => (POSTIN_TAG, POSTIN_NAME),
-        DecoderTrigger::PreRemove => (PREUN_TAG, PREUN_NAME),
-        DecoderTrigger::PostRemove => (POSTUN_TAG, POSTUN_NAME),
+fn native(position: TriggerPosition) -> (u32, &'static str) {
+    match position {
+        TriggerPosition::PreInstall | TriggerPosition::PreUpgrade => (PREIN_TAG, PREIN_NAME),
+        TriggerPosition::PostInstall | TriggerPosition::PostUpgrade => (POSTIN_TAG, POSTIN_NAME),
+        TriggerPosition::PreRemove => (PREUN_TAG, PREUN_NAME),
+        TriggerPosition::PostRemove => (POSTUN_TAG, POSTUN_NAME),
     }
 }

@@ -12,7 +12,7 @@ use composefs::repository::RepositoryOpenError;
 
 use hex::FromHexError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RepoError {

@@ -29,7 +29,7 @@ workspace = true
 name = "upac_composefs"
 
 [dependencies]
-upac-lib-abi = { workspace = true }
+upac-lib-types = { workspace = true }
 
 composefs = { workspace = true }
 nix       = { workspace = true }

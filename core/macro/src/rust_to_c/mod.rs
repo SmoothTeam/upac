@@ -15,9 +15,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, parse_macro_input};
 
-use crate::common::{
-    ABI_ENUMS, PRIMITIVES, field_condition, generic_arg, is_str_type, option_inner_name, segment_name,
-};
+use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_type, segment_name};
 
 fn is_str_ref(ty: &Type) -> bool {
     matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
@@ -97,7 +95,7 @@ fn field_to_c(ident: &Ident, ty: &Type) -> TokenStream2 {
         return if is_str_type(&reference.elem) {
             string_ref_to_c(ident)
         } else {
-            quote! { compile_error!("RustToC: unsupported reference field type") }
+            quote! { value.#ident.as_ptr() }
         };
     }
 
@@ -108,21 +106,6 @@ fn field_to_c(ident: &Ident, ty: &Type) -> TokenStream2 {
     match type_path.path.segments.last() {
         Some(segment) => field_path_to_c(ident, segment),
         None => quote! { compile_error!("RustToC: unsupported field type") },
-    }
-}
-
-fn conditional_option_to_c(ident: &Ident, ty: &Type) -> TokenStream2 {
-    let Some(inner_name) = option_inner_name(ty) else {
-        return quote! { compile_error!("RustToC: #[none_if] requires an Option<T> field") };
-    };
-
-    let c_ty = format_ident!("C{inner_name}");
-
-    quote! {
-        match value.#ident {
-            Some(inner) => #c_ty::from(inner),
-            None => #c_ty::default(),
-        }
     }
 }
 
@@ -182,11 +165,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
                 .into();
         };
 
-        let value = match field_condition(field, "none_if") {
-            None => field_to_c(ident, &field.ty),
-            Some(Ok(_)) => conditional_option_to_c(ident, &field.ty),
-            Some(Err(error)) => return error.to_compile_error().into(),
-        };
+        let value = field_to_c(ident, &field.ty);
         field_values.push(quote! { #ident: #value, });
     }
 

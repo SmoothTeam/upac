@@ -5,6 +5,8 @@
 
 use std::io::Cursor;
 
+use upac_types::decoder::{PackageTrigger, TriggerPosition};
+
 use upac_decoder_rpm::header::Header;
 use upac_decoder_rpm::rpm::{NAME_TAG, POSTIN_TAG, POSTUN_TAG, PREIN_TAG, PREUN_TAG};
 use upac_decoder_rpm::triggers;
@@ -55,6 +57,13 @@ fn section_header(tag_count: u32, data_size: u32) -> [u8; 16] {
     section
 }
 
+fn positions(triggers: &[PackageTrigger]) -> Vec<(TriggerPosition, &str)> {
+    triggers
+        .iter()
+        .map(|trigger| (trigger.position, trigger.name.as_str()))
+        .collect()
+}
+
 #[test]
 fn finds_no_triggers_when_no_scriptlets_are_present() {
     let header = build_header(&[]);
@@ -70,7 +79,13 @@ fn a_bare_prein_covers_both_install_and_upgrade_positions() {
 
     let triggers = triggers::scan(&header);
 
-    assert_eq!(triggers, vec!["pre"]);
+    assert_eq!(
+        positions(&triggers),
+        vec![
+            (TriggerPosition::PreInstall, "pre"),
+            (TriggerPosition::PreUpgrade, "pre")
+        ]
+    );
 }
 
 #[test]
@@ -82,10 +97,19 @@ fn finds_all_four_scriptlets() {
         (POSTUN_TAG, RawValue::Str("d")),
     ]);
 
-    let mut triggers = triggers::scan(&header);
-    triggers.sort();
+    let triggers = triggers::scan(&header);
 
-    assert_eq!(triggers, vec!["post", "postun", "pre", "preun"]);
+    assert_eq!(
+        positions(&triggers),
+        vec![
+            (TriggerPosition::PreInstall, "pre"),
+            (TriggerPosition::PostInstall, "post"),
+            (TriggerPosition::PreUpgrade, "pre"),
+            (TriggerPosition::PostUpgrade, "post"),
+            (TriggerPosition::PreRemove, "preun"),
+            (TriggerPosition::PostRemove, "postun"),
+        ]
+    );
 }
 
 #[test]

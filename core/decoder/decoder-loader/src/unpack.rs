@@ -3,10 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::hook::CancelToken;
-
-use upac_types::decoder::DeclarativeTrigger;
-use upac_types::package::PackageTemp;
+use upac_types::CancelToken;
+use upac_types::decoder::PackageTriggers;
+use upac_types::package::PackageMeta;
 
 use super::error::DecoderError;
 
@@ -37,6 +36,12 @@ use super::static_link::static_decoders;
 #[cfg(all(test, any(feature = "dynamic-plugins", feature = "builtin-decoders")))]
 #[path = "../tests/inline/unpack.rs"]
 mod tests;
+
+#[derive(Debug, Clone)]
+pub struct PackageTemp {
+    pub meta: PackageMeta,
+    pub temp_package_path: String,
+}
 
 #[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
 fn has_extension(file_name: &str, extension: &str) -> bool {
@@ -77,7 +82,7 @@ pub struct PackageUnpacker {
 impl PackageUnpacker {
     pub fn unpack_one(
         &mut self, package_path: &str, index: usize, tmp_path: &str, cancel: &CancelToken,
-    ) -> Result<(PackageTemp, DeclarativeTrigger), DecoderError> {
+    ) -> Result<(PackageTemp, PackageTriggers), DecoderError> {
         let format = self.format_for(package_path)?;
         let checksum = checksum_of_file(package_path)?;
 
@@ -99,9 +104,9 @@ impl PackageUnpacker {
                 meta: decoded.meta,
                 temp_package_path: output_dir,
             },
-            DeclarativeTrigger {
+            PackageTriggers {
                 format,
-                triggers: decoded.declarative_triggers,
+                triggers: decoded.triggers,
             },
         ))
     }
@@ -177,14 +182,13 @@ impl PackageUnpacker {
 
 #[cfg(all(not(feature = "dynamic-plugins"), not(feature = "builtin-decoders")))]
 impl PackageUnpacker {
-    /// Always fails: this build contains no decoder loading path.
     pub fn new() -> Result<Self, DecoderError> {
         Err(DecoderError::NoDecoders)
     }
 
     pub fn unpack_one(
         &mut self, _package_path: &str, _index: usize, _tmp_path: &str, _cancel: &CancelToken,
-    ) -> Result<(PackageTemp, DeclarativeTrigger), DecoderError> {
+    ) -> Result<(PackageTemp, PackageTriggers), DecoderError> {
         Err(DecoderError::NoDecoders)
     }
 }

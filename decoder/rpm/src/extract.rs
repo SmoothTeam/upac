@@ -13,9 +13,8 @@ use flate2::read::GzDecoder;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_abi::hook::CancelToken;
-
-use upac_types::error::DecodeError;
+use upac_types::CancelToken;
+use upac_types::decoder::DecodeError;
 
 use crate::header::Header;
 use crate::rpm::{PAYLOAD_COMPRESSOR_TAG, PAYLOAD_FORMAT_TAG};

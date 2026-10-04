@@ -7,8 +7,8 @@ use std::any::TypeId;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use upac_abi::error::{ErrorDomain, ErrorKind};
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
+use upac_types::error::{ErrorDomain, ErrorKind};
 
 use upac_types::traits::CommandState;
 

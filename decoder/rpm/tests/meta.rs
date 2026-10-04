@@ -5,18 +5,24 @@
 
 use std::io::Cursor;
 
-use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
-
 use upac_decoder_rpm::header::Header;
 use upac_decoder_rpm::rpm::{
     ARCH_TAG, LICENSE_TAG, NAME_TAG, PACKAGER_TAG, RELEASE_TAG, REQUIRE_FLAGS_TAG, REQUIRE_NAME_TAG,
     REQUIRE_VERSION_TAG, SIZE_TAG, SUMMARY_TAG, URL_TAG, VERSION_TAG,
 };
 
-use upac_types::error::DecodeError;
+use upac_types::decoder::DecodeError;
+use upac_types::package::{Version, VersionConstraint, VersionRequirement};
 use upac_types::traits::DecodeMeta;
 
 const CHECKSUM: [u8; 32] = [7; 32];
+
+fn bounded(constraint: VersionConstraint, raw_version: &str) -> VersionRequirement {
+    VersionRequirement::Bounded {
+        constraint,
+        version: Version::parse(raw_version),
+    }
+}
 
 enum RawValue<'data> {
     Str(&'data str),
@@ -208,12 +214,20 @@ fn parses_dependencies_with_all_constraint_operators() {
     let decoded = header.decode(CHECKSUM).unwrap();
 
     assert_eq!(decoded.dependencies.len(), 5);
-    assert_eq!(decoded.dependencies[0].constraint, CONSTRAINT_LESS);
-    assert_eq!(decoded.dependencies[1].constraint, CONSTRAINT_LESS | CONSTRAINT_EQUAL);
-    assert_eq!(decoded.dependencies[2].constraint, CONSTRAINT_GREATER);
-    assert_eq!(decoded.dependencies[3].constraint, CONSTRAINT_ANY);
-    assert_eq!(decoded.dependencies[4].constraint, CONSTRAINT_EQUAL);
-    assert_eq!(decoded.dependencies[0].version.raw, "2.34");
+    assert_eq!(
+        decoded.dependencies[0].requirement,
+        bounded(VersionConstraint::Less, "2.34")
+    );
+    assert_eq!(
+        decoded.dependencies[1].requirement,
+        bounded(VersionConstraint::LessOrEqual, "2.34")
+    );
+    assert_eq!(
+        decoded.dependencies[2].requirement,
+        bounded(VersionConstraint::Greater, "5.0")
+    );
+    assert_eq!(decoded.dependencies[3].requirement, VersionRequirement::Any);
+    assert_eq!(decoded.dependencies[4].requirement, VersionRequirement::Any);
     assert_eq!(decoded.dependencies[3].name, "coreutils");
 }
 

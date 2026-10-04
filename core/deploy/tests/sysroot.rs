@@ -17,9 +17,9 @@ use upac_types::transaction::{Transaction, TransactionKind};
 
 use upac_composefs::{Digest, ObjectID};
 
+use upac_database::MemoryDatabase;
 use upac_database::layout::database::DATABASE_PATH;
 use upac_database::transaction::TransactionStoreMut;
-use upac_database::{InMemory, MemoryDatabase};
 
 use upac_deploy::Sysroot;
 use upac_deploy::deployment::config::ConfigDeploy;
@@ -221,4 +221,20 @@ fn the_next_pointer_does_not_count_as_a_prefix() {
     sysroot.set_next_prefix(&prefix).unwrap();
 
     assert_eq!(sysroot.prefixes().unwrap().len(), 1);
+}
+
+#[test]
+fn a_created_prefix_has_the_etc_dir_setup_root_expects() {
+    let scratch = scratch_root();
+    let sysroot = Sysroot::open(scratch.path()).unwrap();
+    let prefix = new_prefix(&sysroot, scratch.path());
+
+    sysroot.create_prefix(&prefix).unwrap();
+
+    let etc_dir = scratch
+        .path()
+        .join(DEPLOYS_DIR)
+        .join(prefix.digest().to_hex())
+        .join(CONFIG_DIR_NAME);
+    assert!(etc_dir.is_dir());
 }

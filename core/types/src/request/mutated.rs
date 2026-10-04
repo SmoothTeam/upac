@@ -8,21 +8,21 @@ use upac_abi::request::mutated::{
     CUninstallRequest, CUpdateRequest,
 };
 
-use upac_abi::error::ErrorKind;
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CRequestBase;
-use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
 use upac_abi::types::{COwned, CSlice, CVec};
 
 use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
+use crate::diff::{DiffFileSource, FileDiffKind};
+use crate::error::ErrorKind;
 use crate::package::PackageInfo;
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct InstallRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
 
     pub tmp_path: &'data str,
 
@@ -38,7 +38,7 @@ pub struct InstallRequest<'data> {
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct UpdateRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
 
     pub tmp_path: &'data str,
 
@@ -55,7 +55,7 @@ pub struct UpdateRequest<'data> {
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct UninstallRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
 
     pub tmp_path: &'data str,
 
@@ -71,7 +71,7 @@ pub struct UninstallRequest<'data> {
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct RollbackRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
     pub tmp_path: &'data str,
     pub config_digest: &'data str,
     pub boot_plugin: &'data str,
@@ -79,7 +79,7 @@ pub struct RollbackRequest<'data> {
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct CommitRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
     pub tmp_path: &'data str,
     pub subject: &'data str,
     pub message: Option<&'data str>,
@@ -87,7 +87,7 @@ pub struct CommitRequest<'data> {
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct FilesRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
 
     pub tmp_path: &'data str,
 
@@ -104,18 +104,18 @@ pub struct FilesRequest<'data> {
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct GcRequest {
-    pub base: RequestBase,
+pub struct GcRequest<'data> {
+    pub base: RequestBase<'data>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct MimeSyncRequest {
-    pub base: RequestBase,
+pub struct MimeSyncRequest<'data> {
+    pub base: RequestBase<'data>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct PinRequest<'data> {
-    pub base: RequestBase,
+    pub base: RequestBase<'data>,
     pub prefix_digest: &'data str,
     pub pinned: bool,
 }

@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::CEnum;
-
 use crate::request::booter::{
     CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
@@ -26,10 +24,3 @@ pub type BootResourceKindFn = unsafe extern "C" fn() -> u8;
 pub type DecodeFn = unsafe extern "C" fn(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32;
 
 pub type FreeDecodeResponseFn = unsafe extern "C" fn(response: *mut CDecodeResponse);
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum BootResourceKind {
-    Bls = 0,
-    Uki = 1,
-}

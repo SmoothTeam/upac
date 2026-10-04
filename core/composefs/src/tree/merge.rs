@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use upac_abi::response::entry::FileDiffKind;
+use upac_types::diff::FileDiffKind;
 
 use super::super::error::RepoError;
 use super::{MergeResult, Tree};

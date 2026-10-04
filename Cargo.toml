@@ -13,9 +13,10 @@ members = [
     "core/composefs",
     "core/database",
     "core/deploy",
-    "core/decoder-loader",
     "core/hooks",
-    "core/boot-loader",
+    "core/booter/booter-loader",
+    "core/decoder/decoder-loader",
+    "core/decoder/decoder-kit",
     "lib/lib",
     "lib/setup",
     "booter/uki",
@@ -30,7 +31,7 @@ members = [
 [workspace.package]
 version = "0.2.0"
 edition = "2024"
-rust-version = "1.98"
+rust-version = "1.99"
 
 license = "LGPL-3.0-or-later WITH LGPL-3.0-linking-exception"
 
@@ -60,9 +61,10 @@ upac-lib-orchestrator   = { path = "core/orchestrator" }
 upac-lib-composefs      = { path = "core/composefs" }
 upac-lib-database       = { path = "core/database" }
 upac-lib-deploy         = { path = "core/deploy" }
-upac-lib-decoder-loader = { path = "core/decoder-loader", default-features = false }
+upac-lib-decoder-loader = { path = "core/decoder/decoder-loader", default-features = false }
+upac-lib-decoder-kit    = { path = "core/decoder/decoder-kit" }
 upac-lib-hooks          = { path = "core/hooks" }
-upac-lib-boot-loader    = { path = "core/boot-loader", default-features = false }
+upac-lib-booter-loader    = { path = "core/booter/booter-loader", default-features = false }
 
 upac-lib = { path = "lib/lib", default-features = false }
 upac-lib-setup    = { path = "lib/setup" }
@@ -85,7 +87,7 @@ composefs     = { version = "0.9.0", features = ["tempfile"] }
 clap          = { version = "4.6.1", features = ["derive"] }
 uuid          = { version = "1", features = ["v4"] }
 serde         = { version = "1", features = ["derive"] }
-syn           = { version = "3", features = ["full"] }
+syn           = { version = "3", features = ["full", "visit"] }
 ctrlc         = { version = "3.5.2", features = ["termination"] }
 
 colored        = "3.1.1"
