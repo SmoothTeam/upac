@@ -13,15 +13,10 @@ use upac_types::response::entry::FileEntry;
 
 use super::error::DatabaseError;
 use super::{
-    FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadTransactionExt, ReadableSource, record_decode,
-    record_encode,
+    FILES_UUID_HASH_TABLE, FILES_UUID_TABLE, MemoryDatabase, ReadTransactionExt, record_decode, record_encode,
 };
 
 pub trait FileStore {
-    fn path_hash(path: &str) -> u64 {
-        XxHasher::oneshot(path.as_bytes())
-    }
-
     fn find_file_owner(&self, path: &str) -> Result<Option<Uuid>, DatabaseError>;
     fn list_package_files(&self, uuid: Uuid) -> Result<Vec<FileEntry>, DatabaseError>;
     fn list_files(&self) -> Result<Vec<(Uuid, FileEntry)>, DatabaseError>;
@@ -29,23 +24,22 @@ pub trait FileStore {
 
 pub trait FileStoreMut: FileStore {
     fn insert_package_file(&mut self, uuid: Uuid, entry: &FileEntry) -> Result<(), DatabaseError>;
-    fn update_package_file(&mut self, uuid: Uuid, entry: &FileEntry) -> Result<(), DatabaseError>;
     fn remove_package_file(&mut self, uuid: Uuid, path: &str) -> Result<FileEntry, DatabaseError>;
     fn remove_user_file(&mut self, uuid: Uuid, path: &str) -> Result<FileEntry, DatabaseError>;
 }
 
-impl<T: ReadableSource> FileStore for T {
+impl FileStore for MemoryDatabase {
     fn find_file_owner(&self, path: &str) -> Result<Option<Uuid>, DatabaseError> {
-        let transaction = self.source().begin_read()?;
+        let transaction = self.database.begin_read()?;
         let Some(by_path) = transaction.open_table_or_none(FILES_UUID_HASH_TABLE)? else {
             return Ok(None);
         };
 
-        Ok(by_path.get(Self::path_hash(path))?.map(|guard| guard.value()))
+        Ok(by_path.get(path_hash(path))?.map(|guard| guard.value()))
     }
 
     fn list_package_files(&self, uuid: Uuid) -> Result<Vec<FileEntry>, DatabaseError> {
-        let transaction = self.source().begin_read()?;
+        let transaction = self.database.begin_read()?;
         let Some(files) = transaction.open_table_or_none(FILES_UUID_TABLE)? else {
             return Ok(Vec::new());
         };
@@ -66,7 +60,7 @@ impl<T: ReadableSource> FileStore for T {
     }
 
     fn list_files(&self) -> Result<Vec<(Uuid, FileEntry)>, DatabaseError> {
-        let transaction = self.source().begin_read()?;
+        let transaction = self.database.begin_read()?;
         let Some(files) = transaction.open_table_or_none(FILES_UUID_TABLE)? else {
             return Ok(Vec::new());
         };
@@ -85,7 +79,7 @@ impl<T: ReadableSource> FileStore for T {
 
 impl FileStoreMut for MemoryDatabase {
     fn insert_package_file(&mut self, uuid: Uuid, entry: &FileEntry) -> Result<(), DatabaseError> {
-        let hash = Self::path_hash(&entry.path);
+        let hash = path_hash(&entry.path);
         let transaction = self.database.begin_write()?;
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
@@ -107,12 +101,8 @@ impl FileStoreMut for MemoryDatabase {
         Ok(())
     }
 
-    fn update_package_file(&mut self, uuid: Uuid, entry: &FileEntry) -> Result<(), DatabaseError> {
-        self.insert_package_file(uuid, entry)
-    }
-
     fn remove_package_file(&mut self, uuid: Uuid, path: &str) -> Result<FileEntry, DatabaseError> {
-        let hash = Self::path_hash(path);
+        let hash = path_hash(path);
         let transaction = self.database.begin_write()?;
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
@@ -132,7 +122,7 @@ impl FileStoreMut for MemoryDatabase {
     }
 
     fn remove_user_file(&mut self, uuid: Uuid, path: &str) -> Result<FileEntry, DatabaseError> {
-        let hash = Self::path_hash(path);
+        let hash = path_hash(path);
         let transaction = self.database.begin_write()?;
         let mut files = transaction.open_table(FILES_UUID_TABLE)?;
 
@@ -150,4 +140,8 @@ impl FileStoreMut for MemoryDatabase {
 
         Ok(entry)
     }
+}
+
+fn path_hash(path: &str) -> u64 {
+    XxHasher::oneshot(path.as_bytes())
 }

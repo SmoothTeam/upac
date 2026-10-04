@@ -8,7 +8,7 @@ use redb::ReadableDatabase;
 use upac_types::transaction::Transaction;
 
 use super::error::DatabaseError;
-use super::{MemoryDatabase, ReadTransactionExt, ReadableSource, TRANSACTION_TABLE, record_decode, record_encode};
+use super::{MemoryDatabase, ReadTransactionExt, TRANSACTION_TABLE, record_decode, record_encode};
 
 pub trait TransactionStore {
     fn get_transaction(&self) -> Result<Option<Transaction>, DatabaseError>;
@@ -18,9 +18,9 @@ pub trait TransactionStoreMut: TransactionStore {
     fn set_transaction(&mut self, transaction: &Transaction) -> Result<(), DatabaseError>;
 }
 
-impl<T: ReadableSource> TransactionStore for T {
+impl TransactionStore for MemoryDatabase {
     fn get_transaction(&self) -> Result<Option<Transaction>, DatabaseError> {
-        let read_transaction = self.source().begin_read()?;
+        let read_transaction = self.database.begin_read()?;
         let Some(table) = read_transaction.open_table_or_none(TRANSACTION_TABLE)? else {
             return Ok(None);
         };

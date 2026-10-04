@@ -3,14 +3,15 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_database::MemoryDatabase;
 use upac_database::attribution::FileAttribute;
 use upac_database::error::DatabaseError;
 use upac_database::files::{FileStore, FileStoreMut};
 use upac_database::meta::{MetaStore, MetaStoreMut};
 use upac_database::triggers::{TriggerStore, TriggerStoreMut};
-use upac_database::{InMemory, MemoryDatabase};
 
-use upac_types::decoder::DeclarativeTrigger;
+use upac_types::decoder::{PackageTrigger, PackageTriggers, TriggerPosition};
+
 use upac_types::package::PackageMeta;
 use upac_types::response::entry::{FileEntry, FileEntryScope};
 
@@ -199,24 +200,25 @@ fn remove_package_file_deletes_a_package_owned_entry() {
 }
 
 #[test]
-fn set_get_and_remove_declarative_triggers() {
+fn set_get_and_remove_package_triggers() {
     let mut db = MemoryDatabase::new_in_memory().unwrap();
     let uuid = db.insert_package_meta(&sample_meta("upac")).unwrap();
 
-    assert!(db.get_declarative_triggers(uuid).unwrap().is_none());
+    assert!(db.get_package_triggers(uuid).unwrap().is_none());
 
-    let trigger = DeclarativeTrigger {
+    let triggers = PackageTriggers {
         format: "deb".to_owned(),
-        triggers: vec!["postinstall".to_owned()],
+        triggers: vec![PackageTrigger {
+            position: TriggerPosition::PostInstall,
+            name: "postinst".to_owned(),
+        }],
     };
-    db.set_declarative_triggers(uuid, &trigger).unwrap();
+    db.set_package_triggers(uuid, &triggers).unwrap();
 
-    let stored = db.get_declarative_triggers(uuid).unwrap().unwrap();
-    assert_eq!(stored.format, "deb");
-    assert_eq!(stored.triggers, vec!["postinstall".to_owned()]);
+    assert_eq!(db.get_package_triggers(uuid).unwrap(), Some(triggers));
 
-    db.remove_declarative_triggers(uuid).unwrap();
-    assert!(db.get_declarative_triggers(uuid).unwrap().is_none());
+    db.remove_package_triggers(uuid).unwrap();
+    assert!(db.get_package_triggers(uuid).unwrap().is_none());
 }
 
 #[test]

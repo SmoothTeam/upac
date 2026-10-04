@@ -7,25 +7,23 @@ use redb::ReadableDatabase;
 
 use uuid::Uuid;
 
-use upac_types::decoder::DeclarativeTrigger;
+use upac_types::decoder::PackageTriggers;
 
 use super::error::DatabaseError;
-use super::{
-    MemoryDatabase, PACKAGES_TRIGGERS_TABLE, ReadTransactionExt, ReadableSource, record_decode, record_encode,
-};
+use super::{MemoryDatabase, PACKAGES_TRIGGERS_TABLE, ReadTransactionExt, record_decode, record_encode};
 
 pub trait TriggerStore {
-    fn get_declarative_triggers(&self, uuid: Uuid) -> Result<Option<DeclarativeTrigger>, DatabaseError>;
+    fn get_package_triggers(&self, uuid: Uuid) -> Result<Option<PackageTriggers>, DatabaseError>;
 }
 
 pub trait TriggerStoreMut: TriggerStore {
-    fn set_declarative_triggers(&mut self, uuid: Uuid, trigger: &DeclarativeTrigger) -> Result<(), DatabaseError>;
-    fn remove_declarative_triggers(&mut self, uuid: Uuid) -> Result<(), DatabaseError>;
+    fn set_package_triggers(&mut self, uuid: Uuid, triggers: &PackageTriggers) -> Result<(), DatabaseError>;
+    fn remove_package_triggers(&mut self, uuid: Uuid) -> Result<(), DatabaseError>;
 }
 
-impl<T: ReadableSource> TriggerStore for T {
-    fn get_declarative_triggers(&self, uuid: Uuid) -> Result<Option<DeclarativeTrigger>, DatabaseError> {
-        let transaction = self.source().begin_read()?;
+impl TriggerStore for MemoryDatabase {
+    fn get_package_triggers(&self, uuid: Uuid) -> Result<Option<PackageTriggers>, DatabaseError> {
+        let transaction = self.database.begin_read()?;
         let Some(triggers) = transaction.open_table_or_none(PACKAGES_TRIGGERS_TABLE)? else {
             return Ok(None);
         };
@@ -38,18 +36,18 @@ impl<T: ReadableSource> TriggerStore for T {
 }
 
 impl TriggerStoreMut for MemoryDatabase {
-    fn set_declarative_triggers(&mut self, uuid: Uuid, trigger: &DeclarativeTrigger) -> Result<(), DatabaseError> {
+    fn set_package_triggers(&mut self, uuid: Uuid, triggers: &PackageTriggers) -> Result<(), DatabaseError> {
         let transaction = self.database.begin_write()?;
 
         transaction
             .open_table(PACKAGES_TRIGGERS_TABLE)?
-            .insert(uuid, record_encode(trigger)?.as_slice())?;
+            .insert(uuid, record_encode(triggers)?.as_slice())?;
 
         transaction.commit()?;
         Ok(())
     }
 
-    fn remove_declarative_triggers(&mut self, uuid: Uuid) -> Result<(), DatabaseError> {
+    fn remove_package_triggers(&mut self, uuid: Uuid) -> Result<(), DatabaseError> {
         let transaction = self.database.begin_write()?;
 
         transaction.open_table(PACKAGES_TRIGGERS_TABLE)?.remove(uuid)?;

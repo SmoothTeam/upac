@@ -11,7 +11,7 @@ use redb::StorageError as RedbStorageError;
 use redb::TableError as RedbTableError;
 use redb::TransactionError as RedbTransactionError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DatabaseError {

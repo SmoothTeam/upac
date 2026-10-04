@@ -4,12 +4,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::io::{Error as IoError, ErrorKind};
-use std::path::Path;
 use std::sync::{Arc, PoisonError, RwLock};
 
 use redb::{
-    Builder, Database as RedbDatabase, Key, ReadOnlyDatabase as RedbReadOnlyDatabase, ReadOnlyTable, ReadTransaction,
-    ReadableDatabase, StorageBackend, TableDefinition, TableError, Value,
+    Builder, Database as RedbDatabase, Key, ReadOnlyTable, ReadTransaction, StorageBackend, TableDefinition,
+    TableError, Value,
 };
 
 use serde::Serialize;
@@ -51,84 +50,30 @@ pub(crate) fn record_decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, Data
     postcard::from_bytes(bytes).map_err(|_| DatabaseError::ReadError)
 }
 
-pub trait InMemory {
-    fn new_in_memory() -> Result<Self, DatabaseError>
-    where
-        Self: Sized;
-
-    fn open_in_memory(bytes: Vec<u8>) -> Result<Self, DatabaseError>
-    where
-        Self: Sized;
-
-    fn into_bytes(self) -> Result<Vec<u8>, DatabaseError>
-    where
-        Self: Sized;
-}
-
-pub trait FromFile {
-    fn open_from_file(path: &Path) -> Result<Self, DatabaseError>
-    where
-        Self: Sized;
-}
-
 pub struct MemoryDatabase {
     database: RedbDatabase,
     backend: SharedMemoryBackend,
 }
 
-impl InMemory for MemoryDatabase {
-    fn new_in_memory() -> Result<Self, DatabaseError> {
+impl MemoryDatabase {
+    pub fn new_in_memory() -> Result<Self, DatabaseError> {
         let backend = SharedMemoryBackend::new();
         let database = Builder::new().create_with_backend(backend.clone())?;
 
         Ok(Self { database, backend })
     }
 
-    fn open_in_memory(bytes: Vec<u8>) -> Result<Self, DatabaseError> {
+    pub fn open_in_memory(bytes: Vec<u8>) -> Result<Self, DatabaseError> {
         let backend = SharedMemoryBackend(Arc::new(RwLock::new(bytes)));
         let database = Builder::new().create_with_backend(backend.clone())?;
 
         Ok(Self { database, backend })
     }
 
-    fn into_bytes(self) -> Result<Vec<u8>, DatabaseError> {
+    pub fn into_bytes(self) -> Result<Vec<u8>, DatabaseError> {
         drop(self.database);
 
         Ok(self.backend.into_bytes())
-    }
-}
-
-pub struct ReadOnlyDatabase {
-    database: RedbReadOnlyDatabase,
-}
-
-impl FromFile for ReadOnlyDatabase {
-    fn open_from_file(path: &Path) -> Result<Self, DatabaseError> {
-        let database = RedbReadOnlyDatabase::open(path)?;
-
-        Ok(Self { database })
-    }
-}
-
-pub(crate) trait ReadableSource {
-    type Source: ReadableDatabase;
-
-    fn source(&self) -> &Self::Source;
-}
-
-impl ReadableSource for MemoryDatabase {
-    type Source = RedbDatabase;
-
-    fn source(&self) -> &RedbDatabase {
-        &self.database
-    }
-}
-
-impl ReadableSource for ReadOnlyDatabase {
-    type Source = RedbReadOnlyDatabase;
-
-    fn source(&self) -> &RedbReadOnlyDatabase {
-        &self.database
     }
 }
 
