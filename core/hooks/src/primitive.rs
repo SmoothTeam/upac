@@ -9,10 +9,6 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use upac_abi::error::ErrorKind;
-
-use upac_orchestrator::stage::RollbackGuard;
-
 use super::error::HookError;
 
 pub(crate) trait Step {
@@ -46,22 +42,9 @@ impl Step for Primitive {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct ExecutedSteps(pub(crate) Vec<Primitive>);
-
-impl RollbackGuard for ExecutedSteps {
-    fn rollback(&mut self) -> Result<(), ErrorKind> {
-        while let Some(primitive) = self.0.pop() {
-            primitive.rollback()?;
-        }
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct TouchFile {
-    pub(crate) path: PathBuf,
+    path: PathBuf,
 
     #[serde(skip)]
     created: bool,
@@ -91,8 +74,8 @@ impl Step for TouchFile {
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct MoveFile {
-    pub(crate) from: PathBuf,
-    pub(crate) to: PathBuf,
+    from: PathBuf,
+    to: PathBuf,
 }
 
 impl Step for MoveFile {
@@ -107,8 +90,8 @@ impl Step for MoveFile {
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct CreateSymlink {
-    pub(crate) target: PathBuf,
-    pub(crate) link: PathBuf,
+    target: PathBuf,
+    link: PathBuf,
 }
 
 impl Step for CreateSymlink {

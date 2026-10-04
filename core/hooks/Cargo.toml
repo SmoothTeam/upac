@@ -29,10 +29,9 @@ workspace = true
 name = "upac_hooks"
 
 [dependencies]
-upac-lib-types        = { workspace = true }
-upac-lib-abi          = { workspace = true }
-upac-lib-pki          = { workspace = true }
-upac-lib-orchestrator = { workspace = true }
+upac-lib-types = { workspace = true }
+upac-lib-abi   = { workspace = true }
+upac-lib-pki   = { workspace = true }
 
 serde = { workspace = true }
 toml  = { workspace = true }

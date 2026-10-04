@@ -8,7 +8,7 @@ use std::str::from_utf8;
 
 use upac_hooks::error::HookError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 use upac_pki::error::PkiError;
 
@@ -51,7 +51,6 @@ fn pki_error_maps_each_variant_directly() {
 fn every_variant_maps_to_the_documented_error_kind() {
     let cases = [
         (HookError::Parse, ErrorKind::InvalidEntry),
-        (HookError::InvalidTrigger, ErrorKind::InvalidEntry),
         (HookError::NoTrigger, ErrorKind::InvalidEntry),
         (HookError::Io(IoErrorKind::NotFound), ErrorKind::ReadFailed),
         (HookError::Encoding, ErrorKind::InvalidEntry),

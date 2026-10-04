@@ -9,14 +9,13 @@ use std::str::Utf8Error;
 
 use toml::de::Error as TomlError;
 
-use upac_abi::error::ErrorKind;
+use upac_types::error::ErrorKind;
 
 use upac_pki::error::PkiError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HookError {
     Parse,
-    InvalidTrigger,
     NoTrigger,
     Io(IoErrorKind),
     Encoding,
@@ -57,7 +56,6 @@ impl From<HookError> for ErrorKind {
     fn from(error: HookError) -> Self {
         match error {
             HookError::Parse => ErrorKind::InvalidEntry,
-            HookError::InvalidTrigger => ErrorKind::InvalidEntry,
             HookError::NoTrigger => ErrorKind::InvalidEntry,
             HookError::Io(_) => ErrorKind::ReadFailed,
             HookError::Encoding => ErrorKind::InvalidEntry,
