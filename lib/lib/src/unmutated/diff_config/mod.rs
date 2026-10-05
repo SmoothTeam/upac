@@ -3,54 +3,50 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::response::entry::FileDiffKind;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 
-use upac_types::RequestedConfigDigestRange;
+use upac_types::diff::FileDiffKind;
+use upac_types::error::ErrorKind;
 use upac_types::request::unmutated::DiffConfigRequest;
-use upac_types::response::entry::DiffConfigFileEntry;
 use upac_types::response::unmutated::DiffConfigResponse;
 use upac_types::state::unmutated::DiffConfigStateId;
 
 use upac_database::MemoryDatabase;
 
+use upac_deploy::{Sysroot, SysrootMode};
+
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
-pub use self::error::DiffConfigError;
+use super::RequestedConfigDigestRange;
+
+use crate::report_progress;
 
 mod comparing;
-mod error;
 mod preparing;
 
 struct DiffConfigSnapshot {
-    changed: Vec<(String, FileDiffKind)>,
+    changed: BTreeMap<PathBuf, FileDiffKind>,
     from_database: MemoryDatabase,
     to_database: MemoryDatabase,
 }
 
-pub fn run(request: DiffConfigRequest<'_>) -> Result<DiffConfigResponse, (DiffConfigStateId, DiffConfigError)> {
-    let cancel_token = unsafe { &*request.base.cancel_token };
+pub fn run(request: DiffConfigRequest<'_>) -> Result<DiffConfigResponse, (DiffConfigStateId, ErrorKind)> {
+    let requested = RequestedConfigDigestRange::parse(request.from_config_digest, request.to_config_digest)
+        .map_err(|error| (DiffConfigStateId::Setup, error))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffConfigStateId::Setup, error.into()))?;
 
-    let mut context = Context::new();
-    context.put(RequestedConfigDigestRange {
-        from: request.from_config_digest.map(str::to_owned),
-        to: request.to_config_digest.map(str::to_owned),
-    });
-    context.put(request.base.message_hook());
+    let mut context = Context::default();
+    context.put(sysroot);
+    context.put(requested);
 
-    let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]);
-
-    let (files,) = run_unmutated!(
-        orchestrator,
-        context,
-        cancel_token,
-        DiffConfigStateId,
-        DiffConfigError,
-        Vec<DiffConfigFileEntry>
-    )?;
-
-    Ok(DiffConfigResponse { files })
+    SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]).run_unmutated(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

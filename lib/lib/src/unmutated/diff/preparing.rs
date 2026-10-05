@@ -3,82 +3,56 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::hook::CancelToken;
-use upac_abi::response::entry::DiffFileSource;
+use upac_types::CancelToken;
+use upac_types::diff::DiffFileSource;
+use upac_types::error::ErrorKind;
 
-use upac_types::hook::ProgressEventBuilder;
-use upac_types::{RequestedConfigDigestRange, RequestedPrefixDigestRange};
-
-use upac_composefs::diff::TreeDiff;
-use upac_composefs::file::FileHandle;
-
-use upac_database::layout::database::DATABASE_PATH;
 use upac_database::meta::MetaStore;
-use upac_database::{InMemory, MemoryDatabase};
 
-use upac_deploy::digest::current_prefix_digest;
-use upac_deploy::record::DeployRecord;
-use upac_deploy::{Deploy, DeployMode};
+use upac_deploy::Sysroot;
+use upac_deploy::deployment::Deployment;
 
-use upac_orchestrator::context::{Context, ctx_get};
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_macro::stage;
 
-use super::{DiffError, DiffSnapshot};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
+
+use super::super::{RequestedConfigDigestRange, RequestedPrefixDigestRange, requested_prefix, requested_prefix_config};
+use super::DiffSnapshot;
 
 pub struct PreparingStage;
 
-impl Stage<DiffError> for PreparingStage {
+#[stage]
+impl Stage<ErrorKind> for PreparingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffError> {
-        let requested_prefix = ctx_get!(context, RequestedPrefixDigestRange);
-        let requested_config = ctx_get!(context, RequestedConfigDigestRange);
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let sysroot = context.get::<Sysroot>()?;
+        let requested_prefixes = context.get::<RequestedPrefixDigestRange>()?;
+        let requested_configs = context.get::<RequestedConfigDigestRange>()?;
 
-        let from_prefix_digest = match &requested_prefix.from {
-            Some(prefix_digest) => prefix_digest.clone(),
-            None => current_prefix_digest()?,
-        };
-        let to_prefix_digest = match &requested_prefix.to {
-            Some(prefix_digest) => prefix_digest.clone(),
-            None => current_prefix_digest()?,
-        };
+        let from_prefix = requested_prefix(sysroot, requested_prefixes.from.as_ref())?;
+        let to_prefix = requested_prefix(sysroot, requested_prefixes.to.as_ref())?;
 
-        let deploy = Deploy::new(DeployMode::ReadOnly)?;
-        let repository = deploy.open_repository()?;
+        let from_config = requested_prefix_config(&from_prefix, requested_configs.from.as_ref())?;
+        let to_config = requested_prefix_config(&to_prefix, requested_configs.to.as_ref())?;
 
-        let from_tree = deploy.open_tree(&from_prefix_digest)?;
-        let to_tree = deploy.open_tree(&to_prefix_digest)?;
-
-        let mut changed_files: Vec<_> = TreeDiff::run(&from_tree, &to_tree)
+        let repo = sysroot.repo();
+        let prefix_changes = repo
+            .open_tree(from_prefix.digest())?
+            .diff(&repo.open_tree(to_prefix.digest())?)
             .into_iter()
-            .map(|(path, kind)| (path, kind, DiffFileSource::Prefix))
-            .collect();
+            .map(|(path, kind)| (path, kind, DiffFileSource::Prefix));
+        let config_changes = repo
+            .open_tree(from_config.digest())?
+            .diff(&repo.open_tree(to_config.digest())?)
+            .into_iter()
+            .map(|(path, kind)| (path, kind, DiffFileSource::Config));
+        let changed_files = prefix_changes.chain(config_changes).collect();
 
-        let from_record = DeployRecord::read(&deploy.deploy(&from_prefix_digest))?;
-        let to_record = DeployRecord::read(&deploy.deploy(&to_prefix_digest))?;
-
-        let from_config_digest = from_record
-            .resolve_own_config_digest(requested_config.from.as_deref())
-            .ok_or_else(|| DiffError::ConfigDigestNotFound(requested_config.from.clone().unwrap_or_default()))?;
-        let to_config_digest = to_record
-            .resolve_own_config_digest(requested_config.to.as_deref())
-            .ok_or_else(|| DiffError::ConfigDigestNotFound(requested_config.to.clone().unwrap_or_default()))?;
-
-        let from_config_tree = deploy.open_tree(&from_config_digest)?;
-        let to_config_tree = deploy.open_tree(&to_config_digest)?;
-
-        changed_files.extend(
-            TreeDiff::run(&from_config_tree, &to_config_tree)
-                .into_iter()
-                .map(|(path, kind)| (path, kind, DiffFileSource::Config)),
-        );
-
-        let from_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &from_tree)?;
-        let from_database = MemoryDatabase::open_in_memory(from_bytes)?;
+        let from_database = sysroot.prefix_database(from_prefix.digest())?;
+        let to_database = sysroot.prefix_database(to_prefix.digest())?;
         let from_packages = from_database.list_packages_metas()?;
-
-        let to_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &to_tree)?;
-        let to_database = MemoryDatabase::open_in_memory(to_bytes)?;
         let to_packages = to_database.list_packages_metas()?;
 
         context.put(DiffSnapshot {
@@ -89,6 +63,6 @@ impl Stage<DiffError> for PreparingStage {
             to_database,
         });
 
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }

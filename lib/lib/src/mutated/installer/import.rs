@@ -3,108 +3,97 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::path::Path;
+use std::fs::remove_dir_all;
+use std::path::{Path, PathBuf};
 
-use composefs::repository::ImportContext;
+use composefs::generic_tree::Stat;
 
-use upac_abi::hook::CancelToken;
-
-use upac_types::hook::ProgressEventBuilder;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 use upac_types::response::entry::{FileEntry, FileEntryScope};
 
-use upac_composefs::file::import_if_dir;
+use upac_composefs::tree::Tree;
 
 use upac_database::files::FileStoreMut;
-use upac_database::meta::MetaStoreMut;
+use upac_database::meta::{MetaStore, MetaStoreMut};
 use upac_database::triggers::TriggerStoreMut;
 
-use upac_deploy::Deploy;
+use upac_macro::stage;
 
-use upac_orchestrator::context::{Context, ctx_get, ctx_take};
-use upac_orchestrator::error::PipelineError;
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
 
-use super::{ImportedState, InstallError, InstallProgress};
+use super::super::stages::{UnpackedPackage, WorkingPrefix};
 
-pub struct ImportPackageStage;
+use crate::layout::prefix::{DEFAULTS_DIR, PACKAGE_CONFIG_DIR, PACKAGE_PREFIX_DIR};
 
-impl Stage<InstallError> for ImportPackageStage {
+pub struct ImportStage;
+
+#[stage]
+impl Stage<ErrorKind> for ImportStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), InstallError> {
-        let mut install_progress = ctx_take!(context, InstallProgress);
-        let mut imported_state = ctx_take!(context, ImportedState);
-        let mut imported_ctx = ctx_take!(context, ImportContext);
+        &self, context: &mut Context, cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let package = context.take::<UnpackedPackage>()?;
+        let mut working = context.take::<WorkingPrefix>()?;
 
-        let deploy = ctx_get!(context, Deploy);
+        let meta = &package.temp.meta;
+        if working
+            .database
+            .find_package_uuid(&meta.name, &meta.arch, meta.arch_sub.as_deref())?
+            .is_some()
+        {
+            return Err(ErrorKind::AlreadyExists);
+        }
 
-        let (package, trigger) = install_progress
-            .pending
-            .pop_front()
-            .ok_or(PipelineError::MissingResult)?;
+        let source_root = Path::new(&package.temp.temp_package_path);
+        let prefix_files =
+            Self::import_if_present(&mut working.tree, "", &source_root.join(PACKAGE_PREFIX_DIR), cancel)?;
+        let config_files = Self::import_if_present(
+            &mut working.tree,
+            DEFAULTS_DIR,
+            &source_root.join(PACKAGE_CONFIG_DIR),
+            cancel,
+        )?;
 
-        let repository = deploy.open_repository()?;
-        let source_root = Path::new(&package.temp_package_path);
+        let uuid = working.database.insert_package_meta(meta)?;
+        working.database.set_package_triggers(uuid, &package.triggers)?;
 
-        let prefix_source = source_root.join("usr");
-        let imported = import_if_dir!(
-            &repository,
-            &mut imported_state.tree,
-            &prefix_source,
-            &mut imported_ctx,
-            cancel
-        );
-
-        let config_source = source_root.join("etc");
-        let imported_config = import_if_dir!(
-            &repository,
-            &mut imported_state.config_defaults,
-            &config_source,
-            &mut imported_ctx,
-            cancel
-        );
-
-        let uuid = imported_state.database.insert_package_meta(&package.meta)?;
-        imported_state.database.set_declarative_triggers(uuid, &trigger)?;
-
-        for path in imported {
-            imported_state.database.insert_package_file(
+        let entries = prefix_files
+            .into_iter()
+            .map(|path| (path, FileEntryScope::Prefix))
+            .chain(config_files.into_iter().map(|path| (path, FileEntryScope::Config)));
+        for (path, scope) in entries {
+            working.database.insert_package_file(
                 uuid,
                 &FileEntry {
                     path: path.to_string_lossy().into_owned(),
                     is_user: false,
-                    scope: FileEntryScope::Prefix,
+                    scope,
                 },
             )?;
         }
 
-        for path in imported_config {
-            imported_state.database.insert_package_file(
-                uuid,
-                &FileEntry {
-                    path: path.to_string_lossy().into_owned(),
-                    is_user: false,
-                    scope: FileEntryScope::Config,
-                },
-            )?;
+        remove_dir_all(source_root)?;
+
+        context.put(working);
+
+        Ok(())
+    }
+}
+
+impl ImportStage {
+    fn import_if_present(
+        tree: &mut Tree, target: &str, source: &Path, cancel: &CancelToken,
+    ) -> Result<Vec<PathBuf>, ErrorKind> {
+        if !source.is_dir() {
+            return Ok(Vec::new());
         }
 
-        let remaining = install_progress.pending.len() as u64;
-        let processed = install_progress.total - remaining;
-        progress = progress
-            .subject(package.meta.name.clone())
-            .progress(processed, install_progress.total);
+        if !target.is_empty() && !tree.contains(target) {
+            tree.insert_dir(target, Stat::uninitialized())?;
+        }
 
-        let stage_result = if install_progress.pending.is_empty() {
-            StageResult::Advance
-        } else {
-            StageResult::Repeat
-        };
-
-        context.put(install_progress);
-        context.put(imported_state);
-        context.put(imported_ctx);
-
-        Ok((progress, stage_result, Box::new(NoRollback)))
+        Ok(tree.import_dir(target, source, cancel, &mut |_| {})?)
     }
 }

@@ -3,133 +3,81 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::VecDeque;
-
-use composefs::tree::FileSystem;
-
-use upac_types::request::mutated::UninstallRequest;
 use uuid::Uuid;
 
+use upac_types::decoder::TriggerPosition;
+use upac_types::error::ErrorKind;
+use upac_types::package::PackageInfo;
+use upac_types::request::mutated::UninstallRequest;
+use upac_types::settings::RuntimeSettings;
 use upac_types::state::mutated::UninstallStateId;
-use upac_types::{TmpPath, UninstallPackagesTargets};
 
-use upac_macro::ContextValue;
-
-use upac_boot_loader::BootPlugin;
-
-use upac_composefs::repository::ObjectID;
-
-use upac_database::MemoryDatabase;
-
-use upac_deploy::retention::RetentionStage;
-use upac_deploy::{Deploy, DeployMode};
-
-use upac_hooks::HookStage;
-use upac_hooks::pipeline::{Operation, PipelineTrigger};
+use upac_deploy::{Sysroot, SysrootMode};
 
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
-use self::checkout::CheckoutStage;
-use self::commit::CommitTransactionStage;
-use self::merge::MergeStage;
-use self::open::OpenTransactionStage;
-use self::preparation::PreparationStage;
-use self::remove::RemovePackageStage;
-use self::swap::SwapStage;
+use self::commit::CommitStage;
+use self::prepare::PrepareStage;
+use self::remove::RemoveStage;
 
-pub use self::error::UninstallError;
+use super::TmpPath;
+use super::stages::checkout::CheckoutStage;
+use super::stages::deploy::DeployStage;
+use super::stages::hooks::HooksStage;
+use super::stages::merge::MergeStage;
+use super::stages::open::OpenStage;
+use super::stages::retention::RetentionStage;
+use super::stages::swap::SwapStage;
+use super::stages::{CommitInfo, RequestedBootPlugin};
 
-mod checkout;
+use crate::report_progress;
+
 mod commit;
-mod error;
-mod merge;
-mod open;
-mod preparation;
+mod prepare;
 mod remove;
-mod swap;
 
-#[derive(ContextValue)]
-pub(crate) struct PackageUuidsToRemove(pub Vec<Uuid>);
+pub(crate) struct RequestedPackages(pub Vec<PackageInfo>);
 
-pub(crate) struct NewState {
-    pub prefix_digest: String,
-    pub removed_config_paths: Vec<String>,
-}
+pub(crate) struct RemovalTarget(pub Uuid);
 
-pub(crate) struct CommitInfo {
-    pub subject: String,
-    pub message: Option<String>,
-}
-
-#[derive(ContextValue)]
 pub(crate) struct Purge(pub bool);
 
-#[derive(ContextValue)]
-pub(crate) struct RequestedBootPlugin(pub String);
-pub(crate) struct ResolvedBootEntry {
-    pub plugin: BootPlugin,
-    pub entry_name: String,
-}
+pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, ErrorKind)> {
+    if request.packages.is_empty() {
+        return Err((UninstallStateId::Setup, ErrorKind::InvalidEntry));
+    }
 
-pub(crate) struct RemoveProgress {
-    pub pending: VecDeque<Uuid>,
-    pub total: u64,
-}
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, error.into()))?;
 
-pub(crate) struct WorkingState {
-    pub tree: FileSystem<ObjectID>,
-    pub database: MemoryDatabase,
-    pub removed_config_paths: Vec<String>,
-}
-
-pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, UninstallError)> {
-    let deploy =
-        Deploy::new(DeployMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, UninstallError::from(error)))?;
-
-    let targets = UninstallPackagesTargets(request.packages);
-
-    let cancel_token = unsafe { &*request.base.cancel_token };
-
-    let mut context = Context::new();
-    context.put(targets);
-    context.put(deploy);
+    let mut context = Context::default();
+    context.put(sysroot);
+    context.put(RequestedPackages(request.packages));
+    context.put(Purge(request.purge));
     context.put(TmpPath(request.tmp_path.to_owned()));
     context.put(CommitInfo {
         subject: request.subject.to_owned(),
         message: request.message.map(str::to_owned),
+        allow_conflict_files: false,
     });
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
-    context.put(Purge(request.purge));
-    context.put(request.base.message_hook());
 
-    let orchestrator = assemble();
-
-    let result = run_mutating!(orchestrator, context, cancel_token, UninstallStateId, UninstallError);
-
-    cancel_token.reset();
-
-    result
-}
-
-fn assemble() -> SequentialOrchestrator<UninstallError> {
     SequentialOrchestrator::new(stages![
-        HookStage {
-            trigger: PipelineTrigger::pre(Operation::Uninstall),
-        },
-        PreparationStage,
-        OpenTransactionStage,
-        RemovePackageStage,
-        CommitTransactionStage,
+        OpenStage,
+        PrepareStage,
+        HooksStage::new(TriggerPosition::PreRemove),
+        each::<RemovalTarget>(RemoveStage),
+        CommitStage,
         MergeStage,
+        DeployStage,
+        HooksStage::new(TriggerPosition::PostRemove),
         CheckoutStage,
         SwapStage,
-        HookStage {
-            trigger: PipelineTrigger::declarative(Operation::Uninstall),
+        RetentionStage {
+            retention_depth: RuntimeSettings::load().gc.retention_depth,
         },
-        HookStage {
-            trigger: PipelineTrigger::post(Operation::Uninstall),
-        },
-        RetentionStage,
     ])
+    .run_mutating(&mut context, request.base.cancel_token, &|event| {
+        report_progress(&request.base, event)
+    })
 }

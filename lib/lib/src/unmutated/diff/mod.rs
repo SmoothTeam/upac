@@ -3,69 +3,55 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::response::entry::{DiffFileSource, FileDiffKind};
+use std::path::PathBuf;
 
+use upac_types::diff::{DiffFileSource, FileDiffKind};
+use upac_types::error::ErrorKind;
 use upac_types::package::PackageMeta;
 use upac_types::request::unmutated::DiffRequest;
-use upac_types::response::entry::{DiffPackageEntry, DiffUntrackedFileEntry};
 use upac_types::response::unmutated::DiffResponse;
 use upac_types::state::unmutated::DiffStateId;
-use upac_types::{RequestedConfigDigestRange, RequestedPrefixDigestRange};
 
 use upac_database::MemoryDatabase;
 
+use upac_deploy::{Sysroot, SysrootMode};
+
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::comparing::ComparingStage;
 use self::preparing::PreparingStage;
 
-pub use self::error::DiffError;
+use super::{RequestedConfigDigestRange, RequestedPrefixDigestRange};
+
+use crate::report_progress;
 
 mod comparing;
-mod error;
 mod preparing;
 
 struct DiffSnapshot {
     from_packages: Vec<PackageMeta>,
     to_packages: Vec<PackageMeta>,
-
-    changed_files: Vec<(String, FileDiffKind, DiffFileSource)>,
-
+    changed_files: Vec<(PathBuf, FileDiffKind, DiffFileSource)>,
     from_database: MemoryDatabase,
     to_database: MemoryDatabase,
 }
 
-pub fn run(request: DiffRequest<'_>) -> Result<DiffResponse, (DiffStateId, DiffError)> {
-    let cancel_token = unsafe { &*request.base.cancel_token };
+pub fn run(request: DiffRequest<'_>) -> Result<DiffResponse, (DiffStateId, ErrorKind)> {
+    let requested_prefixes = RequestedPrefixDigestRange::parse(request.from_prefix_digest, request.to_prefix_digest)
+        .map_err(|error| (DiffStateId::Setup, error))?;
+    let requested_configs = RequestedConfigDigestRange::parse(request.from_config_digest, request.to_config_digest)
+        .map_err(|error| (DiffStateId::Setup, error))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffStateId::Setup, error.into()))?;
 
-    let mut context = Context::new();
-    context.put(RequestedPrefixDigestRange {
-        from: request.from_prefix_digest.map(str::to_owned),
-        to: request.to_prefix_digest.map(str::to_owned),
-    });
+    let mut context = Context::default();
+    context.put(sysroot);
+    context.put(requested_prefixes);
+    context.put(requested_configs);
 
-    context.put(RequestedConfigDigestRange {
-        from: request.from_config_digest.map(str::to_owned),
-        to: request.to_config_digest.map(str::to_owned),
-    });
-
-    context.put(request.base.message_hook());
-
-    let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]);
-
-    let (diff_packages, unattached_files) = run_unmutated!(
-        orchestrator,
-        context,
-        cancel_token,
-        DiffStateId,
-        DiffError,
-        Vec<DiffPackageEntry>,
-        Vec<DiffUntrackedFileEntry>
-    )?;
-
-    Ok(DiffResponse {
-        diff_packages,
-        unattached_files,
-    })
+    SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]).run_unmutated(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

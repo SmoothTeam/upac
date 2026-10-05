@@ -3,24 +3,19 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::TmpPath;
+use upac_types::error::ErrorKind;
 use upac_types::request::mutated::CommitRequest;
 use upac_types::state::mutated::CommitStateId;
 
-use upac_deploy::retention::RetentionStage;
-use upac_deploy::{Deploy, DeployMode};
-
-use upac_hooks::HookStage;
-use upac_hooks::pipeline::{Operation, PipelineTrigger};
+use upac_deploy::{Sysroot, SysrootMode};
 
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::transaction::TransactionStage;
 
-pub use self::error::CommitError;
+use crate::report_progress;
 
-mod error;
 mod transaction;
 
 pub(crate) struct CommitInfo {
@@ -28,38 +23,19 @@ pub(crate) struct CommitInfo {
     pub message: Option<String>,
 }
 
-pub fn run(request: CommitRequest<'_>) -> Result<(), (CommitStateId, CommitError)> {
-    let deploy =
-        Deploy::new(DeployMode::ReadWrite).map_err(|error| (CommitStateId::Setup, CommitError::from(error)))?;
-    let cancel_token = unsafe { &*request.base.cancel_token };
+pub fn run(request: CommitRequest<'_>) -> Result<(), (CommitStateId, ErrorKind)> {
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (CommitStateId::Setup, error.into()))?;
 
-    let mut context = Context::new();
-    context.put(deploy);
-    context.put(TmpPath(request.tmp_path.to_owned()));
+    let mut context = Context::default();
+    context.put(sysroot);
     context.put(CommitInfo {
         subject: request.subject.to_owned(),
         message: request.message.map(str::to_owned),
     });
-    context.put(request.base.message_hook());
 
-    let orchestrator = assemble();
-
-    let result = run_mutating!(orchestrator, context, cancel_token, CommitStateId, CommitError);
-
-    cancel_token.reset();
-
-    result
-}
-
-fn assemble() -> SequentialOrchestrator<CommitError> {
-    SequentialOrchestrator::new(stages![
-        HookStage {
-            trigger: PipelineTrigger::pre(Operation::Commit),
-        },
-        TransactionStage,
-        HookStage {
-            trigger: PipelineTrigger::post(Operation::Commit),
-        },
-        RetentionStage,
-    ])
+    SequentialOrchestrator::new(stages![TransactionStage]).run_mutating(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

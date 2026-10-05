@@ -5,25 +5,27 @@
 
 use std::collections::HashMap;
 
-use upac_abi::hook::CancelToken;
-use upac_abi::response::entry::PackageDiffKind;
-
-use upac_types::DiffPackagesSnapshot;
-use upac_types::hook::ProgressEventBuilder;
+use upac_types::CancelToken;
+use upac_types::diff::PackageDiffKind;
+use upac_types::error::ErrorKind;
 use upac_types::response::entry::DiffPackageEntry;
+use upac_types::response::unmutated::DiffPackagesResponse;
 
-use upac_orchestrator::context::{Context, ctx_take};
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_macro::stage;
 
-use super::DiffPackagesError;
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
+
+use super::DiffPackagesSnapshot;
 
 pub struct ComparingStage;
 
-impl Stage<DiffPackagesError> for ComparingStage {
+#[stage]
+impl Stage<ErrorKind> for ComparingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffPackagesError> {
-        let snapshot = ctx_take!(context, DiffPackagesSnapshot);
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let snapshot = context.take::<DiffPackagesSnapshot>()?;
 
         let from: HashMap<_, _> = snapshot
             .from
@@ -65,8 +67,8 @@ impl Stage<DiffPackagesError> for ComparingStage {
             });
         }
 
-        context.put(entries);
+        context.put(DiffPackagesResponse { diff_packages: entries });
 
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }

@@ -3,37 +3,31 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::package::PackageMeta;
+use upac_types::error::ErrorKind;
 use upac_types::request::unmutated::ListPackagesRequest;
 use upac_types::response::unmutated::ListPackagesResponse;
 use upac_types::state::unmutated::ListPackagesStateId;
 
+use upac_deploy::{Sysroot, SysrootMode};
+
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::fetching::FetchingStage;
 
-pub use self::error::ListPackagesError;
+use crate::report_progress;
 
-mod error;
 mod fetching;
 
-pub fn run(request: ListPackagesRequest) -> Result<ListPackagesResponse, (ListPackagesStateId, ListPackagesError)> {
-    let cancel_token = unsafe { &*request.base.cancel_token };
+pub fn run(request: ListPackagesRequest<'_>) -> Result<ListPackagesResponse, (ListPackagesStateId, ErrorKind)> {
+    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListPackagesStateId::Setup, error.into()))?;
 
-    let mut context = Context::new();
-    context.put(request.base.message_hook());
+    let mut context = Context::default();
+    context.put(sysroot);
 
-    let orchestrator = SequentialOrchestrator::new(stages![FetchingStage]);
-
-    let (metas,) = run_unmutated!(
-        orchestrator,
-        context,
-        cancel_token,
-        ListPackagesStateId,
-        ListPackagesError,
-        Vec<PackageMeta>
-    )?;
-
-    Ok(ListPackagesResponse { metas })
+    SequentialOrchestrator::new(stages![FetchingStage]).run_unmutated(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

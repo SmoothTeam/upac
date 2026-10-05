@@ -3,49 +3,44 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
+use upac_types::response::entry::HistoryEntry;
+use upac_types::response::unmutated::ListHistoryResponse;
 
-use upac_types::hook::ProgressEventBuilder;
-use upac_types::response::entry::{ConfigCommitEntry, HistoryEntry};
+use upac_deploy::Sysroot;
+use upac_deploy::deployment::Deployment;
 
-use upac_deploy::record::DeployRecord;
-use upac_deploy::{Deploy, DeployMode};
+use upac_macro::stage;
 
 use upac_orchestrator::context::Context;
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::stage::Stage;
 
-use super::ListHistoryError;
+use super::super::config_commit_entry;
 
 pub struct FetchingStage;
 
-impl Stage<ListHistoryError> for FetchingStage {
+#[stage]
+impl Stage<ErrorKind> for FetchingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListHistoryError> {
-        let deploy = Deploy::new(DeployMode::ReadOnly)?;
-
-        let entries: Vec<HistoryEntry> = DeployRecord::read_all(&deploy)?
-            .into_iter()
-            .map(|record| HistoryEntry {
-                prefix_digest: record.prefix_digest,
-                subject: record.subject,
-                message: record.message,
-                timestamp: record.timestamp,
-                working_config: Some(record.working_config),
-                config_history: record
-                    .config_history
-                    .into_iter()
-                    .map(|entry| ConfigCommitEntry {
-                        config_digest: entry.config_digest,
-                        subject: entry.subject,
-                        message: entry.message,
-                    })
-                    .collect(),
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let history = context
+            .get::<Sysroot>()?
+            .prefixes()?
+            .iter()
+            .map(|prefix| HistoryEntry {
+                prefix_digest: prefix.digest().to_hex(),
+                subject: prefix.subject().to_owned(),
+                message: prefix.message().map(str::to_owned),
+                timestamp: prefix.timestamp(),
+                working_config: prefix.current_config().map(|config| config.digest().to_hex()),
+                config_history: prefix.configs().iter().map(config_commit_entry).collect(),
             })
             .collect();
 
-        context.put(entries);
+        context.put(ListHistoryResponse { history });
 
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }

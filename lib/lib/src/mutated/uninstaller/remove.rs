@@ -3,91 +3,63 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::hook::CancelToken;
+use std::path::Path;
 
-use upac_types::hook::ProgressEventBuilder;
-
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 use upac_types::response::entry::FileEntryScope;
-
-use upac_composefs::file::FileHandle;
 
 use upac_database::files::{FileStore, FileStoreMut};
 use upac_database::meta::{MetaStore, MetaStoreMut};
 use upac_database::triggers::TriggerStoreMut;
 
-use upac_orchestrator::context::{Context, ctx_get, ctx_take};
-use upac_orchestrator::error::PipelineError;
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_macro::stage;
 
-use super::{Purge, RemoveProgress, UninstallError, WorkingState};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
 
-pub struct RemovePackageStage;
+use super::super::stages::WorkingPrefix;
+use super::{Purge, RemovalTarget};
 
-impl Stage<UninstallError> for RemovePackageStage {
+use crate::layout::prefix::DEFAULTS_DIR;
+
+pub struct RemoveStage;
+
+#[stage]
+impl Stage<ErrorKind> for RemoveStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, mut progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), UninstallError> {
-        let mut woking_state = ctx_take!(context, WorkingState);
-        let mut remove_progress = ctx_take!(context, RemoveProgress);
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let target = context.take::<RemovalTarget>()?;
+        let mut working = context.take::<WorkingPrefix>()?;
+        let purge = context.get::<Purge>()?.0;
 
-        let purge = ctx_get!(context, Purge);
-
-        let uuid = remove_progress
-            .pending
-            .pop_front()
-            .ok_or(PipelineError::MissingResult)?;
-
-        let subject = woking_state
-            .database
-            .get_package_meta(uuid)?
-            .map(|meta| meta.name)
-            .unwrap_or_default();
-
-        let files = woking_state.database.list_package_files(uuid)?;
-
-        for entry in files {
-            if entry.is_user && !**purge {
+        let uuid = target.0;
+        for entry in working.database.list_package_files(uuid)? {
+            if entry.is_user && !purge {
                 continue;
             }
 
             match entry.scope {
-                FileEntryScope::Prefix => {
-                    FileHandle::new(&entry.path).remove_in_tree(&mut woking_state.tree)?;
-                }
-                FileEntryScope::Config => {
-                    woking_state.removed_config_paths.push(entry.path.clone());
-                }
+                FileEntryScope::Prefix => working.tree.remove(&entry.path)?,
+                FileEntryScope::Config => working.tree.remove(Path::new(DEFAULTS_DIR).join(&entry.path))?,
             }
 
             if entry.is_user {
-                woking_state.database.remove_user_file(uuid, &entry.path)?;
+                working.database.remove_user_file(uuid, &entry.path)?;
             } else {
-                woking_state.database.remove_package_file(uuid, &entry.path)?;
+                working.database.remove_package_file(uuid, &entry.path)?;
             }
         }
 
-        let meta = woking_state
-            .database
-            .get_package_meta(uuid)?
-            .ok_or(UninstallError::PackageNotFound)?;
-        woking_state
+        let meta = working.database.get_package_meta(uuid)?.ok_or(ErrorKind::NotFound)?;
+        working
             .database
             .remove_package_meta(&meta.name, &meta.arch, meta.arch_sub.as_deref())?;
-        woking_state.database.remove_declarative_triggers(uuid)?;
+        working.database.remove_package_triggers(uuid)?;
 
-        let remaining = remove_progress.pending.len() as u64;
-        let processed = remove_progress.total - remaining;
-        progress = progress.subject(subject).progress(processed, remove_progress.total);
+        context.put(working);
 
-        let result = if remove_progress.pending.is_empty() {
-            StageResult::Advance
-        } else {
-            StageResult::Repeat
-        };
-
-        context.put(remove_progress);
-        context.put(woking_state);
-
-        Ok((progress, result, Box::new(NoRollback)))
+        Ok(())
     }
 }

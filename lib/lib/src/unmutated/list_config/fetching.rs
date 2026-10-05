@@ -3,49 +3,36 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
+use upac_types::response::unmutated::ListConfigResponse;
 
-use upac_types::RequestedPrefixDigest;
-use upac_types::hook::ProgressEventBuilder;
-use upac_types::response::entry::ConfigCommitEntry;
+use upac_deploy::Sysroot;
 
-use upac_deploy::digest::current_prefix_digest;
-use upac_deploy::record::DeployRecord;
-use upac_deploy::{Deploy, DeployMode};
+use upac_macro::stage;
 
-use upac_orchestrator::context::{Context, ctx_get};
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
 
-use super::ListConfigError;
+use super::super::{config_commit_entry, requested_prefix};
+use super::RequestedPrefixDigest;
 
 pub struct FetchingStage;
 
-impl Stage<ListConfigError> for FetchingStage {
+#[stage]
+impl Stage<ErrorKind> for FetchingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListConfigError> {
-        let requested = ctx_get!(context, RequestedPrefixDigest);
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let prefix = requested_prefix(
+            context.get::<Sysroot>()?,
+            context.get::<RequestedPrefixDigest>()?.0.as_ref(),
+        )?;
 
-        let prefix_digest = match &**requested {
-            Some(prefix_digest) => prefix_digest.clone(),
-            None => current_prefix_digest()?,
-        };
+        let commits = prefix.configs().iter().map(config_commit_entry).collect();
 
-        let deploy = Deploy::new(DeployMode::ReadOnly)?;
-        let record = DeployRecord::read(&deploy.deploy(&prefix_digest))?;
+        context.put(ListConfigResponse { commits });
 
-        let entries: Vec<ConfigCommitEntry> = record
-            .config_history
-            .into_iter()
-            .map(|entry| ConfigCommitEntry {
-                config_digest: entry.config_digest,
-                subject: entry.subject,
-                message: entry.message,
-            })
-            .collect();
-
-        context.put(entries);
-
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }

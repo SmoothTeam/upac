@@ -3,50 +3,39 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use upac_types::error::ErrorKind;
 use upac_types::request::unmutated::SearchInPackageFilesRequest;
-use upac_types::response::entry::SearchFileEntry;
 use upac_types::response::unmutated::SearchInPackageFilesResponse;
 use upac_types::state::unmutated::SearchInPackageFilesStateId;
 
+use upac_deploy::{Sysroot, SysrootMode};
+
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::searching::SearchingStage;
 
+use crate::report_progress;
 use crate::search::Search;
 
-pub use self::error::SearchInPackageFilesError;
-
-mod error;
 mod searching;
 
 pub fn run(
     request: SearchInPackageFilesRequest<'_>,
-) -> Result<SearchInPackageFilesResponse, (SearchInPackageFilesStateId, SearchInPackageFilesError)> {
-    let cancel_token = unsafe { &*request.base.cancel_token };
+) -> Result<SearchInPackageFilesResponse, (SearchInPackageFilesStateId, ErrorKind)> {
+    let search =
+        Search::new(request.search, request.is_regex).map_err(|error| (SearchInPackageFilesStateId::Setup, error))?;
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (SearchInPackageFilesStateId::Setup, error.into()))?;
 
-    let search = Search::new(request.search, request.is_regex).map_err(|error| {
-        (
-            SearchInPackageFilesStateId::Setup,
-            SearchInPackageFilesError::from(error),
-        )
-    })?;
-
-    let mut context = Context::new();
-    context.put(request.package);
+    let mut context = Context::default();
+    context.put(sysroot);
     context.put(search);
-    context.put(request.base.message_hook());
+    context.put(request.package);
 
-    let orchestrator = SequentialOrchestrator::new(stages![SearchingStage]);
-
-    let (files,) = run_unmutated!(
-        orchestrator,
-        context,
-        cancel_token,
-        SearchInPackageFilesStateId,
-        SearchInPackageFilesError,
-        Vec<SearchFileEntry>
-    )?;
-
-    Ok(SearchInPackageFilesResponse { files })
+    SequentialOrchestrator::new(stages![SearchingStage]).run_unmutated(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

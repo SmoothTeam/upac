@@ -3,80 +3,51 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::TmpPath;
+use upac_types::error::ErrorKind;
 use upac_types::request::mutated::RollbackRequest;
 use upac_types::state::mutated::RollbackStateId;
 
-use upac_macro::ContextValue;
+use upac_composefs::Digest;
+use upac_composefs::fs::WrittenFile;
 
-use upac_boot_loader::BootPlugin;
-
-use upac_deploy::retention::RetentionStage;
-use upac_deploy::{Deploy, DeployMode};
-
-use upac_hooks::HookStage;
-use upac_hooks::pipeline::{Operation, PipelineTrigger};
+use upac_deploy::{Sysroot, SysrootMode};
 
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
-use self::checkout::CheckoutStage;
-use self::merge::MergeStage;
-use self::swap::SwapStage;
+use self::select::SelectStage;
 
-pub use self::error::RollbackError;
+use super::stages::RequestedBootPlugin;
+use super::stages::checkout::CheckoutStage;
+use super::stages::swap::SwapStage;
 
-mod checkout;
-mod error;
-mod merge;
-mod swap;
+use crate::report_progress;
 
-#[derive(ContextValue)]
-pub(crate) struct RequestedConfigDigest(pub String);
+mod select;
 
-#[derive(ContextValue)]
-pub(crate) struct TargetPrefixDigest(pub String);
-
-#[derive(ContextValue)]
-pub(crate) struct RequestedBootPlugin(pub String);
-
-pub(crate) struct ResolvedBootEntry {
-    pub plugin: BootPlugin,
-    pub entry_name: String,
+pub(crate) struct RequestedConfig {
+    pub config_digest: Digest,
+    pub discard_etc_changes: bool,
 }
 
-pub fn run(request: RollbackRequest<'_>) -> Result<(), (RollbackStateId, RollbackError)> {
-    let deploy =
-        Deploy::new(DeployMode::ReadOnly).map_err(|error| (RollbackStateId::Setup, RollbackError::from(error)))?;
-    let cancel_token = unsafe { &*request.base.cancel_token };
+pub(crate) struct SelectionWrites(pub Vec<WrittenFile>);
 
-    let mut context = Context::new();
-    context.put(deploy);
-    context.put(RequestedConfigDigest(request.config_digest.to_owned()));
+pub fn run(request: RollbackRequest<'_>) -> Result<(), (RollbackStateId, ErrorKind)> {
+    let config_digest =
+        Digest::from_hex(request.config_digest).map_err(|error| (RollbackStateId::Setup, error.into()))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (RollbackStateId::Setup, error.into()))?;
+
+    let mut context = Context::default();
+    context.put(sysroot);
+    context.put(RequestedConfig {
+        config_digest,
+        discard_etc_changes: request.discard_etc_changes,
+    });
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
-    context.put(TmpPath(request.tmp_path.to_owned()));
-    context.put(request.base.message_hook());
 
-    let orchestrator = assemble();
-
-    let result = run_mutating!(orchestrator, context, cancel_token, RollbackStateId, RollbackError);
-
-    cancel_token.reset();
-
-    result
-}
-
-fn assemble() -> SequentialOrchestrator<RollbackError> {
-    SequentialOrchestrator::new(stages![
-        HookStage {
-            trigger: PipelineTrigger::pre(Operation::Rollback),
-        },
-        MergeStage,
-        CheckoutStage,
-        SwapStage,
-        HookStage {
-            trigger: PipelineTrigger::post(Operation::Rollback),
-        },
-        RetentionStage,
-    ])
+    SequentialOrchestrator::new(stages![SelectStage, CheckoutStage, SwapStage]).run_mutating(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

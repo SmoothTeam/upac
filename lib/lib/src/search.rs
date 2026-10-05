@@ -5,6 +5,8 @@
 
 use regex::Regex;
 
+use upac_types::error::ErrorKind;
+
 #[cfg(test)]
 #[path = "../tests/inline/search.rs"]
 mod tests;
@@ -15,9 +17,11 @@ pub enum Search {
 }
 
 impl Search {
-    pub fn new(pattern: &str, is_regex: bool) -> Result<Self, regex::Error> {
+    pub fn new(pattern: &str, is_regex: bool) -> Result<Self, ErrorKind> {
         if is_regex {
-            Ok(Search::Regex(Regex::new(pattern)?))
+            Regex::new(pattern)
+                .map(Search::Regex)
+                .map_err(|_| ErrorKind::InvalidEntry)
         } else {
             Ok(Search::Substring(pattern.to_lowercase()))
         }

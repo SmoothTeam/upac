@@ -3,57 +3,52 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use composefs::fsverity::FsVerityHashValue;
-use composefs::repository::ImportContext;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 
-use upac_abi::hook::CancelToken;
-use upac_types::hook::ProgressEventBuilder;
+use upac_deploy::Sysroot;
+use upac_deploy::deployment::Deployment;
+use upac_deploy::deployment::config::ConfigDeploy;
 
-use upac_composefs::overlay::apply_overlay_upper;
-use upac_composefs::repository::commit_tree;
-use upac_deploy::Deploy;
-use upac_deploy::digest::current_prefix_digest;
-use upac_deploy::layout::deployment::CONFIG_DIR_NAME;
-use upac_deploy::record::DeployRecord;
-use upac_orchestrator::context::{Context, ctx_get};
-use upac_orchestrator::stage::{RollbackGuard, Stage, StageResult};
+use upac_macro::stage;
 
-use super::{CommitError, CommitInfo};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
+
+use super::CommitInfo;
 
 pub struct TransactionStage;
 
-impl Stage<CommitError> for TransactionStage {
+#[stage]
+impl Stage<ErrorKind> for TransactionStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), CommitError> {
-        let deploy = ctx_get!(context, Deploy);
-        let commit_info = ctx_get!(context, CommitInfo);
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let sysroot = context.get::<Sysroot>()?;
+        let commit_info = context.get::<CommitInfo>()?;
 
-        let repository = deploy.open_repository()?;
+        let mut running_prefix = sysroot.running_prefix()?;
+        let current_config_digest = running_prefix
+            .current_config()
+            .ok_or(ErrorKind::NotFound)?
+            .digest()
+            .clone();
 
-        let current_prefix_name = current_prefix_digest()?;
-        let current_record_dir = deploy.deploy(&current_prefix_name);
-        let mut record_deploy = DeployRecord::read(&current_record_dir)?;
+        let mut live_config = sysroot.repo().open_tree(&current_config_digest)?;
+        live_config.apply_overlay_upper(&sysroot.live_etc_upper_dir(running_prefix.digest()))?;
+        let live_config_digest = live_config.commit()?;
 
-        let base_config_layout = deploy.open_tree(&record_deploy.working_config)?;
+        if live_config_digest == current_config_digest {
+            return Err(ErrorKind::AlreadyExists);
+        }
 
-        let mut live_config_layout = base_config_layout.clone();
-        let config_upper_dir = current_record_dir.join(CONFIG_DIR_NAME).join("upper");
-
-        let mut import_ctx = ImportContext::default();
-
-        apply_overlay_upper(&repository, &mut live_config_layout, &config_upper_dir, &mut import_ctx)?;
-
-        let new_config_digest = commit_tree(&repository, live_config_layout)?.to_hex();
-
-        let mut written = Vec::new();
-        written.extend(record_deploy.update_working_config(
-            &current_record_dir,
-            new_config_digest,
+        running_prefix.add_config(ConfigDeploy::new(
+            live_config_digest,
             commit_info.subject.clone(),
             commit_info.message.clone(),
-        )?);
+        ));
+        sysroot.save_prefix(&running_prefix)?;
 
-        Ok((progress, StageResult::Advance, Box::new(written)))
+        Ok(())
     }
 }

@@ -3,39 +3,41 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::RequestedPrefixDigest;
+use upac_types::error::ErrorKind;
 use upac_types::request::unmutated::ListConfigRequest;
-use upac_types::response::entry::ConfigCommitEntry;
 use upac_types::response::unmutated::ListConfigResponse;
 use upac_types::state::unmutated::ListConfigStateId;
 
+use upac_composefs::Digest;
+
+use upac_deploy::{Sysroot, SysrootMode};
+
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_unmutated, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::fetching::FetchingStage;
 
-pub use self::error::ListConfigError;
+use crate::report_progress;
 
-mod error;
 mod fetching;
 
-pub fn run(request: ListConfigRequest<'_>) -> Result<ListConfigResponse, (ListConfigStateId, ListConfigError)> {
-    let cancel_token = unsafe { &*request.base.cancel_token };
+pub(crate) struct RequestedPrefixDigest(pub Option<Digest>);
 
-    let mut context = Context::new();
-    context.put(RequestedPrefixDigest(request.prefix_digest.map(str::to_owned)));
-    context.put(request.base.message_hook());
+pub fn run(request: ListConfigRequest<'_>) -> Result<ListConfigResponse, (ListConfigStateId, ErrorKind)> {
+    let requested_prefix_digest = request
+        .prefix_digest
+        .map(Digest::from_hex)
+        .transpose()
+        .map_err(|error| (ListConfigStateId::Setup, error.into()))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListConfigStateId::Setup, error.into()))?;
 
-    let orchestrator = SequentialOrchestrator::new(stages![FetchingStage]);
+    let mut context = Context::default();
+    context.put(sysroot);
+    context.put(RequestedPrefixDigest(requested_prefix_digest));
 
-    let (commits,) = run_unmutated!(
-        orchestrator,
-        context,
-        cancel_token,
-        ListConfigStateId,
-        ListConfigError,
-        Vec<ConfigCommitEntry>
-    )?;
-
-    Ok(ListConfigResponse { commits })
+    SequentialOrchestrator::new(stages![FetchingStage]).run_unmutated(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

@@ -3,111 +3,60 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::VecDeque;
-
-use composefs::tree::FileSystem;
-
-use upac_types::TmpPath;
-use upac_types::decoder::DeclarativeTrigger;
-use upac_types::package::PackageTemp;
+use upac_types::decoder::TriggerPosition;
+use upac_types::error::ErrorKind;
 use upac_types::request::mutated::InstallRequest;
+use upac_types::settings::RuntimeSettings;
 use upac_types::state::mutated::InstallStateId;
-
-use upac_macro::ContextValue;
-
-use upac_boot_loader::BootPlugin;
-
-use upac_composefs::repository::ObjectID;
-
-use upac_database::MemoryDatabase;
 
 use upac_decoder_loader::unpack::PackageUnpacker;
 
-use upac_deploy::retention::RetentionStage;
-use upac_deploy::{Deploy, DeployMode};
-
-use upac_hooks::HookStage;
-use upac_hooks::pipeline::{Operation, PipelineTrigger};
+use upac_deploy::{Sysroot, SysrootMode};
 
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
-use self::checkout::CheckoutStage;
-use self::commit::CommitTransactionStage;
-use self::fetching::FetchingStage;
-use self::import::ImportPackageStage;
-use self::merge::MergeStage;
-use self::open::OpenTransactionStage;
-use self::preparation::PreparationStage;
-use self::swap::SwapStage;
+use self::commit::CommitStage;
+use self::import::ImportStage;
 
-use crate::errors::CommonError;
+use super::TmpPath;
+use super::stages::checkout::CheckoutStage;
+use super::stages::deploy::DeployStage;
+use super::stages::hooks::HooksStage;
+use super::stages::merge::MergeStage;
+use super::stages::open::OpenStage;
+use super::stages::retention::RetentionStage;
+use super::stages::swap::SwapStage;
+use super::stages::unpack::UnpackStage;
+use super::stages::{CommitInfo, PackageSource, RequestedBootPlugin, UnpackedPackage};
 
-pub use self::error::InstallError;
+use crate::report_progress;
 
-mod checkout;
 mod commit;
-mod error;
-mod fetching;
 mod import;
-mod merge;
-mod open;
-mod preparation;
-mod swap;
 
-pub(crate) struct NewState {
-    pub prefix_digest: String,
-    pub config_defaults: FileSystem<ObjectID>,
-}
+pub fn run(request: InstallRequest<'_>) -> Result<(), (InstallStateId, ErrorKind)> {
+    if request.packages.is_empty() {
+        return Err((InstallStateId::Setup, ErrorKind::InvalidEntry));
+    }
 
-pub(crate) struct CommitInfo {
-    pub subject: String,
-    pub message: Option<String>,
-    pub allow_conflict_files: bool,
-}
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (InstallStateId::Setup, error.into()))?;
+    let unpacker = PackageUnpacker::new().map_err(|error| (InstallStateId::Setup, error.into()))?;
 
-#[derive(ContextValue)]
-pub(crate) struct RequestedBootPlugin(pub String);
-pub(crate) struct ResolvedBootEntry {
-    pub plugin: BootPlugin,
-    pub entry_name: String,
-}
+    let sources: Vec<PackageSource> = request
+        .packages
+        .iter()
+        .enumerate()
+        .map(|(index, path)| PackageSource {
+            path: (*path).to_owned(),
+            index,
+        })
+        .collect();
 
-pub(crate) struct UnpackState {
-    pub pending_paths: VecDeque<String>,
-    pub unpacker: PackageUnpacker,
-}
-
-pub(crate) struct InstallProgress {
-    pub pending: VecDeque<(PackageTemp, DeclarativeTrigger)>,
-    pub total: u64,
-}
-
-pub(crate) struct ImportedState {
-    pub tree: FileSystem<ObjectID>,
-    pub config_defaults: FileSystem<ObjectID>,
-    pub database: MemoryDatabase,
-}
-
-pub fn run(request: InstallRequest<'_>) -> Result<(), (InstallStateId, InstallError)> {
-    let deploy =
-        Deploy::new(DeployMode::ReadWrite).map_err(|error| (InstallStateId::Setup, InstallError::from(error)))?;
-    let unpacker = PackageUnpacker::new()
-        .map_err(|error| (InstallStateId::Setup, InstallError::from(CommonError::Decoder(error))))?;
-
-    let total_packages = request.packages.len() as u64;
-    let cancel_token = unsafe { &*request.base.cancel_token };
-
-    let mut context = Context::new();
-    context.put(deploy);
-    context.put(UnpackState {
-        pending_paths: request.packages.iter().map(|path| (*path).to_owned()).collect(),
-        unpacker,
-    });
-    context.put(InstallProgress {
-        pending: VecDeque::new(),
-        total: total_packages,
-    });
+    let mut context = Context::default();
+    context.put(sysroot);
+    context.put(unpacker);
+    context.put(sources);
     context.put(TmpPath(request.tmp_path.to_owned()));
     context.put(CommitInfo {
         subject: request.subject.to_owned(),
@@ -115,36 +64,23 @@ pub fn run(request: InstallRequest<'_>) -> Result<(), (InstallStateId, InstallEr
         allow_conflict_files: request.allow_conflict_files,
     });
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
-    context.put(request.base.message_hook());
 
-    let orchestrator = assemble();
-
-    let result = run_mutating!(orchestrator, context, cancel_token, InstallStateId, InstallError);
-
-    cancel_token.reset();
-
-    result
-}
-
-fn assemble() -> SequentialOrchestrator<InstallError> {
     SequentialOrchestrator::new(stages![
-        HookStage {
-            trigger: PipelineTrigger::pre(Operation::Install),
-        },
-        FetchingStage,
-        PreparationStage,
-        OpenTransactionStage,
-        ImportPackageStage,
-        CommitTransactionStage,
+        each::<PackageSource>(UnpackStage::default()),
+        HooksStage::new(TriggerPosition::PreInstall),
+        OpenStage,
+        each::<UnpackedPackage>(ImportStage),
+        CommitStage,
         MergeStage,
+        DeployStage,
+        HooksStage::new(TriggerPosition::PostInstall),
         CheckoutStage,
         SwapStage,
-        HookStage {
-            trigger: PipelineTrigger::declarative(Operation::Install),
+        RetentionStage {
+            retention_depth: RuntimeSettings::load().gc.retention_depth,
         },
-        HookStage {
-            trigger: PipelineTrigger::post(Operation::Install),
-        },
-        RetentionStage,
     ])
+    .run_mutating(&mut context, request.base.cancel_token, &|event| {
+        report_progress(&request.base, event)
+    })
 }

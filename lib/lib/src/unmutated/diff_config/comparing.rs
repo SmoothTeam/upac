@@ -3,29 +3,30 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::hook::CancelToken;
-use upac_abi::response::entry::FileDiffKind;
-
-use upac_types::hook::ProgressEventBuilder;
+use upac_types::CancelToken;
+use upac_types::diff::FileDiffKind;
+use upac_types::error::ErrorKind;
+use upac_types::response::entry::{DiffConfigFileEntry, DiffFileCommonEntry};
+use upac_types::response::unmutated::DiffConfigResponse;
 
 use upac_database::attribution::FileAttribute;
 
-use upac_orchestrator::context::{Context, ctx_take};
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_macro::stage;
 
-use super::{DiffConfigError, DiffConfigSnapshot};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
 
-use upac_types::response::entry::{DiffConfigFileEntry, DiffFileCommonEntry};
+use super::DiffConfigSnapshot;
 
 pub struct ComparingStage;
 
-impl Stage<DiffConfigError> for ComparingStage {
+#[stage]
+impl Stage<ErrorKind> for ComparingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), DiffConfigError> {
-        let snapshot = ctx_take!(context, DiffConfigSnapshot);
-
-        let mut entries = Vec::new();
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let snapshot = context.take::<DiffConfigSnapshot>()?;
+        let mut files = Vec::new();
 
         for (path, kind) in snapshot.changed {
             let database = match kind {
@@ -33,18 +34,19 @@ impl Stage<DiffConfigError> for ComparingStage {
                 FileDiffKind::Added | FileDiffKind::Modified => &snapshot.to_database,
             };
 
+            let path = path.to_string_lossy().into_owned();
             let package_name = database
                 .attribute_file(&path)?
                 .map(|attribution| attribution.package_meta.name);
 
-            entries.push(DiffConfigFileEntry {
+            files.push(DiffConfigFileEntry {
                 common: DiffFileCommonEntry { path, kind },
                 package_name,
             });
         }
 
-        context.put(entries);
+        context.put(DiffConfigResponse { files });
 
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }

@@ -3,48 +3,51 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::io::Result as IoResult;
 
 use quick_xml::Writer as XmlWriter;
 use quick_xml::events::{BytesDecl, BytesText, Event};
 
-use upac_abi::hook::CancelToken;
-
-use upac_types::hook::ProgressEventBuilder;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 
 use upac_decoder_loader::manifest::{DecoderManifest, DecoderManifests};
 
-use upac_orchestrator::context::{Context, ctx_take};
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_macro::stage;
 
-use super::{DesktopContent, MimeError, WriteProgress};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
+
+use super::{DesktopContent, RenderedFiles};
 
 use crate::layout::mime::{DESKTOP_FILE_PATH, MIME_XML_PATH, SHARED_MIME_INFO_XMLNS};
 
 pub struct RenderingStage;
 
-impl Stage<MimeError> for RenderingStage {
+#[stage]
+impl Stage<ErrorKind> for RenderingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), MimeError> {
-        let manifests = ctx_take!(context, DecoderManifests);
-        let desktop_content = ctx_take!(context, DesktopContent);
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let manifests = context.take::<DecoderManifests>()?;
+        let desktop_content = context.take::<DesktopContent>()?;
 
         let mime_xml = Self::render_mime_xml(&manifests)?;
         let mime_type_line = Self::render_mime_type_line(&manifests);
-        let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content, &mime_type_line)?;
+        let desktop_content = Self::rewrite_desktop_mime_type(&desktop_content.0, &mime_type_line)?;
 
-        let pending = VecDeque::from([(MIME_XML_PATH, mime_xml), (DESKTOP_FILE_PATH, desktop_content)]);
+        context.put(RenderedFiles(vec![
+            (MIME_XML_PATH, mime_xml),
+            (DESKTOP_FILE_PATH, desktop_content),
+        ]));
 
-        context.put(WriteProgress { pending, total: 2 });
-
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }
 
 impl RenderingStage {
-    fn render_mime_xml(manifests: &HashMap<String, DecoderManifest>) -> Result<String, MimeError> {
+    fn render_mime_xml(manifests: &HashMap<String, DecoderManifest>) -> Result<String, ErrorKind> {
         let mut writer = XmlWriter::new_with_indent(Vec::new(), b' ', 2);
 
         writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None)))?;
@@ -95,7 +98,7 @@ impl RenderingStage {
             .collect()
     }
 
-    fn rewrite_desktop_mime_type(content: &str, mime_type_line: &str) -> Result<String, MimeError> {
+    fn rewrite_desktop_mime_type(content: &str, mime_type_line: &str) -> Result<String, ErrorKind> {
         let mut found = false;
         let mut lines = Vec::with_capacity(content.lines().count());
 
@@ -109,7 +112,7 @@ impl RenderingStage {
         }
 
         if !found {
-            return Err(MimeError::DesktopFileMalformed);
+            return Err(ErrorKind::InvalidEntry);
         }
 
         Ok(format!("{}\n", lines.join("\n")))

@@ -3,41 +3,32 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
+use upac_types::response::unmutated::ListPackagesResponse;
 
-use upac_types::hook::ProgressEventBuilder;
-
-use upac_composefs::file::FileHandle;
-
-use upac_database::layout::database::DATABASE_PATH;
 use upac_database::meta::MetaStore;
-use upac_database::{InMemory, MemoryDatabase};
 
-use upac_deploy::digest::current_prefix_digest;
-use upac_deploy::{Deploy, DeployMode};
+use upac_deploy::Sysroot;
+
+use upac_macro::stage;
 
 use upac_orchestrator::context::Context;
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::stage::Stage;
 
-use super::ListPackagesError;
+use super::super::running_prefix_database;
 
 pub struct FetchingStage;
 
-impl Stage<ListPackagesError> for FetchingStage {
+#[stage]
+impl Stage<ErrorKind> for FetchingStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), ListPackagesError> {
-        let prefix_digest = current_prefix_digest()?;
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let metas = running_prefix_database(context.get::<Sysroot>()?)?.list_packages_metas()?;
 
-        let deploy = Deploy::new(DeployMode::ReadOnly)?;
-        let repository = deploy.open_repository()?;
-        let tree = deploy.open_tree(&prefix_digest)?;
+        context.put(ListPackagesResponse { metas });
 
-        let database_bytes = FileHandle::new(DATABASE_PATH).read_file(&repository, &tree)?;
-        let database = MemoryDatabase::open_in_memory(database_bytes)?;
-
-        context.put(database.list_packages_metas()?);
-
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }

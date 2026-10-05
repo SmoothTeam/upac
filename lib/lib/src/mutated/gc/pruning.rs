@@ -3,35 +3,32 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::VecDeque;
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 
-use upac_abi::hook::CancelToken;
-use upac_types::hook::ProgressEventBuilder;
+use upac_deploy::Sysroot;
 
-use upac_deploy::Deploy;
+use upac_macro::stage;
 
-use upac_orchestrator::context::{Context, ctx_get};
-use upac_orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
 
-use crate::mutated::gc::{CollectedRoots, DeployProgress, GcError};
+use super::super::prune_prefixes;
+use super::RetainedPrefixes;
 
-pub struct PruneStage;
+pub struct PruneStage {
+    pub retention_depth: usize,
+}
 
-impl Stage<GcError> for PruneStage {
+#[stage]
+impl Stage<ErrorKind> for PruneStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), GcError> {
-        let deploy = ctx_get!(context, Deploy);
+        &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let retained = prune_prefixes(context.get::<Sysroot>()?, self.retention_depth, cancel, progress)?;
 
-        deploy.prune_deploys()?;
+        context.put(RetainedPrefixes(retained));
 
-        let deploys = deploy.deploys()?;
-        let total = deploys.len() as u64;
-        let pending: VecDeque<_> = deploys.into_iter().collect();
-
-        context.put(DeployProgress { pending, total });
-        context.put(CollectedRoots(Vec::new()));
-
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        Ok(())
     }
 }

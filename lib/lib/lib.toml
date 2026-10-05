@@ -33,3 +33,17 @@ applications_dir = "/usr/share/applications"
 update_mime_database_bin = "update-mime-database"
 update_desktop_database_bin = "update-desktop-database"
 shared_mime_info_xmlns = "http://www.freedesktop.org/standards/shared-mime-info"
+
+# defaults_dir is where package /etc defaults live inside a prefix's /usr tree (ostree-style
+# /usr/etc); the three-way /etc merge compares these between prefixes. package_prefix_dir and
+# package_config_dir name the top-level directories of an unpacked package that go into the
+# prefix tree and into defaults_dir respectively.
+# system_prefix_root and system_config_root are the live system paths that attach/detach targets
+# must start with: files under the first go into the prefix tree, files under the second into
+# defaults_dir.
+[prefix]
+system_prefix_root = "/usr"
+system_config_root = "/etc"
+defaults_dir = "etc"
+package_prefix_dir = "usr"
+package_config_dir = "etc"

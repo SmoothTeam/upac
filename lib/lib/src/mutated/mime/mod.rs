@@ -3,46 +3,33 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::VecDeque;
-
+use upac_types::error::ErrorKind;
 use upac_types::request::mutated::MimeSyncRequest;
 use upac_types::state::mutated::MimeStateId;
 
-use upac_macro::ContextValue;
-
 use upac_orchestrator::context::Context;
-use upac_orchestrator::{Orchestrator, SequentialOrchestrator, run_mutating, stages};
+use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::preparing::PreparingStage;
 use self::rendering::RenderingStage;
 use self::writing::WritingStage;
 
-pub use self::error::MimeError;
+use crate::report_progress;
 
-mod error;
 mod preparing;
 mod rendering;
 mod writing;
 
-#[derive(ContextValue)]
 pub(crate) struct DesktopContent(pub String);
 
-pub(crate) struct WriteProgress {
-    pub pending: VecDeque<(&'static str, String)>,
-    pub total: u64,
-}
+pub(crate) struct RenderedFiles(pub Vec<(&'static str, String)>);
 
-pub fn run(request: MimeSyncRequest) -> Result<(), (MimeStateId, MimeError)> {
-    let cancel_token = unsafe { &*request.base.cancel_token };
+pub fn run(request: MimeSyncRequest<'_>) -> Result<(), (MimeStateId, ErrorKind)> {
+    let mut context = Context::default();
 
-    let mut context = Context::new();
-    context.put(request.base.message_hook());
-
-    let orchestrator = SequentialOrchestrator::new(stages![PreparingStage, RenderingStage, WritingStage]);
-
-    let result = run_mutating!(orchestrator, context, cancel_token, MimeStateId, MimeError);
-
-    cancel_token.reset();
-
-    result
+    SequentialOrchestrator::new(stages![PreparingStage, RenderingStage, WritingStage]).run_mutating(
+        &mut context,
+        request.base.cancel_token,
+        &|event| report_progress(&request.base, event),
+    )
 }

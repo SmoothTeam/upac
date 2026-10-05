@@ -37,9 +37,9 @@ upac-lib-orchestrator   = { workspace = true }
 upac-lib-composefs      = { workspace = true }
 upac-lib-database       = { workspace = true }
 upac-lib-deploy         = { workspace = true }
-upac-lib-decoder-loader = { workspace = true }
 upac-lib-hooks          = { workspace = true }
-upac-lib-boot-loader    = { workspace = true }
+upac-lib-decoder-loader = { workspace = true }
+upac-lib-booter-loader  = { workspace = true }
 
 composefs = { workspace = true }
 uuid      = { workspace = true }
@@ -53,18 +53,18 @@ toml = { workspace = true }
 [features]
 default = ["dynamic-plugins"]
 
-dynamic-plugins = ["upac-lib-decoder-loader/dynamic-plugins", "upac-lib-boot-loader/dynamic-plugins"]
+dynamic-plugins = ["upac-lib-decoder-loader/dynamic-plugins", "upac-lib-booter-loader/dynamic-plugins"]
 
-builtin-uki          = ["upac-lib-boot-loader/builtin-uki"]
-builtin-systemd-boot = ["upac-lib-boot-loader/builtin-systemd-boot"]
-builtin-grub         = ["upac-lib-boot-loader/builtin-grub"]
-builtin-refind       = ["upac-lib-boot-loader/builtin-refind"]
+builtin-uki          = ["upac-lib-booter-loader/builtin-uki"]
+builtin-systemd-boot = ["upac-lib-booter-loader/builtin-systemd-boot"]
+builtin-grub         = ["upac-lib-booter-loader/builtin-grub"]
+builtin-refind       = ["upac-lib-booter-loader/builtin-refind"]
 
 builtin-alpm = ["upac-lib-decoder-loader/builtin-alpm"]
 builtin-deb  = ["upac-lib-decoder-loader/builtin-deb"]
 builtin-rpm  = ["upac-lib-decoder-loader/builtin-rpm"]
 builtin-xbps = ["upac-lib-decoder-loader/builtin-xbps"]
 
-builtin-all-booters  = ["upac-lib-boot-loader/builtin-all-booters"]
+builtin-all-booters  = ["upac-lib-booter-loader/builtin-all-booters"]
 builtin-all-decoders = ["upac-lib-decoder-loader/builtin-all-decoders"]
 builtin-all          = ["builtin-all-booters", "builtin-all-decoders"]
