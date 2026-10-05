@@ -8,7 +8,7 @@ use std::ffi::OsStr;
 use std::fs::{File, read_link, symlink_metadata};
 use std::io::Read;
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use composefs::MAX_INLINE_CONTENT;
 use composefs::generic_tree::Stat;
@@ -29,7 +29,7 @@ mod tests;
 
 pub struct MergeResult {
     pub tree: Tree,
-    pub conflicts: Vec<String>,
+    pub conflicts: Vec<PathBuf>,
 }
 
 pub struct Tree {

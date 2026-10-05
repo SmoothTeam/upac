@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::{File, write};
+use std::path::PathBuf;
 
 use composefs::generic_tree::Stat;
 use composefs::repository::{Repository, RepositoryConfig};
@@ -99,7 +100,7 @@ fn conflicting_edit_keeps_the_user_version_and_writes_upac_new_sidecar() {
 
     assert_eq!(read(&result.tree, "conf"), b"user-edit");
     assert_eq!(read(&result.tree, "conf.upac-new"), b"package-new");
-    assert_eq!(result.conflicts, vec!["conf".to_owned()]);
+    assert_eq!(result.conflicts, vec![PathBuf::from("conf")]);
 }
 
 #[test]
@@ -119,7 +120,7 @@ fn conflicting_edit_skips_the_upac_new_sidecar_when_conflict_files_are_disallowe
 
     assert_eq!(read(&result.tree, "conf"), b"user-edit");
     assert!(!exists(&result.tree, "conf.upac-new"));
-    assert_eq!(result.conflicts, vec!["conf".to_owned()]);
+    assert_eq!(result.conflicts, vec![PathBuf::from("conf")]);
 }
 
 #[test]
@@ -153,7 +154,7 @@ fn user_deletion_conflicts_when_the_package_also_changed_the_file() {
 
     assert_eq!(read(&result.tree, "conf"), b"package-new");
     assert!(!exists(&result.tree, "conf.upac-new"));
-    assert_eq!(result.conflicts, vec!["conf".to_owned()]);
+    assert_eq!(result.conflicts, vec![PathBuf::from("conf")]);
 }
 
 #[test]

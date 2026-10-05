@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use composefs::tree::{Directory, FileSystem, Inode, Leaf, LeafContent, RegularFile};
@@ -38,15 +39,15 @@ impl Side {
 struct TreeDiff<'tree> {
     from_leaves: &'tree [Leaf<ObjectID>],
     to_leaves: &'tree [Leaf<ObjectID>],
-    changes: Vec<(String, FileDiffKind)>,
+    changes: BTreeMap<PathBuf, FileDiffKind>,
 }
 
 impl<'tree> TreeDiff<'tree> {
-    fn run(from: &'tree FileSystem<ObjectID>, to: &'tree FileSystem<ObjectID>) -> Vec<(String, FileDiffKind)> {
+    fn run(from: &'tree FileSystem<ObjectID>, to: &'tree FileSystem<ObjectID>) -> BTreeMap<PathBuf, FileDiffKind> {
         let mut differ = Self {
             from_leaves: &from.leaves,
             to_leaves: &to.leaves,
-            changes: Vec::new(),
+            changes: BTreeMap::new(),
         };
 
         differ.compare_directories(&PathBuf::new(), &from.root, &to.root);
@@ -100,7 +101,7 @@ impl<'tree> TreeDiff<'tree> {
                     && Self::is_regular_or_symlink(to_leaf)
                     && !Self::content_matches(from_leaf, to_leaf)
                 {
-                    self.changes.push((Self::path_to_string(path), FileDiffKind::Modified));
+                    self.changes.insert(path.to_path_buf(), FileDiffKind::Modified);
                 }
             }
             (from_inode, to_inode) => {
@@ -116,7 +117,7 @@ impl<'tree> TreeDiff<'tree> {
                 let leaf = &self.leaves(side)[id.0];
 
                 if Self::is_regular_or_symlink(leaf) {
-                    self.changes.push((Self::path_to_string(path), side.kind()));
+                    self.changes.insert(path.to_path_buf(), side.kind());
                 }
             }
             Inode::Directory(dir) => {
@@ -152,14 +153,10 @@ impl<'tree> TreeDiff<'tree> {
             _ => false,
         }
     }
-
-    fn path_to_string(path: &Path) -> String {
-        path.to_string_lossy().into_owned()
-    }
 }
 
 impl Tree {
-    pub fn diff(&self, other: &Tree) -> Vec<(String, FileDiffKind)> {
+    pub fn diff(&self, other: &Tree) -> BTreeMap<PathBuf, FileDiffKind> {
         TreeDiff::run(&self.filesystem, &other.filesystem)
     }
 }

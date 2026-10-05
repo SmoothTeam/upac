@@ -28,15 +28,6 @@ pub struct Version {
     pub raw: String,
 }
 
-impl Default for Version {
-    fn default() -> Self {
-        Version {
-            epoch: 0,
-            raw: "1.0.0".to_owned(),
-        }
-    }
-}
-
 impl Version {
     pub fn parse(raw: &str) -> Version {
         match raw.split_once(':') {
@@ -117,7 +108,7 @@ impl Version {
     }
 }
 
-#[derive(Debug, Clone, Default, CTryToRust, RustToC, Serialize, Deserialize)]
+#[derive(Debug, Clone, CTryToRust, RustToC, Serialize, Deserialize)]
 pub struct PackageMeta {
     pub name: String,
     pub version: Version,

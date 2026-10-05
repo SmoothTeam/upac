@@ -17,3 +17,8 @@ overlay_opaque_xattr = "trusted.overlay.opaque"
 # file keeps its own permissions across the atomic replace.
 [fs]
 new_file_mode = 0o644
+
+# Appended to a conflicting /etc path when allow_conflict_files keeps the package's version next to
+# the user's edited file instead of dropping it.
+[merge]
+upac_new_suffix = ".upac-new"

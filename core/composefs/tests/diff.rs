@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::BTreeMap;
 use std::fs::{File, write};
+use std::path::{Path, PathBuf};
 
 use composefs::generic_tree::Stat;
 use composefs::repository::{Repository, RepositoryConfig};
@@ -60,7 +62,10 @@ fn run_reports_added_for_a_file_only_in_to() {
 
     let changes = from.diff(&to);
 
-    assert_eq!(changes, vec![("new.txt".to_owned(), FileDiffKind::Added)]);
+    assert_eq!(
+        changes,
+        BTreeMap::from([(PathBuf::from("new.txt"), FileDiffKind::Added)])
+    );
 }
 
 #[test]
@@ -72,7 +77,10 @@ fn run_reports_removed_for_a_file_only_in_from() {
 
     let changes = from.diff(&to);
 
-    assert_eq!(changes, vec![("old.txt".to_owned(), FileDiffKind::Removed)]);
+    assert_eq!(
+        changes,
+        BTreeMap::from([(PathBuf::from("old.txt"), FileDiffKind::Removed)])
+    );
 }
 
 #[test]
@@ -85,7 +93,10 @@ fn run_reports_modified_for_a_file_with_different_content_in_each_tree() {
 
     let changes = from.diff(&to);
 
-    assert_eq!(changes, vec![("file.txt".to_owned(), FileDiffKind::Modified)]);
+    assert_eq!(
+        changes,
+        BTreeMap::from([(PathBuf::from("file.txt"), FileDiffKind::Modified)])
+    );
 }
 
 #[test]
@@ -99,7 +110,10 @@ fn run_recurses_into_matched_subdirectories() {
 
     let changes = from.diff(&to);
 
-    assert_eq!(changes, vec![("dir/new.txt".to_owned(), FileDiffKind::Added)]);
+    assert_eq!(
+        changes,
+        BTreeMap::from([(PathBuf::from("dir/new.txt"), FileDiffKind::Added)])
+    );
 }
 
 #[test]
@@ -114,8 +128,8 @@ fn run_marks_both_sides_when_a_directory_is_replaced_by_a_regular_file() {
     let changes = from.diff(&to);
 
     assert_eq!(changes.len(), 2);
-    assert!(changes.contains(&("thing".to_owned(), FileDiffKind::Added)));
-    assert!(changes.contains(&("thing/child".to_owned(), FileDiffKind::Removed)));
+    assert_eq!(changes.get(Path::new("thing")), Some(&FileDiffKind::Added));
+    assert_eq!(changes.get(Path::new("thing/child")), Some(&FileDiffKind::Removed));
 }
 
 #[test]

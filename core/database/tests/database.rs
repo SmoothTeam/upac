@@ -12,17 +12,24 @@ use upac_database::triggers::{TriggerStore, TriggerStoreMut};
 
 use upac_types::decoder::{PackageTrigger, PackageTriggers, TriggerPosition};
 
-use upac_types::package::PackageMeta;
+use upac_types::package::{PackageMeta, Version};
 use upac_types::response::entry::{FileEntry, FileEntryScope};
 
 fn sample_meta(name: &str) -> PackageMeta {
     PackageMeta {
         name: name.to_owned(),
+        version: Version {
+            epoch: 0,
+            raw: "1.0.0".to_owned(),
+        },
         arch: "x86_64".to_owned(),
+        arch_sub: None,
         maintainer: "JustPav".to_owned(),
         description: "a package".to_owned(),
+        license: None,
+        url: None,
+        sha256: [0; 32],
         installed_size: 100,
-        ..Default::default()
     }
 }
 
