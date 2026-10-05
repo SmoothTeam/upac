@@ -34,6 +34,8 @@ macro_rules! stages {
     };
 }
 
+type TakeItemsFn = fn(&mut Context) -> Option<Vec<Box<dyn Any>>>;
+
 pub(crate) trait ParallelRunner<E> {
     fn run_all(
         &self, context: &mut Context, cancel: &CancelToken, index: usize, on_progress: &dyn Fn(&ProgressEvent),
@@ -45,7 +47,7 @@ pub(crate) trait ParallelRunner<E> {
 pub(crate) struct EachStep<E> {
     pub(crate) item_type: TypeId,
     pub(crate) items_type: TypeId,
-    pub(crate) take_items: fn(&mut Context) -> Option<Vec<Box<dyn Any>>>,
+    pub(crate) take_items: TakeItemsFn,
     pub(crate) body: Vec<Box<dyn Stage<E>>>,
 }
 

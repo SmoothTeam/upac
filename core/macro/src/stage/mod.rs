@@ -95,7 +95,8 @@ impl ContextAccess {
                 .path
                 .get_ident()
                 .and_then(|ident| self.bindings.get(ident))
-                .cloned(),
+                .cloned()
+                .or_else(|| Self::names_a_type(&expr_path.path).then(|| Self::path_type(&expr_path.path))),
             _ => None,
         };
 
@@ -183,10 +184,10 @@ impl ContextAccess {
 
 impl<'ast> Visit<'ast> for ContextAccess {
     fn visit_local(&mut self, local: &'ast Local) {
-        if let (Pat::Ident(pat_ident), Some(init)) = (&local.pat, &local.init) {
-            if let Some(ty) = Self::bound_read_type(&init.expr) {
-                self.bindings.insert(pat_ident.ident.clone(), ty);
-            }
+        if let (Pat::Ident(pat_ident), Some(init)) = (&local.pat, &local.init)
+            && let Some(ty) = Self::bound_read_type(&init.expr)
+        {
+            self.bindings.insert(pat_ident.ident.clone(), ty);
         }
 
         visit_local(self, local);
