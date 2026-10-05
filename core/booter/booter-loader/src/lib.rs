@@ -8,7 +8,7 @@ use upac_abi::request::booter::{
     CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 
-use upac_types::booter::BootResourceKind;
+use upac_types::booter::{BootResourceKind, BuiltinBooter};
 use upac_types::plugin::plugin_result;
 use upac_types::request::booter::{
     BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
@@ -26,13 +26,23 @@ use self::manifest::BootPluginManifests;
 mod dynamic_link;
 #[cfg(feature = "dynamic-plugins")]
 mod manifest;
-#[cfg(feature = "builtin-booters")]
-mod static_link;
 
 pub mod error;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
+
+#[cfg(feature = "builtin-booters")]
+const BUILTIN_BOOTERS: &[BuiltinBooter] = &[
+    #[cfg(feature = "builtin-uki")]
+    upac_boot_uki::BOOTER,
+    #[cfg(feature = "builtin-systemd-boot")]
+    upac_boot_systemd_boot::BOOTER,
+    #[cfg(feature = "builtin-grub")]
+    upac_boot_grub::BOOTER,
+    #[cfg(feature = "builtin-refind")]
+    upac_boot_refind::BOOTER,
+];
 
 pub struct BootPlugins {
     #[cfg(feature = "dynamic-plugins")]
@@ -50,8 +60,8 @@ impl BootPlugins {
     #[allow(unreachable_code)]
     pub fn load(&self, name: &str) -> Result<BootPlugin, BootPluginError> {
         #[cfg(feature = "builtin-booters")]
-        if let Ok(plugin) = static_link::load_boot_plugin_static(name) {
-            return Ok(plugin);
+        if let Some(builtin) = BUILTIN_BOOTERS.iter().find(|builtin| builtin.name == name) {
+            return Ok(BootPlugin::from(builtin));
         }
 
         #[cfg(feature = "dynamic-plugins")]
@@ -76,6 +86,20 @@ pub struct BootPlugin {
 
     #[cfg(feature = "dynamic-plugins")]
     _library: Option<Library>,
+}
+
+impl From<&BuiltinBooter> for BootPlugin {
+    fn from(builtin: &BuiltinBooter) -> Self {
+        BootPlugin {
+            set_one_shot: builtin.set_one_shot,
+            confirm_boot: builtin.confirm_boot,
+            install: builtin.install,
+            boot_resource_kind: builtin.boot_resource_kind,
+
+            #[cfg(feature = "dynamic-plugins")]
+            _library: None,
+        }
+    }
 }
 
 impl BootPlugin {

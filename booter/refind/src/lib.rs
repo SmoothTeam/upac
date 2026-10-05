@@ -8,7 +8,7 @@ use upac_abi::request::booter::{
     CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
 
-use upac_types::booter::BootError;
+use upac_types::booter::{BootError, BuiltinBooter};
 use upac_types::plugin::plugin_status;
 use upac_types::request::booter::{
     BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
@@ -98,3 +98,11 @@ pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i
 
     plugin_status(result.map_err(BootError::from))
 }
+
+pub const BOOTER: BuiltinBooter = BuiltinBooter {
+    name: "refind",
+    set_one_shot,
+    confirm_boot,
+    install,
+    boot_resource_kind,
+};

@@ -20,10 +20,10 @@ use std::path::Path;
 use sha2::{Digest, Sha256};
 
 #[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
-use super::DecoderPlugin;
-
-#[cfg(feature = "dynamic-plugins")]
 use std::collections::HashMap;
+
+#[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
+use super::DecoderPlugin;
 
 #[cfg(feature = "dynamic-plugins")]
 use super::dynamic_link::load_decoder_dynamic;
@@ -31,7 +31,7 @@ use super::dynamic_link::load_decoder_dynamic;
 use super::manifest::DecoderManifests;
 
 #[cfg(feature = "builtin-decoders")]
-use super::static_link::static_decoders;
+use super::BUILTIN_DECODERS;
 
 #[cfg(all(test, any(feature = "dynamic-plugins", feature = "builtin-decoders")))]
 #[path = "../tests/inline/unpack.rs"]
@@ -68,13 +68,10 @@ fn checksum_of_file(path: &str) -> Result<[u8; 32], DecoderError> {
 }
 
 pub struct PackageUnpacker {
-    #[cfg(feature = "builtin-decoders")]
-    static_decoders: Vec<(&'static str, &'static [&'static str], DecoderPlugin)>,
-
     #[cfg(feature = "dynamic-plugins")]
     manifests: DecoderManifests,
 
-    #[cfg(feature = "dynamic-plugins")]
+    #[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
     decoders: HashMap<String, DecoderPlugin>,
 }
 
@@ -116,13 +113,9 @@ impl PackageUnpacker {
 impl PackageUnpacker {
     pub fn new() -> Result<Self, DecoderError> {
         Ok(Self {
-            #[cfg(feature = "builtin-decoders")]
-            static_decoders: static_decoders(),
-
             #[cfg(feature = "dynamic-plugins")]
             manifests: DecoderManifests::new()?,
 
-            #[cfg(feature = "dynamic-plugins")]
             decoders: HashMap::new(),
         })
     }
@@ -134,12 +127,13 @@ impl PackageUnpacker {
             .ok_or_else(|| DecoderError::UnknownFormat(package_path.to_owned()))?;
 
         #[cfg(feature = "builtin-decoders")]
-        if let Some((format, _, _)) = self
-            .static_decoders
-            .iter()
-            .find(|(_, extensions, _)| extensions.iter().any(|extension| has_extension(file_name, extension)))
-        {
-            return Ok((*format).to_owned());
+        if let Some(builtin) = BUILTIN_DECODERS.iter().find(|builtin| {
+            builtin
+                .extensions
+                .iter()
+                .any(|extension| has_extension(file_name, extension))
+        }) {
+            return Ok(builtin.format.to_owned());
         }
 
         #[cfg(feature = "dynamic-plugins")]
@@ -156,26 +150,30 @@ impl PackageUnpacker {
     }
 
     fn decoder_for(&mut self, format: &str) -> Result<&DecoderPlugin, DecoderError> {
-        #[cfg(feature = "builtin-decoders")]
-        if let Some(index) = self.static_decoders.iter().position(|(name, _, _)| *name == format) {
-            return Ok(&self.static_decoders[index].2);
-        }
-
-        self.dynamic_decoder_for(format)
-    }
-
-    #[cfg(feature = "dynamic-plugins")]
-    fn dynamic_decoder_for(&mut self, format: &str) -> Result<&DecoderPlugin, DecoderError> {
         if !self.decoders.contains_key(format) {
-            let decoder = load_decoder_dynamic(&self.manifests, format)?;
+            let decoder = self.load_decoder(format)?;
             self.decoders.insert(format.to_owned(), decoder);
         }
 
         Ok(&self.decoders[format])
     }
 
+    fn load_decoder(&self, format: &str) -> Result<DecoderPlugin, DecoderError> {
+        #[cfg(feature = "builtin-decoders")]
+        if let Some(builtin) = BUILTIN_DECODERS.iter().find(|builtin| builtin.format == format) {
+            return Ok(DecoderPlugin::from(builtin));
+        }
+
+        self.load_dynamic_decoder(format)
+    }
+
+    #[cfg(feature = "dynamic-plugins")]
+    fn load_dynamic_decoder(&self, format: &str) -> Result<DecoderPlugin, DecoderError> {
+        load_decoder_dynamic(&self.manifests, format)
+    }
+
     #[cfg(not(feature = "dynamic-plugins"))]
-    fn dynamic_decoder_for(&mut self, format: &str) -> Result<&DecoderPlugin, DecoderError> {
+    fn load_dynamic_decoder(&self, format: &str) -> Result<DecoderPlugin, DecoderError> {
         Err(DecoderError::UnknownFormat(format.to_owned()))
     }
 }

@@ -10,6 +10,7 @@ use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::response::decoder::CDecodeResponse;
 
 use upac_types::CancelToken;
+use upac_types::decoder::BuiltinDecoder;
 use upac_types::plugin::plugin_result;
 use upac_types::request::decoder::DecodeRequest;
 use upac_types::response::decoder::DecodeResponse;
@@ -24,18 +25,39 @@ mod dynamic_link;
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
-#[cfg(feature = "builtin-decoders")]
-mod static_link;
 
 pub mod error;
 pub mod manifest;
 pub mod unpack;
+
+#[cfg(feature = "builtin-decoders")]
+const BUILTIN_DECODERS: &[BuiltinDecoder] = &[
+    #[cfg(feature = "builtin-alpm")]
+    upac_decoders_alpm::DECODER,
+    #[cfg(feature = "builtin-deb")]
+    upac_decoders_deb::DECODER,
+    #[cfg(feature = "builtin-rpm")]
+    upac_decoders_rpm::DECODER,
+    #[cfg(feature = "builtin-xbps")]
+    upac_decoders_xbps::DECODER,
+];
 
 pub struct DecoderPlugin {
     decode: DecodeFn,
 
     #[cfg(feature = "dynamic-plugins")]
     _library: Option<Library>,
+}
+
+impl From<&BuiltinDecoder> for DecoderPlugin {
+    fn from(builtin: &BuiltinDecoder) -> Self {
+        DecoderPlugin {
+            decode: builtin.decode,
+
+            #[cfg(feature = "dynamic-plugins")]
+            _library: None,
+        }
+    }
 }
 
 impl DecoderPlugin {

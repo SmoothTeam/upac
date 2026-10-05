@@ -8,7 +8,7 @@ use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::response::decoder::CDecodeResponse;
 
 use upac_decoder_kit::{build_decode_response, verify};
-use upac_types::decoder::DecodeError;
+use upac_types::decoder::{BuiltinDecoder, DecodeError};
 use upac_types::plugin::plugin_status;
 use upac_types::request::decoder::DecodeRequest;
 use upac_types::traits::DecodeMeta;
@@ -62,3 +62,9 @@ fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeErr
 
     Ok(build_decode_response(decoded, package_triggers))
 }
+
+pub const DECODER: BuiltinDecoder = BuiltinDecoder {
+    format: manifest::FORMAT,
+    extensions: manifest::EXTENSIONS,
+    decode,
+};
