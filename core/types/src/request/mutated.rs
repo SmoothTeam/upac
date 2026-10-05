@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::request::mutated::{
-    CCommitRequest, CFilesRequest, CGcRequest, CInstallRequest, CMimeSyncRequest, CPinRequest, CRollbackRequest,
-    CUninstallRequest, CUpdateRequest,
+    CAttachRequest, CCommitRequest, CDetachRequest, CFileTransfer, CGcRequest, CInstallRequest, CMimeSyncRequest,
+    CPinRequest, CRollbackRequest, CUninstallRequest, CUpdateRequest,
 };
 
 use upac_abi::package::CPackageInfo;
@@ -16,7 +16,7 @@ use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
-use crate::diff::{DiffFileSource, FileDiffKind};
+use crate::diff::DiffFileSource;
 use crate::error::ErrorKind;
 use crate::package::PackageInfo;
 
@@ -75,6 +75,7 @@ pub struct RollbackRequest<'data> {
     pub tmp_path: &'data str,
     pub config_digest: &'data str,
     pub boot_plugin: &'data str,
+    pub discard_etc_changes: bool,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -86,7 +87,30 @@ pub struct CommitRequest<'data> {
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct FilesRequest<'data> {
+pub struct FileTransfer<'data> {
+    pub source: &'data str,
+    pub target: &'data str,
+}
+
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct AttachRequest<'data> {
+    pub base: RequestBase<'data>,
+
+    pub tmp_path: &'data str,
+
+    pub subject: &'data str,
+    pub message: Option<&'data str>,
+
+    pub files: Vec<FileTransfer<'data>>,
+    pub file_package: PackageInfo,
+
+    pub boot_plugin: &'data str,
+
+    pub scope: DiffFileSource,
+}
+
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct DetachRequest<'data> {
     pub base: RequestBase<'data>,
 
     pub tmp_path: &'data str,
@@ -95,8 +119,7 @@ pub struct FilesRequest<'data> {
     pub message: Option<&'data str>,
 
     pub files: Vec<&'data str>,
-    pub file_kind: FileDiffKind,
-    pub file_package: *const CPackageInfo,
+    pub file_package: PackageInfo,
 
     pub boot_plugin: &'data str,
 

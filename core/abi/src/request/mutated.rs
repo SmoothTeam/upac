@@ -76,6 +76,8 @@ pub struct CRollbackRequest {
 
     pub tmp_path: CSlice,
     pub config_digest: CSlice,
+
+    pub discard_etc_changes: bool,
 }
 
 #[repr(C)]
@@ -92,7 +94,36 @@ pub struct CCommitRequest {
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CFilesRequest {
+pub struct CFileTransfer {
+    pub struct_size: usize,
+
+    #[non_empty]
+    pub source: CSlice,
+    #[non_empty]
+    pub target: CSlice,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
+pub struct CAttachRequest {
+    pub struct_size: usize,
+    pub base: CRequestBase,
+
+    pub boot_plugin: CSlice,
+
+    pub tmp_path: CSlice,
+    pub subject: CSlice,
+    #[optional]
+    pub message: CSlice,
+    pub files: CVec<CFileTransfer>,
+    pub file_package: CPackageInfo,
+
+    pub scope: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
+pub struct CDetachRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
@@ -103,8 +134,7 @@ pub struct CFilesRequest {
     #[optional]
     pub message: CSlice,
     pub files: CVec<CSlice>,
-    pub file_kind: u8,
-    pub file_package: *const CPackageInfo,
+    pub file_package: CPackageInfo,
 
     pub scope: u8,
 }

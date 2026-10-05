@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::ffi::FromBytesWithNulError;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::str::Utf8Error;
 
@@ -21,7 +22,8 @@ pub enum ErrorDomain {
     Install,
     Rollback,
     Commit,
-    Files,
+    Attach,
+    Detach,
     Update,
     Gc,
     Pin,
@@ -77,6 +79,18 @@ impl From<AbiError> for ErrorKind {
     }
 }
 
+impl From<IoError> for ErrorKind {
+    fn from(error: IoError) -> Self {
+        match error.kind() {
+            IoErrorKind::NotFound => ErrorKind::NotFound,
+            IoErrorKind::PermissionDenied => ErrorKind::PermissionDenied,
+            IoErrorKind::AlreadyExists => ErrorKind::AlreadyExists,
+            IoErrorKind::StorageFull => ErrorKind::NoSpaceLeft,
+            _ => ErrorKind::Unexpected,
+        }
+    }
+}
+
 impl From<FromBytesWithNulError> for ErrorKind {
     fn from(_: FromBytesWithNulError) -> Self {
         ErrorKind::InvalidEntry
@@ -105,14 +119,6 @@ impl Error {
         }
     }
 
-    pub fn catch<S: CommandState, T, E: Into<ErrorKind>>(call: impl FnOnce() -> Result<T, (S, E)>) -> Result<T, Self> {
-        match catch_unwind(AssertUnwindSafe(call)) {
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err((state, error))) => Err(Error::new(state, error.into())),
-            Err(_) => Err(Error::new(S::VALIDATION, ErrorKind::Unexpected)),
-        }
-    }
-
     pub fn check(code: i32, error: &CError) -> Result<(), Self> {
         if code == 0 {
             return Ok(());
@@ -132,28 +138,62 @@ impl Error {
 
 /// # Safety
 /// `err_out`, if non-null, must point to writable `CError` storage.
-pub unsafe fn write_abi_error(err_out: *mut CError, error: Error) -> i32 {
+pub unsafe fn export_mutated_command<'request, CRequest, Request, State>(
+    request: &'request CRequest, err_out: *mut CError, run: impl FnOnce(Request) -> Result<(), (State, ErrorKind)>,
+) -> i32
+where
+    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
+    State: CommandState,
+{
+    match call_exported(request, run) {
+        Ok(()) => 0,
+        Err(error) => unsafe { write_error(err_out, error) },
+    }
+}
+
+/// # Safety
+/// `response_out`, if non-null, must point to writable `CResponse` storage, and `err_out`, if non-null, to
+/// writable `CError` storage.
+pub unsafe fn export_unmutated_command<'request, CRequest, Request, State, Response, CResponse>(
+    request: &'request CRequest, response_out: *mut CResponse, err_out: *mut CError,
+    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind)>,
+) -> i32
+where
+    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
+    State: CommandState,
+    CResponse: From<Response>,
+{
+    match call_exported(request, run) {
+        Ok(response) => {
+            if !response_out.is_null() {
+                unsafe { response_out.write(CResponse::from(response)) };
+            }
+            0
+        }
+        Err(error) => unsafe { write_error(err_out, error) },
+    }
+}
+
+fn call_exported<'request, CRequest, Request, State, Response>(
+    request: &'request CRequest, run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind)>,
+) -> Result<Response, Error>
+where
+    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
+    State: CommandState,
+{
+    let request = Request::try_from(request).map_err(|kind| Error::new(State::VALIDATION, kind))?;
+
+    match catch_unwind(AssertUnwindSafe(|| run(request))) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err((state, kind))) => Err(Error::new(state, kind)),
+        Err(_) => Err(Error::new(State::VALIDATION, ErrorKind::Unexpected)),
+    }
+}
+
+unsafe fn write_error(err_out: *mut CError, error: Error) -> i32 {
     if !err_out.is_null() {
-        unsafe { *err_out = error.into() };
+        unsafe { err_out.write(error.into()) };
     }
 
     -1
 }
-
-#[macro_export]
-macro_rules! try_convert_abi {
-    ($expr:expr, $err_out:expr, $state:ty) => {
-        match $expr {
-            Ok(value) => value,
-            Err(error) => {
-                return unsafe {
-                    upac_types::error::write_abi_error(
-                        $err_out,
-                        upac_types::error::Error::new(<$state as upac_types::traits::CommandState>::VALIDATION, error),
-                    )
-                };
-            }
-        }
-    };
-}
-pub use try_convert_abi;

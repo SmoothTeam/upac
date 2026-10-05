@@ -49,7 +49,7 @@ pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] = &[
     "CPackageTrigger",
 ];
 
-pub(crate) const VALIDATABLE_LIB_REQUEST_COMPOSITES: &[&str] = &["CRequestBase"];
+pub(crate) const VALIDATABLE_LIB_REQUEST_COMPOSITES: &[&str] = &["CRequestBase", "CFileTransfer"];
 
 pub(crate) const VALIDATABLE_COMPOSITE_CATEGORIES: &[&[&str]] = &[
     VALIDATABLE_LIB_ENTRYS_COMPOSITES,

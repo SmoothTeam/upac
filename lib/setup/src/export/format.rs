@@ -6,22 +6,18 @@
 use upac_abi::error::CError;
 use upac_abi::request::format::CSetupFormatRequest;
 
-use upac_types::error::{Error, try_convert_abi, write_abi_error};
-use upac_types::request::format::SetupFormatRequest;
-use upac_types::state::setup::FormatStateId;
+use upac_types::error::export_mutated_command;
 
 use crate::commands::format::run;
 
 /// # Safety
-/// Any borrowed byte-slice fields inside `request_c` must remain valid for the duration of the
-/// call. `err_out`, if non-null, must point to writable `CError` storage.
+/// Any borrowed byte-slice fields inside `request` must remain valid for the duration of the call.
+/// `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn format_partition(request_c: CSetupFormatRequest, err_out: *mut CError) -> i32 {
-    let format_request = try_convert_abi!(SetupFormatRequest::try_from(&request_c), err_out, FormatStateId);
-
-    match Error::catch(|| run(format_request)) {
-        Ok(()) => 0,
-
-        Err(error) => unsafe { write_abi_error(err_out, error) },
+pub unsafe extern "C" fn format_partition(request: CSetupFormatRequest, err_out: *mut CError) -> i32 {
+    unsafe {
+        export_mutated_command(&request, err_out, |request| {
+            run(request).map_err(|(state, error)| (state, error.into()))
+        })
     }
 }

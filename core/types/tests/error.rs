@@ -6,9 +6,38 @@
 use std::ptr::null_mut;
 
 use upac_abi::error::CError;
-use upac_types::error::{Error, ErrorDomain, ErrorKind, write_abi_error};
 
+use upac_types::error::{Error, ErrorDomain, ErrorKind, export_mutated_command, export_unmutated_command};
 use upac_types::state::mutated::RollbackStateId;
+
+struct FakeCRequest {
+    valid: bool,
+}
+
+struct FakeRequest;
+
+impl TryFrom<&FakeCRequest> for FakeRequest {
+    type Error = ErrorKind;
+
+    fn try_from(request: &FakeCRequest) -> Result<Self, ErrorKind> {
+        if request.valid {
+            Ok(FakeRequest)
+        } else {
+            Err(ErrorKind::InvalidEntry)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct FakeCResponse(u32);
+
+impl From<u32> for FakeCResponse {
+    fn from(value: u32) -> Self {
+        FakeCResponse(value)
+    }
+}
+
+const VALID: FakeCRequest = FakeCRequest { valid: true };
 
 #[test]
 fn new_takes_the_domain_from_the_state_type() {
@@ -17,27 +46,6 @@ fn new_takes_the_domain_from_the_state_type() {
     assert_eq!(error.domain, ErrorDomain::Rollback);
     assert_eq!(error.state, RollbackStateId::Setup as u32);
     assert_eq!(error.kind, ErrorKind::NotFound);
-}
-
-#[test]
-fn catch_passes_a_successful_value_through() {
-    let result = Error::catch(|| Ok::<_, (RollbackStateId, ErrorKind)>(7));
-
-    assert_eq!(result, Ok(7));
-}
-
-#[test]
-fn catch_turns_a_stage_failure_into_an_error() {
-    let result = Error::catch(|| Err::<(), _>((RollbackStateId::Setup, ErrorKind::WriteFailed)));
-
-    assert_eq!(result, Err(Error::new(RollbackStateId::Setup, ErrorKind::WriteFailed)));
-}
-
-#[test]
-fn catch_turns_a_panic_into_an_unexpected_validation_error() {
-    let result = Error::catch(|| -> Result<(), (RollbackStateId, ErrorKind)> { panic!("stage panicked") });
-
-    assert_eq!(result, Err(Error::new(RollbackStateId::Setup, ErrorKind::Unexpected)));
 }
 
 #[test]
@@ -75,24 +83,6 @@ fn check_reports_an_abi_mismatch_for_a_foreign_struct_size() {
 }
 
 #[test]
-fn write_abi_error_fills_the_out_pointer_and_returns_minus_one() {
-    let error = Error::new(RollbackStateId::Setup, ErrorKind::Cancelled);
-    let mut c_error = CError::default();
-
-    let code = unsafe { write_abi_error(&mut c_error, error) };
-
-    assert_eq!(code, -1);
-    assert_eq!(Error::try_from(&c_error), Ok(error));
-}
-
-#[test]
-fn write_abi_error_tolerates_a_null_out_pointer() {
-    let error = Error::new(RollbackStateId::Setup, ErrorKind::Cancelled);
-
-    assert_eq!(unsafe { write_abi_error(null_mut(), error) }, -1);
-}
-
-#[test]
 fn check_falls_back_to_the_unknown_domain_for_an_out_of_range_value() {
     let c_error = CError {
         domain: u32::MAX,
@@ -103,4 +93,110 @@ fn check_falls_back_to_the_unknown_domain_for_an_out_of_range_value() {
 
     assert_eq!(error.domain, ErrorDomain::Unknown);
     assert_eq!(error.kind, ErrorKind::InvalidEntry);
+}
+
+#[test]
+fn a_successful_mutated_command_returns_zero_and_leaves_the_error_untouched() {
+    let mut c_error = CError::default();
+
+    let code = unsafe {
+        export_mutated_command(&VALID, &mut c_error, |_: FakeRequest| {
+            Ok::<_, (RollbackStateId, ErrorKind)>(())
+        })
+    };
+
+    assert_eq!(code, 0);
+    assert_eq!(c_error.kind, CError::default().kind);
+}
+
+#[test]
+fn a_failed_stage_is_written_with_its_state() {
+    let mut c_error = CError::default();
+
+    let code = unsafe {
+        export_mutated_command(&VALID, &mut c_error, |_: FakeRequest| {
+            Err((RollbackStateId::Setup, ErrorKind::WriteFailed))
+        })
+    };
+
+    assert_eq!(code, -1);
+    assert_eq!(
+        Error::try_from(&c_error),
+        Ok(Error::new(RollbackStateId::Setup, ErrorKind::WriteFailed))
+    );
+}
+
+#[test]
+fn a_panic_becomes_an_unexpected_validation_error() {
+    let mut c_error = CError::default();
+
+    let code = unsafe {
+        export_mutated_command(
+            &VALID,
+            &mut c_error,
+            |_: FakeRequest| -> Result<(), (RollbackStateId, ErrorKind)> { panic!("stage panicked") },
+        )
+    };
+
+    assert_eq!(code, -1);
+    assert_eq!(
+        Error::try_from(&c_error),
+        Ok(Error::new(RollbackStateId::Setup, ErrorKind::Unexpected))
+    );
+}
+
+#[test]
+fn an_invalid_request_is_a_validation_error_and_run_is_never_called() {
+    let mut c_error = CError::default();
+
+    let code = unsafe {
+        export_mutated_command(
+            &FakeCRequest { valid: false },
+            &mut c_error,
+            |_: FakeRequest| -> Result<(), (RollbackStateId, ErrorKind)> { panic!("run must not be called") },
+        )
+    };
+
+    assert_eq!(code, -1);
+    assert_eq!(
+        Error::try_from(&c_error),
+        Ok(Error::new(RollbackStateId::Setup, ErrorKind::InvalidEntry))
+    );
+}
+
+#[test]
+fn a_null_error_pointer_is_tolerated() {
+    let code = unsafe {
+        export_mutated_command(&VALID, null_mut(), |_: FakeRequest| {
+            Err((RollbackStateId::Setup, ErrorKind::Cancelled))
+        })
+    };
+
+    assert_eq!(code, -1);
+}
+
+#[test]
+fn an_unmutated_command_writes_its_response() {
+    let mut response = FakeCResponse(0);
+    let mut c_error = CError::default();
+
+    let code = unsafe {
+        export_unmutated_command(&VALID, &mut response, &mut c_error, |_: FakeRequest| {
+            Ok::<_, (RollbackStateId, ErrorKind)>(7u32)
+        })
+    };
+
+    assert_eq!(code, 0);
+    assert_eq!(response, FakeCResponse(7));
+}
+
+#[test]
+fn an_unmutated_command_tolerates_a_null_response_pointer() {
+    let code = unsafe {
+        export_unmutated_command(&VALID, null_mut::<FakeCResponse>(), null_mut(), |_: FakeRequest| {
+            Ok::<_, (RollbackStateId, ErrorKind)>(7u32)
+        })
+    };
+
+    assert_eq!(code, 0);
 }
