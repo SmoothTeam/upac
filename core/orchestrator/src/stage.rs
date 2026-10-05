@@ -27,11 +27,3 @@ pub trait Stage<E> {
         Ok(())
     }
 }
-
-pub trait ParallelStage<E, T>: Send + Sync {
-    fn run(&self, item: T, cancel: &CancelToken) -> Result<(), E>;
-
-    fn rollback(&self) -> Result<(), ErrorKind> {
-        Ok(())
-    }
-}

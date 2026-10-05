@@ -7,7 +7,6 @@ use std::any::{Any, TypeId};
 use std::collections::HashSet;
 
 use upac_types::CancelToken;
-use upac_types::error::ErrorKind;
 use upac_types::progress::ProgressEvent;
 use upac_types::traits::CommandState;
 
@@ -15,7 +14,7 @@ use self::context::Context;
 use self::error::PipelineError;
 use self::lock::{Lock, LockError};
 use self::orchestrator::Orchestrator;
-use self::pipeline::{EachStep, ParallelRunner, Step, StepKind};
+use self::pipeline::{EachStep, Step, StepKind};
 use self::stage::Stage;
 
 mod layout {
@@ -30,20 +29,6 @@ pub mod pipeline;
 pub mod stage;
 
 pub type StagePipelineError = TypeId;
-
-enum StartedStage<'run, E> {
-    Sequential(&'run dyn Stage<E>),
-    Parallel(&'run dyn ParallelRunner<E>),
-}
-
-impl<E> StartedStage<'_, E> {
-    fn rollback(&self, context: &mut Context) -> Result<(), ErrorKind> {
-        match self {
-            StartedStage::Sequential(stage) => stage.rollback(context),
-            StartedStage::Parallel(runner) => runner.rollback(),
-        }
-    }
-}
 
 pub trait OrchestratorRun<E: From<PipelineError> + 'static>: Orchestrator<E> + Sized {
     fn run_mutating<S: CommandState>(
@@ -111,11 +96,6 @@ impl<E: From<PipelineError> + 'static> Orchestrator<E> for SequentialOrchestrato
 
                     available.remove(&each.item_type);
                 }
-                StepKind::Parallel(parallel) => {
-                    if !available.remove(&parallel.items_type) {
-                        return Err(parallel.items_type);
-                    }
-                }
             }
         }
 
@@ -147,7 +127,7 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
 
     fn run_steps<'run>(
         steps: &'run [Step<E>], context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
-        started: &mut Vec<StartedStage<'run, E>>,
+        started: &mut Vec<&'run dyn Stage<E>>,
     ) -> Result<(), (usize, E)> {
         let mut index = 0;
 
@@ -155,23 +135,13 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
             match &step.kind {
                 StepKind::Once(stage) => {
                     Self::check_cancel(cancel, index)?;
-                    started.push(StartedStage::Sequential(stage.as_ref()));
+                    started.push(stage.as_ref());
 
                     Self::report(on_progress, index, 0, 0);
                     Self::run_stage(stage.as_ref(), index, context, cancel, on_progress)
                         .map_err(|error| (index, error))?;
                 }
                 StepKind::Each(each) => Self::run_each(each, index, context, cancel, on_progress, started)?,
-                StepKind::Parallel(parallel) => {
-                    Self::check_cancel(cancel, index)?;
-                    started.push(StartedStage::Parallel(parallel.runner.as_ref()));
-
-                    Self::report(on_progress, index, 0, 0);
-                    parallel
-                        .runner
-                        .run_all(context, cancel, index, on_progress)
-                        .map_err(|error| (index, error))?;
-                }
             }
 
             index += step.stage_count();
@@ -182,7 +152,7 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
 
     fn run_each<'run>(
         each: &'run EachStep<E>, first_index: usize, context: &mut Context, cancel: &CancelToken,
-        on_progress: &dyn Fn(&ProgressEvent), started: &mut Vec<StartedStage<'run, E>>,
+        on_progress: &dyn Fn(&ProgressEvent), started: &mut Vec<&'run dyn Stage<E>>,
     ) -> Result<(), (usize, E)> {
         let items = (each.take_items)(context).unwrap_or_default();
         let total = items.len() as u64;
@@ -197,7 +167,7 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
 
                 if !body_started[offset] {
                     body_started[offset] = true;
-                    started.push(StartedStage::Sequential(stage.as_ref()));
+                    started.push(stage.as_ref());
                 }
 
                 Self::report(on_progress, index, position as u64, total);
@@ -244,7 +214,7 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
         Ok(())
     }
 
-    fn unwind(started: &[StartedStage<'_, E>], context: &mut Context, error: E) -> E {
+    fn unwind(started: &[&dyn Stage<E>], context: &mut Context, error: E) -> E {
         let mut rollback_failed = false;
 
         for stage in started.iter().rev() {

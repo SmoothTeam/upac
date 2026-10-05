@@ -8,7 +8,6 @@ use upac_types::error::ErrorKind;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineError {
     Cancelled,
-    StagePanicked,
     MissingResult,
     PipelineInvalid,
     RollbackFailed,
@@ -19,9 +18,7 @@ impl From<PipelineError> for ErrorKind {
         match error {
             PipelineError::Cancelled => ErrorKind::Cancelled,
             PipelineError::RollbackFailed => ErrorKind::RollbackFailed,
-            PipelineError::StagePanicked | PipelineError::MissingResult | PipelineError::PipelineInvalid => {
-                ErrorKind::Unexpected
-            }
+            PipelineError::MissingResult | PipelineError::PipelineInvalid => ErrorKind::Unexpected,
         }
     }
 }

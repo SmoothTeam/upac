@@ -5,7 +5,6 @@
 
 use std::any::TypeId;
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use upac_types::CancelToken;
@@ -16,7 +15,7 @@ use upac_types::traits::CommandState;
 use upac_orchestrator::context::Context;
 use upac_orchestrator::error::PipelineError;
 use upac_orchestrator::pipeline::Step;
-use upac_orchestrator::stage::{ParallelStage, Stage};
+use upac_orchestrator::stage::Stage;
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 type Log = Arc<Mutex<Vec<String>>>;
@@ -271,54 +270,6 @@ impl Stage<TestError> for RequiresMarkerStage {
         self.log.lock().unwrap().push("run:requires-marker".to_owned());
 
         Ok(())
-    }
-}
-
-struct ParallelRecordingStage {
-    seen: Arc<Mutex<Vec<u32>>>,
-    rolled_back: Arc<AtomicUsize>,
-}
-
-impl ParallelStage<TestError, u32> for ParallelRecordingStage {
-    fn run(&self, item: u32, _cancel: &CancelToken) -> Result<(), TestError> {
-        self.seen.lock().unwrap().push(item);
-
-        Ok(())
-    }
-
-    fn rollback(&self) -> Result<(), ErrorKind> {
-        self.rolled_back.fetch_add(1, Ordering::SeqCst);
-
-        Ok(())
-    }
-}
-
-struct ParallelFailingStage {
-    fail_on: u32,
-    rolled_back: Arc<AtomicUsize>,
-}
-
-impl ParallelStage<TestError, u32> for ParallelFailingStage {
-    fn run(&self, item: u32, _cancel: &CancelToken) -> Result<(), TestError> {
-        if item == self.fail_on {
-            return Err(TestError::Stage("parallel"));
-        }
-
-        Ok(())
-    }
-
-    fn rollback(&self) -> Result<(), ErrorKind> {
-        self.rolled_back.fetch_add(1, Ordering::SeqCst);
-
-        Ok(())
-    }
-}
-
-struct ParallelPanickingStage;
-
-impl ParallelStage<TestError, u32> for ParallelPanickingStage {
-    fn run(&self, _item: u32, _cancel: &CancelToken) -> Result<(), TestError> {
-        panic!("parallel stage panicked on purpose");
     }
 }
 
@@ -721,79 +672,6 @@ fn run_unmutated_rejects_a_pipeline_that_never_provides_the_result() {
 }
 
 #[test]
-fn parallel_runs_the_stage_on_every_item() {
-    let seen = Arc::new(Mutex::new(Vec::new()));
-    let mut context = Context::default();
-    context.put(vec![1u32, 2, 3]);
-
-    let steps = stages![parallel::<u32>(ParallelRecordingStage {
-        seen: Arc::clone(&seen),
-        rolled_back: Arc::new(AtomicUsize::new(0)),
-    })];
-
-    assert!(run(steps, &mut context, &CancelToken::new()).is_ok());
-
-    let mut seen = seen.lock().unwrap().clone();
-    seen.sort();
-    assert_eq!(seen, vec![1, 2, 3]);
-}
-
-#[test]
-fn a_parallel_failure_rolls_back_the_parallel_stage_and_the_stages_before_it() {
-    let log = new_log();
-    let rolled_back = Arc::new(AtomicUsize::new(0));
-    let mut context = Context::default();
-    context.put(vec![1u32, 2, 3]);
-
-    let steps = stages![
-        RecordingStage {
-            label: "a",
-            log: Arc::clone(&log)
-        },
-        parallel::<u32>(ParallelFailingStage {
-            fail_on: 2,
-            rolled_back: Arc::clone(&rolled_back),
-        }),
-    ];
-
-    let result = run(steps, &mut context, &CancelToken::new());
-
-    assert_eq!(result.err(), Some((TestState::Stage(1), TestError::Stage("parallel"))));
-    assert_eq!(rolled_back.load(Ordering::SeqCst), 1);
-    assert_eq!(logged(&log), vec!["run:a", "rollback:a"]);
-}
-
-#[test]
-fn a_parallel_panic_is_reported_as_stage_panicked() {
-    let mut context = Context::default();
-    context.put(vec![1u32]);
-
-    let steps = stages![parallel::<u32>(ParallelPanickingStage)];
-
-    let result = run(steps, &mut context, &CancelToken::new());
-
-    assert_eq!(
-        result.err(),
-        Some((TestState::Stage(0), TestError::Pipeline(PipelineError::StagePanicked)))
-    );
-}
-
-#[test]
-fn parallel_without_its_list_is_rejected_before_anything_runs() {
-    let steps = stages![parallel::<u32>(ParallelPanickingStage)];
-
-    let result = run(steps, &mut Context::default(), &CancelToken::new());
-
-    assert_eq!(
-        result.err(),
-        Some((
-            TestState::Validation,
-            TestError::Pipeline(PipelineError::PipelineInvalid)
-        ))
-    );
-}
-
-#[test]
 fn context_put_get_take_round_trip() {
     let mut context = Context::default();
     context.put(42u32);
@@ -869,34 +747,6 @@ fn each_reports_the_item_position_around_every_body_stage() {
             (0, None, 1, 2),
             (0, None, 1, 2),
             (0, None, 2, 2),
-            (1, None, 0, 0),
-        ]
-    );
-}
-
-#[test]
-fn parallel_reports_every_finished_item() {
-    let mut context = Context::default();
-    context.put(vec![1u32, 2u32, 3u32]);
-
-    let reported = run_reporting(
-        stages![
-            parallel::<u32>(ParallelRecordingStage {
-                seen: Arc::new(Mutex::new(Vec::new())),
-                rolled_back: Arc::new(AtomicUsize::new(0)),
-            }),
-            FinishStage,
-        ],
-        &mut context,
-    );
-
-    assert_eq!(
-        reported,
-        vec![
-            (0, None, 0, 0),
-            (0, None, 1, 3),
-            (0, None, 2, 3),
-            (0, None, 3, 3),
             (1, None, 0, 0),
         ]
     );

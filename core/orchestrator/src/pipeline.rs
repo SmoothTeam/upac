@@ -4,16 +4,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::any::{Any, TypeId};
-use std::marker::PhantomData;
-use std::thread::scope;
-
-use upac_types::CancelToken;
-use upac_types::error::ErrorKind;
-use upac_types::progress::ProgressEvent;
 
 use super::context::Context;
-use super::error::PipelineError;
-use super::stage::{ParallelStage, Stage};
+use super::stage::Stage;
 
 #[macro_export]
 macro_rules! stages {
@@ -22,9 +15,6 @@ macro_rules! stages {
     };
     (@steps [$($steps:expr,)*] each::<$item:ty>($($body:expr),+ $(,)?) $(, $($rest:tt)*)?) => {
         $crate::stages!(@steps [$($steps,)* $crate::pipeline::Step::each::<$item>(vec![$(Box::new($body)),+]),] $($($rest)*)?)
-    };
-    (@steps [$($steps:expr,)*] parallel::<$item:ty>($stage:expr $(,)?) $(, $($rest:tt)*)?) => {
-        $crate::stages!(@steps [$($steps,)* $crate::pipeline::Step::parallel::<$item, _>($stage),] $($($rest)*)?)
     };
     (@steps [$($steps:expr,)*] $stage:expr $(, $($rest:tt)*)?) => {
         $crate::stages!(@steps [$($steps,)* $crate::pipeline::Step::once(Box::new($stage)),] $($($rest)*)?)
@@ -36,14 +26,6 @@ macro_rules! stages {
 
 type TakeItemsFn = fn(&mut Context) -> Option<Vec<Box<dyn Any>>>;
 
-pub(crate) trait ParallelRunner<E> {
-    fn run_all(
-        &self, context: &mut Context, cancel: &CancelToken, index: usize, on_progress: &dyn Fn(&ProgressEvent),
-    ) -> Result<(), E>;
-
-    fn rollback(&self) -> Result<(), ErrorKind>;
-}
-
 pub(crate) struct EachStep<E> {
     pub(crate) item_type: TypeId,
     pub(crate) items_type: TypeId,
@@ -51,15 +33,9 @@ pub(crate) struct EachStep<E> {
     pub(crate) body: Vec<Box<dyn Stage<E>>>,
 }
 
-pub(crate) struct ParallelStep<E> {
-    pub(crate) items_type: TypeId,
-    pub(crate) runner: Box<dyn ParallelRunner<E>>,
-}
-
 pub(crate) enum StepKind<E> {
     Once(Box<dyn Stage<E>>),
     Each(EachStep<E>),
-    Parallel(ParallelStep<E>),
 }
 
 pub struct Step<E> {
@@ -84,26 +60,9 @@ impl<E: 'static> Step<E> {
         }
     }
 
-    pub fn parallel<T, S>(stage: S) -> Self
-    where
-        T: Any + Send,
-        S: ParallelStage<E, T> + 'static,
-        E: From<PipelineError> + Send,
-    {
-        Self {
-            kind: StepKind::Parallel(ParallelStep {
-                items_type: TypeId::of::<Vec<T>>(),
-                runner: Box::new(ParallelStageRunner {
-                    stage,
-                    item: PhantomData,
-                }),
-            }),
-        }
-    }
-
     pub(crate) fn stage_count(&self) -> usize {
         match &self.kind {
-            StepKind::Once(_) | StepKind::Parallel(_) => 1,
+            StepKind::Once(_) => 1,
             StepKind::Each(each) => each.body.len(),
         }
     }
@@ -114,69 +73,4 @@ fn take_boxed_items<T: Any>(context: &mut Context) -> Option<Vec<Box<dyn Any>>> 
         .take::<Vec<T>>()
         .ok()
         .map(|items| items.into_iter().map(|item| Box::new(item) as Box<dyn Any>).collect())
-}
-
-struct ParallelStageRunner<T, S> {
-    stage: S,
-    item: PhantomData<fn() -> T>,
-}
-
-impl<E, T, S> ParallelRunner<E> for ParallelStageRunner<T, S>
-where
-    T: Any + Send,
-    S: ParallelStage<E, T>,
-    E: From<PipelineError> + Send,
-{
-    fn run_all(
-        &self, context: &mut Context, cancel: &CancelToken, index: usize, on_progress: &dyn Fn(&ProgressEvent),
-    ) -> Result<(), E> {
-        let items = context.take::<Vec<T>>().unwrap_or_default();
-        let total = items.len() as u64;
-        let stage = &self.stage;
-
-        let outcomes: Vec<_> = scope(|scope| {
-            let handles: Vec<_> = items
-                .into_iter()
-                .map(|item| scope.spawn(move || stage.run(item, cancel)))
-                .collect();
-
-            handles.into_iter().map(|handle| handle.join()).collect()
-        });
-
-        let mut processed = 0;
-        let mut failure = None;
-
-        for outcome in outcomes {
-            match outcome {
-                Ok(Ok(())) => {
-                    processed += 1;
-                    on_progress(&ProgressEvent {
-                        stage: index as u32,
-                        subject: None,
-                        current: processed,
-                        total,
-                    });
-                }
-                Ok(Err(error)) => {
-                    if failure.is_none() {
-                        failure = Some(error);
-                    }
-                }
-                Err(_) => {
-                    if failure.is_none() {
-                        failure = Some(PipelineError::StagePanicked.into());
-                    }
-                }
-            }
-        }
-
-        match failure {
-            Some(error) => Err(error),
-            None => Ok(()),
-        }
-    }
-
-    fn rollback(&self) -> Result<(), ErrorKind> {
-        self.stage.rollback()
-    }
 }
