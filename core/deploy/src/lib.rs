@@ -113,12 +113,17 @@ impl Sysroot {
         &self.repo
     }
 
-    pub fn prefix(&self, prefix_digest: &Digest) -> Result<PrefixDeploy, PrefixReadError> {
+    pub fn prefix_database(&self, prefix_digest: &Digest) -> Result<MemoryDatabase, PrefixReadError> {
         let tree = self.repo.open_tree(prefix_digest)?;
 
-        let database_bytes = tree.read_file(DATABASE_PATH)?;
-        let database = MemoryDatabase::open_in_memory(database_bytes)?;
-        let transaction = database.get_transaction()?.ok_or(PrefixReadError::TransactionMissing)?;
+        Ok(MemoryDatabase::open_in_memory(tree.read_file(DATABASE_PATH)?)?)
+    }
+
+    pub fn prefix(&self, prefix_digest: &Digest) -> Result<PrefixDeploy, PrefixReadError> {
+        let transaction = self
+            .prefix_database(prefix_digest)?
+            .get_transaction()?
+            .ok_or(PrefixReadError::TransactionMissing)?;
 
         Ok(PrefixDeploy::read(
             prefix_digest.clone(),
