@@ -4,23 +4,30 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 //! `#[stage]` — on an `impl Stage<E> for …` block, reads the `run` body and generates
-//! `requires()` from every `ctx_get!`/`ctx_take!` and `provides()` from every `context.put(…)`,
-//! so the orchestrator can validate a pipeline's context slots before running it.
+//! `requires()` from every `context.get::<T>()`/`context.take::<T>()` and `provides()` from every
+//! `context.put(…)`, `context.replace(…)` and `context.push(…)` (a pushed `T` provides `Vec<T>`), so the orchestrator can
+//! validate a pipeline's context slots before running it. `context` may only be used through those
+//! calls inside `run`, and one slot type may only be put once; overwriting on purpose is `replace`.
 
 use std::collections::HashMap;
 
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree};
 use quote::{ToTokens, quote};
-use syn::parse::ParseStream;
-use syn::visit::{Visit, visit_expr_method_call, visit_local, visit_macro};
+use syn::visit::{Visit, visit_expr, visit_expr_path, visit_local, visit_macro};
 use syn::{
-    Error, Expr, ExprMethodCall, GenericArgument, Ident, ImplItem, ItemImpl, Local, Macro, Pat, Path,
-    Result as SynResult, Token, Type, parse_macro_input, parse_quote,
+    Error, Expr, ExprMethodCall, ExprPath, GenericArgument, Ident, ImplItem, ItemImpl, Local, Macro, Pat, Path,
+    Result as SynResult, Type, parse_macro_input, parse_quote,
 };
 
 const CONTEXT_RECEIVER: &str = "context";
-const READ_MACROS: &[&str] = &["ctx_get", "ctx_take"];
+
+enum ContextCall {
+    Read,
+    Put,
+    Replace,
+    Push,
+}
 
 #[derive(Default)]
 struct ContextAccess {
@@ -31,28 +38,51 @@ struct ContextAccess {
 }
 
 impl ContextAccess {
-    fn read_macro_type(mac: &Macro) -> Option<SynResult<Type>> {
-        let name = mac.path.segments.last()?.ident.to_string();
-        if !READ_MACROS.contains(&name.as_str()) {
+    fn context_call(call: &ExprMethodCall) -> Option<ContextCall> {
+        let is_context =
+            matches!(call.receiver.as_ref(), Expr::Path(receiver) if receiver.path.is_ident(CONTEXT_RECEIVER));
+        if !is_context {
             return None;
         }
 
-        Some(mac.parse_body_with(|input: ParseStream| {
-            input.parse::<Expr>()?;
-            input.parse::<Token![,]>()?;
-            input.parse::<Type>()
-        }))
+        match call.method.to_string().as_str() {
+            "get" | "take" => Some(ContextCall::Read),
+            "put" => Some(ContextCall::Put),
+            "replace" => Some(ContextCall::Replace),
+            "push" => Some(ContextCall::Push),
+            _ => None,
+        }
     }
 
-    fn put_type(&self, call: &ExprMethodCall) -> SynResult<Type> {
-        if let Some(turbofish) = &call.turbofish {
-            if let Some(GenericArgument::Type(ty)) = turbofish.args.first() {
-                return Ok(ty.clone());
-            }
+    fn turbofish_type(call: &ExprMethodCall) -> Option<Type> {
+        match call.turbofish.as_ref()?.args.first()? {
+            GenericArgument::Type(ty) => Some(ty.clone()),
+            _ => None,
+        }
+    }
+
+    fn read_type(call: &ExprMethodCall) -> SynResult<Type> {
+        Self::turbofish_type(call).ok_or_else(|| {
+            Error::new_spanned(
+                call,
+                format!(
+                    "#[stage]: write context.{}::<Type>() so the slot type is visible",
+                    call.method
+                ),
+            )
+        })
+    }
+
+    fn written_type(&self, call: &ExprMethodCall) -> SynResult<Type> {
+        if let Some(ty) = Self::turbofish_type(call) {
+            return Ok(ty);
         }
 
         let Some(argument) = call.args.first() else {
-            return Err(Error::new_spanned(call, "#[stage]: context.put(…) without an argument"));
+            return Err(Error::new_spanned(
+                call,
+                format!("#[stage]: context.{}(…) without an argument", call.method),
+            ));
         };
 
         let slot_type = match argument {
@@ -72,9 +102,28 @@ impl ContextAccess {
         slot_type.ok_or_else(|| {
             Error::new_spanned(
                 argument,
-                "#[stage]: can't tell the slot type of this context.put(…); write context.put::<Type>(…)",
+                format!(
+                    "#[stage]: can't tell the slot type of this context.{0}(…); write context.{0}::<Type>(…)",
+                    call.method
+                ),
             )
         })
+    }
+
+    fn bound_read_type(init: &Expr) -> Option<Type> {
+        let call = match init {
+            Expr::Try(expr_try) => expr_try.expr.as_ref(),
+            other => other,
+        };
+
+        let Expr::MethodCall(call) = call else {
+            return None;
+        };
+
+        match Self::context_call(call) {
+            Some(ContextCall::Read) => Self::turbofish_type(call),
+            _ => None,
+        }
     }
 
     fn path_type(path: &Path) -> Type {
@@ -89,43 +138,98 @@ impl ContextAccess {
                 .starts_with(|first: char| first.is_ascii_uppercase())
         })
     }
+
+    fn mentions_context(tokens: TokenStream2) -> bool {
+        tokens.into_iter().any(|token| match token {
+            TokenTree::Ident(ident) => ident == CONTEXT_RECEIVER,
+            TokenTree::Group(group) => Self::mentions_context(group.stream()),
+            _ => false,
+        })
+    }
+
+    fn record(&mut self, call: &ExprMethodCall, kind: ContextCall) {
+        let result = match kind {
+            ContextCall::Read => Self::read_type(call).map(|ty| self.requires.push(ty)),
+            ContextCall::Put => self.written_type(call).and_then(|ty| self.provide_once(call, ty)),
+            ContextCall::Replace => self.written_type(call).map(|ty| self.provides.push(ty)),
+            ContextCall::Push => self
+                .written_type(call)
+                .map(|ty| self.provides.push(parse_quote!(Vec<#ty>))),
+        };
+
+        if let Err(error) = result {
+            self.errors.push(error);
+        }
+    }
+
+    fn provide_once(&mut self, call: &ExprMethodCall, ty: Type) -> SynResult<()> {
+        let key = ty.to_token_stream().to_string();
+
+        if self
+            .provides
+            .iter()
+            .any(|provided| provided.to_token_stream().to_string() == key)
+        {
+            return Err(Error::new_spanned(
+                call,
+                format!("#[stage]: `{key}` is already put by this stage; overwrite it on purpose with context.replace"),
+            ));
+        }
+
+        self.provides.push(ty);
+        Ok(())
+    }
 }
 
 impl<'ast> Visit<'ast> for ContextAccess {
     fn visit_local(&mut self, local: &'ast Local) {
         if let (Pat::Ident(pat_ident), Some(init)) = (&local.pat, &local.init) {
-            if let Expr::Macro(expr_macro) = init.expr.as_ref() {
-                if let Some(Ok(ty)) = Self::read_macro_type(&expr_macro.mac) {
-                    self.bindings.insert(pat_ident.ident.clone(), ty);
-                }
+            if let Some(ty) = Self::bound_read_type(&init.expr) {
+                self.bindings.insert(pat_ident.ident.clone(), ty);
             }
         }
 
         visit_local(self, local);
     }
 
+    fn visit_expr(&mut self, expr: &'ast Expr) {
+        let Expr::MethodCall(call) = expr else {
+            visit_expr(self, expr);
+            return;
+        };
+
+        let Some(kind) = Self::context_call(call) else {
+            visit_expr(self, expr);
+            return;
+        };
+
+        self.record(call, kind);
+
+        for argument in &call.args {
+            self.visit_expr(argument);
+        }
+    }
+
+    fn visit_expr_path(&mut self, expr_path: &'ast ExprPath) {
+        if expr_path.path.is_ident(CONTEXT_RECEIVER) {
+            self.errors.push(Error::new_spanned(
+                expr_path,
+                "#[stage]: use context only through context.get/take/put/replace/push inside run",
+            ));
+        }
+
+        visit_expr_path(self, expr_path);
+    }
+
     fn visit_macro(&mut self, mac: &'ast Macro) {
-        match Self::read_macro_type(mac) {
-            Some(Ok(ty)) => self.requires.push(ty),
-            Some(Err(error)) => self.errors.push(error),
-            None => {}
+        if Self::mentions_context(mac.tokens.clone()) {
+            self.errors.push(Error::new_spanned(
+                mac,
+                "#[stage]: context can't be passed into a macro; use context.get/take/put/replace/push directly",
+            ));
         }
 
         visit_macro(self, mac);
-    }
-
-    fn visit_expr_method_call(&mut self, call: &'ast ExprMethodCall) {
-        let is_context_put = call.method == "put"
-            && matches!(call.receiver.as_ref(), Expr::Path(receiver) if receiver.path.is_ident(CONTEXT_RECEIVER));
-
-        if is_context_put {
-            match self.put_type(call) {
-                Ok(ty) => self.provides.push(ty),
-                Err(error) => self.errors.push(error),
-            }
-        }
-
-        visit_expr_method_call(self, call);
     }
 }
 
@@ -145,7 +249,7 @@ fn deduplicated(types: Vec<Type>) -> Vec<Type> {
 }
 
 fn type_ids_fn(name: &str, types: &[Type]) -> TokenStream2 {
-    let name = Ident::new(name, proc_macro2::Span::call_site());
+    let name = Ident::new(name, Span::call_site());
 
     quote! {
         fn #name(&self) -> ::std::vec::Vec<::std::any::TypeId> {
@@ -171,11 +275,11 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let mut access = ContextAccess::default();
     access.visit_block(&run.block);
 
-    if let Some(first) = access.errors.into_iter().reduce(|mut combined, error| {
+    if let Some(combined) = access.errors.into_iter().reduce(|mut combined, error| {
         combined.combine(error);
         combined
     }) {
-        return first.to_compile_error().into();
+        return combined.to_compile_error().into();
     }
 
     let requires = type_ids_fn("requires", &deduplicated(access.requires));
