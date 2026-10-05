@@ -282,3 +282,61 @@ fn an_invalid_digest_is_rejected() {
         Err(RepoError::InvalidDigest)
     ));
 }
+
+#[test]
+fn copy_tree_takes_only_the_requested_directory() {
+    let (_scratch, repo) = open_repo("copy-tree");
+    let mut tree = repo.empty_tree();
+    tree.insert_dir("etc", Stat::uninitialized()).unwrap();
+    tree.insert_dir("etc/sub", Stat::uninitialized()).unwrap();
+    tree.insert_file(
+        "etc/sub/conf",
+        &source_file("copy-tree-conf", b"conf"),
+        Stat::uninitialized(),
+    )
+    .unwrap();
+    tree.insert_dir("bin", Stat::uninitialized()).unwrap();
+    tree.insert_file(
+        "bin/tool",
+        &source_file("copy-tree-tool", b"tool"),
+        Stat::uninitialized(),
+    )
+    .unwrap();
+
+    let copy = tree.copy_tree("etc").unwrap();
+
+    assert_eq!(copy.read_file("sub/conf").unwrap(), b"conf");
+    assert!(!copy.contains("bin"));
+    assert!(!copy.contains("etc"));
+}
+
+#[test]
+fn a_copied_tree_has_no_dangling_leaves_and_commits() {
+    let (_scratch, repo) = open_repo("copy-tree-commit");
+    let mut tree = repo.empty_tree();
+    tree.insert_dir("etc", Stat::uninitialized()).unwrap();
+    tree.insert_file(
+        "etc/conf",
+        &source_file("copy-commit-conf", b"conf"),
+        Stat::uninitialized(),
+    )
+    .unwrap();
+    tree.insert_file(
+        "other",
+        &source_file("copy-commit-other", b"other"),
+        Stat::uninitialized(),
+    )
+    .unwrap();
+
+    let digest = tree.copy_tree("etc").unwrap().commit().unwrap();
+
+    assert_eq!(repo.open_tree(&digest).unwrap().read_file("conf").unwrap(), b"conf");
+}
+
+#[test]
+fn copying_a_missing_directory_is_not_found() {
+    let (_scratch, repo) = open_repo("copy-tree-missing");
+    let tree = repo.empty_tree();
+
+    assert!(matches!(tree.copy_tree("etc"), Err(RepoError::NotFound)));
+}

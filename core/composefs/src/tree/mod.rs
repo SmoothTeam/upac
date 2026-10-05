@@ -140,6 +140,16 @@ impl Tree {
         Ok(())
     }
 
+    pub fn copy_tree(&self, path: impl AsRef<Path>) -> Result<Tree, RepoError> {
+        let path = path.as_ref();
+        let source_dir = self.filesystem.root.get_directory(path.as_os_str())?;
+
+        let mut copy = Tree::new(self.repo.clone(), FileSystem::new(source_dir.stat.clone()));
+        copy.copy_entries(Path::new(""), self, path)?;
+
+        Ok(copy)
+    }
+
     pub fn remove(&mut self, path: impl AsRef<Path>) -> Result<(), RepoError> {
         let (parent, filename) = self.filesystem.root.split_mut(path.as_ref().as_os_str())?;
         parent.remove(filename);
@@ -168,6 +178,23 @@ impl Tree {
 
         let (parent, filename) = self.filesystem.root.split_mut(path.as_os_str())?;
         parent.insert(filename, Inode::leaf(leaf_id));
+
+        Ok(())
+    }
+
+    fn copy_entries(&mut self, path: &Path, source: &Tree, source_path: &Path) -> Result<(), RepoError> {
+        for (name, inode) in source.entries(source_path)? {
+            let child_path = path.join(name);
+            let source_child_path = source_path.join(name);
+
+            match inode {
+                Inode::Directory(directory) => {
+                    self.insert_dir(&child_path, directory.stat.clone())?;
+                    self.copy_entries(&child_path, source, &source_child_path)?;
+                }
+                Inode::Leaf(..) => self.copy_leaf(&child_path, source, &source_child_path)?,
+            }
+        }
 
         Ok(())
     }
