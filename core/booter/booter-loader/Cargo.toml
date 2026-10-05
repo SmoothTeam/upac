@@ -5,7 +5,7 @@
 
 [package]
 name = "upac-lib-booter-loader"
-description = "Loads upac's boot plugins (dlopen via manifests or statically linked) and writes composefs boot entries to the ESP"
+description = "Loads upac's boot plugins (dlopen via manifests or statically linked)"
 version.workspace = true
 
 edition.workspace = true
@@ -29,27 +29,17 @@ workspace = true
 name = "upac_boot_loader"
 
 [dependencies]
-upac-lib-types     = { workspace = true }
-upac-lib-abi       = { workspace = true }
-upac-lib-composefs = { workspace = true }
+upac-lib-types = { workspace = true }
+upac-lib-abi   = { workspace = true }
 
 upac-booters-uki          = { workspace = true, optional = true }
 upac-booters-systemd-boot = { workspace = true, optional = true }
 upac-booters-grub         = { workspace = true, optional = true }
 upac-booters-refind       = { workspace = true, optional = true }
 
-libloading     = { workspace = true, optional = true }
-composefs      = { workspace = true }
-composefs-boot = { workspace = true }
-anyhow         = { workspace = true }
-serde          = { workspace = true }
-toml           = { workspace = true }
-
-rsmount = "0.2"
-
-[dev-dependencies]
-nix      = { workspace = true }
-tempfile = { workspace = true }
+libloading = { workspace = true, optional = true }
+serde      = { workspace = true }
+toml       = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }

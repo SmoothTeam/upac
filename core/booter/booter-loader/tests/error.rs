@@ -5,7 +5,7 @@
 
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
-use upac_boot_loader::error::{BootPluginError, EspError};
+use upac_boot_loader::error::BootPluginError;
 
 use upac_types::booter::BootError;
 use upac_types::error::ErrorKind;
@@ -54,10 +54,4 @@ fn every_variant_maps_to_the_documented_error_kind() {
     for (error, expected) in cases {
         assert_eq!(ErrorKind::from(error), expected);
     }
-}
-
-#[test]
-fn esp_errors_map_to_the_documented_error_kind() {
-    assert_eq!(ErrorKind::from(EspError::MountInfoUnavailable), ErrorKind::Unexpected);
-    assert_eq!(ErrorKind::from(EspError::NotFound), ErrorKind::NotFound);
 }

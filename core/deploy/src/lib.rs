@@ -7,10 +7,16 @@ use std::fs::{create_dir, read_dir, read_to_string, remove_dir_all};
 use std::io::ErrorKind as IoErrorKind;
 use std::path::{Path, PathBuf};
 
+use composefs_boot::bootloader::{BootEntry, get_boot_resources};
+use composefs_boot::cmdline::ComposefsCmdline;
+use composefs_boot::write_boot::write_boot_simple;
+
 use nix::mount::{MsFlags, mount};
 use nix::sched::{CloneFlags, unshare};
 
 use rsmount::tables::MountInfo;
+
+use upac_types::booter::BootResourceKind;
 
 use upac_composefs::error::RepoError;
 use upac_composefs::fs::WrittenFile;
@@ -20,15 +26,18 @@ use upac_database::MemoryDatabase;
 use upac_database::layout::database::DATABASE_PATH;
 use upac_database::transaction::TransactionStore;
 
+use self::boot::{WrittenBootEntry, wrap_under_usr};
 use self::deployment::Deployment;
 use self::deployment::PrefixDeploy;
 use self::deployment::meta::PrefixPointer;
-use self::error::{PrefixCreateError, PrefixMetaError, PrefixReadError, SysrootError};
+use self::error::{BootEntryError, PrefixCreateError, PrefixMetaError, PrefixReadError, SysrootError};
+use self::layout::boot::UPAC_UKI_TO_SLOT;
 use self::layout::deployment::{
     CONFIG_DIR_NAME, DEPLOYS_DIR, LIVE_ETC_UPPER_DIR_NAME, NEXT_PREFIX_FILENAME, REPO_DIR, ROOT_DIR,
     RUNNING_PREFIX_PATH, SYSROOT_DIR,
 };
 
+pub mod boot;
 pub mod deployment;
 pub mod error;
 pub mod layout {
@@ -194,5 +203,49 @@ impl Sysroot {
             .join(prefix_digest.to_hex())
             .join(CONFIG_DIR_NAME)
             .join(LIVE_ETC_UPPER_DIR_NAME)
+    }
+
+    pub fn write_boot_entry(
+        &self, prefix_digest: &Digest, esp_dir: &Path, wanted: BootResourceKind,
+    ) -> Result<WrittenBootEntry, BootEntryError> {
+        let tree = self.repo.open_tree(prefix_digest)?;
+        let entries = get_boot_resources(&wrap_under_usr(tree.upstream()), self.repo.upstream())?;
+
+        if entries.is_empty() {
+            return Err(BootEntryError::NoBootResource);
+        }
+
+        let mut matching: Vec<_> = entries
+            .into_iter()
+            .filter_map(|entry| {
+                let written = match (wanted, &entry) {
+                    (BootResourceKind::Uki, BootEntry::Type2(_)) => WrittenBootEntry::Uki(UPAC_UKI_TO_SLOT.to_owned()),
+                    (BootResourceKind::Bls, BootEntry::Type1(_) | BootEntry::UsrLibModulesVmLinuz(_)) => {
+                        WrittenBootEntry::Bls(prefix_digest.to_hex())
+                    }
+                    _ => return None,
+                };
+
+                Some((entry, written))
+            })
+            .collect();
+
+        if matching.len() > 1 {
+            return Err(BootEntryError::AmbiguousBootResource);
+        }
+        let (entry, written) = matching.pop().ok_or(BootEntryError::UnsupportedBootResource)?;
+
+        let kernel_arguments = ComposefsCmdline::new_v2(prefix_digest.object_id().clone(), false);
+        write_boot_simple(
+            self.repo.upstream(),
+            entry,
+            &kernel_arguments,
+            esp_dir,
+            None,
+            Some(written.entry_name()),
+            &[],
+        )?;
+
+        Ok(written)
     }
 }

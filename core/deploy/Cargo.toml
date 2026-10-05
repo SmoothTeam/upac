@@ -5,7 +5,7 @@
 
 [package]
 name = "upac-lib-deploy"
-description = "upac's deployment partition: sysroot discovery, deploy directories, deploy records and retention"
+description = "upac's deployment partition: sysroot discovery, prefix and config deploys, boot entries"
 version.workspace = true
 
 edition.workspace = true
@@ -34,15 +34,17 @@ upac-lib-abi       = { workspace = true }
 upac-lib-composefs = { workspace = true }
 upac-lib-database  = { workspace = true }
 
-nix   = { workspace = true }
-serde = { workspace = true }
+composefs      = { workspace = true }
+composefs-boot = { workspace = true }
+anyhow         = { workspace = true }
+nix            = { workspace = true }
+serde          = { workspace = true }
 
 serde_json = "1.0.151"
 rsmount    = "0.2"
 
 [dev-dependencies]
-composefs = { workspace = true }
-tempfile  = { workspace = true }
+tempfile = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }

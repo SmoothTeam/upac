@@ -29,9 +29,7 @@ mod manifest;
 #[cfg(feature = "builtin-booters")]
 mod static_link;
 
-pub mod entry;
 pub mod error;
-pub mod esp;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }

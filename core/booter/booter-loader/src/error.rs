@@ -6,8 +6,6 @@
 use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 
-use rsmount::errors::MountInfoError;
-
 use toml::de::Error as TomlError;
 
 use upac_types::booter::BootError;
@@ -52,27 +50,6 @@ impl From<BootPluginError> for ErrorKind {
             BootPluginError::DuplicateName(_) => ErrorKind::InvalidEntry,
             BootPluginError::UnknownName(_) => ErrorKind::NotFound,
             BootPluginError::NoClaimant => ErrorKind::NotFound,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EspError {
-    MountInfoUnavailable,
-    NotFound,
-}
-
-impl From<MountInfoError> for EspError {
-    fn from(_: MountInfoError) -> Self {
-        EspError::MountInfoUnavailable
-    }
-}
-
-impl From<EspError> for ErrorKind {
-    fn from(error: EspError) -> Self {
-        match error {
-            EspError::MountInfoUnavailable => ErrorKind::Unexpected,
-            EspError::NotFound => ErrorKind::NotFound,
         }
     }
 }

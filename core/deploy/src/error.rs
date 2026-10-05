@@ -5,6 +5,8 @@
 
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
+use anyhow::Error as AnyhowError;
+
 use nix::errno::Errno;
 
 use rsmount::errors::MountInfoError;
@@ -189,6 +191,60 @@ impl From<PrefixCreateError> for ErrorKind {
         match error {
             PrefixCreateError::AlreadyExists(_) => ErrorKind::InvalidEntry,
             PrefixCreateError::Meta(error) => error.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BootEntryError {
+    NoBootResource,
+    AmbiguousBootResource,
+    UnsupportedBootResource,
+    Repository(RepoError),
+    Unexpected,
+}
+
+impl From<RepoError> for BootEntryError {
+    fn from(error: RepoError) -> Self {
+        BootEntryError::Repository(error)
+    }
+}
+
+impl From<AnyhowError> for BootEntryError {
+    fn from(_: AnyhowError) -> Self {
+        BootEntryError::Unexpected
+    }
+}
+
+impl From<BootEntryError> for ErrorKind {
+    fn from(error: BootEntryError) -> Self {
+        match error {
+            BootEntryError::NoBootResource => ErrorKind::NotFound,
+            BootEntryError::AmbiguousBootResource => ErrorKind::InvalidEntry,
+            BootEntryError::UnsupportedBootResource => ErrorKind::InvalidEntry,
+            BootEntryError::Repository(error) => error.into(),
+            BootEntryError::Unexpected => ErrorKind::Unexpected,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EspError {
+    MountInfoUnavailable,
+    NotFound,
+}
+
+impl From<MountInfoError> for EspError {
+    fn from(_: MountInfoError) -> Self {
+        EspError::MountInfoUnavailable
+    }
+}
+
+impl From<EspError> for ErrorKind {
+    fn from(error: EspError) -> Self {
+        match error {
+            EspError::MountInfoUnavailable => ErrorKind::Unexpected,
+            EspError::NotFound => ErrorKind::NotFound,
         }
     }
 }
