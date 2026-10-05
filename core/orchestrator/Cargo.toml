@@ -30,9 +30,11 @@ name = "upac_orchestrator"
 
 [dependencies]
 upac-lib-types = { workspace = true }
-upac-lib-abi   = { workspace = true }
 
 nix = { workspace = true }
+
+[dev-dependencies]
+upac-lib-macro = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }

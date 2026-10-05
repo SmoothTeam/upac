@@ -8,6 +8,7 @@ use std::collections::HashSet;
 
 use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
+use upac_types::progress::ProgressEvent;
 use upac_types::traits::CommandState;
 
 use self::context::Context;
@@ -15,7 +16,6 @@ use self::error::PipelineError;
 use self::lock::{Lock, LockError};
 use self::orchestrator::Orchestrator;
 use self::pipeline::{EachStep, ParallelRunner, Step, StepKind};
-use self::progress::ProgressEventBuilder;
 use self::stage::Stage;
 
 mod layout {
@@ -27,7 +27,6 @@ pub mod context;
 pub mod error;
 pub mod lock;
 pub mod pipeline;
-pub mod progress;
 pub mod stage;
 
 pub type StagePipelineError = TypeId;
@@ -47,7 +46,9 @@ impl<E> StartedStage<'_, E> {
 }
 
 pub trait OrchestratorRun<E: From<PipelineError> + 'static>: Orchestrator<E> + Sized {
-    fn run_mutating<S: CommandState>(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (S, E)>
+    fn run_mutating<S: CommandState>(
+        self, context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
+    ) -> Result<(), (S, E)>
     where
         E: From<LockError>,
     {
@@ -56,11 +57,13 @@ pub trait OrchestratorRun<E: From<PipelineError> + 'static>: Orchestrator<E> + S
 
         let _lock = Lock::acquire().map_err(|lock_error| (S::VALIDATION, E::from(lock_error)))?;
 
-        self.execute(context, cancel)
+        self.execute(context, cancel, on_progress)
             .map_err(|(index, error)| (S::from_stage_index(index), error))
     }
 
-    fn run_unmutated<R: Any, S: CommandState>(self, context: &mut Context, cancel: &CancelToken) -> Result<R, (S, E)> {
+    fn run_unmutated<R: Any, S: CommandState>(
+        self, context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
+    ) -> Result<R, (S, E)> {
         let available = self
             .validate(context)
             .map_err(|_| (S::VALIDATION, E::from(PipelineError::PipelineInvalid)))?;
@@ -69,7 +72,7 @@ pub trait OrchestratorRun<E: From<PipelineError> + 'static>: Orchestrator<E> + S
             return Err((S::VALIDATION, PipelineError::PipelineInvalid.into()));
         }
 
-        self.execute(context, cancel)
+        self.execute(context, cancel, on_progress)
             .map_err(|(index, error)| (S::from_stage_index(index), error))?;
 
         context.take::<R>().map_err(|error| (S::VALIDATION, error.into()))
@@ -119,10 +122,12 @@ impl<E: From<PipelineError> + 'static> Orchestrator<E> for SequentialOrchestrato
         Ok(available)
     }
 
-    fn execute(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)> {
+    fn execute(
+        self, context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
+    ) -> Result<(), (usize, E)> {
         let mut started = Vec::new();
 
-        Self::run_steps(&self.steps, context, cancel, &mut started)
+        Self::run_steps(&self.steps, context, cancel, on_progress, &mut started)
             .map_err(|(index, error)| (index, Self::unwind(&started, context, error)))
     }
 }
@@ -141,7 +146,8 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
     }
 
     fn run_steps<'run>(
-        steps: &'run [Step<E>], context: &mut Context, cancel: &CancelToken, started: &mut Vec<StartedStage<'run, E>>,
+        steps: &'run [Step<E>], context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
+        started: &mut Vec<StartedStage<'run, E>>,
     ) -> Result<(), (usize, E)> {
         let mut index = 0;
 
@@ -151,21 +157,19 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
                     Self::check_cancel(cancel, index)?;
                     started.push(StartedStage::Sequential(stage.as_ref()));
 
-                    let before = ProgressEventBuilder::new(index as u32);
-                    let progress = ProgressEventBuilder::new(index as u32);
-
-                    Self::run_stage(stage.as_ref(), context, cancel, before, progress)
+                    Self::report(on_progress, index, 0, 0);
+                    Self::run_stage(stage.as_ref(), index, context, cancel, on_progress)
                         .map_err(|error| (index, error))?;
                 }
-                StepKind::Each(each) => Self::run_each(each, index, context, cancel, started)?,
+                StepKind::Each(each) => Self::run_each(each, index, context, cancel, on_progress, started)?,
                 StepKind::Parallel(parallel) => {
                     Self::check_cancel(cancel, index)?;
                     started.push(StartedStage::Parallel(parallel.runner.as_ref()));
 
-                    context.send_progress(&ProgressEventBuilder::new(index as u32));
+                    Self::report(on_progress, index, 0, 0);
                     parallel
                         .runner
-                        .run_all(context, cancel, index)
+                        .run_all(context, cancel, index, on_progress)
                         .map_err(|error| (index, error))?;
                 }
             }
@@ -178,7 +182,7 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
 
     fn run_each<'run>(
         each: &'run EachStep<E>, first_index: usize, context: &mut Context, cancel: &CancelToken,
-        started: &mut Vec<StartedStage<'run, E>>,
+        on_progress: &dyn Fn(&ProgressEvent), started: &mut Vec<StartedStage<'run, E>>,
     ) -> Result<(), (usize, E)> {
         let items = (each.take_items)(context).unwrap_or_default();
         let total = items.len() as u64;
@@ -196,10 +200,9 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
                     started.push(StartedStage::Sequential(stage.as_ref()));
                 }
 
-                let before = ProgressEventBuilder::new(index as u32).progress(position as u64, total);
-                let progress = ProgressEventBuilder::new(index as u32).progress(position as u64 + 1, total);
-
-                Self::run_stage(stage.as_ref(), context, cancel, before, progress).map_err(|error| (index, error))?;
+                Self::report(on_progress, index, position as u64, total);
+                Self::run_stage(stage.as_ref(), index, context, cancel, on_progress).map_err(|error| (index, error))?;
+                Self::report(on_progress, index, position as u64 + 1, total);
             }
 
             context.discard(each.item_type);
@@ -209,15 +212,28 @@ impl<E: From<PipelineError> + 'static> SequentialOrchestrator<E> {
     }
 
     fn run_stage(
-        stage: &dyn Stage<E>, context: &mut Context, cancel: &CancelToken, before: ProgressEventBuilder,
-        progress: ProgressEventBuilder,
+        stage: &dyn Stage<E>, index: usize, context: &mut Context, cancel: &CancelToken,
+        on_progress: &dyn Fn(&ProgressEvent),
     ) -> Result<(), E> {
-        context.send_progress(&before);
+        let stage_progress = |subject: Option<&str>, current: u64, total: u64| {
+            on_progress(&ProgressEvent {
+                stage: index as u32,
+                subject,
+                current,
+                total,
+            })
+        };
 
-        let progress = stage.run(context, cancel, progress)?;
-        context.send_progress(&progress);
+        stage.run(context, cancel, &stage_progress)
+    }
 
-        Ok(())
+    fn report(on_progress: &dyn Fn(&ProgressEvent), index: usize, current: u64, total: u64) {
+        on_progress(&ProgressEvent {
+            stage: index as u32,
+            subject: None,
+            current,
+            total,
+        });
     }
 
     fn check_cancel(cancel: &CancelToken, index: usize) -> Result<(), (usize, E)> {

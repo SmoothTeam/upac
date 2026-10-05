@@ -3,11 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_macro::CEnum;
+use upac_abi::hook::CProgressEvent;
 
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum HookAck {
-    Delivered = 0,
-    Retry = 1,
+use upac_macro::RustToC;
+
+#[derive(Debug, Clone, PartialEq, Eq, RustToC)]
+pub struct ProgressEvent<'event> {
+    pub stage: u32,
+    pub subject: Option<&'event str>,
+    pub current: u64,
+    pub total: u64,
 }

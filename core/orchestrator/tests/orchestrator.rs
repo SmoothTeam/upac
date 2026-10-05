@@ -4,22 +4,24 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::any::TypeId;
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use upac_types::CancelToken;
 use upac_types::error::{ErrorDomain, ErrorKind};
-
+use upac_types::progress::ProgressEvent;
 use upac_types::traits::CommandState;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::error::PipelineError;
 use upac_orchestrator::pipeline::Step;
-use upac_orchestrator::progress::ProgressEventBuilder;
 use upac_orchestrator::stage::{ParallelStage, Stage};
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 type Log = Arc<Mutex<Vec<String>>>;
+
+type ReportedEvent = (u32, Option<String>, u64, u64);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TestError {
@@ -65,11 +67,11 @@ impl Stage<TestError> for FinishStage {
     }
 
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         context.put(Done);
 
-        Ok(progress)
+        Ok(())
     }
 }
 
@@ -80,11 +82,11 @@ struct RecordingStage {
 
 impl Stage<TestError> for RecordingStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, _context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         self.log.lock().unwrap().push(format!("run:{}", self.label));
 
-        Ok(progress)
+        Ok(())
     }
 
     fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
@@ -101,8 +103,8 @@ struct FailingStage {
 
 impl Stage<TestError> for FailingStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, _progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, _context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         self.log.lock().unwrap().push(format!("run:{}", self.label));
 
         Err(TestError::Stage(self.label))
@@ -126,12 +128,12 @@ impl Stage<TestError> for ItemRecordingStage {
     }
 
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         let item = context.get::<u32>()?;
         self.log.lock().unwrap().push(format!("{}:{item}", self.label));
 
-        Ok(progress)
+        Ok(())
     }
 
     fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
@@ -152,15 +154,15 @@ impl Stage<TestError> for FailOnItemStage {
     }
 
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         let item = *context.get::<u32>()?;
 
         if item == self.fail_on {
             return Err(TestError::Stage("fail-on-item"));
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
@@ -182,12 +184,12 @@ impl Stage<TestError> for PushingStage {
     }
 
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         let item = *context.get::<u32>()?;
         context.push(u64::from(item) * 10);
 
-        Ok(progress)
+        Ok(())
     }
 }
 
@@ -201,12 +203,12 @@ impl Stage<TestError> for WideItemRecordingStage {
     }
 
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         let item = context.get::<u64>()?;
         self.log.lock().unwrap().push(format!("wide:{item}"));
 
-        Ok(progress)
+        Ok(())
     }
 }
 
@@ -214,11 +216,11 @@ struct CancellingStage;
 
 impl Stage<TestError> for CancellingStage {
     fn run(
-        &self, _context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, _context: &mut Context, cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         cancel.cancel();
 
-        Ok(progress)
+        Ok(())
     }
 }
 
@@ -226,9 +228,9 @@ struct BrokenRollbackStage;
 
 impl Stage<TestError> for BrokenRollbackStage {
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
-        Ok(progress)
+        &self, _context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
+        Ok(())
     }
 
     fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
@@ -246,11 +248,11 @@ impl Stage<TestError> for ProvidesMarkerStage {
     }
 
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         context.put(Marker);
 
-        Ok(progress)
+        Ok(())
     }
 }
 
@@ -264,11 +266,11 @@ impl Stage<TestError> for RequiresMarkerStage {
     }
 
     fn run(
-        &self, _context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+        &self, _context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
         self.log.lock().unwrap().push("run:requires-marker".to_owned());
 
-        Ok(progress)
+        Ok(())
     }
 }
 
@@ -278,12 +280,10 @@ struct ParallelRecordingStage {
 }
 
 impl ParallelStage<TestError, u32> for ParallelRecordingStage {
-    fn run(
-        &self, item: u32, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+    fn run(&self, item: u32, _cancel: &CancelToken) -> Result<(), TestError> {
         self.seen.lock().unwrap().push(item);
 
-        Ok(progress)
+        Ok(())
     }
 
     fn rollback(&self) -> Result<(), ErrorKind> {
@@ -299,14 +299,12 @@ struct ParallelFailingStage {
 }
 
 impl ParallelStage<TestError, u32> for ParallelFailingStage {
-    fn run(
-        &self, item: u32, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+    fn run(&self, item: u32, _cancel: &CancelToken) -> Result<(), TestError> {
         if item == self.fail_on {
             return Err(TestError::Stage("parallel"));
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     fn rollback(&self) -> Result<(), ErrorKind> {
@@ -319,10 +317,21 @@ impl ParallelStage<TestError, u32> for ParallelFailingStage {
 struct ParallelPanickingStage;
 
 impl ParallelStage<TestError, u32> for ParallelPanickingStage {
-    fn run(
-        &self, _item: u32, _cancel: &CancelToken, _progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, TestError> {
+    fn run(&self, _item: u32, _cancel: &CancelToken) -> Result<(), TestError> {
         panic!("parallel stage panicked on purpose");
+    }
+}
+
+struct ReportingStage;
+
+impl Stage<TestError> for ReportingStage {
+    fn run(
+        &self, _context: &mut Context, _cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
+        progress(Some("first"), 1, 2);
+        progress(Some("second"), 2, 2);
+
+        Ok(())
     }
 }
 
@@ -334,12 +343,30 @@ fn logged(log: &Log) -> Vec<String> {
     log.lock().unwrap().clone()
 }
 
+fn run_reporting(steps: Vec<Step<TestError>>, context: &mut Context) -> Vec<ReportedEvent> {
+    let reported = RefCell::new(Vec::new());
+    let on_progress = |event: &ProgressEvent| {
+        reported.borrow_mut().push((
+            event.stage,
+            event.subject.map(str::to_owned),
+            event.current,
+            event.total,
+        ));
+    };
+
+    let result =
+        SequentialOrchestrator::new(steps).run_unmutated::<Done, TestState>(context, &CancelToken::new(), &on_progress);
+    assert!(result.is_ok());
+
+    reported.into_inner()
+}
+
 fn run(
     mut steps: Vec<Step<TestError>>, context: &mut Context, cancel: &CancelToken,
 ) -> Result<Done, (TestState, TestError)> {
     steps.push(Step::once(Box::new(FinishStage)));
 
-    SequentialOrchestrator::new(steps).run_unmutated(context, cancel)
+    SequentialOrchestrator::new(steps).run_unmutated(context, cancel, &|_| {})
 }
 
 #[test]
@@ -681,7 +708,7 @@ fn run_unmutated_rejects_a_pipeline_that_never_provides_the_result() {
         log: Arc::clone(&log)
     }]);
 
-    let result = orchestrator.run_unmutated::<Done, TestState>(&mut Context::default(), &CancelToken::new());
+    let result = orchestrator.run_unmutated::<Done, TestState>(&mut Context::default(), &CancelToken::new(), &|_| {});
 
     assert_eq!(
         result.err(),
@@ -801,4 +828,76 @@ fn put_into_an_occupied_slot_panics_in_debug_builds() {
     let mut context = Context::default();
     context.put(1u32);
     context.put(2u32);
+}
+
+#[test]
+fn a_stage_reports_its_own_progress_under_its_index() {
+    let reported = run_reporting(stages![ReportingStage, FinishStage], &mut Context::default());
+
+    assert_eq!(
+        reported,
+        vec![
+            (0, None, 0, 0),
+            (0, Some("first".to_owned()), 1, 2),
+            (0, Some("second".to_owned()), 2, 2),
+            (1, None, 0, 0),
+        ]
+    );
+}
+
+#[test]
+fn each_reports_the_item_position_around_every_body_stage() {
+    let log = new_log();
+    let mut context = Context::default();
+    context.put(vec![7u32, 8u32]);
+
+    let reported = run_reporting(
+        stages![
+            each::<u32>(ItemRecordingStage {
+                label: "item",
+                log: Arc::clone(&log)
+            }),
+            FinishStage,
+        ],
+        &mut context,
+    );
+
+    assert_eq!(
+        reported,
+        vec![
+            (0, None, 0, 2),
+            (0, None, 1, 2),
+            (0, None, 1, 2),
+            (0, None, 2, 2),
+            (1, None, 0, 0),
+        ]
+    );
+}
+
+#[test]
+fn parallel_reports_every_finished_item() {
+    let mut context = Context::default();
+    context.put(vec![1u32, 2u32, 3u32]);
+
+    let reported = run_reporting(
+        stages![
+            parallel::<u32>(ParallelRecordingStage {
+                seen: Arc::new(Mutex::new(Vec::new())),
+                rolled_back: Arc::new(AtomicUsize::new(0)),
+            }),
+            FinishStage,
+        ],
+        &mut context,
+    );
+
+    assert_eq!(
+        reported,
+        vec![
+            (0, None, 0, 0),
+            (0, None, 1, 3),
+            (0, None, 2, 3),
+            (0, None, 3, 3),
+            (1, None, 0, 0),
+        ]
+    );
 }

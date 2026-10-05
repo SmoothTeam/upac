@@ -8,7 +8,6 @@ use upac_abi::error::AbiError;
 use upac_types::booter::BootResourceKind;
 use upac_types::diff::PackageDiffKind;
 use upac_types::error::{ErrorDomain, ErrorKind};
-use upac_types::progress::HookAck;
 use upac_types::request::format::FsKind;
 
 #[test]
@@ -28,7 +27,6 @@ fn a_known_value_round_trips_through_its_raw_integer() {
 fn an_out_of_range_value_is_an_invalid_entry() {
     assert_eq!(FsKind::try_from(4), Err(AbiError::InvalidEntry));
     assert_eq!(BootResourceKind::try_from(u8::MAX), Err(AbiError::InvalidEntry));
-    assert_eq!(HookAck::try_from(2), Err(AbiError::InvalidEntry));
     assert_eq!(ErrorDomain::try_from(u32::MAX), Err(AbiError::InvalidEntry));
 }
 

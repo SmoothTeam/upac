@@ -9,7 +9,6 @@ use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
 
 use super::context::Context;
-use super::progress::ProgressEventBuilder;
 
 pub trait Stage<E> {
     fn requires(&self) -> Vec<TypeId> {
@@ -21,8 +20,8 @@ pub trait Stage<E> {
     }
 
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<ProgressEventBuilder, E>;
+        &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), E>;
 
     fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
         Ok(())
@@ -30,7 +29,7 @@ pub trait Stage<E> {
 }
 
 pub trait ParallelStage<E, T>: Send + Sync {
-    fn run(&self, item: T, cancel: &CancelToken, progress: ProgressEventBuilder) -> Result<ProgressEventBuilder, E>;
+    fn run(&self, item: T, cancel: &CancelToken) -> Result<(), E>;
 
     fn rollback(&self) -> Result<(), ErrorKind> {
         Ok(())

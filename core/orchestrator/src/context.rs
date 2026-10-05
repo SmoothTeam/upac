@@ -6,11 +6,7 @@
 use std::any::{Any, TypeId, type_name};
 use std::collections::{HashMap, HashSet};
 
-use upac_types::progress::HookAck;
-
 use super::error::PipelineError;
-use super::layout::progress::HOOK_RETRY_LIMIT;
-use super::progress::{Message, ProgressEventBuilder};
 
 #[derive(Default)]
 pub struct Context {
@@ -59,18 +55,6 @@ impl Context {
             .and_then(|slot| slot.downcast::<T>().ok())
             .map(|boxed| *boxed)
             .ok_or(PipelineError::MissingResult)
-    }
-
-    pub fn send_progress(&self, progress: &ProgressEventBuilder) {
-        if let Ok(hook) = self.get::<Message>() {
-            let event = progress.build();
-
-            for _ in 0..HOOK_RETRY_LIMIT {
-                if hook.send(&event) != HookAck::Retry {
-                    break;
-                }
-            }
-        }
     }
 
     pub(crate) fn type_ids(&self) -> HashSet<TypeId> {

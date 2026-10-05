@@ -10,9 +10,3 @@
 # as competitors.
 [runtime]
 lock_address = "upac.lock"
-
-# hook_retry_limit bounds how many times send_progress re-sends one progress event while the
-# frontend's hook keeps answering HookAck::Retry, so a hook stuck on Retry can't spin a pipeline
-# forever.
-[progress]
-hook_retry_limit = 1000

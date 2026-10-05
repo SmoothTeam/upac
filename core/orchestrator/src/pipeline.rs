@@ -9,10 +9,10 @@ use std::thread::scope;
 
 use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
+use upac_types::progress::ProgressEvent;
 
 use super::context::Context;
 use super::error::PipelineError;
-use super::progress::ProgressEventBuilder;
 use super::stage::{ParallelStage, Stage};
 
 #[macro_export]
@@ -35,7 +35,9 @@ macro_rules! stages {
 }
 
 pub(crate) trait ParallelRunner<E> {
-    fn run_all(&self, context: &mut Context, cancel: &CancelToken, index: usize) -> Result<(), E>;
+    fn run_all(
+        &self, context: &mut Context, cancel: &CancelToken, index: usize, on_progress: &dyn Fn(&ProgressEvent),
+    ) -> Result<(), E>;
 
     fn rollback(&self) -> Result<(), ErrorKind>;
 }
@@ -123,7 +125,9 @@ where
     S: ParallelStage<E, T>,
     E: From<PipelineError> + Send,
 {
-    fn run_all(&self, context: &mut Context, cancel: &CancelToken, index: usize) -> Result<(), E> {
+    fn run_all(
+        &self, context: &mut Context, cancel: &CancelToken, index: usize, on_progress: &dyn Fn(&ProgressEvent),
+    ) -> Result<(), E> {
         let items = context.take::<Vec<T>>().unwrap_or_default();
         let total = items.len() as u64;
         let stage = &self.stage;
@@ -131,7 +135,7 @@ where
         let outcomes: Vec<_> = scope(|scope| {
             let handles: Vec<_> = items
                 .into_iter()
-                .map(|item| scope.spawn(move || stage.run(item, cancel, ProgressEventBuilder::new(index as u32))))
+                .map(|item| scope.spawn(move || stage.run(item, cancel)))
                 .collect();
 
             handles.into_iter().map(|handle| handle.join()).collect()
@@ -142,9 +146,14 @@ where
 
         for outcome in outcomes {
             match outcome {
-                Ok(Ok(progress)) => {
+                Ok(Ok(())) => {
                     processed += 1;
-                    context.send_progress(&progress.progress(processed, total));
+                    on_progress(&ProgressEvent {
+                        stage: index as u32,
+                        subject: None,
+                        current: processed,
+                        total,
+                    });
                 }
                 Ok(Err(error)) => {
                     if failure.is_none() {

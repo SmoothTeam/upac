@@ -6,13 +6,16 @@
 use std::any::TypeId;
 use std::collections::HashSet;
 
+use upac_types::CancelToken;
+use upac_types::progress::ProgressEvent;
+
 use super::StagePipelineError;
 use super::context::Context;
-
-use upac_types::CancelToken;
 
 pub trait Orchestrator<E> {
     fn validate(&self, context: &Context) -> Result<HashSet<TypeId>, StagePipelineError>;
 
-    fn execute(self, context: &mut Context, cancel: &CancelToken) -> Result<(), (usize, E)>;
+    fn execute(
+        self, context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
+    ) -> Result<(), (usize, E)>;
 }

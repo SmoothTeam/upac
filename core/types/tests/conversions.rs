@@ -6,11 +6,13 @@
 use std::mem::size_of;
 
 use upac_abi::CONSTRAINT_ANY;
+use upac_abi::hook::CProgressEvent;
 use upac_abi::package::{CPackageDependency, CPackageMeta, CVersion};
 use upac_abi::types::{COwned, CSlice};
 
 use upac_types::error::ErrorKind;
 use upac_types::package::{PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement};
+use upac_types::progress::ProgressEvent;
 
 fn sample_version() -> Version {
     Version {
@@ -129,4 +131,31 @@ fn a_bounded_dependency_without_a_version_is_rejected() {
 fn version_constraint_rejects_the_any_and_empty_orderings() {
     assert_eq!(VersionConstraint::from_orderings(true, true, true), None);
     assert_eq!(VersionConstraint::from_orderings(false, false, false), None);
+}
+
+#[test]
+fn a_progress_event_keeps_its_subject_on_the_c_side() {
+    let c_event = CProgressEvent::from(ProgressEvent {
+        stage: 3,
+        subject: Some("glibc"),
+        current: 1,
+        total: 4,
+    });
+
+    assert_eq!(c_event.stage, 3);
+    assert_eq!(unsafe { c_event.subject.as_str() }, Ok("glibc"));
+    assert_eq!((c_event.current, c_event.total), (1, 4));
+    unsafe { c_event.free() };
+}
+
+#[test]
+fn a_progress_event_without_a_subject_has_a_null_subject() {
+    let c_event = CProgressEvent::from(ProgressEvent {
+        stage: 0,
+        subject: None,
+        current: 0,
+        total: 0,
+    });
+
+    assert!(c_event.subject.ptr.is_null());
 }
