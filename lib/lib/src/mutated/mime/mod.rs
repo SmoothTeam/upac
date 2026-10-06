@@ -14,8 +14,6 @@ use self::preparing::PreparingStage;
 use self::rendering::RenderingStage;
 use self::writing::WritingStage;
 
-use crate::report_progress;
-
 mod preparing;
 mod rendering;
 mod writing;
@@ -30,6 +28,6 @@ pub fn run(request: MimeSyncRequest<'_>) -> Result<(), (MimeStateId, ErrorKind)>
     SequentialOrchestrator::new(stages![PreparingStage, RenderingStage, WritingStage]).run_mutating(
         &mut context,
         request.base.cancel_token,
-        &|event| report_progress(&request.base, event),
+        &|event| request.base.report_progress(event),
     )
 }

@@ -16,8 +16,6 @@ use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::stage::SetPinnedStage;
 
-use crate::report_progress;
-
 mod stage;
 
 pub(crate) struct RequestedPrefixDigest(pub Digest);
@@ -36,6 +34,6 @@ pub fn run(request: PinRequest<'_>) -> Result<(), (PinStateId, ErrorKind)> {
     SequentialOrchestrator::new(stages![SetPinnedStage]).run_mutating(
         &mut context,
         request.base.cancel_token,
-        &|event| report_progress(&request.base, event),
+        &|event| request.base.report_progress(event),
     )
 }

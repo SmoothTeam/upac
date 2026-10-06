@@ -14,8 +14,6 @@ use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::transaction::TransactionStage;
 
-use crate::report_progress;
-
 mod transaction;
 
 pub(crate) struct CommitInfo {
@@ -36,6 +34,6 @@ pub fn run(request: CommitRequest<'_>) -> Result<(), (CommitStateId, ErrorKind)>
     SequentialOrchestrator::new(stages![TransactionStage]).run_mutating(
         &mut context,
         request.base.cancel_token,
-        &|event| report_progress(&request.base, event),
+        &|event| request.base.report_progress(event),
     )
 }

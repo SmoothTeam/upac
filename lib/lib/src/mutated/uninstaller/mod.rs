@@ -31,8 +31,6 @@ use super::stages::retention::RetentionStage;
 use super::stages::swap::SwapStage;
 use super::stages::{CommitInfo, RequestedBootPlugin};
 
-use crate::report_progress;
-
 mod commit;
 mod prepare;
 mod remove;
@@ -78,6 +76,6 @@ pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, Error
         },
     ])
     .run_mutating(&mut context, request.base.cancel_token, &|event| {
-        report_progress(&request.base, event)
+        request.base.report_progress(event)
     })
 }

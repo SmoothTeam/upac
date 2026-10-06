@@ -26,8 +26,6 @@ use super::stages::retention::RetentionStage;
 use super::stages::swap::SwapStage;
 use super::stages::{AttachItem, CommitInfo, RequestedBootPlugin, RequestedPackage, ScopedPath};
 
-use crate::report_progress;
-
 mod commit;
 mod put;
 
@@ -75,6 +73,6 @@ pub fn run(request: AttachRequest<'_>) -> Result<(), (AttachStateId, ErrorKind)>
         },
     ])
     .run_mutating(&mut context, request.base.cancel_token, &|event| {
-        report_progress(&request.base, event)
+        request.base.report_progress(event)
     })
 }

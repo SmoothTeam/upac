@@ -26,8 +26,6 @@ use super::stages::retention::RetentionStage;
 use super::stages::swap::SwapStage;
 use super::stages::{CommitInfo, DetachItem, RequestedBootPlugin, RequestedPackage, ScopedPath};
 
-use crate::report_progress;
-
 mod commit;
 mod drop;
 
@@ -70,6 +68,6 @@ pub fn run(request: DetachRequest<'_>) -> Result<(), (DetachStateId, ErrorKind)>
         },
     ])
     .run_mutating(&mut context, request.base.cancel_token, &|event| {
-        report_progress(&request.base, event)
+        request.base.report_progress(event)
     })
 }

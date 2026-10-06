@@ -30,8 +30,6 @@ use super::stages::swap::SwapStage;
 use super::stages::unpack::UnpackStage;
 use super::stages::{CommitInfo, PackageSource, RequestedBootPlugin, UnpackedPackage};
 
-use crate::report_progress;
-
 mod commit;
 mod import;
 
@@ -81,6 +79,6 @@ pub fn run(request: InstallRequest<'_>) -> Result<(), (InstallStateId, ErrorKind
         },
     ])
     .run_mutating(&mut context, request.base.cancel_token, &|event| {
-        report_progress(&request.base, event)
+        request.base.report_progress(event)
     })
 }

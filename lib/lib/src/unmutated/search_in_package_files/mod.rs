@@ -15,7 +15,6 @@ use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::searching::SearchingStage;
 
-use crate::report_progress;
 use crate::search::Search;
 
 mod searching;
@@ -36,6 +35,6 @@ pub fn run(
     SequentialOrchestrator::new(stages![SearchingStage]).run_unmutated(
         &mut context,
         request.base.cancel_token,
-        &|event| report_progress(&request.base, event),
+        &|event| request.base.report_progress(event),
     )
 }

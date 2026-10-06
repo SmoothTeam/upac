@@ -15,8 +15,6 @@ use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::fetching::FetchingStage;
 
-use crate::report_progress;
-
 mod fetching;
 
 pub fn run(request: ListPackagesRequest<'_>) -> Result<ListPackagesResponse, (ListPackagesStateId, ErrorKind)> {
@@ -28,6 +26,6 @@ pub fn run(request: ListPackagesRequest<'_>) -> Result<ListPackagesResponse, (Li
     SequentialOrchestrator::new(stages![FetchingStage]).run_unmutated(
         &mut context,
         request.base.cancel_token,
-        &|event| report_progress(&request.base, event),
+        &|event| request.base.report_progress(event),
     )
 }

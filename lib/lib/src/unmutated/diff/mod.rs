@@ -24,8 +24,6 @@ use self::preparing::PreparingStage;
 
 use super::{RequestedConfigDigestRange, RequestedPrefixDigestRange};
 
-use crate::report_progress;
-
 mod comparing;
 mod preparing;
 
@@ -52,6 +50,6 @@ pub fn run(request: DiffRequest<'_>) -> Result<DiffResponse, (DiffStateId, Error
     SequentialOrchestrator::new(stages![PreparingStage, ComparingStage]).run_unmutated(
         &mut context,
         request.base.cancel_token,
-        &|event| report_progress(&request.base, event),
+        &|event| request.base.report_progress(event),
     )
 }

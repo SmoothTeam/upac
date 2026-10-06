@@ -20,8 +20,6 @@ use self::cleaning::CleaningStage;
 use self::collect::CollectRootsStage;
 use self::pruning::PruneStage;
 
-use crate::report_progress;
-
 mod cleaning;
 mod collect;
 mod pruning;
@@ -44,6 +42,6 @@ pub fn run(request: GcRequest<'_>) -> Result<(), (GcStateId, ErrorKind)> {
         CleaningStage,
     ])
     .run_mutating(&mut context, request.base.cancel_token, &|event| {
-        report_progress(&request.base, event)
+        request.base.report_progress(event)
     })
 }

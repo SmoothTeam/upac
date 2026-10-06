@@ -21,8 +21,6 @@ use super::stages::RequestedBootPlugin;
 use super::stages::checkout::CheckoutStage;
 use super::stages::swap::SwapStage;
 
-use crate::report_progress;
-
 mod select;
 
 pub(crate) struct RequestedConfig {
@@ -48,6 +46,6 @@ pub fn run(request: RollbackRequest<'_>) -> Result<(), (RollbackStateId, ErrorKi
     SequentialOrchestrator::new(stages![SelectStage, CheckoutStage, SwapStage]).run_mutating(
         &mut context,
         request.base.cancel_token,
-        &|event| report_progress(&request.base, event),
+        &|event| request.base.report_progress(event),
     )
 }
