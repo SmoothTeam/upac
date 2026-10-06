@@ -18,6 +18,17 @@ use upac_types::package::{DecodedPackageMeta, VersionConstraint};
 
 const VERIFY_CHUNK_SIZE: usize = 65536;
 
+/// # Safety
+/// `response`, if non-null, must point to a `CDecodeResponse` built by `build_decode_response` in
+/// this same plugin, not yet freed.
+pub unsafe extern "C" fn free_decode_response(response: *mut CDecodeResponse) {
+    if response.is_null() {
+        return;
+    }
+
+    unsafe { (&*response).free() };
+}
+
 pub fn parse_constraint_prefix(
     token: &[u8], operators: &[(&[u8], VersionConstraint)],
 ) -> Option<(VersionConstraint, usize)> {
@@ -59,17 +70,6 @@ pub fn verify(package_path: &str, expected_checksum: [u8; 32], cancel: &CancelTo
     }
 
     Ok(())
-}
-
-/// # Safety
-/// `response`, if non-null, must point to a `CDecodeResponse` built by `build_decode_response` in
-/// this same plugin, not yet freed.
-pub unsafe extern "C" fn free_decode_response(response: *mut CDecodeResponse) {
-    if response.is_null() {
-        return;
-    }
-
-    unsafe { (&*response).free() };
 }
 
 pub fn build_decode_response(decoded: DecodedPackageMeta, triggers: Vec<PackageTrigger>) -> CDecodeResponse {
