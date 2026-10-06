@@ -9,7 +9,7 @@ use anyhow::Error as AnyhowError;
 
 use nix::errno::Errno;
 
-use rsmount::errors::MountInfoError;
+use procfs::ProcError;
 
 use serde_json::Error as SerdeJsonError;
 
@@ -31,8 +31,8 @@ pub enum SysrootError {
     System(Errno),
 }
 
-impl From<MountInfoError> for SysrootError {
-    fn from(_: MountInfoError) -> Self {
+impl From<ProcError> for SysrootError {
+    fn from(_: ProcError) -> Self {
         SysrootError::MountInfoUnavailable
     }
 }
@@ -234,8 +234,8 @@ pub enum EspError {
     NotFound,
 }
 
-impl From<MountInfoError> for EspError {
-    fn from(_: MountInfoError) -> Self {
+impl From<ProcError> for EspError {
+    fn from(_: ProcError) -> Self {
         EspError::MountInfoUnavailable
     }
 }

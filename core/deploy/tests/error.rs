@@ -9,7 +9,7 @@ use anyhow::anyhow;
 
 use nix::errno::Errno;
 
-use rsmount::errors::MountInfoError;
+use procfs::ProcError;
 
 use upac_composefs::error::RepoError;
 
@@ -18,8 +18,8 @@ use upac_deploy::error::{BootEntryError, EspError, SysrootError};
 use upac_types::error::ErrorKind;
 
 #[test]
-fn mount_info_error_maps_to_mount_info_unavailable() {
-    let error = MountInfoError::Creation("boom".to_owned());
+fn a_proc_error_maps_to_mount_info_unavailable() {
+    let error = ProcError::NotFound(None);
 
     assert_eq!(SysrootError::from(error), SysrootError::MountInfoUnavailable);
 }
@@ -77,4 +77,12 @@ fn an_anyhow_error_from_composefs_boot_maps_to_unexpected() {
 fn esp_errors_map_to_the_documented_error_kind() {
     assert_eq!(ErrorKind::from(EspError::MountInfoUnavailable), ErrorKind::Unexpected);
     assert_eq!(ErrorKind::from(EspError::NotFound), ErrorKind::NotFound);
+}
+
+#[test]
+fn a_proc_error_while_looking_for_the_esp_maps_to_mount_info_unavailable() {
+    assert_eq!(
+        EspError::from(ProcError::NotFound(None)),
+        EspError::MountInfoUnavailable
+    );
 }

@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use composefs::generic_tree::Stat;
 use composefs::tree::{Directory, FileSystem, Inode};
 
-use rsmount::tables::MountInfo;
+use procfs::mounts;
 
 use upac_composefs::ObjectID;
 
@@ -37,11 +37,10 @@ impl WrittenBootEntry {
 }
 
 pub fn find_esp_mount() -> Result<PathBuf, EspError> {
-    let mut mount_table = MountInfo::new()?;
-    mount_table.import_mountinfo()?;
+    let mount_entries = mounts()?;
 
     for candidate_for_mount in [ESP_MOUNT_PRIMARY, ESP_MOUNT_FALLBACK] {
-        if mount_table.find_target(candidate_for_mount).is_some() {
+        if mount_entries.iter().any(|entry| entry.fs_file == candidate_for_mount) {
             return Ok(PathBuf::from(candidate_for_mount));
         }
     }

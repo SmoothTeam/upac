@@ -40,8 +40,9 @@ anyhow         = { workspace = true }
 nix            = { workspace = true }
 serde          = { workspace = true }
 
+procfs = { version = "0.18.0", default-features = false }
+
 serde_json = "1.0.151"
-rsmount    = "0.2"
 
 [dev-dependencies]
 tempfile = { workspace = true }

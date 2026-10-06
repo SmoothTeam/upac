@@ -14,7 +14,7 @@ use composefs_boot::write_boot::write_boot_simple;
 use nix::mount::{MsFlags, mount};
 use nix::sched::{CloneFlags, unshare};
 
-use rsmount::tables::MountInfo;
+use procfs::mounts;
 
 use upac_types::booter::BootResourceKind;
 
@@ -68,9 +68,7 @@ impl Sysroot {
     pub fn new(mode: SysrootMode) -> Result<Self, SysrootError> {
         let sysroot_path = Path::new(ROOT_DIR).join(SYSROOT_DIR);
 
-        let mut mount_table = MountInfo::new()?;
-        mount_table.import_mountinfo()?;
-        if mount_table.find_target(&sysroot_path).is_none() {
+        if !mounts()?.iter().any(|entry| Path::new(&entry.fs_file) == sysroot_path) {
             return Err(SysrootError::SysrootNotMounted);
         }
 
