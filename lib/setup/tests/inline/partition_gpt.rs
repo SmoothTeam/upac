@@ -12,7 +12,7 @@ use tempfile::TempDir;
 
 use uuid::Uuid;
 
-use upac_abi::PartitionKind;
+use upac_abi::request::partition::PartitionKind;
 
 use super::{GptTable, find_partition_by_kind, partition_node_path, split_partition_device};
 
@@ -70,7 +70,7 @@ fn split_partition_device_is_the_inverse_of_partition_node_path() {
 fn split_partition_device_rejects_a_whole_disk_name_without_a_partition_number() {
     assert_eq!(
         split_partition_device(Path::new("/dev/sda")),
-        Err(PartitionError::InvalidPartitionLayout)
+        Err(PartitionError::NotAPartition)
     );
 }
 

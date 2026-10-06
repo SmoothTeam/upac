@@ -28,10 +28,15 @@ name = "upac_setup"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-lib       = { workspace = true, default-features = false, features = ["builtin-all-booters", "builtin-all-decoders"] }
-upac-lib-types = { workspace = true }
-upac-lib-abi   = { workspace = true }
-upac-lib-macro = { workspace = true }
+upac-lib-decoder-loader = { workspace = true, features = ["builtin-all-decoders"] }
+upac-lib-booter-loader  = { workspace = true, features = ["builtin-all-booters"] }
+upac-lib-types          = { workspace = true }
+upac-lib-abi            = { workspace = true }
+upac-lib-macro          = { workspace = true }
+upac-lib-composefs      = { workspace = true }
+upac-lib-database       = { workspace = true }
+upac-lib-deploy         = { workspace = true }
+upac-lib-orchestrator   = { workspace = true }
 
 composefs  = { workspace = true }
 nix        = { workspace = true }

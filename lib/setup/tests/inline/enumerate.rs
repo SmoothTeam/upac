@@ -12,10 +12,11 @@ use upac::orchestrator::stage::{Stage, StageResult};
 
 use upac_abi::hook::CancelToken;
 
-use upac_types::TmpPath;
 use upac_types::hook::ProgressEventBuilder;
 
-use super::super::{ConfigState, PrefixTree, ResolvedSourceDir, SetupProgress, UnpackState};
+use super::super::{
+    ConfigTree, PackageDatabase, PackageQueue, PackageScratch, PrefixTree, ResolvedSourceDir, ScratchRoot,
+};
 use super::EnumeratePackagesStage;
 
 #[test]
@@ -25,8 +26,11 @@ fn run_lists_only_files_and_initializes_pipeline_state() {
     write(source.path().join("b.pkg.tar.zst"), b"b").unwrap();
     create_dir_all(source.path().join("not-a-package")).unwrap();
 
+    let scratch_root = TempDir::new().unwrap();
+
     let mut context = Context::new();
     context.put(ResolvedSourceDir(source.path().to_path_buf()));
+    context.put(ScratchRoot(scratch_root.path().to_path_buf()));
 
     let cancel = CancelToken::new();
     let progress = ProgressEventBuilder::new(0);
@@ -35,15 +39,14 @@ fn run_lists_only_files_and_initializes_pipeline_state() {
 
     assert!(matches!(result, StageResult::Advance));
 
-    let setup_progress = context.get::<SetupProgress>().unwrap();
-    assert_eq!(setup_progress.total, 2);
-    assert!(setup_progress.pending.is_empty());
+    let package_queue = context.get::<PackageQueue>().unwrap();
+    assert_eq!(package_queue.total, 2);
+    assert_eq!(package_queue.pending_paths.len(), 2);
+    assert_eq!(package_queue.processed(), 0);
 
-    let unpack_state = context.get::<UnpackState>().unwrap();
-    assert_eq!(unpack_state.pending_paths.len(), 2);
-
-    assert!(context.get::<TmpPath>().is_some());
-    assert!(context.get::<ConfigState>().is_some());
+    assert!(context.get::<PackageScratch>().is_some());
+    assert!(context.get::<ConfigTree>().is_some());
+    assert!(context.get::<PackageDatabase>().is_some());
     assert!(context.get::<PrefixTree>().is_some());
 }
 
@@ -51,19 +54,20 @@ fn run_lists_only_files_and_initializes_pipeline_state() {
 fn run_with_empty_directory_sets_total_to_zero() {
     let source = TempDir::new().unwrap();
 
+    let scratch_root = TempDir::new().unwrap();
+
     let mut context = Context::new();
     context.put(ResolvedSourceDir(source.path().to_path_buf()));
+    context.put(ScratchRoot(scratch_root.path().to_path_buf()));
 
     let cancel = CancelToken::new();
     let progress = ProgressEventBuilder::new(0);
 
     EnumeratePackagesStage.run(&mut context, &cancel, progress).unwrap();
 
-    let setup_progress = context.get::<SetupProgress>().unwrap();
-    assert_eq!(setup_progress.total, 0);
-
-    let unpack_state = context.get::<UnpackState>().unwrap();
-    assert!(unpack_state.pending_paths.is_empty());
+    let package_queue = context.get::<PackageQueue>().unwrap();
+    assert_eq!(package_queue.total, 0);
+    assert!(package_queue.pending_paths.is_empty());
 }
 
 #[test]

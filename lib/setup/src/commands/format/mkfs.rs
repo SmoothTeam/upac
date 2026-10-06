@@ -3,36 +3,34 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac::orchestrator::context::{Context, ctx_get};
-use upac::orchestrator::stage::{NoRollback, RollbackGuard, Stage, StageResult};
+use upac_types::CancelToken;
+use upac_types::error::ErrorKind;
 
-use upac_abi::hook::CancelToken;
+use upac_macro::stage;
 
-use upac_types::hook::ProgressEventBuilder;
+use upac_orchestrator::context::Context;
+use upac_orchestrator::stage::Stage;
 
-use super::error::FormatError;
 use super::filesystem::FormatTarget;
 use super::{RequestedDevice, RequestedFilesystem};
 
 pub struct MkfsStage;
 
-impl Stage<FormatError> for MkfsStage {
+#[stage]
+impl Stage<ErrorKind> for MkfsStage {
     fn run(
-        &self, context: &mut Context, _cancel: &CancelToken, progress: ProgressEventBuilder,
-    ) -> Result<(ProgressEventBuilder, StageResult, Box<dyn RollbackGuard>), FormatError> {
-        let device_path = ctx_get!(context, RequestedDevice);
-        let filesystem = ctx_get!(context, RequestedFilesystem);
+        &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), ErrorKind> {
+        let filesystem = context.get::<RequestedFilesystem>()?;
 
         FormatTarget {
-            device_path,
+            device_path: &context.get::<RequestedDevice>()?.0,
             label: filesystem.label.as_deref(),
         }
         .format(
             filesystem.fs_kind,
             filesystem.btrfs_node_size,
             filesystem.btrfs_sector_size,
-        )?;
-
-        Ok((progress, StageResult::Advance, Box::new(NoRollback)))
+        )
     }
 }

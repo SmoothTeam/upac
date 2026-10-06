@@ -9,7 +9,9 @@ use composefs::tree::FileSystem;
 
 use tempfile::TempDir;
 
+use upac::composefs::file::FileHandle;
 use upac::database::{InMemory, MemoryDatabase};
+use upac::layout::database::DATABASE_PATH;
 use upac::orchestrator::context::Context;
 use upac::orchestrator::stage::{Stage, StageResult};
 
@@ -19,21 +21,19 @@ use upac_types::hook::ProgressEventBuilder;
 
 use crate::target::TargetSysroot;
 
-use super::super::{ConfigState, DeployDigests, PrefixTree};
+use super::super::{PackageDatabase, PackageScratch, PrefixTree};
 use super::EmbedDatabaseStage;
 
 #[test]
-fn run_commits_both_trees_and_puts_digests() {
+fn run_inserts_the_database_into_the_prefix_tree() {
     let scratch = TempDir::new().unwrap();
     let target = TargetSysroot::for_testing(scratch.path().to_path_buf()).unwrap();
 
     let mut context = Context::new();
+    context.put(PackageScratch(TempDir::new().unwrap()));
     context.put(target);
     context.put(PrefixTree(FileSystem::new(Stat::uninitialized())));
-    context.put(ConfigState {
-        config_tree: FileSystem::new(Stat::uninitialized()),
-        database: MemoryDatabase::new_in_memory().unwrap(),
-    });
+    context.put(PackageDatabase(MemoryDatabase::new_in_memory().unwrap()));
     context.put(ImportContext::default());
 
     let cancel = CancelToken::new();
@@ -42,7 +42,10 @@ fn run_commits_both_trees_and_puts_digests() {
     let (_, result, _guard) = EmbedDatabaseStage.run(&mut context, &cancel, progress).unwrap();
 
     assert!(matches!(result, StageResult::Advance));
-    assert!(context.get::<DeployDigests>().is_some());
+    assert!(context.get::<PackageDatabase>().is_none());
+
+    let prefix_tree = context.get::<PrefixTree>().unwrap();
+    assert!(FileHandle::new(DATABASE_PATH).stat_in_tree(prefix_tree).is_ok());
 }
 
 #[test]

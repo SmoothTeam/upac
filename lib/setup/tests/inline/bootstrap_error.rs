@@ -37,18 +37,18 @@ fn partition_error_is_wrapped_and_delegates_its_error_kind() {
 }
 
 #[test]
-fn unsupported_deploy_fs_maps_to_invalid_entry() {
+fn unsupported_deploy_fs_maps_to_unsupported_filesystem() {
     assert_eq!(
         ErrorKind::from(BootstrapError::UnsupportedDeployFs),
-        ErrorKind::InvalidEntry
+        ErrorKind::UnsupportedFilesystem
     );
 }
 
 #[test]
-fn not_esp_partition_maps_to_invalid_entry() {
+fn not_esp_partition_maps_to_wrong_partition_type() {
     assert_eq!(
         ErrorKind::from(BootstrapError::NotEspPartition),
-        ErrorKind::InvalidEntry
+        ErrorKind::WrongPartitionType
     );
 }
 
@@ -57,5 +57,25 @@ fn invalid_device_selection_maps_to_invalid_entry() {
     assert_eq!(
         ErrorKind::from(BootstrapError::InvalidDeviceSelection),
         ErrorKind::InvalidEntry
+    );
+}
+
+#[test]
+fn a_missing_required_tool_maps_to_tool_not_installed() {
+    assert_eq!(
+        ErrorKind::from(BootstrapError::RequiredToolNotInstalled),
+        ErrorKind::ToolNotInstalled
+    );
+}
+
+#[test]
+fn a_failing_external_tool_maps_to_tool_failed() {
+    assert_eq!(
+        ErrorKind::from(BootstrapError::InitramfsGeneratorFailed),
+        ErrorKind::ToolFailed
+    );
+    assert_eq!(
+        ErrorKind::from(BootstrapError::ModuleIndexFailed),
+        ErrorKind::ToolFailed
     );
 }

@@ -64,7 +64,7 @@ upac-lib-deploy         = { path = "core/deploy" }
 upac-lib-decoder-loader = { path = "core/decoder/decoder-loader", default-features = false }
 upac-lib-decoder-kit    = { path = "core/decoder/decoder-kit" }
 upac-lib-hooks          = { path = "core/hooks" }
-upac-lib-booter-loader    = { path = "core/booter/booter-loader", default-features = false }
+upac-lib-booter-loader  = { path = "core/booter/booter-loader", default-features = false }
 
 upac-lib = { path = "lib/lib", default-features = false }
 upac-lib-setup    = { path = "lib/setup" }

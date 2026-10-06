@@ -3,31 +3,20 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::io::{Error as IoError, ErrorKind as IoErrorKind};
+use std::io::ErrorKind as IoErrorKind;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output};
+
+use upac_types::error::ErrorKind;
 
 use super::layout::mkfs::WIPEFS_BIN;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum WipeError {
-    Io(IoErrorKind),
-    DeviceNotEmpty,
-    WipeFailed,
-}
-
-impl From<IoError> for WipeError {
-    fn from(error: IoError) -> Self {
-        WipeError::Io(error.kind())
-    }
-}
 
 pub(crate) struct WipeTarget<'target> {
     pub device_path: &'target Path,
 }
 
 impl WipeTarget<'_> {
-    pub fn wipe_or_refuse(&self, force_wipe: bool) -> Result<(), WipeError> {
+    pub fn wipe_or_refuse(&self, force_wipe: bool) -> Result<(), ErrorKind> {
         if force_wipe {
             return self.wipe();
         }
@@ -35,30 +24,34 @@ impl WipeTarget<'_> {
         self.ensure_empty()
     }
 
-    fn wipe(&self) -> Result<(), WipeError> {
-        let status = Command::new(WIPEFS_BIN)
-            .arg("-a")
-            .arg(self.device_path.as_os_str())
-            .status()?;
+    fn wipe(&self) -> Result<(), ErrorKind> {
+        let output = Self::run_wipefs(Command::new(WIPEFS_BIN).arg("-a").arg(self.device_path.as_os_str()))?;
 
-        if !status.success() {
-            return Err(WipeError::WipeFailed);
+        if !output.status.success() {
+            return Err(ErrorKind::ToolFailed);
         }
 
         Ok(())
     }
 
-    fn ensure_empty(&self) -> Result<(), WipeError> {
-        let output = Command::new(WIPEFS_BIN).arg(self.device_path.as_os_str()).output()?;
+    fn ensure_empty(&self) -> Result<(), ErrorKind> {
+        let output = Self::run_wipefs(Command::new(WIPEFS_BIN).arg(self.device_path.as_os_str()))?;
 
         if !output.status.success() {
-            return Err(WipeError::WipeFailed);
+            return Err(ErrorKind::ToolFailed);
         }
 
         if !output.stdout.is_empty() {
-            return Err(WipeError::DeviceNotEmpty);
+            return Err(ErrorKind::AlreadyExists);
         }
 
         Ok(())
+    }
+
+    fn run_wipefs(command: &mut Command) -> Result<Output, ErrorKind> {
+        command.output().map_err(|error| match error.kind() {
+            IoErrorKind::NotFound => ErrorKind::ToolNotInstalled,
+            _ => error.into(),
+        })
     }
 }

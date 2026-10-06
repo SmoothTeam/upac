@@ -21,6 +21,17 @@ pub enum FsKind {
     Vfat = 3,
 }
 
+impl AsRef<str> for FsKind {
+    fn as_ref(&self) -> &str {
+        match self {
+            FsKind::Ext4 => "ext4",
+            FsKind::Btrfs => "btrfs",
+            FsKind::Xfs => "xfs",
+            FsKind::Vfat => "vfat",
+        }
+    }
+}
+
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct SetupFormatRequest<'data> {
     pub base: RequestBase<'data>,

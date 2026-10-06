@@ -10,10 +10,11 @@ use tempfile::TempDir;
 
 use super::FormatTarget;
 
-#[test]
-fn format_vfat_writes_a_valid_fat32_boot_sector() {
-    let scratch = TempDir::new().unwrap();
-    let device_path = scratch.path().join("esp.img");
+const FAT32_VOLUME_ID_OFFSET: usize = 0x43;
+const DEFAULT_FATFS_VOLUME_ID: u32 = 0x1234_5678;
+
+fn formatted_vfat_boot_sector(scratch: &TempDir, name: &str) -> [u8; 512] {
+    let device_path = scratch.path().join(name);
 
     {
         let file = File::create(&device_path).unwrap();
@@ -30,7 +31,31 @@ fn format_vfat_writes_a_valid_fat32_boot_sector() {
     let mut boot_sector = [0u8; 512];
     file.read_exact(&mut boot_sector).unwrap();
 
+    boot_sector
+}
+
+fn volume_id(boot_sector: &[u8; 512]) -> u32 {
+    let bytes = &boot_sector[FAT32_VOLUME_ID_OFFSET..FAT32_VOLUME_ID_OFFSET + 4];
+    u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+}
+
+#[test]
+fn format_vfat_writes_a_valid_fat32_boot_sector() {
+    let scratch = TempDir::new().unwrap();
+    let boot_sector = formatted_vfat_boot_sector(&scratch, "esp.img");
+
     assert_eq!(&boot_sector[510..512], &[0x55, 0xAA]);
+}
+
+#[test]
+fn format_vfat_gives_every_volume_its_own_serial_number() {
+    let scratch = TempDir::new().unwrap();
+    let first = volume_id(&formatted_vfat_boot_sector(&scratch, "first.img"));
+    let second = volume_id(&formatted_vfat_boot_sector(&scratch, "second.img"));
+
+    assert_ne!(first, DEFAULT_FATFS_VOLUME_ID);
+    assert_ne!(second, DEFAULT_FATFS_VOLUME_ID);
+    assert_ne!(first, second);
 }
 
 #[test]

@@ -8,8 +8,8 @@
 [mount]
 default_mount_point = "/mnt/upac-setup"
 
-# mkfs.ext4_bin/xfs_bin are the mkfs binaries shelled out to for ext4/xfs
-# formatting (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs).
+# mkfs.ext4_bin/xfs_bin are the mkfs binaries shelled out to for ext4/xfs formatting; ext4 always
+# gets fs-verity on since composefs needs it (btrfs is done natively via btrfs-mkfs, ESP natively via fatfs).
 # mkfs.wipefs_bin clears a device's existing signatures (crate::wipe), only when the request
 # explicitly opts into it (`force_wipe` on both `partition_table` and `format_partition`) — never
 # run silently. Without force_wipe it still runs, in list-only mode (no `-a`), and the command
@@ -33,6 +33,24 @@ fallback_sector_size = 512
 settle_attempts = 50
 settle_interval_ms = 100
 
+# initramfs.dracut_bin/mkinitcpio_bin are the host binaries `KernelStage` runs against the
+# exported target tree to build its initramfs (or UKI), picked by the request's
+# initramfs_generator. initramfs.depmod_bin builds the kernel's module index (modules.dep,
+# modules.alias, …) first: packages don't ship it (pacman's depmod hook normally generates it), yet
+# both the generator and the booted system's udev need it, so `KernelStage` also imports it into
+# the target /usr. A missing binary is reported as `RequiredToolNotInstalled`, not as a generic I/O
+# error.
+[initramfs]
+depmod_bin = "depmod"
+dracut_bin = "dracut"
+mkinitcpio_bin = "mkinitcpio"
+
+# genesis.scratch_dir is the work directory bootstrap keeps on the mounted deployment partition
+# for everything too big for the installer's RAM-backed /tmp: extracted --source archives,
+# unpacked packages, the /usr tree exported for the initramfs generator and the package database
+# scratch file. `TargetSysroot` creates it on mount and removes it before unmounting, so nothing is
+# left behind on the installed system.
+#
 # genesis.scratch_filename is where the freshly-built package database is
 # written (under the OS temp dir) before being embedded into the new /usr
 # tree — purely transient, read back once right after the write.
@@ -75,6 +93,7 @@ settle_interval_ms = 100
 # `Type2Entry::load_all` to pick it up, the stem is free) — kept alongside initramfs_filename since
 # `KernelStage` writes both under the same `lib/modules/<kver>/` directory.
 [genesis]
+scratch_dir = ".upac-setup"
 scratch_filename = "genesis-packages.redb"
 
 composefs_setup_root_unit_path = "lib/systemd/system/composefs-setup-root.service"

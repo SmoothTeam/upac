@@ -7,15 +7,14 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 
-use anyhow::Error as AnyhowError;
-
 use flate2::read::GzDecoder;
+use sevenz_rust2::decompress_file;
 use tar::Archive;
 use xz2::read::XzDecoder;
 use zip::ZipArchive;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use crate::commands::bootstrap::error::BootstrapError;
+use upac_types::error::ErrorKind;
 
 #[cfg(test)]
 #[path = "../tests/inline/archive.rs"]
@@ -34,7 +33,7 @@ pub(crate) enum SourceArchive {
 }
 
 impl SourceArchive {
-    pub(crate) fn sniff(path: &Path) -> Result<Self, BootstrapError> {
+    pub(crate) fn sniff(path: &Path) -> Result<Self, ErrorKind> {
         let mut file = File::open(path)?;
         let mut magic = [0u8; 6];
         let bytes_read = file.read(&mut magic)?;
@@ -50,7 +49,7 @@ impl SourceArchive {
         })
     }
 
-    fn zstd_tar(sniffed: &[u8], file: File) -> Result<Self, BootstrapError> {
+    fn zstd_tar(sniffed: &[u8], file: File) -> Result<Self, ErrorKind> {
         let chained = Cursor::new(sniffed.to_vec()).chain(file);
         Ok(SourceArchive::Tar(Box::new(ZstdDecoder::new(chained)?)))
     }
@@ -69,7 +68,7 @@ impl SourceArchive {
         SourceArchive::Tar(Box::new(Cursor::new(sniffed.to_vec()).chain(file)))
     }
 
-    pub(crate) fn extract(self, destination: &Path) -> Result<(), BootstrapError> {
+    pub(crate) fn extract(self, destination: &Path) -> Result<(), ErrorKind> {
         match self {
             SourceArchive::Zip(file) => Self::extract_zip(file, destination),
             SourceArchive::SevenZip(path) => Self::extract_sevenzip(&path, destination),
@@ -77,18 +76,18 @@ impl SourceArchive {
         }
     }
 
-    fn extract_zip(file: File, destination: &Path) -> Result<(), BootstrapError> {
-        let mut archive = ZipArchive::new(file).map_err(AnyhowError::new)?;
-        archive.extract(destination).map_err(AnyhowError::new)?;
+    fn extract_zip(file: File, destination: &Path) -> Result<(), ErrorKind> {
+        let mut archive = ZipArchive::new(file).map_err(|_| ErrorKind::InvalidEntry)?;
+        archive.extract(destination).map_err(|_| ErrorKind::InvalidEntry)?;
         Ok(())
     }
 
-    fn extract_sevenzip(path: &Path, destination: &Path) -> Result<(), BootstrapError> {
-        sevenz_rust2::decompress_file(path, destination).map_err(AnyhowError::new)?;
+    fn extract_sevenzip(path: &Path, destination: &Path) -> Result<(), ErrorKind> {
+        decompress_file(path, destination).map_err(|_| ErrorKind::InvalidEntry)?;
         Ok(())
     }
 
-    fn extract_tar(reader: Box<dyn Read>, destination: &Path) -> Result<(), BootstrapError> {
+    fn extract_tar(reader: Box<dyn Read>, destination: &Path) -> Result<(), ErrorKind> {
         Archive::new(reader).unpack(destination)?;
         Ok(())
     }
