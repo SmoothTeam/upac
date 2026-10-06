@@ -3,8 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{create_dir, read_dir, read_to_string, remove_dir_all};
+use std::fs::{Permissions, create_dir, create_dir_all, read_dir, read_to_string, remove_dir_all, set_permissions};
 use std::io::ErrorKind as IoErrorKind;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use composefs_boot::bootloader::{BootEntry, get_boot_resources};
@@ -34,7 +35,7 @@ use self::error::{BootEntryError, PrefixCreateError, PrefixMetaError, PrefixRead
 use self::layout::boot::UPAC_UKI_TO_SLOT;
 use self::layout::deployment::{
     CONFIG_DIR_NAME, DEPLOYS_DIR, LIVE_ETC_UPPER_DIR_NAME, NEXT_PREFIX_FILENAME, REPO_DIR, ROOT_DIR,
-    RUNNING_PREFIX_PATH, SYSROOT_DIR,
+    RUNNING_PREFIX_PATH, SYSROOT_DIR, SYSROOT_ROOT_MODE,
 };
 
 pub mod boot;
@@ -89,6 +90,17 @@ impl Sysroot {
         )?;
 
         Self::open(&sysroot_path)
+    }
+
+    pub fn init(root: &Path) -> Result<Self, SysrootError> {
+        set_permissions(root, Permissions::from_mode(SYSROOT_ROOT_MODE))?;
+
+        let deploys_dir = root.join(DEPLOYS_DIR);
+        create_dir_all(&deploys_dir)?;
+
+        let repo = Repo::init(&root.join(REPO_DIR))?;
+
+        Ok(Self { repo, deploys_dir })
     }
 
     pub fn open(root: &Path) -> Result<Self, SysrootError> {
