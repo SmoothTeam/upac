@@ -44,7 +44,7 @@ pub struct PackageTemp {
 }
 
 #[cfg(any(feature = "dynamic-plugins", feature = "builtin-decoders"))]
-fn has_extension(file_name: &str, extension: &str) -> bool {
+fn is_extension(file_name: &str, extension: &str) -> bool {
     file_name
         .strip_suffix(extension)
         .is_some_and(|stem| stem.ends_with('.'))
@@ -131,7 +131,7 @@ impl PackageUnpacker {
             builtin
                 .extensions
                 .iter()
-                .any(|extension| has_extension(file_name, extension))
+                .any(|extension| is_extension(file_name, extension))
         }) {
             return Ok(builtin.format.to_owned());
         }
@@ -141,7 +141,7 @@ impl PackageUnpacker {
             manifest
                 .extensions
                 .iter()
-                .any(|extension| has_extension(file_name, extension))
+                .any(|extension| is_extension(file_name, extension))
         }) {
             return Ok(manifest.format.clone());
         }

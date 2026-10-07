@@ -19,7 +19,7 @@ use syn::{
 
 use crate::common::{field_condition, generic_arg, is_validatable_composite, segment_name};
 
-fn has_attr(field: &Field, name: &str) -> bool {
+fn is_attr_present(field: &Field, name: &str) -> bool {
     field.attrs.iter().any(|attr| attr.path().is_ident(name))
 }
 
@@ -132,8 +132,8 @@ fn field_validate(field: &Field) -> TokenStream2 {
     let Some(ident) = field.ident.as_ref() else {
         return quote! { compile_error!("CValidate only supports named fields") };
     };
-    let optional = has_attr(field, "optional");
-    let non_empty = has_attr(field, "non_empty");
+    let optional = is_attr_present(field, "optional");
+    let non_empty = is_attr_present(field, "non_empty");
 
     let type_validation = match &field.ty {
         Type::Path(tp) => match tp.path.segments.last() {

@@ -33,7 +33,7 @@ pub(crate) fn detect_filesystem(device_path: &Path) -> Result<Option<FsKind>, Io
     let device = File::open(device_path)?;
 
     for (fs_kind, offset, magic) in SIGNATURES {
-        if has_signature(&device, *offset, magic)? {
+        if is_signature_at(&device, *offset, magic)? {
             return Ok(Some(*fs_kind));
         }
     }
@@ -41,7 +41,7 @@ pub(crate) fn detect_filesystem(device_path: &Path) -> Result<Option<FsKind>, Io
     Ok(None)
 }
 
-fn has_signature(device: &File, offset: u64, magic: &[u8]) -> Result<bool, IoError> {
+fn is_signature_at(device: &File, offset: u64, magic: &[u8]) -> Result<bool, IoError> {
     let mut found = vec![0u8; magic.len()];
 
     match device.read_exact_at(&mut found, offset) {
