@@ -58,7 +58,10 @@ impl Tree {
     }
 
     pub fn commit(self) -> Result<Digest, RepoError> {
-        let Tree { repo, filesystem, .. } = self;
+        let Tree {
+            repo, mut filesystem, ..
+        } = self;
+        filesystem.compact();
 
         repo.commit_filesystem(filesystem)
     }

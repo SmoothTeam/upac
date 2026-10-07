@@ -281,6 +281,26 @@ fn a_committed_tree_reopens_unchanged() {
 }
 
 #[test]
+fn a_tree_commits_after_files_were_removed_or_replaced() {
+    let (_scratch, repo) = open_repo("commit-after-removal");
+    let mut tree = repo.empty_tree();
+    tree.insert_bytes("removed.txt", b"gone", Stat::uninitialized())
+        .unwrap();
+    tree.insert_bytes("replaced.txt", b"first", Stat::uninitialized())
+        .unwrap();
+
+    tree.remove("removed.txt").unwrap();
+    tree.insert_bytes("replaced.txt", b"second", Stat::uninitialized())
+        .unwrap();
+
+    let digest = tree.commit().unwrap();
+    let after = repo.open_tree(&digest).unwrap();
+
+    assert!(!after.contains("removed.txt"));
+    assert_eq!(after.read_file("replaced.txt").unwrap(), b"second");
+}
+
+#[test]
 fn a_digest_round_trips_through_hex() {
     let (_scratch, repo) = open_repo("digest-hex");
     let digest = repo.empty_tree().commit().unwrap();
