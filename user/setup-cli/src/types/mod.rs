@@ -6,11 +6,13 @@
 use clap::ValueEnum;
 use clap::builder::PossibleValue;
 
-use upac_abi::FsKind as FsKindAbi;
-use upac_abi::{InitramfsGenerator, PartitionKind};
+use upac_types::request::bootstrap::InitramfsGenerator;
+use upac_types::request::format::FsKind as FsKindAbi;
+use upac_types::request::partition::PartitionKind;
 
 pub mod abi;
 pub mod errors;
+pub mod output;
 pub mod progress;
 
 macro_rules! request_base {
@@ -18,7 +20,7 @@ macro_rules! request_base {
         ::upac_types::request::RequestBase {
             on_hook: Some($crate::types::progress::on_progress),
             hook_ctx: $progress.ctx_ptr(),
-            cancel_token: $crate::cancel_token_ptr(),
+            cancel_token: &$crate::CANCEL_TOKEN,
         }
     };
 }

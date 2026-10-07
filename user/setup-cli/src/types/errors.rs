@@ -8,10 +8,11 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use i18n_embed_fl::fl;
 
-use upac_abi::error::{ErrorDomain, ErrorKind};
-
-use upac_types::error::Error as AbiError;
-use upac_types::state::setup::{BootstrapStateId, FormatStateId, PartitionAddStateId, PartitionTableStateId};
+use upac_types::error::{Error as AbiError, ErrorDomain, ErrorKind};
+use upac_types::state::setup::{
+    BootstrapDeployStateId, BootstrapImportStateId, BootstrapKernelStateId, FormatStateId, PartitionAddStateId,
+    PartitionTableStateId,
+};
 
 use crate::locale::LOADER;
 
@@ -71,7 +72,10 @@ impl Display for StageName {
             ErrorDomain::PartitionTable => PartitionTableStateId::from_stage_index(state).stage_key(),
             ErrorDomain::PartitionAdd => PartitionAddStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Format => FormatStateId::from_stage_index(state).stage_key(),
-            _ => BootstrapStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::BootstrapImport => BootstrapImportStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::BootstrapKernel => BootstrapKernelStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::BootstrapDeploy => BootstrapDeployStateId::from_stage_index(state).stage_key(),
+            _ => "stage-setup",
         };
 
         write!(formatter, "{}", LOADER.get(key))
@@ -93,6 +97,12 @@ fn error_kind_message(kind: ErrorKind) -> String {
         ErrorKind::NotInitialized => fl!(LOADER, "err-not-initialized"),
         ErrorKind::AbiMismatch => fl!(LOADER, "err-abi-mismatch"),
         ErrorKind::InvalidEntry => fl!(LOADER, "err-invalid-entry"),
+        ErrorKind::NotAPartition => fl!(LOADER, "err-not-a-partition"),
+        ErrorKind::WrongPartitionType => fl!(LOADER, "err-wrong-partition-type"),
+        ErrorKind::UnsupportedFilesystem => fl!(LOADER, "err-unsupported-filesystem"),
+        ErrorKind::ToolNotInstalled => fl!(LOADER, "err-tool-not-installed"),
+        ErrorKind::ToolFailed => fl!(LOADER, "err-tool-failed"),
+        ErrorKind::RollbackFailed => fl!(LOADER, "err-rollback-failed"),
     }
 }
 

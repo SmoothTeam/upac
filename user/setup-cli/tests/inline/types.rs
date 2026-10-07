@@ -5,7 +5,7 @@
 
 use clap::ValueEnum;
 
-use upac_abi::PartitionKind;
+use upac_types::request::partition::PartitionKind;
 
 use super::{BootPlugin, FsKind, InitramfsGeneratorClapArg, PartitionKindClapArg, parse_size_mib};
 

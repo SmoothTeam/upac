@@ -11,16 +11,18 @@ use nix::unistd::Uid;
 
 use upac_abi::SETUP_ABI_VERSION;
 use upac_abi::error::CError;
-use upac_abi::hook::CancelToken;
-use upac_abi::request::bootstrap::CSetupBootstrapRequest;
+use upac_abi::request::bootstrap::{
+    CSetupBootstrapDeployRequest, CSetupBootstrapImportRequest, CSetupBootstrapKernelRequest,
+};
 use upac_abi::request::format::CSetupFormatRequest;
 use upac_abi::request::partition::{CSetupPartitionAddRequest, CSetupPartitionTableRequest};
+use upac_abi::response::bootstrap::{CSetupBootstrapImportResponse, CSetupBootstrapKernelResponse};
 use upac_abi::response::partition::CSetupPartitionAddResponse;
 
-use upac_setup::export::bootstrap::bootstrap_system;
-use upac_setup::export::format::format_partition;
-use upac_setup::export::partition::{partition_add, partition_table};
-use upac_setup::export::{setup_abi_version, setup_cancel};
+use upac_setup::export::{
+    bootstrap_deploy, bootstrap_import, bootstrap_kernel, format_partition, partition_add, partition_table,
+    setup_abi_version,
+};
 
 use crate::locale::LOADER;
 use crate::types::errors::AbiMismatch;
@@ -30,9 +32,12 @@ pub struct Lib {
     pub partition_add:
         unsafe extern "C" fn(CSetupPartitionAddRequest, *mut CSetupPartitionAddResponse, *mut CError) -> i32,
     pub format_partition: unsafe extern "C" fn(CSetupFormatRequest, *mut CError) -> i32,
-    pub bootstrap_system: unsafe extern "C" fn(CSetupBootstrapRequest, *mut CError) -> i32,
+    pub bootstrap_import:
+        unsafe extern "C" fn(CSetupBootstrapImportRequest, *mut CSetupBootstrapImportResponse, *mut CError) -> i32,
+    pub bootstrap_kernel:
+        unsafe extern "C" fn(CSetupBootstrapKernelRequest, *mut CSetupBootstrapKernelResponse, *mut CError) -> i32,
+    pub bootstrap_deploy: unsafe extern "C" fn(CSetupBootstrapDeployRequest, *mut CError) -> i32,
 
-    pub cancel: unsafe extern "C" fn(*mut CancelToken),
     pub version_abi: unsafe extern "C" fn() -> u32,
 }
 
@@ -42,8 +47,9 @@ impl Lib {
             partition_table,
             partition_add,
             format_partition,
-            bootstrap_system,
-            cancel: setup_cancel,
+            bootstrap_import,
+            bootstrap_kernel,
+            bootstrap_deploy,
             version_abi: setup_abi_version,
         };
 

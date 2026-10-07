@@ -3,20 +3,18 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_abi::error::{ErrorDomain, ErrorKind};
-
-use upac_types::error::Error as AbiError;
-use upac_types::state::setup::{BootstrapStateId, FormatStateId, PartitionAddStateId, PartitionTableStateId};
+use upac_types::error::{Error as AbiError, ErrorDomain, ErrorKind};
+use upac_types::state::setup::{BootstrapImportStateId, FormatStateId, PartitionAddStateId, PartitionTableStateId};
 
 use crate::locale;
 
 use super::{AbiMismatch, LibError};
 
-fn localized(state: BootstrapStateId, kind: ErrorKind) -> String {
+fn localized(state: BootstrapImportStateId, kind: ErrorKind) -> String {
     locale::init_for_test();
 
     let error = AbiError {
-        domain: ErrorDomain::Bootstrap,
+        domain: ErrorDomain::BootstrapImport,
         state: state as u32,
         kind,
     };
@@ -26,9 +24,9 @@ fn localized(state: BootstrapStateId, kind: ErrorKind) -> String {
 
 #[test]
 fn prefixes_the_message_with_the_localized_failing_stage_name() {
-    let message = localized(BootstrapStateId::ImportPackage, ErrorKind::Unexpected);
+    let message = localized(BootstrapImportStateId::Add, ErrorKind::Unexpected);
 
-    assert_eq!(message, "Importing package: Unexpected error");
+    assert_eq!(message, "Adding package: Unexpected error");
 }
 
 #[test]
@@ -47,10 +45,34 @@ fn every_error_kind_has_its_own_localized_message() {
         (ErrorKind::NotInitialized, "Not initialized"),
         (ErrorKind::AbiMismatch, "ABI mismatch"),
         (ErrorKind::InvalidEntry, "Invalid entry"),
+        (
+            ErrorKind::NotAPartition,
+            "Not a partition: pass a partition such as /dev/vda1, not a whole disk",
+        ),
+        (
+            ErrorKind::WrongPartitionType,
+            "The partition has a different GPT type than required",
+        ),
+        (
+            ErrorKind::UnsupportedFilesystem,
+            "No supported filesystem on the partition: format it first (up-sp format create)",
+        ),
+        (
+            ErrorKind::ToolNotInstalled,
+            "A required program is not installed on this system (e.g. dracut or mkinitcpio for --initramfs-generator)",
+        ),
+        (
+            ErrorKind::ToolFailed,
+            "An external program failed; see its output above",
+        ),
+        (
+            ErrorKind::RollbackFailed,
+            "The operation failed and undoing its partial changes failed too; the system may be left inconsistent",
+        ),
     ];
 
     for (kind, expected) in cases {
-        let message = localized(BootstrapStateId::Setup, kind);
+        let message = localized(BootstrapImportStateId::Setup, kind);
 
         assert_eq!(message, format!("Setup: {expected}"));
     }

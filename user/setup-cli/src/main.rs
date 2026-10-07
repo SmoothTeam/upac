@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::process::ExitCode;
-use std::ptr::addr_of_mut;
-use std::sync::Arc;
 
 use anyhow::Result;
 
@@ -17,11 +15,12 @@ use i18n_embed_fl::fl;
 
 use locale::{LOADER, Locale, init};
 
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
 
 use upac_locale::parse;
 
 use self::libcore::Lib;
+use self::types::output::Output;
 
 mod commands {
     pub mod bootstrap;
@@ -36,15 +35,14 @@ mod layout {
 }
 mod types;
 
-static mut CANCEL_TOKEN: CancelToken = CancelToken::new();
-
-pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
-    addr_of_mut!(CANCEL_TOKEN)
-}
+static CANCEL_TOKEN: CancelToken = CancelToken::new();
 
 #[derive(Parser)]
 #[command(name = "up-sp", author, version)]
 struct Cli {
+    #[arg(long, global = true)]
+    porcelain: bool,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -71,17 +69,15 @@ fn main() -> ExitCode {
 fn run() -> Result<()> {
     let cli = parse::<Cli, Locale>();
 
-    let lib = Arc::new(Lib::load()?);
+    let lib = Lib::load()?;
+    let output = Output::new(cli.porcelain);
 
-    let lib_cancel = Arc::clone(&lib);
-    ctrlc::set_handler(move || {
-        unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
-    })?;
+    ctrlc::set_handler(|| CANCEL_TOKEN.cancel())?;
 
     match cli.command {
-        Command::Partition(args) => commands::partition::run(args, &lib)?,
+        Command::Partition(args) => commands::partition::run(args, &lib, &output)?,
         Command::Format(args) => commands::format::run(args, &lib)?,
-        Command::Bootstrap(args) => commands::bootstrap::run(args, &lib)?,
+        Command::Bootstrap(args) => commands::bootstrap::run(args, &lib, &output)?,
     }
 
     Ok(())

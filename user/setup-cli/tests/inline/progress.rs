@@ -6,11 +6,11 @@
 use std::ffi::CString;
 use std::mem::size_of;
 
-use upac_abi::error::ErrorDomain;
 use upac_abi::hook::CProgressEvent;
 use upac_abi::types::CSlice;
 
-use upac_types::state::setup::{BootstrapStateId, PartitionAddStateId};
+use upac_types::error::ErrorDomain;
+use upac_types::state::setup::{BootstrapDeployStateId, BootstrapImportStateId, PartitionAddStateId};
 
 use crate::locale;
 
@@ -34,7 +34,6 @@ fn event(stage: u32, current: u64, total: u64, subject: CSlice) -> CProgressEven
     CProgressEvent {
         struct_size: size_of::<CProgressEvent>(),
         stage,
-        phase: 0,
         subject,
         current,
         total,
@@ -44,20 +43,20 @@ fn event(stage: u32, current: u64, total: u64, subject: CSlice) -> CProgressEven
 #[test]
 fn apply_with_zero_total_stays_on_spinner() {
     locale::init_for_test();
-    let mut state = ProgressState::new(ErrorDomain::Bootstrap);
+    let mut state = ProgressState::new(ErrorDomain::BootstrapImport);
 
-    state.apply(&event(BootstrapStateId::EnumeratePackages as u32, 0, 0, empty_slice()));
+    state.apply(&event(BootstrapImportStateId::Prepare as u32, 0, 0, empty_slice()));
 
     assert!(!state.is_bar);
-    assert_eq!(state.bar.message(), "Enumerating packages");
+    assert_eq!(state.bar.message(), "Preparing source");
 }
 
 #[test]
 fn apply_with_nonzero_total_switches_to_bar_and_sets_position() {
     locale::init_for_test();
-    let mut state = ProgressState::new(ErrorDomain::Bootstrap);
+    let mut state = ProgressState::new(ErrorDomain::BootstrapImport);
 
-    state.apply(&event(BootstrapStateId::ImportPackage as u32, 3, 10, empty_slice()));
+    state.apply(&event(BootstrapImportStateId::Add as u32, 3, 10, empty_slice()));
 
     assert!(state.is_bar);
     assert_eq!(state.bar.length(), Some(10));
@@ -67,27 +66,27 @@ fn apply_with_nonzero_total_switches_to_bar_and_sets_position() {
 #[test]
 fn apply_includes_subject_in_message_when_present() {
     locale::init_for_test();
-    let mut state = ProgressState::new(ErrorDomain::Bootstrap);
+    let mut state = ProgressState::new(ErrorDomain::BootstrapImport);
     let subject = CString::new("foo.txt").unwrap();
 
     state.apply(&event(
-        BootstrapStateId::EnumeratePackages as u32,
+        BootstrapImportStateId::Prepare as u32,
         0,
         0,
         slice_from_cstr(&subject),
     ));
 
-    assert_eq!(state.bar.message(), "Enumerating packages: foo.txt");
+    assert_eq!(state.bar.message(), "Preparing source: foo.txt");
 }
 
 #[test]
 fn apply_resolves_the_localized_stage_key() {
     locale::init_for_test();
-    let mut state = ProgressState::new(ErrorDomain::Bootstrap);
+    let mut state = ProgressState::new(ErrorDomain::BootstrapDeploy);
 
-    state.apply(&event(BootstrapStateId::StageBoot as u32, 0, 0, empty_slice()));
+    state.apply(&event(BootstrapDeployStateId::Boot as u32, 0, 0, empty_slice()));
 
-    assert_eq!(state.bar.message(), "Staging boot entry");
+    assert_eq!(state.bar.message(), "Installing boot loader");
 }
 
 #[test]

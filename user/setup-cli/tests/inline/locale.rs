@@ -74,14 +74,7 @@ fn a_missing_required_flag_is_reported_in_english() {
 
 #[test]
 fn a_missing_required_flag_is_reported_in_russian() {
-    let message = parse_error::<Russian>(&[
-        "up-sp",
-        "bootstrap",
-        "--esp-device",
-        "/dev/sda1",
-        "--deploy-device",
-        "/dev/sda2",
-    ]);
+    let message = parse_error::<Russian>(&["up-sp", "bootstrap", "import", "--deploy-device", "/dev/sda2"]);
 
     assert!(
         message.starts_with("ошибка: не указаны обязательные аргументы: --source <SOURCE>"),
@@ -116,12 +109,15 @@ fn disk_and_explicit_devices_conflict_in_english() {
     let message = parse_error::<English>(&[
         "up-sp",
         "bootstrap",
+        "deploy",
         "--disk",
         "/dev/sda",
         "--esp-device",
         "/dev/sda1",
-        "--source",
-        "/mnt/source",
+        "--prefix",
+        "00",
+        "--config",
+        "00",
     ]);
 
     assert!(message.starts_with("error: the argument '"), "{message}");
@@ -132,7 +128,7 @@ fn disk_and_explicit_devices_conflict_in_english() {
 
 #[test]
 fn bootstrap_without_any_target_is_reported_in_english() {
-    let message = parse_error::<English>(&["up-sp", "bootstrap", "--source", "/mnt/source"]);
+    let message = parse_error::<English>(&["up-sp", "bootstrap", "import", "--source", "/mnt/source"]);
 
     assert!(
         message.starts_with("error: the following required arguments were not provided:"),

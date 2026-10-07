@@ -35,7 +35,7 @@ pub fn invoke_with_response<R: CValidatable>(call: impl FnOnce(*mut R, *mut CErr
 
     let response = unsafe { response.assume_init() };
 
-    unsafe { response.validate() }.map_err(|error| InvalidResponse { error })?;
+    unsafe { response.validate() }.map_err(|error| InvalidResponse { error: error.into() })?;
 
     Ok(response)
 }
