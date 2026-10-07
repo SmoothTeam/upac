@@ -14,7 +14,7 @@ use upac_orchestrator::stage::Stage;
 
 use super::{RequestedDevice, RequestedFilesystem, RequireEsp};
 
-use crate::commands::partition::gpt::is_esp_partition;
+use crate::gpt::Partition;
 
 pub struct VerifyStage;
 
@@ -31,7 +31,7 @@ impl Stage<ErrorKind> for VerifyStage {
             return Err(ErrorKind::InvalidEntry);
         }
 
-        if !is_esp_partition(&context.get::<RequestedDevice>()?.0).map_err(ErrorKind::from)? {
+        if !Partition::open(&context.get::<RequestedDevice>()?.0)?.is_esp() {
             return Err(ErrorKind::WrongPartitionType);
         }
 

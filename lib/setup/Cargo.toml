@@ -30,7 +30,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 upac-lib-decoder-loader = { workspace = true, features = ["builtin-all-decoders"] }
 upac-lib-booter-loader  = { workspace = true, features = ["builtin-all-booters"] }
-upac-lib-types          = { workspace = true }
+upac-lib-types          = { workspace = true, features = ["gpt"] }
 upac-lib-abi            = { workspace = true }
 upac-lib-macro          = { workspace = true }
 upac-lib-composefs      = { workspace = true }
@@ -50,10 +50,10 @@ flate2     = { workspace = true }
 xz2        = { workspace = true }
 zstd       = { workspace = true }
 tempfile   = { workspace = true }
+gptman     = { workspace = true }
 
 sevenz-rust2 = "0.22.2"
 btrfs-mkfs = "0.13.0"
-gptman     = "3.1.1"
 fatfs      = "0.3"
 zip = "8.6.0"
 

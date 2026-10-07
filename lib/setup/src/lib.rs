@@ -20,6 +20,7 @@ pub mod export;
 
 mod archive;
 mod commands;
+mod gpt;
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }

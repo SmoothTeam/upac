@@ -10,10 +10,9 @@ use upac_abi::request::format::CSetupFormatRequest;
 use upac_abi::request::partition::{CSetupPartitionAddRequest, CSetupPartitionTableRequest};
 use upac_abi::response::partition::CSetupPartitionAddResponse;
 
-use upac_types::error::{export_mutated_command, export_unmutated_command};
+use upac_types::error::{export_mutated_command, export_mutated_command_with_response};
 
-use crate::commands::partition::{add, table};
-use crate::commands::{bootstrap, format};
+use crate::commands::{add, bootstrap, format, init};
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn setup_abi_version() -> u32 {
@@ -37,11 +36,7 @@ pub unsafe extern "C" fn bootstrap_system(request: CSetupBootstrapRequest, err_o
 /// `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn format_partition(request: CSetupFormatRequest, err_out: *mut CError) -> i32 {
-    unsafe {
-        export_mutated_command(&request, err_out, |request| {
-            format::run(request).map_err(|(state, error)| (state, error.into()))
-        })
-    }
+    unsafe { export_mutated_command(&request, err_out, format::run) }
 }
 
 /// # Safety
@@ -49,11 +44,7 @@ pub unsafe extern "C" fn format_partition(request: CSetupFormatRequest, err_out:
 /// `err_out`, if non-null, must point to writable `CError` storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn partition_table(request: CSetupPartitionTableRequest, err_out: *mut CError) -> i32 {
-    unsafe {
-        export_mutated_command(&request, err_out, |request| {
-            table::run(request).map_err(|(state, error)| (state, error.into()))
-        })
-    }
+    unsafe { export_mutated_command(&request, err_out, init::run) }
 }
 
 /// # Safety
@@ -64,9 +55,5 @@ pub unsafe extern "C" fn partition_table(request: CSetupPartitionTableRequest, e
 pub unsafe extern "C" fn partition_add(
     request: CSetupPartitionAddRequest, response_out: *mut CSetupPartitionAddResponse, err_out: *mut CError,
 ) -> i32 {
-    unsafe {
-        export_unmutated_command(&request, response_out, err_out, |request| {
-            add::run(request).map_err(|(state, error)| (state, error.into()))
-        })
-    }
+    unsafe { export_mutated_command_with_response(&request, response_out, err_out, add::run) }
 }
