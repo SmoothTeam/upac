@@ -3,8 +3,8 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# mount.default_mount_point is where `bootstrap_system`'s MountStage mounts the target deployment
-# partition (and, under it, the ESP) when the request's own mount_point is left empty.
+# mount.default_mount_point is where the bootstrap commands mount the target deployment partition
+# (and, for `bootstrap deploy`, the ESP under it) when the request's own mount_point is left empty.
 [mount]
 default_mount_point = "/mnt/upac-setup"
 
@@ -33,13 +33,12 @@ fallback_sector_size = 512
 settle_attempts = 50
 settle_interval_ms = 100
 
-# initramfs.dracut_bin/mkinitcpio_bin are the host binaries `KernelStage` runs against the
+# initramfs.dracut_bin/mkinitcpio_bin are the host binaries `bootstrap kernel` runs against the
 # exported target tree to build its initramfs (or UKI), picked by the request's
 # initramfs_generator. initramfs.depmod_bin builds the kernel's module index (modules.dep,
 # modules.alias, …) first: packages don't ship it (pacman's depmod hook normally generates it), yet
-# both the generator and the booted system's udev need it, so `KernelStage` also imports it into
-# the target /usr. A missing binary is reported as `RequiredToolNotInstalled`, not as a generic I/O
-# error.
+# both the generator and the booted system's udev need it, so `bootstrap kernel` also imports it into
+# the prefix image. A missing binary is reported as `ToolNotInstalled`, not as a generic I/O error.
 [initramfs]
 depmod_bin = "depmod"
 dracut_bin = "dracut"
@@ -47,41 +46,27 @@ mkinitcpio_bin = "mkinitcpio"
 
 # genesis.scratch_dir is the work directory bootstrap keeps on the mounted deployment partition
 # for everything too big for the installer's RAM-backed /tmp: extracted --source archives,
-# unpacked packages, the /usr tree exported for the initramfs generator and the package database
-# scratch file. `TargetSysroot` creates it on mount and removes it before unmounting, so nothing is
-# left behind on the installed system.
+# unpacked packages and the /usr tree exported for the initramfs generator. `MountedTarget` creates
+# it on mount and removes it before unmounting, so nothing is left behind on the installed system.
 #
-# genesis.scratch_filename is where the freshly-built package database is
-# written (under the OS temp dir) before being embedded into the new /usr
-# tree — purely transient, read back once right after the write.
-#
-# efi_linux_dir is a real, mounted-filesystem-relative path (forward slashes, joined via
-# `Path::join`) to where `composefs-boot`'s own UKI writer always lands `upac-to.efi`/
-# `upac-from.efi` (`EFI/Linux/`, hardcoded upstream) — used only to seed `upac-from.efi` with the
-# same first image on genesis's very first deploy. Distinct from `booters/booter.toml`'s
-# `uki.efi_linux_dir`, which is the same directory spelled as a backslash UEFI device-path string
-# for NVRAM Boot#### entries, not a filesystem path — the two can't share a definition across the
-# crate boundary.
-#
-# system_dir is a source-relative directory, sibling to the package archives `EnumeratePackagesStage`
-# scans (skipped by it automatically — it only looks at files, never directories) — a literal,
-# 1:1 mirror of the target's real `/usr` layout (matches `PrefixTree`, see `database_path` in
-# `lib/lib/lib.toml`), imported wholesale by `ImportSystemStage`. This is how a built `up`/
-# `upac-lib`/booters (or anything else that must exist outside the normal per-package pipeline)
-# gets onto a genesis'd disk — genesis never resolves or installs itself automatically, whoever
-# assembles `--source` has to put it there, same assumption already made for the systemd-boot/
-# rEFInd binaries.
+# system_dir is a source-relative directory, sibling to the package archives `bootstrap import`'s
+# PrepareStage collects (skipped by it automatically — it only looks at files, never directories) —
+# a literal, 1:1 mirror of the prefix image, imported wholesale by its SystemStage as files no
+# package owns. This is how a built `up`/`upac-lib`/booters (or anything else that must exist
+# outside the normal per-package pipeline) gets onto a genesis'd disk — genesis never resolves or
+# installs itself automatically, whoever assembles `--source` has to put it there, same assumption
+# already made for the systemd-boot/rEFInd binaries.
 #
 # config_dir is system_dir's `/etc` counterpart: an optional source-relative directory mirroring the
-# target's `/etc`, imported by `ImportSystemStage` into the config tree after every package's own
-# `etc/`, so its files win on the same path. It is how config that no package ships reaches a
-# freshly bootstrapped system (e.g. `/etc/upac.d/{decoders,boot-plugins}/*.toml`, which the new
-# system's own `up` needs). Unlike the packages' `etc/`, it is imported even with `empty_config`.
+# target's `/etc`, laid over the first config after the packages' own defaults, so its files win on
+# the same path. It is how config that no package ships reaches a freshly bootstrapped system (e.g.
+# `/etc/upac.d/{decoders,boot-plugins}/*.toml`, which the new system's own `up` needs). Unlike the
+# packages' defaults, it is imported even with `empty_config`.
 #
-# composefs_setup_root_unit_path (relative to `system_dir`, i.e. also relative to real `/usr`) is
-# where `ImportSystemStage` requires to find a `composefs-setup-root.service` unit — hard error
-# (`BootstrapError::ComposefsSetupRootUnitNotFound`) if missing, since a genesis'd disk cannot boot at
-# all without it. `ImportSystemStage` deliberately does NOT create the unit's `*.target.wants/`
+# composefs_setup_root_unit_path (relative to `system_dir`) is where SystemStage requires to find a
+# `composefs-setup-root.service` unit, and at system_dir's top the empty sysroot directory setup-root
+# mounts the physical root onto — `NotFound` if either is missing, since a genesis'd disk cannot boot at
+# all without them. SystemStage deliberately does NOT create the unit's `*.target.wants/`
 # enablement symlink itself — `initrd-root-fs.target` only exists inside the initrd's own systemd
 # instance, so wanting it from the real root's unit tree is a no-op after switch-root. The dracut
 # module under `hook/dracut/37composefs/` creates that enablement at initrd-build time instead
@@ -91,15 +76,23 @@ mkinitcpio_bin = "mkinitcpio"
 # load_all` only recognizes a vmlinuz's companion initramfs under this exact name. uki_filename is
 # our own convention (composefs-boot only requires a `.efi` extension in `lib/modules/<kver>/` for
 # `Type2Entry::load_all` to pick it up, the stem is free) — kept alongside initramfs_filename since
-# `KernelStage` writes both under the same `lib/modules/<kver>/` directory.
+# `bootstrap kernel` writes either under the same `lib/modules/<kver>/` directory.
+#
+# modules_dir is where, inside the prefix image, a kernel keeps its modules and where
+# `bootstrap kernel` finds its version and puts the initramfs or UKI. module_index_prefix marks the
+# files depmod writes next to the modules (modules.dep, modules.alias, …): packages don't ship
+# them, yet both the generator and the booted system's udev need them, so they go into the image too.
+#
+# subject is the subject of the first transaction and the first config of a bootstrapped system.
 [genesis]
 scratch_dir = ".upac-setup"
-scratch_filename = "genesis-packages.redb"
+subject = "genesis"
 
 composefs_setup_root_unit_path = "lib/systemd/system/composefs-setup-root.service"
 config_dir = "config"
-efi_linux_dir = "EFI/Linux"
 system_dir = "system"
 
 initramfs_filename = "initramfs.img"
+module_index_prefix = "modules."
+modules_dir = "lib/modules"
 uki_filename = "uki.efi"

@@ -9,23 +9,38 @@ use super::impl_command_state;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum BootstrapStateId {
-    Mount = 0,
-    PrepareSource = 1,
-    EnumeratePackages = 2,
-    UnpackPackage = 3,
-    ImportPackage = 4,
-    RecordPackage = 5,
-    ImportSystem = 6,
-    Kernel = 7,
-    EmbedDatabase = 8,
-    Commit = 9,
-    WriteDeployRecord = 10,
-    StageBoot = 11,
-    Setup = 12,
+pub enum BootstrapImportStateId {
+    Prepare = 0,
+    Unpack = 1,
+    Add = 2,
+    System = 3,
+    Commit = 4,
+    Config = 5,
+    Setup = 6,
 }
 
-impl_command_state!(BootstrapStateId, Bootstrap);
+impl_command_state!(BootstrapImportStateId, BootstrapImport);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum BootstrapKernelStateId {
+    Export = 0,
+    Generate = 1,
+    Commit = 2,
+    Setup = 3,
+}
+
+impl_command_state!(BootstrapKernelStateId, BootstrapKernel);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum BootstrapDeployStateId {
+    Register = 0,
+    Boot = 1,
+    Setup = 2,
+}
+
+impl_command_state!(BootstrapDeployStateId, BootstrapDeploy);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
