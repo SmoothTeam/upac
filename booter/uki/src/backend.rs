@@ -7,7 +7,7 @@ use std::fs::{OpenOptions, copy};
 use std::os::fd::AsRawFd;
 use std::os::raw::c_long;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use efivar::VarManager;
 use efivar::boot::{
@@ -72,10 +72,10 @@ impl Booter for Uki {
         self.manager.set_boot_order(order)?;
 
         if entry_name == TO_SLOT {
-            let efi_linux = Path::new(esp_mount_point).join(EFI_LINUX_REAL_PATH);
-            let to_path = efi_linux.join(format!("{TO_SLOT}.efi"));
-            let from_path = efi_linux.join(format!("{FROM_SLOT}.efi"));
-            copy(&to_path, &from_path)?;
+            copy(
+                Self::slot_image_path(esp_mount_point, TO_SLOT),
+                Self::slot_image_path(esp_mount_point, FROM_SLOT),
+            )?;
         }
 
         Ok(())
@@ -85,7 +85,10 @@ impl Booter for Uki {
         &mut self, esp_mount_point: &str, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
         esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
     ) -> Result<(), UkiError> {
-        let _ = esp_mount_point;
+        let from_image_path = Self::slot_image_path(esp_mount_point, from_slot);
+        if !from_image_path.exists() {
+            copy(Self::slot_image_path(esp_mount_point, to_slot), &from_image_path)?;
+        }
 
         let partition_size = esp_ending_lba - esp_starting_lba + 1;
         let partition_sig = Uuid::from_bytes_le(esp_unique_partition_guid);
@@ -110,6 +113,12 @@ impl Booter for Uki {
 }
 
 impl Uki {
+    fn slot_image_path(esp_mount_point: &str, slot: &str) -> PathBuf {
+        Path::new(esp_mount_point)
+            .join(EFI_LINUX_REAL_PATH)
+            .join(format!("{slot}.efi"))
+    }
+
     fn find_boot_id(&self, slot_filename: &str) -> Result<u16, UkiError> {
         let slot_file_name = format!("{}.efi", slot_filename.to_lowercase());
 

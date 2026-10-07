@@ -31,12 +31,11 @@ loader_entry_default_var = "LoaderEntryDefault"
 # configurable) — used to build the file-path device-path segment when genesis registers a
 # UEFI Boot#### entry for a UKI slot, so the entry's path always matches where the image
 # actually lands. efi_linux_real_path is the same directory spelled as a real, mounted-
-# filesystem-relative path (forward slashes, joined via `Path::join`) — used by
-# `Uki::confirm_boot` to find `to.efi`/`from.efi` on the real, mounted ESP; the two can't share
-# a definition (see `lib/setup/lib.toml`'s own `genesis.efi_linux_dir` for the same split,
-# there for the same reason: different crate, different path flavor needed).
+# filesystem-relative path (forward slashes, joined via `Path::join`) — used by `Uki::install`
+# to seed `from.efi` with a copy of the first `to.efi`, and by `Uki::confirm_boot` to promote `to.efi`
+# over `from.efi`, on the real, mounted ESP; the two flavors can't share a definition.
 #
-# to_slot/from_slot must stay in sync with `upac-lib`'s own `lib.toml`
+# to_slot/from_slot must stay in sync with `core/deploy`'s own `lib.toml`
 # (`boot.upac_uki_to_slot`/`upac_uki_from_slot`) — two separate crates, can't share a single
 # Rust constant, so each carries its own literal copy. `Uki::confirm_boot` only performs the
 # to/from file swap when the confirmed `entry_name` is `to_slot` specifically (confirming a
