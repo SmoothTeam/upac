@@ -9,9 +9,9 @@ use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-use upac_abi::error::ErrorDomain;
-use upac_abi::hook::{CProgressEvent, HookAck};
+use upac_abi::hook::CProgressEvent;
 
+use upac_types::error::ErrorDomain;
 use upac_types::settings::{ProgressSettings, RuntimeSettings};
 
 use crate::types::errors::StageName;
@@ -25,13 +25,11 @@ mod tests;
 /// call that this hook is registered for (guaranteed by construction: callers keep their
 /// `ProgressState` on the stack for exactly that call, calling `ctx_ptr()` only after it's in
 /// its final resting place).
-pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_void) -> u8 {
+pub unsafe extern "C" fn on_progress(event: *const CProgressEvent, ctx: *mut c_void) {
     let state = unsafe { &mut *ctx.cast::<ProgressState>() };
     let event = unsafe { &*event };
 
     state.apply(event);
-
-    HookAck::Delivered.into()
 }
 
 pub struct ProgressState {

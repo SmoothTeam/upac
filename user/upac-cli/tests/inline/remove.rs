@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_types::package::PackageMeta;
+use upac_types::package::{PackageMeta, Version};
 
 use crate::locale;
 
@@ -12,9 +12,18 @@ use super::select_installed;
 fn meta(name: &str, arch: &str, arch_sub: Option<&str>) -> PackageMeta {
     PackageMeta {
         name: name.to_owned(),
+        version: Version {
+            epoch: 0,
+            raw: "1.0".to_owned(),
+        },
         arch: arch.to_owned(),
         arch_sub: arch_sub.map(str::to_owned),
-        ..PackageMeta::default()
+        maintainer: "someone".to_owned(),
+        description: "a package".to_owned(),
+        license: None,
+        url: None,
+        sha256: [0; 32],
+        installed_size: 0,
     }
 }
 

@@ -9,8 +9,7 @@ use clap::{Args as ClapArgs, ValueEnum};
 use colored::Colorize;
 use strum::AsRefStr;
 
-use upac_abi::response::entry::DiffFileSource;
-
+use upac_types::diff::DiffFileSource;
 use upac_types::package::PackageMeta;
 use upac_types::package::Version;
 

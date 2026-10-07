@@ -8,15 +8,11 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use i18n_embed_fl::fl;
 
-use upac_abi::error::{ErrorDomain, ErrorKind};
-
-use upac_types::error::Error as AbiError;
-
+use upac_types::error::{Error as AbiError, ErrorDomain, ErrorKind};
 use upac_types::state::mutated::{
-    CommitStateId, FilesStateId, GcStateId, InstallStateId, MimeStateId, PinStateId, RollbackStateId, UninstallStateId,
-    UpdateStateId,
+    AttachStateId, CommitStateId, DetachStateId, GcStateId, InstallStateId, MimeStateId, PinStateId, RollbackStateId,
+    UninstallStateId, UpdateStateId,
 };
-use upac_types::state::setup::{BootstrapStateId, FormatStateId, PartitionAddStateId, PartitionTableStateId};
 use upac_types::state::unmutated::{
     DiffConfigStateId, DiffPackagesStateId, DiffPrefixStateId, DiffStateId, ListConfigStateId, ListHistoryStateId,
     ListPackagesStateId, ListPrefixStateId, SearchFilesStateId, SearchInMetaStateId, SearchInPackageFilesStateId,
@@ -82,7 +78,8 @@ impl Display for StageName {
             ErrorDomain::Install => InstallStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Rollback => RollbackStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Commit => CommitStateId::from_stage_index(state).stage_key(),
-            ErrorDomain::Files => FilesStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Attach => AttachStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Detach => DetachStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Update => UpdateStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Gc => GcStateId::from_stage_index(state).stage_key(),
             ErrorDomain::Pin => PinStateId::from_stage_index(state).stage_key(),
@@ -99,10 +96,13 @@ impl Display for StageName {
             ErrorDomain::SearchFiles => SearchFilesStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInMeta => SearchInMetaStateId::from_stage_index(state).stage_key(),
             ErrorDomain::SearchInPackageFiles => SearchInPackageFilesStateId::from_stage_index(state).stage_key(),
-            ErrorDomain::Bootstrap => BootstrapStateId::from_stage_index(state).stage_key(),
-            ErrorDomain::PartitionTable => PartitionTableStateId::from_stage_index(state).stage_key(),
-            ErrorDomain::PartitionAdd => PartitionAddStateId::from_stage_index(state).stage_key(),
-            ErrorDomain::Format => FormatStateId::from_stage_index(state).stage_key(),
+            ErrorDomain::Unknown
+            | ErrorDomain::BootstrapImport
+            | ErrorDomain::BootstrapKernel
+            | ErrorDomain::BootstrapDeploy
+            | ErrorDomain::PartitionTable
+            | ErrorDomain::PartitionAdd
+            | ErrorDomain::Format => "stage-setup",
         };
 
         write!(formatter, "{}", LOADER.get(key))
@@ -129,6 +129,7 @@ fn error_kind_message(kind: ErrorKind) -> String {
         ErrorKind::UnsupportedFilesystem => fl!(LOADER, "err-unsupported-filesystem"),
         ErrorKind::ToolNotInstalled => fl!(LOADER, "err-tool-not-installed"),
         ErrorKind::ToolFailed => fl!(LOADER, "err-tool-failed"),
+        ErrorKind::RollbackFailed => fl!(LOADER, "err-rollback-failed"),
     }
 }
 

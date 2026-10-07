@@ -3,12 +3,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_abi::error::{ErrorDomain, ErrorKind};
 use upac_abi::package::CPackageMeta;
 use upac_abi::response::unmutated::CListPackagesResponse;
 use upac_abi::types::{COwned, CVec};
 
 use upac_types::error::Error as AbiError;
+use upac_types::error::{ErrorDomain, ErrorKind};
 
 use crate::locale;
 use crate::types::abi::{invoke, invoke_with_response};
@@ -32,7 +32,10 @@ fn invoke_propagates_the_localized_error_on_a_nonzero_code() {
         1
     });
 
-    assert_eq!(result.unwrap_err().to_string(), "File not found (Install: Pre-hooks)");
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "File not found (Install: Unpacking packages)"
+    );
 }
 
 #[test]
@@ -59,7 +62,10 @@ fn invoke_with_response_propagates_the_localized_error_on_a_nonzero_code() {
         1
     });
 
-    assert_eq!(result.err().unwrap().to_string(), "File not found (Install: Pre-hooks)");
+    assert_eq!(
+        result.err().unwrap().to_string(),
+        "File not found (Install: Unpacking packages)"
+    );
 }
 
 #[test]

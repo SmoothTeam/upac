@@ -3,9 +3,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_abi::error::{ErrorDomain, ErrorKind};
-
 use upac_types::error::Error as AbiError;
+use upac_types::error::{ErrorDomain, ErrorKind};
 
 use crate::locale;
 use crate::types::errors::{AbiMismatch, LibError, StageName};
@@ -24,12 +23,13 @@ fn stage_name_resolves_the_localized_first_stage_of_every_domain() {
     locale::init_for_test();
 
     let cases = [
-        (ErrorDomain::Uninstall, "Pre-hooks"),
-        (ErrorDomain::Install, "Pre-hooks"),
-        (ErrorDomain::Rollback, "Pre-hooks"),
-        (ErrorDomain::Commit, "Pre-hooks"),
-        (ErrorDomain::Files, "Pre-hooks"),
-        (ErrorDomain::Update, "Pre-hooks"),
+        (ErrorDomain::Uninstall, "Opening prefix"),
+        (ErrorDomain::Install, "Unpacking packages"),
+        (ErrorDomain::Rollback, "Selecting configuration"),
+        (ErrorDomain::Commit, "Transaction"),
+        (ErrorDomain::Attach, "Opening prefix"),
+        (ErrorDomain::Detach, "Opening prefix"),
+        (ErrorDomain::Update, "Unpacking packages"),
         (ErrorDomain::Gc, "Pruning"),
         (ErrorDomain::Pin, "Set pinned"),
         (ErrorDomain::Mime, "Preparing"),
@@ -90,6 +90,10 @@ fn lib_error_display_covers_every_error_kind() {
             ErrorKind::ToolFailed,
             "An external program failed; see its output above",
         ),
+        (
+            ErrorKind::RollbackFailed,
+            "The operation failed and undoing its partial changes failed too; the system may be left inconsistent",
+        ),
     ];
 
     for (kind, expected) in cases {
@@ -99,6 +103,6 @@ fn lib_error_display_covers_every_error_kind() {
             kind,
         });
 
-        assert_eq!(error.to_string(), format!("{expected} (Install: Pre-hooks)"));
+        assert_eq!(error.to_string(), format!("{expected} (Install: Unpacking packages)"));
     }
 }

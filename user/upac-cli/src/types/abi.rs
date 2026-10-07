@@ -8,9 +8,9 @@ use std::mem::MaybeUninit;
 use anyhow::Result;
 
 use upac_abi::error::CError;
-use upac_abi::response::entry::DiffFileSource;
 use upac_abi::types::CValidatable;
 
+use upac_types::diff::DiffFileSource;
 use upac_types::error::Error as AbiError;
 
 use crate::types::errors::{InvalidResponse, LibError};
@@ -55,7 +55,7 @@ pub fn invoke_with_response<R: CValidatable>(call: impl FnOnce(*mut R, *mut CErr
 
     let response = unsafe { response.assume_init() };
 
-    unsafe { response.validate() }.map_err(|error| InvalidResponse { error })?;
+    unsafe { response.validate() }.map_err(|error| InvalidResponse { error: error.into() })?;
 
     Ok(response)
 }

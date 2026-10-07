@@ -11,10 +11,9 @@ use nix::unistd::Uid;
 
 use upac_abi::LIB_ABI_VERSION;
 use upac_abi::error::CError;
-use upac_abi::hook::CancelToken;
 use upac_abi::request::mutated::{
-    CCommitRequest, CFilesRequest, CGcRequest, CInstallRequest, CMimeSyncRequest, CPinRequest, CRollbackRequest,
-    CUninstallRequest, CUpdateRequest,
+    CAttachRequest, CCommitRequest, CDetachRequest, CGcRequest, CInstallRequest, CMimeSyncRequest, CPinRequest,
+    CRollbackRequest, CUninstallRequest, CUpdateRequest,
 };
 use upac_abi::request::unmutated::{
     CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CListConfigRequest,
@@ -35,19 +34,14 @@ use super::types::errors::AbiMismatch;
 use crate::locale::LOADER;
 
 #[cfg(feature = "static-link")]
-use upac::export::mutated::{
-    commit::commit, files::files, gc::gc, installer::install, mime::mime, pin::pin_deploy, rollback::rollback,
-    uninstaller::uninstall, update::update,
-};
+use upac::export::lib_abi_version;
+#[cfg(feature = "static-link")]
+use upac::export::mutated::{attach, commit, detach, gc, install, mime, pin_deploy, rollback, uninstall, update};
 #[cfg(feature = "static-link")]
 use upac::export::unmutated::{
-    diff::diff, diff_config::diff_config, diff_packages::diff_packages, diff_prefix::diff_prefix,
-    list_config::list_config, list_history::list_history, list_packages::list_packages, list_prefix::list_prefix,
-    search_files::search_files, search_in_meta::search_in_meta, search_in_package_files::search_in_package_files,
-    search_meta::search_meta,
+    diff, diff_config, diff_packages, diff_prefix, list_config, list_history, list_packages, list_prefix, search_files,
+    search_in_meta, search_in_package_files, search_meta,
 };
-#[cfg(feature = "static-link")]
-use upac::export::{lib_abi_version, lib_cancel};
 
 #[cfg(feature = "static-link")]
 impl RoSymbols {
@@ -78,7 +72,8 @@ impl RwSymbols {
             uninstall,
             commit,
             rollback,
-            files,
+            attach,
+            detach,
             mime,
             gc,
             pin_deploy,
@@ -92,7 +87,6 @@ impl Lib {
         let lib = Self {
             ro: RoSymbols::from_static(),
             rw: RwSymbols::from_static(),
-            cancel: lib_cancel,
             version_abi: lib_abi_version,
         };
 
@@ -144,7 +138,8 @@ impl LoadLibrarySymbols for RwSymbols {
             uninstall: unsafe { Lib::load_symbol(lib, "uninstall")? },
             commit: unsafe { Lib::load_symbol(lib, "commit")? },
             rollback: unsafe { Lib::load_symbol(lib, "rollback")? },
-            files: unsafe { Lib::load_symbol(lib, "files")? },
+            attach: unsafe { Lib::load_symbol(lib, "attach")? },
+            detach: unsafe { Lib::load_symbol(lib, "detach")? },
             mime: unsafe { Lib::load_symbol(lib, "mime")? },
             gc: unsafe { Lib::load_symbol(lib, "gc")? },
             pin_deploy: unsafe { Lib::load_symbol(lib, "pin_deploy")? },
@@ -161,7 +156,6 @@ impl Lib {
             ro: RoSymbols::load(&loaded_library)?,
             rw: RwSymbols::load(&loaded_library)?,
 
-            cancel: unsafe { Lib::load_symbol(&loaded_library, "lib_cancel")? },
             version_abi: unsafe { Lib::load_symbol(&loaded_library, "lib_abi_version")? },
 
             _lib: loaded_library,
@@ -214,7 +208,8 @@ pub struct RwSymbols {
     pub uninstall: unsafe extern "C" fn(CUninstallRequest, *mut CError) -> i32,
     pub commit: unsafe extern "C" fn(CCommitRequest, *mut CError) -> i32,
     pub rollback: unsafe extern "C" fn(CRollbackRequest, *mut CError) -> i32,
-    pub files: unsafe extern "C" fn(CFilesRequest, *mut CError) -> i32,
+    pub attach: unsafe extern "C" fn(CAttachRequest, *mut CError) -> i32,
+    pub detach: unsafe extern "C" fn(CDetachRequest, *mut CError) -> i32,
     pub mime: unsafe extern "C" fn(CMimeSyncRequest, *mut CError) -> i32,
     pub gc: unsafe extern "C" fn(CGcRequest, *mut CError) -> i32,
     pub pin_deploy: unsafe extern "C" fn(CPinRequest, *mut CError) -> i32,
@@ -224,7 +219,6 @@ pub struct Lib {
     pub ro: RoSymbols,
     pub rw: RwSymbols,
 
-    pub cancel: unsafe extern "C" fn(*mut CancelToken),
     pub version_abi: unsafe extern "C" fn() -> u32,
     #[cfg(feature = "dynamic-plugins")]
     _lib: Library,

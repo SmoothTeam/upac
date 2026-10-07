@@ -6,9 +6,10 @@
 use std::ffi::CString;
 use std::mem::size_of;
 
-use upac_abi::error::ErrorDomain;
 use upac_abi::hook::CProgressEvent;
 use upac_abi::types::{CBorrowed, CSlice};
+
+use upac_types::error::ErrorDomain;
 
 use crate::locale;
 use crate::types::progress::ProgressState;
@@ -31,7 +32,7 @@ fn apply_with_zero_total_stays_on_spinner() {
     state.apply(&event(0, 0, 0, CSlice::from_slice(None)));
 
     assert!(!state.is_bar);
-    assert_eq!(state.bar.message(), "Pre-hooks");
+    assert_eq!(state.bar.message(), "Unpacking packages");
 }
 
 #[test]
@@ -54,5 +55,5 @@ fn apply_includes_subject_in_message_when_present() {
 
     state.apply(&event(0, 0, 0, CSlice::from_borrowed(subject.as_bytes())));
 
-    assert_eq!(state.bar.message(), "Pre-hooks: foo.txt");
+    assert_eq!(state.bar.message(), "Unpacking packages: foo.txt");
 }

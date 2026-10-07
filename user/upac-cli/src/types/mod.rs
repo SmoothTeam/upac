@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::env::temp_dir;
-use std::sync::Arc;
 
 use super::libcore::Lib;
 
@@ -26,14 +25,14 @@ macro_rules! request_base {
         ::upac_types::request::RequestBase {
             on_hook: None,
             hook_ctx: ::std::ptr::null_mut(),
-            cancel_token: $crate::cancel_token_ptr(),
+            cancel_token: &$crate::CANCEL_TOKEN,
         }
     };
     ($progress:expr) => {
         ::upac_types::request::RequestBase {
             on_hook: Some($crate::types::progress::on_progress),
             hook_ctx: $progress.ctx_ptr(),
-            cancel_token: $crate::cancel_token_ptr(),
+            cancel_token: &$crate::CANCEL_TOKEN,
         }
     };
 }
@@ -81,12 +80,12 @@ macro_rules! call {
 pub(crate) use call;
 
 pub struct CommandContext {
-    pub lib: Arc<Lib>,
+    pub lib: Lib,
     pub tmp_path: String,
 }
 
 impl CommandContext {
-    pub fn new(lib: Arc<Lib>) -> CommandContext {
+    pub fn new(lib: Lib) -> CommandContext {
         let tmp_path = temp_dir().to_string_lossy().into_owned();
 
         CommandContext { lib, tmp_path }

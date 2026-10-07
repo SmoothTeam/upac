@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::process::ExitCode;
-use std::ptr::addr_of_mut;
-use std::sync::Arc;
 
 use colored::Colorize;
 
@@ -15,7 +13,7 @@ use clap::Parser;
 
 use i18n_embed_fl::fl;
 
-use upac_abi::hook::CancelToken;
+use upac_types::CancelToken;
 
 use upac_locale::parse;
 
@@ -44,11 +42,7 @@ mod commands {
     pub mod rollback;
 }
 
-static mut CANCEL_TOKEN: CancelToken = CancelToken::new();
-
-pub(crate) fn cancel_token_ptr() -> *mut CancelToken {
-    addr_of_mut!(CANCEL_TOKEN)
-}
+static CANCEL_TOKEN: CancelToken = CancelToken::new();
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -77,13 +71,9 @@ fn main() -> ExitCode {
 fn run() -> Result<()> {
     let command = parse::<Command, Locale>();
 
-    let lib = Arc::new(Lib::load()?);
+    let lib = Lib::load()?;
 
-    let lib_cancel = Arc::clone(&lib);
-
-    ctrlc::set_handler(move || {
-        unsafe { (lib_cancel.cancel)(cancel_token_ptr()) };
-    })?;
+    ctrlc::set_handler(|| CANCEL_TOKEN.cancel())?;
 
     let command_context = CommandContext::new(lib);
 

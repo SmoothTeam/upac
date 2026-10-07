@@ -13,8 +13,7 @@ use colored::Colorize;
 
 use i18n_embed_fl::fl;
 
-use upac_abi::error::ErrorDomain;
-
+use upac_types::error::ErrorDomain;
 use upac_types::package::{PackageInfo, PackageMeta};
 use upac_types::request::mutated::UninstallRequest;
 use upac_types::request::unmutated::ListPackagesRequest;
@@ -94,7 +93,6 @@ fn uninstall(args: &Args, ctx: &CommandContext, packages: Vec<PackageInfo>) -> R
 
     let request = UninstallRequest {
         base: request_base!(progress),
-        tmp_path: &ctx.tmp_path,
         subject: &subject,
         message: args.message.as_deref(),
         packages,

@@ -16,6 +16,8 @@ pub struct Args {
     pub commit: String,
     #[arg(long)]
     pub boot: Option<String>,
+    #[arg(long)]
+    pub discard_etc_changes: bool,
 }
 
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
@@ -25,9 +27,9 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let request = RollbackRequest {
         base: request_base!(),
-        tmp_path: &ctx.tmp_path,
         config_digest: &args.commit,
         boot_plugin: &boot_plugin,
+        discard_etc_changes: args.discard_etc_changes,
     };
 
     call!(symbols.rollback, request)

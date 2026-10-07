@@ -21,7 +21,6 @@ pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
 
     let request = CommitRequest {
         base: request_base!(),
-        tmp_path: &ctx.tmp_path,
         subject: &args.message,
         message: None,
     };

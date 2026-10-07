@@ -9,11 +9,9 @@ use clap::Args as ClapArgs;
 
 use i18n_embed_fl::fl;
 
-use upac_abi::error::ErrorDomain;
-use upac_abi::response::entry::FileDiffKind;
-
+use upac_types::error::ErrorDomain;
 use upac_types::package::PackageInfo;
-use upac_types::request::mutated::FilesRequest;
+use upac_types::request::mutated::DetachRequest;
 
 use crate::locale::SUBJECT_LOADER;
 use crate::types::abi::FileScope;
@@ -41,30 +39,25 @@ pub struct Args {
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
 
-    let package = PackageInfo {
-        name: args.package,
-        arch: args.arch,
-        arch_sub: args.arch_sub,
-    }
-    .into();
-
-    let mut progress = ProgressState::new(ErrorDomain::Files);
+    let mut progress = ProgressState::new(ErrorDomain::Detach);
 
     let boot_plugin = boot_plugin!(args.boot)?;
 
     let subject = fl!(SUBJECT_LOADER, "subject-file-remove");
 
-    let request = FilesRequest {
+    let request = DetachRequest {
         base: request_base!(progress),
-        tmp_path: &ctx.tmp_path,
         subject: &subject,
         message: args.message.as_deref(),
-        files: args.files.iter().map(|string| string.as_str()).collect(),
-        file_kind: FileDiffKind::Removed,
-        scope: args.scope.into(),
-        file_package: &package,
+        files: args.files.iter().map(String::as_str).collect(),
+        file_package: PackageInfo {
+            name: args.package,
+            arch: args.arch,
+            arch_sub: args.arch_sub,
+        },
         boot_plugin: &boot_plugin,
+        scope: args.scope.into(),
     };
 
-    call!(symbols.files, request)
+    call!(symbols.detach, request)
 }

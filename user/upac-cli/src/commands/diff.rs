@@ -9,8 +9,7 @@ use clap::Args as ClapArgs;
 
 use colored::Colorize;
 
-use upac_abi::response::entry::{FileDiffKind, PackageDiffKind};
-
+use upac_types::diff::{FileDiffKind, PackageDiffKind};
 use upac_types::request::unmutated::DiffRequest;
 use upac_types::response::entry::{DiffPackageEntry, DiffUntrackedFileEntry};
 

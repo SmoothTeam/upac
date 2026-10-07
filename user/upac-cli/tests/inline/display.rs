@@ -3,8 +3,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use upac_abi::response::entry::DiffFileSource;
-
+use upac_types::diff::DiffFileSource;
 use upac_types::package::{PackageMeta, Version};
 
 use crate::locale;
@@ -19,10 +18,13 @@ fn meta(name: &str, version_raw: &str, installed_size: u64) -> PackageMeta {
             raw: version_raw.to_owned(),
         },
         arch: "x86_64".to_owned(),
+        arch_sub: None,
         maintainer: "someone".to_owned(),
         description: "a package".to_owned(),
+        license: None,
+        url: None,
+        sha256: [0; 32],
         installed_size,
-        ..PackageMeta::default()
     }
 }
 

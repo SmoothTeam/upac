@@ -9,11 +9,9 @@ use clap::Args as ClapArgs;
 
 use i18n_embed_fl::fl;
 
-use upac_abi::error::ErrorDomain;
-use upac_abi::response::entry::FileDiffKind;
-
+use upac_types::error::ErrorDomain;
 use upac_types::package::PackageInfo;
-use upac_types::request::mutated::FilesRequest;
+use upac_types::request::mutated::{AttachRequest, FileTransfer};
 
 use crate::locale::SUBJECT_LOADER;
 use crate::types::abi::FileScope;
@@ -22,8 +20,12 @@ use crate::types::{CommandContext, boot_plugin, call, request_base};
 
 #[derive(ClapArgs)]
 pub struct Args {
-    #[arg(required = true, num_args = 1..)]
+    #[arg(num_args = 1.., required_unless_present = "source", conflicts_with_all = ["source", "target"])]
     pub files: Vec<String>,
+    #[arg(long, requires = "target")]
+    pub source: Option<String>,
+    #[arg(long, requires = "source")]
+    pub target: Option<String>,
     #[arg(long, required = true)]
     pub package: String,
     #[arg(long, required = true)]
@@ -38,35 +40,47 @@ pub struct Args {
     pub scope: FileScope,
 }
 
+impl Args {
+    fn transfers(&self) -> Vec<FileTransfer<'_>> {
+        if let (Some(source), Some(target)) = (&self.source, &self.target) {
+            return vec![FileTransfer { source, target }];
+        }
+
+        self.files
+            .iter()
+            .map(|file| match file.split_once(':') {
+                Some((source, target)) => FileTransfer { source, target },
+                None => FileTransfer {
+                    source: file,
+                    target: file,
+                },
+            })
+            .collect()
+    }
+}
+
 pub fn run(args: Args, ctx: CommandContext) -> Result<()> {
     let symbols = ctx.lib.require_write()?;
 
-    let package = PackageInfo {
-        name: args.package,
-        arch: args.arch,
-        arch_sub: args.arch_sub,
-    }
-    .into();
+    let mut progress = ProgressState::new(ErrorDomain::Attach);
 
-    let mut progress = ProgressState::new(ErrorDomain::Files);
-
-    let boot_plugin = boot_plugin!(args.boot)?;
+    let boot_plugin = boot_plugin!(args.boot.clone())?;
 
     let subject = fl!(SUBJECT_LOADER, "subject-file-add");
 
-    let files: Vec<&str> = args.files.iter().map(|string| string.as_str()).collect();
-
-    let request = FilesRequest {
+    let request = AttachRequest {
         base: request_base!(progress),
-        tmp_path: &ctx.tmp_path,
         subject: &subject,
         message: args.message.as_deref(),
-        files,
-        file_kind: FileDiffKind::Added,
-        scope: args.scope.into(),
-        file_package: &package,
+        files: args.transfers(),
+        file_package: PackageInfo {
+            name: args.package.clone(),
+            arch: args.arch.clone(),
+            arch_sub: args.arch_sub.clone(),
+        },
         boot_plugin: &boot_plugin,
+        scope: args.scope.into(),
     };
 
-    call!(symbols.files, request)
+    call!(symbols.attach, request)
 }
