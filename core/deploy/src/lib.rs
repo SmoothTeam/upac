@@ -21,6 +21,7 @@ use upac_types::booter::BootResourceKind;
 
 use upac_composefs::error::RepoError;
 use upac_composefs::fs::WrittenFile;
+use upac_composefs::tree::Tree;
 use upac_composefs::{Digest, Repo};
 
 use upac_database::MemoryDatabase;
@@ -31,12 +32,14 @@ use self::boot::{WrittenBootEntry, wrap_under_usr};
 use self::deployment::Deployment;
 use self::deployment::PrefixDeploy;
 use self::deployment::meta::PrefixPointer;
-use self::error::{BootEntryError, PrefixCreateError, PrefixMetaError, PrefixReadError, SysrootError};
+use self::error::{BootEntryError, PrefixCreateError, PrefixEditError, PrefixMetaError, PrefixReadError, SysrootError};
 use self::layout::boot::UPAC_UKI_TO_SLOT;
 use self::layout::deployment::{
     CONFIG_DIR_NAME, DEPLOYS_DIR, LIVE_ETC_UPPER_DIR_NAME, NEXT_PREFIX_FILENAME, REPO_DIR, ROOT_DIR,
     RUNNING_PREFIX_PATH, SYSROOT_DIR, SYSROOT_ROOT_MODE,
 };
+use self::layout::prefix::DEFAULTS_DIR;
+use self::working::WorkingPrefix;
 
 pub mod boot;
 pub mod deployment;
@@ -44,6 +47,7 @@ pub mod error;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
+pub mod working;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SysrootMode {
@@ -127,6 +131,34 @@ impl Sysroot {
         let tree = self.repo.open_tree(prefix_digest)?;
 
         Ok(MemoryDatabase::open_in_memory(tree.read_file(DATABASE_PATH)?)?)
+    }
+
+    pub fn prefix_defaults(&self, prefix_digest: &Digest) -> Result<Tree, RepoError> {
+        let tree = self.repo.open_tree(prefix_digest)?;
+
+        if tree.contains(DEFAULTS_DIR) {
+            tree.copy_tree(DEFAULTS_DIR)
+        } else {
+            Ok(self.repo.empty_tree())
+        }
+    }
+
+    pub fn working_prefix(&self, base: &PrefixDeploy) -> Result<WorkingPrefix, PrefixReadError> {
+        Ok(WorkingPrefix::new(
+            self.repo.clone(),
+            self.repo.open_tree(base.digest())?,
+            self.prefix_database(base.digest())?,
+            Some(base.transaction().uuid.to_string()),
+        ))
+    }
+
+    pub fn empty_prefix(&self) -> Result<WorkingPrefix, PrefixEditError> {
+        Ok(WorkingPrefix::new(
+            self.repo.clone(),
+            self.repo.empty_tree(),
+            MemoryDatabase::new_in_memory()?,
+            None,
+        ))
     }
 
     pub fn prefix(&self, prefix_digest: &Digest) -> Result<PrefixDeploy, PrefixReadError> {

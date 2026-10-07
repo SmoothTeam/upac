@@ -39,6 +39,7 @@ composefs-boot = { workspace = true }
 anyhow         = { workspace = true }
 nix            = { workspace = true }
 serde          = { workspace = true }
+uuid           = { workspace = true }
 
 procfs = { version = "0.18.0", default-features = false }
 

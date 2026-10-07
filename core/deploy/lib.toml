@@ -21,12 +21,6 @@
 # `composefs-setup-root`'s own hardcoded layout expectation (upstream, not
 # something we get to pick freely).
 #
-# live_etc_dir is the real, absolute mount point of the running system's
-# /etc (doc §3 (13): overlayfs merge of config_dir_name/upper over the
-# current working_config) — used by `files add/remove --scope config` to
-# read the live, already-merged content of a path regardless of which
-# overlay layer it currently resolves from.
-#
 # sysroot_root_mode is the permission set of the physical root partition's top directory: only root
 # may look into the deploys and the repository it holds.
 [deployment]
@@ -39,9 +33,18 @@ next_prefix_filename = "next.json"
 running_prefix_path = "/run/upac/running"
 config_dir_name = "etc"
 live_etc_upper_dir_name = "upper"
-live_etc_dir = "/etc"
 
 sysroot_root_mode = 0o700
+
+# system_prefix_dir/system_config_dir are where the prefix image and the config image are mounted
+# on the booted system, relative to its root. A package lays its files out under the same paths,
+# so a package's usr/ is imported into the root of the prefix image and its etc/ into defaults_dir.
+# defaults_dir is where, inside the prefix image, the packages' pristine /etc lives: the base and
+# the new side of the three-way /etc merge, rolled back together with the prefix.
+[prefix]
+system_prefix_dir = "usr"
+system_config_dir = "etc"
+defaults_dir = "etc"
 
 # The fixed UKI-direct staging slots (§5.2/§5.3). upac_uki_to_slot is the fixed stem the corresponding UEFI Boot####
 # entry is pre-registered against once, out of scope of this pipeline (`\EFI\Linux\upac-to.efi`) —

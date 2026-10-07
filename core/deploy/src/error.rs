@@ -248,3 +248,36 @@ impl From<EspError> for ErrorKind {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrefixEditError {
+    Repo(RepoError),
+    Database(DatabaseError),
+    PackageExists,
+    PackageNotFound,
+    OutsideSystemDir,
+}
+
+impl From<RepoError> for PrefixEditError {
+    fn from(error: RepoError) -> Self {
+        PrefixEditError::Repo(error)
+    }
+}
+
+impl From<DatabaseError> for PrefixEditError {
+    fn from(error: DatabaseError) -> Self {
+        PrefixEditError::Database(error)
+    }
+}
+
+impl From<PrefixEditError> for ErrorKind {
+    fn from(error: PrefixEditError) -> Self {
+        match error {
+            PrefixEditError::Repo(error) => error.into(),
+            PrefixEditError::Database(error) => error.into(),
+            PrefixEditError::PackageExists => ErrorKind::AlreadyExists,
+            PrefixEditError::PackageNotFound => ErrorKind::NotFound,
+            PrefixEditError::OutsideSystemDir => ErrorKind::InvalidPath,
+        }
+    }
+}
