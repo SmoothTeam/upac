@@ -12,3 +12,5 @@ if [ -n "$staged_rs_files" ]; then
         git add -- "$file"
     done
 fi
+
+cargo xtask lint
