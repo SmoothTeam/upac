@@ -46,6 +46,28 @@ pub trait OrchestratorRun<E: From<PipelineError> + 'static>: Orchestrator<E> + S
             .map_err(|(index, error)| (S::from_stage_index(index), error))
     }
 
+    fn run_mutating_with_response<R: Any, S: CommandState>(
+        self, context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
+    ) -> Result<R, (S, E)>
+    where
+        E: From<LockError>,
+    {
+        let available = self
+            .validate(context)
+            .map_err(|_| (S::VALIDATION, E::from(PipelineError::PipelineInvalid)))?;
+
+        if !available.contains(&TypeId::of::<R>()) {
+            return Err((S::VALIDATION, PipelineError::PipelineInvalid.into()));
+        }
+
+        let _lock = Lock::acquire().map_err(|lock_error| (S::VALIDATION, E::from(lock_error)))?;
+
+        self.execute(context, cancel, on_progress)
+            .map_err(|(index, error)| (S::from_stage_index(index), error))?;
+
+        context.take::<R>().map_err(|error| (S::VALIDATION, error.into()))
+    }
+
     fn run_unmutated<R: Any, S: CommandState>(
         self, context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
     ) -> Result<R, (S, E)> {

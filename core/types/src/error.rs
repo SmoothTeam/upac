@@ -8,6 +8,11 @@ use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::str::Utf8Error;
 
+#[cfg(feature = "gpt")]
+use gptman::Error as GptError;
+#[cfg(feature = "gpt")]
+use gptman::linux::BlockError as GptBlockError;
+
 use upac_abi::error::{AbiError, CError};
 
 use upac_macro::{CEnum, CTryToRust, RustToC};
@@ -91,6 +96,31 @@ impl From<IoError> for ErrorKind {
     }
 }
 
+#[cfg(feature = "gpt")]
+impl From<GptError> for ErrorKind {
+    fn from(error: GptError) -> Self {
+        match error {
+            GptError::Io(io_error) => ErrorKind::from(io_error),
+            GptError::InvalidSignature | GptError::ReadError(_, _) => ErrorKind::NotFound,
+            GptError::NoSpaceLeft => ErrorKind::NoSpaceLeft,
+            GptError::InvalidPartitionBoundaries => ErrorKind::InvalidEntry,
+            _ => ErrorKind::Unexpected,
+        }
+    }
+}
+
+#[cfg(feature = "gpt")]
+impl From<GptBlockError> for ErrorKind {
+    fn from(error: GptBlockError) -> Self {
+        match error {
+            GptBlockError::Metadata(io_error) => ErrorKind::from(io_error),
+            GptBlockError::NotBlock => ErrorKind::InvalidEntry,
+            GptBlockError::RereadTable(_) => ErrorKind::ReadFailed,
+            _ => ErrorKind::Unexpected,
+        }
+    }
+}
+
 impl From<FromBytesWithNulError> for ErrorKind {
     fn from(_: FromBytesWithNulError) -> Self {
         ErrorKind::InvalidEntry
@@ -154,6 +184,24 @@ where
 /// # Safety
 /// `response_out`, if non-null, must point to writable `CResponse` storage, and `err_out`, if non-null, to
 /// writable `CError` storage.
+pub unsafe fn export_mutated_command_with_response<'request, CRequest, Request, State, Response, CResponse>(
+    request: &'request CRequest, response_out: *mut CResponse, err_out: *mut CError,
+    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind)>,
+) -> i32
+where
+    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
+    State: CommandState,
+    CResponse: From<Response>,
+{
+    match call_exported(request, run) {
+        Ok(response) => unsafe { write_response(response_out, response) },
+        Err(error) => unsafe { write_error(err_out, error) },
+    }
+}
+
+/// # Safety
+/// `response_out`, if non-null, must point to writable `CResponse` storage, and `err_out`, if non-null, to
+/// writable `CError` storage.
 pub unsafe fn export_unmutated_command<'request, CRequest, Request, State, Response, CResponse>(
     request: &'request CRequest, response_out: *mut CResponse, err_out: *mut CError,
     run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind)>,
@@ -164,12 +212,7 @@ where
     CResponse: From<Response>,
 {
     match call_exported(request, run) {
-        Ok(response) => {
-            if !response_out.is_null() {
-                unsafe { response_out.write(CResponse::from(response)) };
-            }
-            0
-        }
+        Ok(response) => unsafe { write_response(response_out, response) },
         Err(error) => unsafe { write_error(err_out, error) },
     }
 }
@@ -188,6 +231,14 @@ where
         Ok(Err((state, kind))) => Err(Error::new(state, kind)),
         Err(_) => Err(Error::new(State::VALIDATION, ErrorKind::Unexpected)),
     }
+}
+
+unsafe fn write_response<Response, CResponse: From<Response>>(response_out: *mut CResponse, response: Response) -> i32 {
+    if !response_out.is_null() {
+        unsafe { response_out.write(CResponse::from(response)) };
+    }
+
+    0
 }
 
 unsafe fn write_error(err_out: *mut CError, error: Error) -> i32 {

@@ -14,6 +14,7 @@ use upac_types::traits::CommandState;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::error::PipelineError;
+use upac_orchestrator::lock::LockError;
 use upac_orchestrator::pipeline::Step;
 use upac_orchestrator::stage::Stage;
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
@@ -25,12 +26,19 @@ type ReportedEvent = (u32, Option<String>, u64, u64);
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TestError {
     Pipeline(PipelineError),
+    Lock(LockError),
     Stage(&'static str),
 }
 
 impl From<PipelineError> for TestError {
     fn from(error: PipelineError) -> Self {
         TestError::Pipeline(error)
+    }
+}
+
+impl From<LockError> for TestError {
+    fn from(error: LockError) -> Self {
+        TestError::Lock(error)
     }
 }
 
@@ -660,6 +668,43 @@ fn run_unmutated_rejects_a_pipeline_that_never_provides_the_result() {
     }]);
 
     let result = orchestrator.run_unmutated::<Done, TestState>(&mut Context::default(), &CancelToken::new(), &|_| {});
+
+    assert_eq!(
+        result.err(),
+        Some((
+            TestState::Validation,
+            TestError::Pipeline(PipelineError::PipelineInvalid)
+        ))
+    );
+    assert!(logged(&log).is_empty());
+}
+
+#[test]
+fn run_mutating_with_response_returns_what_the_last_stage_provides() {
+    let orchestrator = SequentialOrchestrator::new(stages![FinishStage]);
+
+    let result = orchestrator.run_mutating_with_response::<Done, TestState>(
+        &mut Context::default(),
+        &CancelToken::new(),
+        &|_| {},
+    );
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn run_mutating_with_response_rejects_a_pipeline_that_never_provides_the_response() {
+    let log = new_log();
+    let orchestrator = SequentialOrchestrator::new(stages![RecordingStage {
+        label: "a",
+        log: Arc::clone(&log)
+    }]);
+
+    let result = orchestrator.run_mutating_with_response::<Done, TestState>(
+        &mut Context::default(),
+        &CancelToken::new(),
+        &|_| {},
+    );
 
     assert_eq!(
         result.err(),

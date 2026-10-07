@@ -7,7 +7,10 @@ use std::ptr::null_mut;
 
 use upac_abi::error::CError;
 
-use upac_types::error::{Error, ErrorDomain, ErrorKind, export_mutated_command, export_unmutated_command};
+use upac_types::error::{
+    Error, ErrorDomain, ErrorKind, export_mutated_command, export_mutated_command_with_response,
+    export_unmutated_command,
+};
 use upac_types::state::mutated::RollbackStateId;
 
 struct FakeCRequest {
@@ -199,4 +202,19 @@ fn an_unmutated_command_tolerates_a_null_response_pointer() {
     };
 
     assert_eq!(code, 0);
+}
+
+#[test]
+fn a_mutated_command_with_a_response_writes_it() {
+    let mut response = FakeCResponse(0);
+    let mut c_error = CError::default();
+
+    let code = unsafe {
+        export_mutated_command_with_response(&VALID, &mut response, &mut c_error, |_: FakeRequest| {
+            Ok::<_, (RollbackStateId, ErrorKind)>(7u32)
+        })
+    };
+
+    assert_eq!(code, 0);
+    assert_eq!(response, FakeCResponse(7));
 }
