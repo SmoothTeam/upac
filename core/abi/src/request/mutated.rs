@@ -57,7 +57,6 @@ pub struct CUninstallRequest {
 
     pub boot_plugin: CSlice,
 
-    pub tmp_path: CSlice,
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
@@ -74,7 +73,6 @@ pub struct CRollbackRequest {
 
     pub boot_plugin: CSlice,
 
-    pub tmp_path: CSlice,
     pub config_digest: CSlice,
 
     pub discard_etc_changes: bool,
@@ -86,7 +84,6 @@ pub struct CCommitRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
-    pub tmp_path: CSlice,
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
@@ -111,7 +108,6 @@ pub struct CAttachRequest {
 
     pub boot_plugin: CSlice,
 
-    pub tmp_path: CSlice,
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
@@ -129,7 +125,6 @@ pub struct CDetachRequest {
 
     pub boot_plugin: CSlice,
 
-    pub tmp_path: CSlice,
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,

@@ -57,8 +57,6 @@ pub struct UpdateRequest<'data> {
 pub struct UninstallRequest<'data> {
     pub base: RequestBase<'data>,
 
-    pub tmp_path: &'data str,
-
     pub subject: &'data str,
     pub message: Option<&'data str>,
 
@@ -72,7 +70,6 @@ pub struct UninstallRequest<'data> {
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct RollbackRequest<'data> {
     pub base: RequestBase<'data>,
-    pub tmp_path: &'data str,
     pub config_digest: &'data str,
     pub boot_plugin: &'data str,
     pub discard_etc_changes: bool,
@@ -81,7 +78,6 @@ pub struct RollbackRequest<'data> {
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct CommitRequest<'data> {
     pub base: RequestBase<'data>,
-    pub tmp_path: &'data str,
     pub subject: &'data str,
     pub message: Option<&'data str>,
 }
@@ -95,8 +91,6 @@ pub struct FileTransfer<'data> {
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct AttachRequest<'data> {
     pub base: RequestBase<'data>,
-
-    pub tmp_path: &'data str,
 
     pub subject: &'data str,
     pub message: Option<&'data str>,
@@ -112,8 +106,6 @@ pub struct AttachRequest<'data> {
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DetachRequest<'data> {
     pub base: RequestBase<'data>,
-
-    pub tmp_path: &'data str,
 
     pub subject: &'data str,
     pub message: Option<&'data str>,

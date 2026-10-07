@@ -21,7 +21,7 @@ use upac_orchestrator::stage::Stage;
 
 use super::super::running_prefix_database;
 
-use crate::search::Search;
+use crate::Search;
 
 pub struct SearchingStage;
 

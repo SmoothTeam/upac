@@ -15,7 +15,7 @@ use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
 use self::searching::SearchingStage;
 
-use crate::search::Search;
+use crate::Search;
 
 mod searching;
 
