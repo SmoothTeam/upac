@@ -6,14 +6,14 @@
 use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
 
-use upac_database::files::FileStoreMut;
+use upac_deploy::working::WorkingPrefix;
 
 use upac_macro::stage;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::stage::Stage;
 
-use super::super::stages::{DetachItem, FileOwner, WorkingPrefix};
+use super::super::stages::{DetachItem, FileOwner, RequestedScope};
 
 pub struct DropStage;
 
@@ -25,9 +25,9 @@ impl Stage<ErrorKind> for DropStage {
         let item = context.take::<DetachItem>()?;
         let mut working = context.take::<WorkingPrefix>()?;
         let owner = context.get::<FileOwner>()?.0;
+        let scope = context.get::<RequestedScope>()?.0;
 
-        working.tree.remove(&item.0.tree_path)?;
-        working.database.remove_user_file(owner, &item.0.entry_path)?;
+        working.detach_file(owner, scope, &item.0)?;
 
         context.put(working);
 

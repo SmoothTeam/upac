@@ -8,6 +8,7 @@ use upac_types::error::ErrorKind;
 use upac_types::request::mutated::UpdateRequest;
 use upac_types::settings::RuntimeSettings;
 use upac_types::state::mutated::UpdateStateId;
+use upac_types::transaction::TransactionKind;
 
 use upac_decoder_loader::unpack::PackageUnpacker;
 
@@ -16,11 +17,11 @@ use upac_deploy::{Sysroot, SysrootMode};
 use upac_orchestrator::context::Context;
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
-use self::commit::CommitStage;
 use self::import::ImportStage;
 
 use super::TmpPath;
 use super::stages::checkout::CheckoutStage;
+use super::stages::commit::CommitStage;
 use super::stages::deploy::DeployStage;
 use super::stages::hooks::HooksStage;
 use super::stages::merge::MergeStage;
@@ -30,7 +31,6 @@ use super::stages::swap::SwapStage;
 use super::stages::unpack::UnpackStage;
 use super::stages::{CommitInfo, PackageSource, RequestedBootPlugin, UnpackedPackage};
 
-mod commit;
 mod import;
 
 pub(crate) struct AllowDowngrade(pub bool);
@@ -71,7 +71,9 @@ pub fn run(request: UpdateRequest<'_>) -> Result<(), (UpdateStateId, ErrorKind)>
         HooksStage::new(TriggerPosition::PreUpgrade),
         OpenStage,
         each::<UnpackedPackage>(ImportStage),
-        CommitStage,
+        CommitStage {
+            kind: TransactionKind::Update,
+        },
         MergeStage,
         DeployStage,
         HooksStage::new(TriggerPosition::PostUpgrade),

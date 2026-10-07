@@ -10,12 +10,13 @@ use upac_types::error::ErrorKind;
 use upac_database::meta::MetaStore;
 use upac_database::triggers::TriggerStore;
 
+use upac_deploy::working::WorkingPrefix;
+
 use upac_macro::stage;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::stage::Stage;
 
-use super::super::stages::WorkingPrefix;
 use super::{RemovalTarget, RequestedPackages};
 
 pub struct PrepareStage;
@@ -26,7 +27,7 @@ impl Stage<ErrorKind> for PrepareStage {
         &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), ErrorKind> {
         let requested = context.take::<RequestedPackages>()?;
-        let database = &context.get::<WorkingPrefix>()?.database;
+        let database = context.get::<WorkingPrefix>()?.database();
 
         let mut targets = Vec::new();
         let mut triggers = Vec::new();

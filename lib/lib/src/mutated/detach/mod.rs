@@ -7,26 +7,25 @@ use upac_types::error::ErrorKind;
 use upac_types::request::mutated::DetachRequest;
 use upac_types::settings::RuntimeSettings;
 use upac_types::state::mutated::DetachStateId;
+use upac_types::transaction::TransactionKind;
 
 use upac_deploy::{Sysroot, SysrootMode};
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
-use self::commit::CommitStage;
 use self::drop::DropStage;
 
-use super::TmpPath;
 use super::stages::checkout::CheckoutStage;
+use super::stages::commit::CommitStage;
 use super::stages::deploy::DeployStage;
 use super::stages::merge::MergeStage;
 use super::stages::open::OpenStage;
 use super::stages::resolve::ResolveStage;
 use super::stages::retention::RetentionStage;
 use super::stages::swap::SwapStage;
-use super::stages::{CommitInfo, DetachItem, RequestedBootPlugin, RequestedPackage, ScopedPath};
+use super::stages::{CommitInfo, DetachItem, RequestedBootPlugin, RequestedPackage, RequestedScope};
 
-mod commit;
 mod drop;
 
 pub fn run(request: DetachRequest<'_>) -> Result<(), (DetachStateId, ErrorKind)> {
@@ -34,19 +33,18 @@ pub fn run(request: DetachRequest<'_>) -> Result<(), (DetachStateId, ErrorKind)>
         return Err((DetachStateId::Setup, ErrorKind::InvalidEntry));
     }
 
-    let items = request
+    let items: Vec<DetachItem> = request
         .files
         .iter()
-        .map(|target| Ok(DetachItem(ScopedPath::new(request.scope, target)?)))
-        .collect::<Result<Vec<_>, ErrorKind>>()
-        .map_err(|error| (DetachStateId::Setup, error))?;
+        .map(|target| DetachItem((*target).to_owned()))
+        .collect();
     let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (DetachStateId::Setup, error.into()))?;
 
     let mut context = Context::default();
     context.put(sysroot);
     context.put(items);
+    context.put(RequestedScope(request.scope));
     context.put(RequestedPackage(request.file_package));
-    context.put(TmpPath(request.tmp_path.to_owned()));
     context.put(CommitInfo {
         subject: request.subject.to_owned(),
         message: request.message.map(str::to_owned),
@@ -58,7 +56,9 @@ pub fn run(request: DetachRequest<'_>) -> Result<(), (DetachStateId, ErrorKind)>
         OpenStage,
         ResolveStage,
         each::<DetachItem>(DropStage),
-        CommitStage,
+        CommitStage {
+            kind: TransactionKind::Files,
+        },
         MergeStage,
         DeployStage,
         CheckoutStage,

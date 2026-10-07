@@ -11,18 +11,18 @@ use upac_types::package::PackageInfo;
 use upac_types::request::mutated::UninstallRequest;
 use upac_types::settings::RuntimeSettings;
 use upac_types::state::mutated::UninstallStateId;
+use upac_types::transaction::TransactionKind;
 
 use upac_deploy::{Sysroot, SysrootMode};
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
-use self::commit::CommitStage;
 use self::prepare::PrepareStage;
 use self::remove::RemoveStage;
 
-use super::TmpPath;
 use super::stages::checkout::CheckoutStage;
+use super::stages::commit::CommitStage;
 use super::stages::deploy::DeployStage;
 use super::stages::hooks::HooksStage;
 use super::stages::merge::MergeStage;
@@ -31,7 +31,6 @@ use super::stages::retention::RetentionStage;
 use super::stages::swap::SwapStage;
 use super::stages::{CommitInfo, RequestedBootPlugin};
 
-mod commit;
 mod prepare;
 mod remove;
 
@@ -52,7 +51,6 @@ pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, Error
     context.put(sysroot);
     context.put(RequestedPackages(request.packages));
     context.put(Purge(request.purge));
-    context.put(TmpPath(request.tmp_path.to_owned()));
     context.put(CommitInfo {
         subject: request.subject.to_owned(),
         message: request.message.map(str::to_owned),
@@ -65,7 +63,9 @@ pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, Error
         PrepareStage,
         HooksStage::new(TriggerPosition::PreRemove),
         each::<RemovalTarget>(RemoveStage),
-        CommitStage,
+        CommitStage {
+            kind: TransactionKind::Uninstall,
+        },
         MergeStage,
         DeployStage,
         HooksStage::new(TriggerPosition::PostRemove),

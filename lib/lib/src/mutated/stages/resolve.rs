@@ -8,12 +8,14 @@ use upac_types::error::ErrorKind;
 
 use upac_database::meta::MetaStore;
 
+use upac_deploy::working::WorkingPrefix;
+
 use upac_macro::stage;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::stage::Stage;
 
-use super::{FileOwner, RequestedPackage, WorkingPrefix};
+use super::{FileOwner, RequestedPackage};
 
 pub struct ResolveStage;
 
@@ -26,7 +28,7 @@ impl Stage<ErrorKind> for ResolveStage {
 
         let uuid = context
             .get::<WorkingPrefix>()?
-            .database
+            .database()
             .find_package_uuid(&package.0.name, &package.0.arch, package.0.arch_sub.as_deref())?
             .ok_or(ErrorKind::NotFound)?;
 

@@ -9,13 +9,14 @@ use upac_types::error::ErrorKind;
 use upac_deploy::Sysroot;
 use upac_deploy::deployment::Deployment;
 use upac_deploy::error::{PrefixMetaError, PrefixReadError};
+use upac_deploy::working::WorkingPrefix;
 
 use upac_macro::stage;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::stage::Stage;
 
-use super::{RunningPrefix, WorkingPrefix};
+use super::RunningPrefix;
 
 pub struct OpenStage;
 
@@ -33,12 +34,7 @@ impl Stage<ErrorKind> for OpenStage {
             Err(error) => return Err(error.into()),
         };
 
-        let working = WorkingPrefix {
-            tree: sysroot.repo().open_tree(base_prefix.digest())?,
-            database: sysroot.prefix_database(base_prefix.digest())?,
-            parent_transaction: base_prefix.transaction().uuid.to_string(),
-        };
-
+        let working = sysroot.working_prefix(&base_prefix)?;
         context.put::<WorkingPrefix>(working);
         context.put(RunningPrefix(running_prefix));
 
