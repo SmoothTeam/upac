@@ -106,6 +106,16 @@ impl Tree {
         self.insert_leaf(path.as_ref(), stat, LeafContent::Regular(regular))
     }
 
+    pub fn insert_bytes(&mut self, path: impl AsRef<Path>, content: &[u8], stat: Stat) -> Result<(), RepoError> {
+        let regular = if content.len() <= MAX_INLINE_CONTENT {
+            RegularFile::Inline(content.into())
+        } else {
+            RegularFile::External(self.repo.upstream().ensure_object(content)?, content.len() as u64)
+        };
+
+        self.insert_leaf(path.as_ref(), stat, LeafContent::Regular(regular))
+    }
+
     pub fn insert_symlink(
         &mut self, path: impl AsRef<Path>, target: impl AsRef<OsStr>, stat: Stat,
     ) -> Result<(), RepoError> {

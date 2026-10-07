@@ -102,6 +102,20 @@ fn a_large_file_round_trips_through_the_repository() {
 }
 
 #[test]
+fn inserted_bytes_round_trip_inline_and_through_the_repository() {
+    let (_scratch, repo) = open_repo("insert-bytes");
+    let mut tree = repo.empty_tree();
+    let large_content = vec![7u8; 4096];
+
+    tree.insert_bytes("small.txt", b"hello", Stat::uninitialized()).unwrap();
+    tree.insert_bytes("large.bin", &large_content, Stat::uninitialized())
+        .unwrap();
+
+    assert_eq!(tree.read_file("small.txt").unwrap(), b"hello");
+    assert_eq!(tree.read_file("large.bin").unwrap(), large_content);
+}
+
+#[test]
 fn inserting_over_an_existing_file_replaces_it() {
     let (_scratch, repo) = open_repo("replace");
     let mut tree = repo.empty_tree();
