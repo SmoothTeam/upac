@@ -60,10 +60,10 @@ fn untouched_file_keeps_the_new_package_default() {
     let mut new = repo.empty_tree();
     insert(&mut new, "untouched-new", "conf", b"new");
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert_eq!(read(&result.tree, "conf"), b"new");
-    assert!(result.conflicts.is_empty());
+    assert_eq!(read(&merged_tree, "conf"), b"new");
+    assert!(conflicts.is_empty());
 }
 
 #[test]
@@ -77,10 +77,10 @@ fn user_only_edit_is_kept_when_package_did_not_change_the_file() {
     let mut live = repo.empty_tree();
     insert(&mut live, "user-only-edit-live", "conf", b"user-edit");
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert_eq!(read(&result.tree, "conf"), b"user-edit");
-    assert!(result.conflicts.is_empty());
+    assert_eq!(read(&merged_tree, "conf"), b"user-edit");
+    assert!(conflicts.is_empty());
 }
 
 #[test]
@@ -96,11 +96,11 @@ fn conflicting_edit_keeps_the_user_version_and_writes_upac_new_sidecar() {
     let mut live = repo.empty_tree();
     insert(&mut live, "conflict-edit-live", "conf", b"user-edit");
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert_eq!(read(&result.tree, "conf"), b"user-edit");
-    assert_eq!(read(&result.tree, "conf.upac-new"), b"package-new");
-    assert_eq!(result.conflicts, vec![PathBuf::from("conf")]);
+    assert_eq!(read(&merged_tree, "conf"), b"user-edit");
+    assert_eq!(read(&merged_tree, "conf.upac-new"), b"package-new");
+    assert_eq!(conflicts, vec![PathBuf::from("conf")]);
 }
 
 #[test]
@@ -116,11 +116,11 @@ fn conflicting_edit_skips_the_upac_new_sidecar_when_conflict_files_are_disallowe
     let mut live = repo.empty_tree();
     insert(&mut live, "conflict-edit-no-sidecar-live", "conf", b"user-edit");
 
-    let result = Tree::merge(&base, &new, &live, false).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, false).unwrap();
 
-    assert_eq!(read(&result.tree, "conf"), b"user-edit");
-    assert!(!exists(&result.tree, "conf.upac-new"));
-    assert_eq!(result.conflicts, vec![PathBuf::from("conf")]);
+    assert_eq!(read(&merged_tree, "conf"), b"user-edit");
+    assert!(!exists(&merged_tree, "conf.upac-new"));
+    assert_eq!(conflicts, vec![PathBuf::from("conf")]);
 }
 
 #[test]
@@ -132,10 +132,10 @@ fn user_deletion_is_carried_over_when_the_package_did_not_change_the_file() {
     let new = base.clone();
     let live = repo.empty_tree();
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert!(!exists(&result.tree, "conf"));
-    assert!(result.conflicts.is_empty());
+    assert!(!exists(&merged_tree, "conf"));
+    assert!(conflicts.is_empty());
 }
 
 #[test]
@@ -150,11 +150,11 @@ fn user_deletion_conflicts_when_the_package_also_changed_the_file() {
 
     let live = repo.empty_tree();
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert_eq!(read(&result.tree, "conf"), b"package-new");
-    assert!(!exists(&result.tree, "conf.upac-new"));
-    assert_eq!(result.conflicts, vec![PathBuf::from("conf")]);
+    assert_eq!(read(&merged_tree, "conf"), b"package-new");
+    assert!(!exists(&merged_tree, "conf.upac-new"));
+    assert_eq!(conflicts, vec![PathBuf::from("conf")]);
 }
 
 #[test]
@@ -169,11 +169,11 @@ fn user_edit_survives_when_the_package_stops_providing_the_file() {
     let mut live = repo.empty_tree();
     insert(&mut live, "orphaned-edit-live", "conf", b"user-edit");
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert_eq!(read(&result.tree, "conf"), b"user-edit");
-    assert!(!exists(&result.tree, "conf.upac-new"));
-    assert!(result.conflicts.is_empty());
+    assert_eq!(read(&merged_tree, "conf"), b"user-edit");
+    assert!(!exists(&merged_tree, "conf.upac-new"));
+    assert!(conflicts.is_empty());
 }
 
 #[test]
@@ -186,10 +186,10 @@ fn user_deletion_is_not_a_conflict_when_the_package_also_removed_the_file() {
     let new = repo.empty_tree();
     let live = repo.empty_tree();
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert!(!exists(&result.tree, "conf"));
-    assert!(result.conflicts.is_empty());
+    assert!(!exists(&merged_tree, "conf"));
+    assert!(conflicts.is_empty());
 }
 
 #[test]
@@ -202,8 +202,8 @@ fn brand_new_user_file_survives_the_merge() {
     let mut live = repo.empty_tree();
     insert(&mut live, "brand-new-user-file-live", "conf", b"user-only");
 
-    let result = Tree::merge(&base, &new, &live, true).unwrap();
+    let (merged_tree, conflicts) = Tree::merge(&base, &new, &live, true).unwrap();
 
-    assert_eq!(read(&result.tree, "conf"), b"user-only");
-    assert!(result.conflicts.is_empty());
+    assert_eq!(read(&merged_tree, "conf"), b"user-only");
+    assert!(conflicts.is_empty());
 }

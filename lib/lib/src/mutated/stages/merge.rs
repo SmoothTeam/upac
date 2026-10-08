@@ -38,15 +38,15 @@ impl Stage<ErrorKind> for MergeStage {
         let mut live_config = sysroot.repo().open_tree(current_config.digest())?;
         live_config.apply_overlay_upper(&sysroot.live_etc_upper_dir(running_prefix.digest()))?;
 
-        let merged = Tree::merge(
+        let (merged_tree, conflicts) = Tree::merge(
             &base_defaults,
             new_defaults,
             &live_config,
             commit_info.allow_conflict_files,
         )?;
 
-        let conflicts_total = merged.conflicts.len() as u64;
-        for (position, path) in merged.conflicts.iter().enumerate() {
+        let conflicts_total = conflicts.len() as u64;
+        for (position, path) in conflicts.iter().enumerate() {
             progress(
                 Some(path.to_string_lossy().as_ref()),
                 position as u64 + 1,
@@ -55,7 +55,7 @@ impl Stage<ErrorKind> for MergeStage {
         }
 
         let config = ConfigDeploy::new(
-            merged.tree.commit()?,
+            merged_tree.commit()?,
             commit_info.subject.clone(),
             commit_info.message.clone(),
         );

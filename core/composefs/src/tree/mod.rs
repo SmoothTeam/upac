@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use composefs::MAX_INLINE_CONTENT;
 use composefs::generic_tree::Stat;
@@ -25,11 +25,6 @@ mod overlay;
 #[cfg(test)]
 #[path = "../../tests/inline/tree.rs"]
 mod tests;
-
-pub struct MergeResult {
-    pub tree: Tree,
-    pub conflicts: Vec<PathBuf>,
-}
 
 pub struct Tree {
     repo: Repo,

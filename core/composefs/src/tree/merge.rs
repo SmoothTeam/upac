@@ -10,10 +10,12 @@ use upac_types::diff::FileDiffKind;
 
 use super::super::error::RepoError;
 use super::super::layout::merge::UPAC_NEW_SUFFIX;
-use super::{MergeResult, Tree};
+use super::Tree;
 
 impl Tree {
-    pub fn merge(base: &Tree, new: &Tree, live: &Tree, allow_conflict_files: bool) -> Result<MergeResult, RepoError> {
+    pub fn merge(
+        base: &Tree, new: &Tree, live: &Tree, allow_conflict_files: bool,
+    ) -> Result<(Tree, Vec<PathBuf>), RepoError> {
         let user_changes = base.diff(live);
         let package_changes = base.diff(new);
 
@@ -42,7 +44,7 @@ impl Tree {
             }
         }
 
-        Ok(MergeResult { tree, conflicts })
+        Ok((tree, conflicts))
     }
 
     fn conflict_copy_path(path: &Path) -> PathBuf {
