@@ -64,13 +64,13 @@ impl Display for Digest {
 }
 
 impl Serialize for Digest {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    fn serialize<Output: Serializer>(&self, serializer: Output) -> Result<Output::Ok, Output::Error> {
         serializer.serialize_str(&self.to_hex())
     }
 }
 
 impl<'de> Deserialize<'de> for Digest {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    fn deserialize<Input: Deserializer<'de>>(deserializer: Input) -> Result<Self, Input::Error> {
         let hex = String::deserialize(deserializer)?;
 
         Digest::from_hex(&hex).map_err(|_| DeserializeError::custom("invalid composefs digest"))

@@ -27,10 +27,13 @@ struct DiffPackagesSnapshot {
     to: Vec<PackageMeta>,
 }
 
-pub fn run(request: DiffPackagesRequest<'_>) -> Result<DiffPackagesResponse, (DiffPackagesStateId, ErrorKind)> {
+pub fn run(
+    request: DiffPackagesRequest<'_>,
+) -> Result<DiffPackagesResponse, (DiffPackagesStateId, ErrorKind, Option<String>)> {
     let requested = RequestedPrefixDigestRange::parse(request.from_prefix_digest, request.to_prefix_digest)
-        .map_err(|error| (DiffPackagesStateId::Setup, error))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffPackagesStateId::Setup, error.into()))?;
+        .map_err(|error| (DiffPackagesStateId::Setup, error, None))?;
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffPackagesStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

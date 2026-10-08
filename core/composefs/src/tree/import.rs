@@ -43,6 +43,7 @@ impl Tree {
             };
             let name = PathBuf::from(entry.file_name());
             let target = path.join(&name);
+            on_entry(&target);
 
             if metadata.is_dir() {
                 if self.set_dir_stat(&target, stat.clone()).is_err() {
@@ -54,11 +55,9 @@ impl Tree {
                 imported.extend(nested.into_iter().map(|relative| name.join(relative)));
             } else if metadata.is_symlink() {
                 self.insert_symlink(&target, read_link(&source_path)?, stat)?;
-                on_entry(&name);
                 imported.push(name);
             } else {
                 self.insert_file(&target, &File::open(&source_path)?, stat)?;
-                on_entry(&name);
                 imported.push(name);
             }
         }

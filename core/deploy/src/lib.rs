@@ -4,9 +4,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::fs::{Permissions, create_dir, create_dir_all, read_dir, read_to_string, remove_dir_all, set_permissions};
-use std::io::ErrorKind as IoErrorKind;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+
+use composefs::fs::read_file;
 
 use composefs_boot::bootloader::{BootEntry, get_boot_resources};
 use composefs_boot::cmdline::ComposefsCmdline;
@@ -33,20 +35,24 @@ use self::deployment::Deployment;
 use self::deployment::PrefixDeploy;
 use self::deployment::meta::PrefixPointer;
 use self::error::{BootEntryError, PrefixCreateError, PrefixEditError, PrefixMetaError, PrefixReadError, SysrootError};
-use self::layout::boot::UPAC_UKI_TO_SLOT;
+use self::etc::SetAsideEtc;
+use self::layout::boot::{EFI_LINUX_DIR, KERNEL_ARGUMENTS, UPAC_UKI_TO_SLOT};
 use self::layout::deployment::{
-    CONFIG_DIR_NAME, DEPLOYS_DIR, LIVE_ETC_UPPER_DIR_NAME, NEXT_PREFIX_FILENAME, REPO_DIR, ROOT_DIR,
-    RUNNING_PREFIX_PATH, SYSROOT_DIR, SYSROOT_ROOT_MODE,
+    CONFIG_DIR_NAME, DEPLOYS_DIR, DISCARDED_ETC_UPPER_DIR_NAME, LIVE_ETC_UPPER_DIR_NAME, NEXT_PREFIX_FILENAME,
+    REPO_DIR, ROOT_DIR, RUNNING_PREFIX_PATH, SYSROOT_DIR, SYSROOT_ROOT_MODE,
 };
 use self::layout::prefix::DEFAULTS_DIR;
+use self::uki::UkiParts;
 use self::working::WorkingPrefix;
 
 pub mod boot;
 pub mod deployment;
 pub mod error;
+pub mod etc;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
+mod uki;
 pub mod working;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -252,6 +258,23 @@ impl Sysroot {
             .join(LIVE_ETC_UPPER_DIR_NAME)
     }
 
+    pub fn is_live_etc_modified(&self, prefix_digest: &Digest) -> Result<bool, IoError> {
+        match read_dir(self.live_etc_upper_dir(prefix_digest)) {
+            Ok(mut entries) => Ok(entries.next().is_some()),
+            Err(error) if error.kind() == IoErrorKind::NotFound => Ok(false),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn set_aside_live_etc(&self, prefix_digest: &Digest) -> Result<SetAsideEtc, IoError> {
+        let config_dir = self.deploys_dir.join(prefix_digest.to_hex()).join(CONFIG_DIR_NAME);
+
+        SetAsideEtc::new(
+            config_dir.join(LIVE_ETC_UPPER_DIR_NAME),
+            config_dir.join(DISCARDED_ETC_UPPER_DIR_NAME),
+        )
+    }
+
     pub fn write_boot_entry(
         &self, prefix_digest: &Digest, esp_dir: &Path, wanted: BootResourceKind,
     ) -> Result<WrittenBootEntry, BootEntryError> {
@@ -262,37 +285,55 @@ impl Sysroot {
             return Err(BootEntryError::NoBootResource);
         }
 
-        let mut matching: Vec<_> = entries
+        let mut kernels: Vec<_> = entries
             .into_iter()
-            .filter_map(|entry| {
-                let written = match (wanted, &entry) {
-                    (BootResourceKind::Uki, BootEntry::Type2(_)) => WrittenBootEntry::Uki(UPAC_UKI_TO_SLOT.to_owned()),
-                    (BootResourceKind::Bls, BootEntry::Type1(_) | BootEntry::UsrLibModulesVmLinuz(_)) => {
-                        WrittenBootEntry::Bls(prefix_digest.to_hex())
-                    }
-                    _ => return None,
-                };
-
-                Some((entry, written))
-            })
+            .filter(|entry| matches!(entry, BootEntry::Type1(_) | BootEntry::UsrLibModulesVmLinuz(_)))
             .collect();
 
-        if matching.len() > 1 {
+        if kernels.len() > 1 {
             return Err(BootEntryError::AmbiguousBootResource);
         }
-        let (entry, written) = matching.pop().ok_or(BootEntryError::UnsupportedBootResource)?;
+        let kernel = kernels.pop().ok_or(BootEntryError::UnsupportedBootResource)?;
 
-        let kernel_arguments = ComposefsCmdline::new_v2(prefix_digest.object_id().clone(), false);
-        write_boot_simple(
-            self.repo.upstream(),
-            entry,
-            &kernel_arguments,
-            esp_dir,
-            None,
-            Some(written.entry_name()),
-            &[],
-        )?;
+        let composefs_argument = ComposefsCmdline::new_v2(prefix_digest.object_id().clone(), false);
 
-        Ok(written)
+        match wanted {
+            BootResourceKind::Bls => {
+                let written = WrittenBootEntry::Bls(prefix_digest.to_hex());
+                let extra_arguments: Vec<&str> = KERNEL_ARGUMENTS.split_whitespace().collect();
+
+                write_boot_simple(
+                    self.repo.upstream(),
+                    kernel,
+                    &composefs_argument,
+                    esp_dir,
+                    None,
+                    Some(written.entry_name()),
+                    &extra_arguments,
+                )?;
+
+                Ok(written)
+            }
+            BootResourceKind::Uki => {
+                let BootEntry::UsrLibModulesVmLinuz(kernel) = kernel else {
+                    return Err(BootEntryError::UnsupportedBootResource);
+                };
+                let initramfs = kernel.initramfs.as_ref().ok_or(BootEntryError::InitramfsMissing)?;
+                let os_release = match &kernel.os_release {
+                    Some(os_release) => Some(read_file(os_release, self.repo.upstream())?),
+                    None => None,
+                };
+
+                UkiParts {
+                    kernel: &read_file(&kernel.vmlinuz, self.repo.upstream())?,
+                    initramfs: &read_file(initramfs, self.repo.upstream())?,
+                    os_release: os_release.as_deref(),
+                    cmdline: format!("{} {KERNEL_ARGUMENTS}", composefs_argument.to_cmdline_arg()),
+                }
+                .build(&esp_dir.join(EFI_LINUX_DIR).join(format!("{UPAC_UKI_TO_SLOT}.efi")))?;
+
+                Ok(WrittenBootEntry::Uki(UPAC_UKI_TO_SLOT.to_owned()))
+            }
+        }
     }
 }

@@ -5,28 +5,24 @@
 
 use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
-use upac_types::transaction::TransactionKind;
 
-use upac_deploy::working::{CommittedPrefix, WorkingPrefix};
+use upac_deploy::etc::SetAsideEtc;
 
 use upac_macro::stage;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::stage::Stage;
 
-use crate::layout::bootstrap::SUBJECT;
-
-pub struct CommitStage;
+pub struct DiscardStage;
 
 #[stage]
-impl Stage<ErrorKind> for CommitStage {
+impl Stage<ErrorKind> for DiscardStage {
     fn run(
         &self, context: &mut Context, _cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), ErrorKind> {
-        let working = context.take::<WorkingPrefix>()?;
-
-        let committed = working.commit(TransactionKind::Bootstrap, SUBJECT.to_owned(), None)?;
-        context.put::<CommittedPrefix>(committed);
+        if let Ok(set_aside) = context.take::<SetAsideEtc>() {
+            let _ = set_aside.discard();
+        }
 
         Ok(())
     }

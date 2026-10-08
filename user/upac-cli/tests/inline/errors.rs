@@ -101,6 +101,7 @@ fn lib_error_display_covers_every_error_kind() {
             domain: ErrorDomain::Install,
             state: 0,
             kind,
+            subject: None,
         });
 
         assert_eq!(error.to_string(), format!("{expected} (Install: Unpacking packages)"));

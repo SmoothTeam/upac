@@ -35,13 +35,13 @@ mod import;
 
 pub(crate) struct AllowDowngrade(pub bool);
 
-pub fn run(request: UpdateRequest<'_>) -> Result<(), (UpdateStateId, ErrorKind)> {
+pub fn run(request: UpdateRequest<'_>) -> Result<(), (UpdateStateId, ErrorKind, Option<String>)> {
     if request.packages.is_empty() {
-        return Err((UpdateStateId::Setup, ErrorKind::InvalidEntry));
+        return Err((UpdateStateId::Setup, ErrorKind::InvalidEntry, None));
     }
 
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (UpdateStateId::Setup, error.into()))?;
-    let unpacker = PackageUnpacker::new().map_err(|error| (UpdateStateId::Setup, error.into()))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (UpdateStateId::Setup, error.into(), None))?;
+    let unpacker = PackageUnpacker::new().map_err(|error| (UpdateStateId::Setup, error.into(), None))?;
 
     let sources: Vec<PackageSource> = request
         .packages

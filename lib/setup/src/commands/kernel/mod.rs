@@ -34,8 +34,6 @@ mod generate;
 
 pub(crate) struct ExportDir(pub PathBuf);
 
-pub(crate) struct RequestedBootPlugin(pub String);
-
 pub(crate) struct RequestedInitramfsGenerator(pub InitramfsGenerator);
 
 pub(crate) struct KernelVersion(pub String);
@@ -44,8 +42,8 @@ pub(crate) struct KernelImage(pub PathBuf);
 
 pub fn run(
     request: SetupBootstrapKernelRequest<'_>,
-) -> Result<SetupBootstrapKernelResponse, (BootstrapKernelStateId, ErrorKind)> {
-    let setup_error = |error: ErrorKind| (BootstrapKernelStateId::Setup, error);
+) -> Result<SetupBootstrapKernelResponse, (BootstrapKernelStateId, ErrorKind, Option<String>)> {
+    let setup_error = |error: ErrorKind| (BootstrapKernelStateId::Setup, error, None);
 
     let prefix_digest = Digest::from_hex(request.prefix_digest).map_err(|_| setup_error(ErrorKind::InvalidEntry))?;
 
@@ -69,7 +67,6 @@ pub fn run(
     let mut context = Context::default();
     context.put(prefix_tree);
     context.put(ExportDir(scratch.path().to_path_buf()));
-    context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
     context.put(RequestedInitramfsGenerator(request.initramfs_generator));
 
     SequentialOrchestrator::new(stages![ExportStage, GenerateStage, CommitStage]).run_mutating_with_response(

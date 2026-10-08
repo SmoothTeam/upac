@@ -12,10 +12,10 @@ use upac_types::progress::ProgressEvent;
 use super::StagePipelineError;
 use super::context::Context;
 
-pub trait Orchestrator<E> {
+pub trait Orchestrator<StageError> {
     fn validate(&self, context: &Context) -> Result<HashSet<TypeId>, StagePipelineError>;
 
     fn execute(
         self, context: &mut Context, cancel: &CancelToken, on_progress: &dyn Fn(&ProgressEvent),
-    ) -> Result<(), (usize, E)>;
+    ) -> Result<(), (usize, StageError, Option<String>)>;
 }

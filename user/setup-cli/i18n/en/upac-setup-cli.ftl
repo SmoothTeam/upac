@@ -104,7 +104,6 @@ arg-bootstrap-kernel-deploy-device = Deployment partition device, e.g. /dev/vda2
 arg-bootstrap-kernel-mount-point = Where to mount the target during installation
 arg-bootstrap-kernel-tmp-dir = Directory for temporary files: the tree for the initramfs generator (defaults to a work directory on the deployment partition)
 arg-bootstrap-kernel-prefix = Digest of the prefix image printed by bootstrap import
-arg-bootstrap-kernel-boot-plugin = Boot plugin the system will boot with; decides between an initramfs and a UKI
 arg-bootstrap-kernel-initramfs-generator = Initramfs generator
 about-bootstrap-deploy = Register the system image as the deployment to boot next and install the boot loader
 arg-bootstrap-deploy-disk = Disk to install onto; its ESP and root partitions are found by GPT type (instead of --esp-device and --deploy-device)

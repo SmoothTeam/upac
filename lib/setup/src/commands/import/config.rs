@@ -17,7 +17,7 @@ use upac_orchestrator::stage::Stage;
 
 use super::{EmptyConfig, SourceDir};
 
-use crate::layout::genesis::CONFIG_DIR;
+use crate::layout::bootstrap::CONFIG_DIR;
 
 pub struct ConfigStage;
 

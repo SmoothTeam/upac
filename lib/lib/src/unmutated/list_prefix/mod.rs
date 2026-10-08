@@ -17,8 +17,11 @@ use self::fetching::FetchingStage;
 
 mod fetching;
 
-pub fn run(request: ListPrefixRequest<'_>) -> Result<ListPrefixResponse, (ListPrefixStateId, ErrorKind)> {
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListPrefixStateId::Setup, error.into()))?;
+pub fn run(
+    request: ListPrefixRequest<'_>,
+) -> Result<ListPrefixResponse, (ListPrefixStateId, ErrorKind, Option<String>)> {
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListPrefixStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

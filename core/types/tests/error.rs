@@ -55,7 +55,7 @@ fn new_takes_the_domain_from_the_state_type() {
 fn converts_to_c_and_back_without_loss() {
     let error = Error::new(RollbackStateId::Setup, ErrorKind::NoSpaceLeft);
 
-    let c_error = CError::from(error);
+    let c_error = CError::from(error.clone());
 
     assert_eq!(Error::try_from(&c_error), Ok(error));
 }
@@ -69,7 +69,7 @@ fn check_is_ok_for_a_zero_code() {
 fn check_returns_the_written_error_for_a_nonzero_code() {
     let error = Error::new(RollbackStateId::Setup, ErrorKind::PermissionDenied);
 
-    assert_eq!(Error::check(-1, &CError::from(error)), Err(error));
+    assert_eq!(Error::check(-1, &CError::from(error.clone())), Err(error));
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn a_successful_mutated_command_returns_zero_and_leaves_the_error_untouched() {
 
     let code = unsafe {
         export_mutated_command(&VALID, &mut c_error, |_: FakeRequest| {
-            Ok::<_, (RollbackStateId, ErrorKind)>(())
+            Ok::<_, (RollbackStateId, ErrorKind, Option<String>)>(())
         })
     };
 
@@ -118,7 +118,7 @@ fn a_failed_stage_is_written_with_its_state() {
 
     let code = unsafe {
         export_mutated_command(&VALID, &mut c_error, |_: FakeRequest| {
-            Err((RollbackStateId::Setup, ErrorKind::WriteFailed))
+            Err((RollbackStateId::Setup, ErrorKind::WriteFailed, None))
         })
     };
 
@@ -137,7 +137,7 @@ fn a_panic_becomes_an_unexpected_validation_error() {
         export_mutated_command(
             &VALID,
             &mut c_error,
-            |_: FakeRequest| -> Result<(), (RollbackStateId, ErrorKind)> { panic!("stage panicked") },
+            |_: FakeRequest| -> Result<(), (RollbackStateId, ErrorKind, Option<String>)> { panic!("stage panicked") },
         )
     };
 
@@ -156,7 +156,9 @@ fn an_invalid_request_is_a_validation_error_and_run_is_never_called() {
         export_mutated_command(
             &FakeCRequest { valid: false },
             &mut c_error,
-            |_: FakeRequest| -> Result<(), (RollbackStateId, ErrorKind)> { panic!("run must not be called") },
+            |_: FakeRequest| -> Result<(), (RollbackStateId, ErrorKind, Option<String>)> {
+                panic!("run must not be called")
+            },
         )
     };
 
@@ -171,7 +173,7 @@ fn an_invalid_request_is_a_validation_error_and_run_is_never_called() {
 fn a_null_error_pointer_is_tolerated() {
     let code = unsafe {
         export_mutated_command(&VALID, null_mut(), |_: FakeRequest| {
-            Err((RollbackStateId::Setup, ErrorKind::Cancelled))
+            Err((RollbackStateId::Setup, ErrorKind::Cancelled, None))
         })
     };
 
@@ -185,7 +187,7 @@ fn an_unmutated_command_writes_its_response() {
 
     let code = unsafe {
         export_unmutated_command(&VALID, &mut response, &mut c_error, |_: FakeRequest| {
-            Ok::<_, (RollbackStateId, ErrorKind)>(7u32)
+            Ok::<_, (RollbackStateId, ErrorKind, Option<String>)>(7u32)
         })
     };
 
@@ -197,7 +199,7 @@ fn an_unmutated_command_writes_its_response() {
 fn an_unmutated_command_tolerates_a_null_response_pointer() {
     let code = unsafe {
         export_unmutated_command(&VALID, null_mut::<FakeCResponse>(), null_mut(), |_: FakeRequest| {
-            Ok::<_, (RollbackStateId, ErrorKind)>(7u32)
+            Ok::<_, (RollbackStateId, ErrorKind, Option<String>)>(7u32)
         })
     };
 
@@ -211,10 +213,32 @@ fn a_mutated_command_with_a_response_writes_it() {
 
     let code = unsafe {
         export_mutated_command_with_response(&VALID, &mut response, &mut c_error, |_: FakeRequest| {
-            Ok::<_, (RollbackStateId, ErrorKind)>(7u32)
+            Ok::<_, (RollbackStateId, ErrorKind, Option<String>)>(7u32)
         })
     };
 
     assert_eq!(code, 0);
     assert_eq!(response, FakeCResponse(7));
+}
+
+#[test]
+fn a_failure_subject_travels_through_the_c_error() {
+    let mut c_error = CError::default();
+
+    let code = unsafe {
+        export_mutated_command(&VALID, &mut c_error, |_: FakeRequest| {
+            Err((
+                RollbackStateId::Setup,
+                ErrorKind::NotFound,
+                Some("system/sysroot".to_owned()),
+            ))
+        })
+    };
+
+    assert_eq!(code, -1);
+    assert_eq!(
+        Error::try_from(&c_error).map(|error| error.subject),
+        Ok(Some("system/sysroot".to_owned()))
+    );
+    unsafe { c_error.free() };
 }

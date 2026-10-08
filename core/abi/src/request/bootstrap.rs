@@ -46,7 +46,6 @@ pub struct CSetupBootstrapKernelRequest {
     #[optional]
     pub tmp_path: CSlice,
     pub prefix_digest: CSlice,
-    pub boot_plugin: CSlice,
     pub initramfs_generator: u8,
 }
 

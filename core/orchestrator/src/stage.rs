@@ -10,7 +10,7 @@ use upac_types::error::ErrorKind;
 
 use super::context::Context;
 
-pub trait Stage<E> {
+pub trait Stage<StageError> {
     fn requires(&self) -> Vec<TypeId> {
         Vec::new()
     }
@@ -21,7 +21,7 @@ pub trait Stage<E> {
 
     fn run(
         &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
-    ) -> Result<(), E>;
+    ) -> Result<(), StageError>;
 
     fn rollback(&self, _context: &mut Context) -> Result<(), ErrorKind> {
         Ok(())

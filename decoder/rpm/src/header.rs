@@ -18,7 +18,7 @@ struct SectionHeader {
 }
 
 impl SectionHeader {
-    fn read<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+    fn read<Reader: Read>(reader: &mut Reader) -> Result<Self, DecodeError> {
         let mut buffer = [0u8; 16];
         reader
             .read_exact(&mut buffer)
@@ -34,7 +34,7 @@ impl SectionHeader {
         })
     }
 
-    fn skip_body<R: Read + Seek>(&self, reader: &mut R) -> Result<(), DecodeError> {
+    fn skip_body<Reader: Read + Seek>(&self, reader: &mut Reader) -> Result<(), DecodeError> {
         let total_size = u64::from(self.tag_count) * 16 + u64::from(self.data_size);
         reader.seek(SeekFrom::Current(total_size as i64))?;
 
@@ -66,7 +66,7 @@ impl TagEntry {
 struct RawData(Vec<u8>);
 
 impl RawData {
-    fn read<R: Read>(reader: &mut R, size: usize) -> Result<Self, DecodeError> {
+    fn read<Reader: Read>(reader: &mut Reader, size: usize) -> Result<Self, DecodeError> {
         let mut bytes = vec![0u8; size];
         reader
             .read_exact(&mut bytes)
@@ -98,7 +98,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn read<R: Read + Seek>(reader: &mut R) -> Result<Self, DecodeError> {
+    pub fn read<Reader: Read + Seek>(reader: &mut Reader) -> Result<Self, DecodeError> {
         Self::skip_lead(reader)?;
         SectionHeader::read(reader)?.skip_body(reader)?;
         Self::read_main(reader)
@@ -150,7 +150,7 @@ impl Header {
         self.entries.iter().find(|entry| entry.tag == tag)
     }
 
-    fn skip_lead<R: Read + Seek>(reader: &mut R) -> Result<(), DecodeError> {
+    fn skip_lead<Reader: Read + Seek>(reader: &mut Reader) -> Result<(), DecodeError> {
         let mut magic = [0u8; 4];
         reader
             .read_exact(&mut magic)
@@ -165,7 +165,7 @@ impl Header {
         Ok(())
     }
 
-    fn read_main<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+    fn read_main<Reader: Read>(reader: &mut Reader) -> Result<Self, DecodeError> {
         let header = SectionHeader::read(reader)?;
 
         let mut index_bytes = vec![0u8; header.tag_count as usize * 16];

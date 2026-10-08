@@ -21,20 +21,20 @@ pub trait CliLocale: 'static {
     fn loader() -> &'static FluentLanguageLoader;
 }
 
-pub fn parse<C: Parser, L: CliLocale>() -> C {
-    try_parse_from::<C, L, _, _>(args_os()).unwrap_or_else(|error| exit::<L>(error))
+pub fn parse<Cli: Parser, Localization: CliLocale>() -> Cli {
+    try_parse_from::<Cli, Localization, _, _>(args_os()).unwrap_or_else(|error| exit::<Localization>(error))
 }
 
-pub fn try_parse_from<C, L, I, T>(arguments: I) -> Result<C, ClapError>
+pub fn try_parse_from<Cli, Localization, Arguments, Argument>(arguments: Arguments) -> Result<Cli, ClapError>
 where
-    C: Parser,
-    L: CliLocale,
-    I: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
+    Cli: Parser,
+    Localization: CliLocale,
+    Arguments: IntoIterator<Item = Argument>,
+    Argument: Into<OsString> + Clone,
 {
-    let mut command = localize::<L>(C::command());
+    let mut command = localize::<Localization>(Cli::command());
 
     let mut matches = command.try_get_matches_from_mut(arguments)?;
 
-    C::from_arg_matches_mut(&mut matches).map_err(|error| error.format(&mut command))
+    Cli::from_arg_matches_mut(&mut matches).map_err(|error| error.format(&mut command))
 }

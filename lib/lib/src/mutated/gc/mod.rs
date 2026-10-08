@@ -28,8 +28,8 @@ pub(crate) struct RetainedPrefixes(pub Vec<PrefixDeploy>);
 
 pub(crate) struct GcRoots(pub Vec<Digest>);
 
-pub fn run(request: GcRequest<'_>) -> Result<(), (GcStateId, ErrorKind)> {
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (GcStateId::Setup, error.into()))?;
+pub fn run(request: GcRequest<'_>) -> Result<(), (GcStateId, ErrorKind, Option<String>)> {
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (GcStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

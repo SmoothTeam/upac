@@ -26,35 +26,35 @@ macro_rules! stages {
 
 type TakeItemsFn = fn(&mut Context) -> Option<Vec<Box<dyn Any>>>;
 
-pub(crate) struct EachStep<E> {
+pub(crate) struct EachStep<StageError> {
     pub(crate) item_type: TypeId,
     pub(crate) items_type: TypeId,
     pub(crate) take_items: TakeItemsFn,
-    pub(crate) body: Vec<Box<dyn Stage<E>>>,
+    pub(crate) body: Vec<Box<dyn Stage<StageError>>>,
 }
 
-pub(crate) enum StepKind<E> {
-    Once(Box<dyn Stage<E>>),
-    Each(EachStep<E>),
+pub(crate) enum StepKind<StageError> {
+    Once(Box<dyn Stage<StageError>>),
+    Each(EachStep<StageError>),
 }
 
-pub struct Step<E> {
-    pub(crate) kind: StepKind<E>,
+pub struct Step<StageError> {
+    pub(crate) kind: StepKind<StageError>,
 }
 
-impl<E: 'static> Step<E> {
-    pub fn once(stage: Box<dyn Stage<E>>) -> Self {
+impl<StageError: 'static> Step<StageError> {
+    pub fn once(stage: Box<dyn Stage<StageError>>) -> Self {
         Self {
             kind: StepKind::Once(stage),
         }
     }
 
-    pub fn each<T: Any>(body: Vec<Box<dyn Stage<E>>>) -> Self {
+    pub fn each<Item: Any>(body: Vec<Box<dyn Stage<StageError>>>) -> Self {
         Self {
             kind: StepKind::Each(EachStep {
-                item_type: TypeId::of::<T>(),
-                items_type: TypeId::of::<Vec<T>>(),
-                take_items: take_boxed_items::<T>,
+                item_type: TypeId::of::<Item>(),
+                items_type: TypeId::of::<Vec<Item>>(),
+                take_items: take_boxed_items::<Item>,
                 body,
             }),
         }
@@ -68,9 +68,9 @@ impl<E: 'static> Step<E> {
     }
 }
 
-fn take_boxed_items<T: Any>(context: &mut Context) -> Option<Vec<Box<dyn Any>>> {
+fn take_boxed_items<Item: Any>(context: &mut Context) -> Option<Vec<Box<dyn Any>>> {
     context
-        .take::<Vec<T>>()
+        .take::<Vec<Item>>()
         .ok()
         .map(|items| items.into_iter().map(|item| Box::new(item) as Box<dyn Any>).collect())
 }

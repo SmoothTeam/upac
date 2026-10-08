@@ -14,45 +14,45 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn put<T: Any>(&mut self, value: T) {
-        let previous = self.slots.insert(TypeId::of::<T>(), Box::new(value));
+    pub fn put<Slot: Any>(&mut self, value: Slot) {
+        let previous = self.slots.insert(TypeId::of::<Slot>(), Box::new(value));
 
         debug_assert!(
             previous.is_none(),
             "context slot `{}` was already filled; use `replace` to overwrite it on purpose",
-            type_name::<T>()
+            type_name::<Slot>()
         );
     }
 
-    pub fn replace<T: Any>(&mut self, value: T) -> Option<T> {
+    pub fn replace<Slot: Any>(&mut self, value: Slot) -> Option<Slot> {
         self.slots
-            .insert(TypeId::of::<T>(), Box::new(value))
-            .and_then(|slot| slot.downcast::<T>().ok())
+            .insert(TypeId::of::<Slot>(), Box::new(value))
+            .and_then(|slot| slot.downcast::<Slot>().ok())
             .map(|boxed| *boxed)
     }
 
-    pub fn push<T: Any>(&mut self, value: T) {
+    pub fn push<Slot: Any>(&mut self, value: Slot) {
         let slot = self
             .slots
-            .entry(TypeId::of::<Vec<T>>())
-            .or_insert_with(|| Box::new(Vec::<T>::new()));
+            .entry(TypeId::of::<Vec<Slot>>())
+            .or_insert_with(|| Box::new(Vec::<Slot>::new()));
 
-        if let Some(list) = slot.downcast_mut::<Vec<T>>() {
+        if let Some(list) = slot.downcast_mut::<Vec<Slot>>() {
             list.push(value);
         }
     }
 
-    pub fn get<T: Any>(&self) -> Result<&T, PipelineError> {
+    pub fn get<Slot: Any>(&self) -> Result<&Slot, PipelineError> {
         self.slots
-            .get(&TypeId::of::<T>())
-            .and_then(|slot| slot.downcast_ref::<T>())
+            .get(&TypeId::of::<Slot>())
+            .and_then(|slot| slot.downcast_ref::<Slot>())
             .ok_or(PipelineError::MissingResult)
     }
 
-    pub fn take<T: Any>(&mut self) -> Result<T, PipelineError> {
+    pub fn take<Slot: Any>(&mut self) -> Result<Slot, PipelineError> {
         self.slots
-            .remove(&TypeId::of::<T>())
-            .and_then(|slot| slot.downcast::<T>().ok())
+            .remove(&TypeId::of::<Slot>())
+            .and_then(|slot| slot.downcast::<Slot>().ok())
             .map(|boxed| *boxed)
             .ok_or(PipelineError::MissingResult)
     }

@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{File, create_dir_all, write};
+use std::fs::{File, create_dir_all, read, write};
 use std::path::Path;
 
 use composefs::generic_tree::Stat;
@@ -237,4 +237,52 @@ fn a_created_prefix_has_the_etc_dir_setup_root_expects() {
         .join(prefix.digest().to_hex())
         .join(CONFIG_DIR_NAME);
     assert!(etc_dir.is_dir());
+}
+
+#[test]
+fn live_etc_changes_are_detected_only_when_the_upper_dir_has_entries() {
+    let scratch = scratch_root();
+    let sysroot = Sysroot::open(scratch.path()).unwrap();
+    let upper_dir = sysroot.live_etc_upper_dir(&digest(1));
+
+    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
+
+    create_dir_all(&upper_dir).unwrap();
+    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
+
+    write(upper_dir.join("hostname"), b"edited").unwrap();
+    assert!(sysroot.is_live_etc_modified(&digest(1)).unwrap());
+}
+
+#[test]
+fn set_aside_live_etc_changes_come_back_on_restore() {
+    let scratch = scratch_root();
+    let sysroot = Sysroot::open(scratch.path()).unwrap();
+    let upper_dir = sysroot.live_etc_upper_dir(&digest(1));
+    create_dir_all(&upper_dir).unwrap();
+    write(upper_dir.join("hostname"), b"edited").unwrap();
+
+    let set_aside = sysroot.set_aside_live_etc(&digest(1)).unwrap();
+    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
+
+    set_aside.restore().unwrap();
+    assert_eq!(read(upper_dir.join("hostname")).unwrap(), b"edited");
+}
+
+#[test]
+fn discarded_live_etc_changes_are_gone_and_a_leftover_does_not_block_the_next_set_aside() {
+    let scratch = scratch_root();
+    let sysroot = Sysroot::open(scratch.path()).unwrap();
+    let upper_dir = sysroot.live_etc_upper_dir(&digest(1));
+    create_dir_all(&upper_dir).unwrap();
+    write(upper_dir.join("hostname"), b"first").unwrap();
+
+    let leftover = sysroot.set_aside_live_etc(&digest(1)).unwrap();
+    drop(leftover);
+
+    write(upper_dir.join("hostname"), b"second").unwrap();
+    sysroot.set_aside_live_etc(&digest(1)).unwrap().discard().unwrap();
+
+    assert!(upper_dir.is_dir());
+    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
 }

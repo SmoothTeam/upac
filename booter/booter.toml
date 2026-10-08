@@ -28,7 +28,7 @@ loader_entry_default_var = "LoaderEntryDefault"
 
 # efi_linux_dir is the fixed UEFI-style (backslash) directory composefs-boot's own
 # `write_t2_simple` always writes UKI images under (`EFI/Linux/`, hardcoded upstream, not
-# configurable) — used to build the file-path device-path segment when genesis registers a
+# configurable) — used to build the file-path device-path segment when bootstrap registers a
 # UEFI Boot#### entry for a UKI slot, so the entry's path always matches where the image
 # actually lands. efi_linux_real_path is the same directory spelled as a real, mounted-
 # filesystem-relative path (forward slashes, joined via `Path::join`) — used by `Uki::install`
@@ -54,11 +54,11 @@ from_slot = "upac-from"
 # /boot/grub2/grubenv instead. *_primary/*_fallback are tried in that order.
 #
 # install_bin_primary/install_bin_fallback: same Debian/Arch-vs-Fedora naming split as the
-# reboot/set-default tools above, for the one-time `grub-install` genesis runs against a freshly
+# reboot/set-default tools above, for the one-time `grub-install` bootstrap runs against a freshly
 # partitioned ESP. install_target is grub's own `--target` platform name (this project is
 # UEFI/x86_64-only throughout, matching systemd_boot/refind's own *_x64 binary names below).
 # install_bootloader_id is grub's `--bootloader-id`, naming both the ESP's EFI/<id>/ install
-# directory and the NVRAM Boot#### entry `grub-install` registers for it — genesis lets
+# directory and the NVRAM Boot#### entry `grub-install` registers for it — bootstrap lets
 # `grub-install` manage its own NVRAM entry the same way systemd-boot/refind do through their own
 # install tools; only uki has no install utility to shell out to and has to build its own Boot####
 # entries by hand (see `Uki::install`).

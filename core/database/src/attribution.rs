@@ -38,4 +38,4 @@ pub trait FileAttribute: FileStore + MetaStore {
     }
 }
 
-impl<T: FileStore + MetaStore> FileAttribute for T {}
+impl<Store: FileStore + MetaStore> FileAttribute for Store {}

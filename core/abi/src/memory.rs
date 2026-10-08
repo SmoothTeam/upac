@@ -36,9 +36,9 @@ pub unsafe fn free_cslice(string: &CSlice) {
 }
 
 /// # Safety
-/// `array.ptr` must be null or point to `array.len` elements of `T` allocated via `alloc_bytes`/`CVec::from_owned`,
+/// `array.ptr` must be null or point to `array.len` elements of `Element` allocated via `alloc_bytes`/`CVec::from_owned`,
 /// and must not be freed more than once.
-pub unsafe fn free_cvec<T>(array: &CVec<T>) {
+pub unsafe fn free_cvec<Element>(array: &CVec<Element>) {
     if array.ptr.is_null() || array.len == 0 {
         return;
     }
@@ -48,7 +48,7 @@ pub unsafe fn free_cvec<T>(array: &CVec<T>) {
 /// # Safety
 /// Same contract as `free_cvec`. `free_elem` must fully release any resources owned by each element
 /// before the backing buffer itself is freed.
-pub unsafe fn free_cvec_owning<T>(array: &CVec<T>, mut free_elem: impl FnMut(&T)) {
+pub unsafe fn free_cvec_owning<Element>(array: &CVec<Element>, mut free_elem: impl FnMut(&Element)) {
     if array.ptr.is_null() || array.len == 0 {
         return;
     }

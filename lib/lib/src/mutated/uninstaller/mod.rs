@@ -40,12 +40,13 @@ pub(crate) struct RemovalTarget(pub Uuid);
 
 pub(crate) struct Purge(pub bool);
 
-pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, ErrorKind)> {
+pub fn run(request: UninstallRequest<'_>) -> Result<(), (UninstallStateId, ErrorKind, Option<String>)> {
     if request.packages.is_empty() {
-        return Err((UninstallStateId::Setup, ErrorKind::InvalidEntry));
+        return Err((UninstallStateId::Setup, ErrorKind::InvalidEntry, None));
     }
 
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, error.into()))?;
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (UninstallStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

@@ -48,7 +48,6 @@ stage-writing = Запись
 stage-set-pinned = Установка pin
 stage-comparing = Сравнение
 stage-searching = Поиск
-stage-done = Готово
 stage-unpack = Распаковка пакетов
 stage-open = Открытие префикса
 stage-import = Импорт пакета
@@ -60,6 +59,7 @@ stage-remove = Удаление пакета
 stage-resolve = Поиск пакета
 stage-apply = Применение файла
 stage-select = Выбор конфигурации
+stage-discard = Удаление несохранённых изменений /etc
 stage-setup = Настройка
 
 error = Ошибка

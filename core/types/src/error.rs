@@ -135,20 +135,27 @@ impl From<Utf8Error> for ErrorKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CTryToRust, RustToC)]
+#[derive(Debug, Clone, PartialEq, Eq, CTryToRust, RustToC)]
 pub struct Error {
     pub domain: ErrorDomain,
     pub state: u32,
     pub kind: ErrorKind,
+    pub subject: Option<String>,
 }
 
 impl Error {
-    pub fn new<S: CommandState>(state: S, kind: ErrorKind) -> Self {
+    pub fn new<State: CommandState>(state: State, kind: ErrorKind) -> Self {
         Error {
-            domain: S::DOMAIN,
+            domain: State::DOMAIN,
             state: state.as_u32(),
             kind,
+            subject: None,
         }
+    }
+
+    pub fn with_subject(mut self, subject: Option<String>) -> Self {
+        self.subject = subject;
+        self
     }
 
     pub fn check(code: i32, error: &CError) -> Result<(), Self> {
@@ -164,6 +171,7 @@ impl Error {
             domain: ErrorDomain::try_from(error.domain).unwrap_or(ErrorDomain::Unknown),
             state: error.state,
             kind,
+            subject: None,
         }))
     }
 }
@@ -171,7 +179,8 @@ impl Error {
 /// # Safety
 /// `err_out`, if non-null, must point to writable `CError` storage.
 pub unsafe fn export_mutated_command<'request, CRequest, Request, State>(
-    request: &'request CRequest, err_out: *mut CError, run: impl FnOnce(Request) -> Result<(), (State, ErrorKind)>,
+    request: &'request CRequest, err_out: *mut CError,
+    run: impl FnOnce(Request) -> Result<(), (State, ErrorKind, Option<String>)>,
 ) -> i32
 where
     Request: TryFrom<&'request CRequest, Error = ErrorKind>,
@@ -188,7 +197,7 @@ where
 /// writable `CError` storage.
 pub unsafe fn export_mutated_command_with_response<'request, CRequest, Request, State, Response, CResponse>(
     request: &'request CRequest, response_out: *mut CResponse, err_out: *mut CError,
-    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind)>,
+    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind, Option<String>)>,
 ) -> i32
 where
     Request: TryFrom<&'request CRequest, Error = ErrorKind>,
@@ -206,7 +215,7 @@ where
 /// writable `CError` storage.
 pub unsafe fn export_unmutated_command<'request, CRequest, Request, State, Response, CResponse>(
     request: &'request CRequest, response_out: *mut CResponse, err_out: *mut CError,
-    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind)>,
+    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind, Option<String>)>,
 ) -> i32
 where
     Request: TryFrom<&'request CRequest, Error = ErrorKind>,
@@ -220,7 +229,7 @@ where
 }
 
 fn call_exported<'request, CRequest, Request, State, Response>(
-    request: &'request CRequest, run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind)>,
+    request: &'request CRequest, run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind, Option<String>)>,
 ) -> Result<Response, Error>
 where
     Request: TryFrom<&'request CRequest, Error = ErrorKind>,
@@ -230,7 +239,7 @@ where
 
     match catch_unwind(AssertUnwindSafe(|| run(request))) {
         Ok(Ok(value)) => Ok(value),
-        Ok(Err((state, kind))) => Err(Error::new(state, kind)),
+        Ok(Err((state, kind, subject))) => Err(Error::new(state, kind).with_subject(subject)),
         Err(_) => Err(Error::new(State::VALIDATION, ErrorKind::Unexpected)),
     }
 }

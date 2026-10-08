@@ -22,7 +22,7 @@ pub(crate) struct RequestedDevice(pub PathBuf);
 
 pub(crate) struct ForceWipe(pub bool);
 
-pub fn run(request: SetupPartitionTableRequest<'_>) -> Result<(), (PartitionTableStateId, ErrorKind)> {
+pub fn run(request: SetupPartitionTableRequest<'_>) -> Result<(), (PartitionTableStateId, ErrorKind, Option<String>)> {
     let mut context = Context::default();
     context.put(RequestedDevice(PathBuf::from(request.device_path)));
     context.put(ForceWipe(request.force_wipe));

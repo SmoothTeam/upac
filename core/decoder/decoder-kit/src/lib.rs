@@ -38,7 +38,7 @@ pub fn parse_constraint_prefix(
         .map(|(operator, constraint)| (*constraint, operator.len()))
 }
 
-pub fn read_to_string<R: Read>(reader: &mut R) -> Result<String, DecodeError> {
+pub fn read_to_string<Reader: Read>(reader: &mut Reader) -> Result<String, DecodeError> {
     let mut bytes = Vec::new();
     reader.read_to_end(&mut bytes)?;
 

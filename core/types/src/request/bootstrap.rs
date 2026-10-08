@@ -44,7 +44,6 @@ pub struct SetupBootstrapKernelRequest<'data> {
     pub mount_point: Option<&'data str>,
     pub tmp_path: Option<&'data str>,
     pub prefix_digest: &'data str,
-    pub boot_plugin: &'data str,
     pub initramfs_generator: InitramfsGenerator,
 }
 

@@ -33,10 +33,13 @@ struct DiffPrefixSnapshot {
     to_database: MemoryDatabase,
 }
 
-pub fn run(request: DiffPrefixRequest<'_>) -> Result<DiffPrefixResponse, (DiffPrefixStateId, ErrorKind)> {
+pub fn run(
+    request: DiffPrefixRequest<'_>,
+) -> Result<DiffPrefixResponse, (DiffPrefixStateId, ErrorKind, Option<String>)> {
     let requested = RequestedPrefixDigestRange::parse(request.from_prefix_digest, request.to_prefix_digest)
-        .map_err(|error| (DiffPrefixStateId::Setup, error))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffPrefixStateId::Setup, error.into()))?;
+        .map_err(|error| (DiffPrefixStateId::Setup, error, None))?;
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffPrefixStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

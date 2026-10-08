@@ -23,12 +23,13 @@ pub struct ImportStage;
 #[stage]
 impl Stage<ErrorKind> for ImportStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+        &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), ErrorKind> {
         let package = context.take::<UnpackedPackage>()?;
         let mut working = context.take::<WorkingPrefix>()?;
 
         let unpacked_root = Path::new(&package.temp.temp_package_path);
+        progress(Some(&package.temp.meta.name), 0, 0);
         working.add_package(&package.temp.meta, &package.triggers, unpacked_root, cancel)?;
         remove_dir_all(unpacked_root)?;
 

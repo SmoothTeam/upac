@@ -17,6 +17,7 @@ fn localized(state: BootstrapImportStateId, kind: ErrorKind) -> String {
         domain: ErrorDomain::BootstrapImport,
         state: state as u32,
         kind,
+        subject: None,
     };
 
     LibError(error).to_string()
@@ -86,11 +87,13 @@ fn resolves_the_failing_stage_through_the_partition_domains() {
         domain: ErrorDomain::PartitionTable,
         state: PartitionTableStateId::WriteTable as u32,
         kind: ErrorKind::WriteFailed,
+        subject: None,
     };
     let add_error = AbiError {
         domain: ErrorDomain::PartitionAdd,
         state: PartitionAddStateId::Settle as u32,
         kind: ErrorKind::NotInitialized,
+        subject: None,
     };
 
     assert_eq!(
@@ -111,6 +114,7 @@ fn resolves_the_failing_stage_through_the_format_domain() {
         domain: ErrorDomain::Format,
         state: FormatStateId::Verify as u32,
         kind: ErrorKind::InvalidEntry,
+        subject: None,
     };
 
     assert_eq!(LibError(error).to_string(), "Verifying ESP partition: Invalid entry");

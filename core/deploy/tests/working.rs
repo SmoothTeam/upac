@@ -103,7 +103,7 @@ fn a_package_lands_in_the_prefix_and_its_etc_in_the_defaults() {
         .add_package(&meta("foo", "1.0"), &triggers(), &unpacked, &CancelToken::new())
         .unwrap();
     let committed = working
-        .commit(TransactionKind::Bootstrap, "genesis".to_owned(), None)
+        .commit(TransactionKind::Bootstrap, "bootstrap".to_owned(), None)
         .unwrap();
 
     let tree = sysroot.repo().open_tree(&committed.digest).unwrap();
@@ -271,13 +271,20 @@ fn unowned_files_are_imported_into_the_prefix_root() {
     let system_dir = unpacked_package(&source, &[("lib/systemd/system/setup.service", b"unit")]);
 
     let mut working = sysroot.empty_prefix().unwrap();
-    working.add_unowned_dir(&system_dir, &CancelToken::new()).unwrap();
+    let mut entries = Vec::new();
     working
-        .add_unowned_dir(Path::new("/nonexistent/upac/source"), &CancelToken::new())
+        .add_unowned_dir(&system_dir, &CancelToken::new(), &mut |path| {
+            entries.push(path.to_path_buf())
+        })
+        .unwrap();
+    working
+        .add_unowned_dir(Path::new("/nonexistent/upac/source"), &CancelToken::new(), &mut |_| {})
         .unwrap();
 
+    assert!(entries.contains(&PathBuf::from("lib/systemd/system/setup.service")));
+
     let committed = working
-        .commit(TransactionKind::Bootstrap, "genesis".to_owned(), None)
+        .commit(TransactionKind::Bootstrap, "bootstrap".to_owned(), None)
         .unwrap();
     let tree = sysroot.repo().open_tree(&committed.digest).unwrap();
     assert_eq!(tree.read_file("lib/systemd/system/setup.service").unwrap(), b"unit");
@@ -288,16 +295,16 @@ fn a_working_prefix_builds_on_its_base_transaction() {
     let root = scratch_root();
     let sysroot = Sysroot::open(root.path()).unwrap();
 
-    let genesis = sysroot
+    let first = sysroot
         .empty_prefix()
         .unwrap()
-        .commit(TransactionKind::Bootstrap, "genesis".to_owned(), None)
+        .commit(TransactionKind::Bootstrap, "bootstrap".to_owned(), None)
         .unwrap();
     let config_digest = sysroot.repo().empty_tree().commit().unwrap();
     let base = PrefixDeploy::new(
-        genesis.digest,
-        genesis.transaction.clone(),
-        ConfigDeploy::new(config_digest, "genesis".to_owned(), None),
+        first.digest,
+        first.transaction.clone(),
+        ConfigDeploy::new(config_digest, "bootstrap".to_owned(), None),
     );
     sysroot.create_prefix(&base).unwrap();
 
@@ -307,7 +314,7 @@ fn a_working_prefix_builds_on_its_base_transaction() {
         .commit(TransactionKind::Install, "install foo".to_owned(), None)
         .unwrap();
 
-    assert_eq!(next.transaction.parent, Some(genesis.transaction.uuid.to_string()));
+    assert_eq!(next.transaction.parent, Some(first.transaction.uuid.to_string()));
 }
 
 #[test]
@@ -318,7 +325,7 @@ fn the_defaults_of_a_prefix_without_etc_are_empty() {
     let committed = sysroot
         .empty_prefix()
         .unwrap()
-        .commit(TransactionKind::Bootstrap, "genesis".to_owned(), None)
+        .commit(TransactionKind::Bootstrap, "bootstrap".to_owned(), None)
         .unwrap();
 
     let defaults = sysroot.prefix_defaults(&committed.digest).unwrap();

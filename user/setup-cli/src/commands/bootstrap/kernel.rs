@@ -18,7 +18,7 @@ use crate::libcore::Lib;
 use crate::locale::LOADER;
 use crate::types::output::Output;
 use crate::types::progress::ProgressState;
-use crate::types::{BootPlugin, InitramfsGeneratorClapArg, query, request_base};
+use crate::types::{InitramfsGeneratorClapArg, query, request_base};
 
 #[derive(ClapArgs)]
 #[command(group(ArgGroup::new("target").required(true).args(["disk", "deploy_device"])))]
@@ -34,8 +34,6 @@ pub struct Args {
     pub tmp_dir: Option<String>,
     #[arg(long)]
     pub prefix: String,
-    #[arg(long, value_enum, default_value_t = BootPlugin::SystemdBoot)]
-    pub boot_plugin: BootPlugin,
     #[arg(long, value_enum, default_value_t = InitramfsGeneratorClapArg::from_str(GENERATOR, false).unwrap_or(InitramfsGeneratorClapArg(InitramfsGenerator::Dracut)))]
     pub initramfs_generator: InitramfsGeneratorClapArg,
 }
@@ -55,7 +53,6 @@ pub fn run(args: Args, lib: &Lib, output: &Output) -> Result<()> {
                 mount_point: args.mount_point.as_deref(),
                 tmp_path: args.tmp_dir.as_deref(),
                 prefix_digest: &args.prefix,
-                boot_plugin: args.boot_plugin.as_str(),
                 initramfs_generator: args.initramfs_generator.into(),
             } => SetupBootstrapKernelResponse
         )?

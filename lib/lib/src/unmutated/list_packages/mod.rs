@@ -17,8 +17,11 @@ use self::fetching::FetchingStage;
 
 mod fetching;
 
-pub fn run(request: ListPackagesRequest<'_>) -> Result<ListPackagesResponse, (ListPackagesStateId, ErrorKind)> {
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListPackagesStateId::Setup, error.into()))?;
+pub fn run(
+    request: ListPackagesRequest<'_>,
+) -> Result<ListPackagesResponse, (ListPackagesStateId, ErrorKind, Option<String>)> {
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListPackagesStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

@@ -13,11 +13,11 @@ use clap::error::{ContextKind, ContextValue, ErrorFormatter, ErrorKind};
 
 use super::CliLocale;
 
-pub struct LocalizedErrorFormatter<L>(PhantomData<L>);
+pub struct LocalizedErrorFormatter<Localization>(PhantomData<Localization>);
 
-impl<L: CliLocale> ErrorFormatter for LocalizedErrorFormatter<L> {
+impl<Localization: CliLocale> ErrorFormatter for LocalizedErrorFormatter<Localization> {
     fn format_error(error: &ClapError<Self>) -> StyledStr {
-        let loader = L::loader();
+        let loader = Localization::loader();
         let styles = Styles::default();
         let error_style = styles.get_error();
         let usage_style = styles.get_usage();
@@ -82,17 +82,17 @@ impl<L: CliLocale> ErrorFormatter for LocalizedErrorFormatter<L> {
     }
 }
 
-pub fn exit<L: CliLocale>(error: ClapError) -> ! {
+pub fn exit<Localization: CliLocale>(error: ClapError) -> ! {
     if is_localized(error.kind()) {
-        error.apply::<LocalizedErrorFormatter<L>>().exit()
+        error.apply::<LocalizedErrorFormatter<Localization>>().exit()
     }
 
     error.exit()
 }
 
-pub fn render<L: CliLocale>(error: ClapError) -> String {
+pub fn render<Localization: CliLocale>(error: ClapError) -> String {
     if is_localized(error.kind()) {
-        return error.apply::<LocalizedErrorFormatter<L>>().to_string();
+        return error.apply::<LocalizedErrorFormatter<Localization>>().to_string();
     }
 
     error.to_string()
@@ -111,6 +111,8 @@ fn is_localized(kind: ErrorKind) -> bool {
     )
 }
 
-fn context<L: CliLocale>(error: &ClapError<LocalizedErrorFormatter<L>>, kind: ContextKind) -> String {
+fn context<Localization: CliLocale>(
+    error: &ClapError<LocalizedErrorFormatter<Localization>>, kind: ContextKind,
+) -> String {
     error.get(kind).map(ContextValue::to_string).unwrap_or_default()
 }

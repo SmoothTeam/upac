@@ -28,9 +28,9 @@ use super::stages::{CommitInfo, DetachItem, RequestedBootPlugin, RequestedPackag
 
 mod drop;
 
-pub fn run(request: DetachRequest<'_>) -> Result<(), (DetachStateId, ErrorKind)> {
+pub fn run(request: DetachRequest<'_>) -> Result<(), (DetachStateId, ErrorKind, Option<String>)> {
     if request.files.is_empty() {
-        return Err((DetachStateId::Setup, ErrorKind::InvalidEntry));
+        return Err((DetachStateId::Setup, ErrorKind::InvalidEntry, None));
     }
 
     let items: Vec<DetachItem> = request
@@ -38,7 +38,7 @@ pub fn run(request: DetachRequest<'_>) -> Result<(), (DetachStateId, ErrorKind)>
         .iter()
         .map(|target| DetachItem((*target).to_owned()))
         .collect();
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (DetachStateId::Setup, error.into()))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (DetachStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

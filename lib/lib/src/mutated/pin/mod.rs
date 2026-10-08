@@ -22,9 +22,10 @@ pub(crate) struct RequestedPrefixDigest(pub Digest);
 
 pub(crate) struct RequestedPinned(pub bool);
 
-pub fn run(request: PinRequest<'_>) -> Result<(), (PinStateId, ErrorKind)> {
-    let prefix_digest = Digest::from_hex(request.prefix_digest).map_err(|error| (PinStateId::Setup, error.into()))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (PinStateId::Setup, error.into()))?;
+pub fn run(request: PinRequest<'_>) -> Result<(), (PinStateId, ErrorKind, Option<String>)> {
+    let prefix_digest =
+        Digest::from_hex(request.prefix_digest).map_err(|error| (PinStateId::Setup, error.into(), None))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (PinStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

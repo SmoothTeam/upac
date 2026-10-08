@@ -17,8 +17,11 @@ use self::fetching::FetchingStage;
 
 mod fetching;
 
-pub fn run(request: ListHistoryRequest<'_>) -> Result<ListHistoryResponse, (ListHistoryStateId, ErrorKind)> {
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListHistoryStateId::Setup, error.into()))?;
+pub fn run(
+    request: ListHistoryRequest<'_>,
+) -> Result<ListHistoryResponse, (ListHistoryStateId, ErrorKind, Option<String>)> {
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListHistoryStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

@@ -43,8 +43,10 @@ pub(crate) struct DeployedPrefix {
     pub next_written: WrittenFile,
 }
 
-pub fn run(request: SetupBootstrapDeployRequest<'_>) -> Result<(), (BootstrapDeployStateId, ErrorKind)> {
-    let setup_error = |error: ErrorKind| (BootstrapDeployStateId::Setup, error);
+pub fn run(
+    request: SetupBootstrapDeployRequest<'_>,
+) -> Result<(), (BootstrapDeployStateId, ErrorKind, Option<String>)> {
+    let setup_error = |error: ErrorKind| (BootstrapDeployStateId::Setup, error, None);
 
     let requested = RequestedDeploy {
         prefix_digest: Digest::from_hex(request.prefix_digest).map_err(|_| setup_error(ErrorKind::InvalidEntry))?,

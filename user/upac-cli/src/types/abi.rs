@@ -39,19 +39,25 @@ pub fn invoke(call: impl FnOnce(*mut CError) -> i32) -> Result<()> {
 
     let code = call(&mut error);
 
-    AbiError::check(code, &error).map_err(LibError)?;
+    let checked = AbiError::check(code, &error);
+    unsafe { error.free() };
+    checked.map_err(LibError)?;
 
     Ok(())
 }
 
-pub fn invoke_with_response<R: CValidatable>(call: impl FnOnce(*mut R, *mut CError) -> i32) -> Result<R> {
+pub fn invoke_with_response<Response: CValidatable>(
+    call: impl FnOnce(*mut Response, *mut CError) -> i32,
+) -> Result<Response> {
     let mut response = MaybeUninit::zeroed();
 
     let mut error = CError::default();
 
     let code = call(response.as_mut_ptr(), &mut error);
 
-    AbiError::check(code, &error).map_err(LibError)?;
+    let checked = AbiError::check(code, &error);
+    unsafe { error.free() };
+    checked.map_err(LibError)?;
 
     let response = unsafe { response.assume_init() };
 

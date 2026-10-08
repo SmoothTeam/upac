@@ -104,7 +104,6 @@ arg-bootstrap-kernel-deploy-device = Устройство раздела раз�
 arg-bootstrap-kernel-mount-point = Куда смонтировать целевую систему на время установки
 arg-bootstrap-kernel-tmp-dir = Каталог для временных файлов: дерева для генератора initramfs (по умолчанию — рабочий каталог на разделе развёртывания)
 arg-bootstrap-kernel-prefix = Дайджест образа префикса, который вывела bootstrap import
-arg-bootstrap-kernel-boot-plugin = Загрузочный плагин, с которым будет грузиться система; от него зависит, собирать initramfs или UKI
 arg-bootstrap-kernel-initramfs-generator = Генератор initramfs
 about-bootstrap-deploy = Сделать образ системы следующим загружаемым деплоем и установить загрузчик
 arg-bootstrap-deploy-disk = Диск для установки; его ESP и корневой раздел находятся по типу в GPT (вместо --esp-device и --deploy-device)

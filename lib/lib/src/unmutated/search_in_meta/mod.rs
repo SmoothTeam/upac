@@ -19,9 +19,13 @@ use crate::Search;
 
 mod searching;
 
-pub fn run(request: SearchInMetaRequest<'_>) -> Result<SearchInMetaResponse, (SearchInMetaStateId, ErrorKind)> {
-    let search = Search::new(request.search, request.is_regex).map_err(|error| (SearchInMetaStateId::Setup, error))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (SearchInMetaStateId::Setup, error.into()))?;
+pub fn run(
+    request: SearchInMetaRequest<'_>,
+) -> Result<SearchInMetaResponse, (SearchInMetaStateId, ErrorKind, Option<String>)> {
+    let search =
+        Search::new(request.search, request.is_regex).map_err(|error| (SearchInMetaStateId::Setup, error, None))?;
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (SearchInMetaStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

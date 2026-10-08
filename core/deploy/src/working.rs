@@ -142,9 +142,11 @@ impl WorkingPrefix {
         Ok(())
     }
 
-    pub fn add_unowned_dir(&mut self, source_dir: &Path, cancel: &CancelToken) -> Result<(), PrefixEditError> {
+    pub fn add_unowned_dir(
+        &mut self, source_dir: &Path, cancel: &CancelToken, on_entry: &mut dyn FnMut(&Path),
+    ) -> Result<(), PrefixEditError> {
         if source_dir.is_dir() {
-            self.tree.import_dir("", source_dir, cancel, &mut |_| {})?;
+            self.tree.import_dir("", source_dir, cancel, on_entry)?;
         }
 
         Ok(())

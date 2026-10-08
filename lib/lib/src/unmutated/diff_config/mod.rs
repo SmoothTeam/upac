@@ -33,10 +33,13 @@ struct DiffConfigSnapshot {
     to_database: MemoryDatabase,
 }
 
-pub fn run(request: DiffConfigRequest<'_>) -> Result<DiffConfigResponse, (DiffConfigStateId, ErrorKind)> {
+pub fn run(
+    request: DiffConfigRequest<'_>,
+) -> Result<DiffConfigResponse, (DiffConfigStateId, ErrorKind, Option<String>)> {
     let requested = RequestedConfigDigestRange::parse(request.from_config_digest, request.to_config_digest)
-        .map_err(|error| (DiffConfigStateId::Setup, error))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffConfigStateId::Setup, error.into()))?;
+        .map_err(|error| (DiffConfigStateId::Setup, error, None))?;
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffConfigStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

@@ -42,11 +42,11 @@ pub(crate) const FILES_UUID_HASH_TABLE: TableDefinition<u64, Uuid> = TableDefini
 
 pub(crate) const TRANSACTION_TABLE: TableDefinition<(), &[u8]> = TableDefinition::new(TRANSACTION_TABLE_NAME);
 
-pub(crate) fn record_encode<T: Serialize + ?Sized>(record: &T) -> Result<Vec<u8>, DatabaseError> {
+pub(crate) fn record_encode<Record: Serialize + ?Sized>(record: &Record) -> Result<Vec<u8>, DatabaseError> {
     postcard::to_allocvec(record).map_err(|_| DatabaseError::WriteError)
 }
 
-pub(crate) fn record_decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, DatabaseError> {
+pub(crate) fn record_decode<Record: DeserializeOwned>(bytes: &[u8]) -> Result<Record, DatabaseError> {
     postcard::from_bytes(bytes).map_err(|_| DatabaseError::ReadError)
 }
 
@@ -78,15 +78,15 @@ impl MemoryDatabase {
 }
 
 pub(crate) trait ReadTransactionExt {
-    fn open_table_or_none<K: Key + 'static, V: Value + 'static>(
-        &self, definition: TableDefinition<K, V>,
-    ) -> Result<Option<ReadOnlyTable<K, V>>, DatabaseError>;
+    fn open_table_or_none<TableKey: Key + 'static, TableValue: Value + 'static>(
+        &self, definition: TableDefinition<TableKey, TableValue>,
+    ) -> Result<Option<ReadOnlyTable<TableKey, TableValue>>, DatabaseError>;
 }
 
 impl ReadTransactionExt for ReadTransaction {
-    fn open_table_or_none<K: Key + 'static, V: Value + 'static>(
-        &self, definition: TableDefinition<K, V>,
-    ) -> Result<Option<ReadOnlyTable<K, V>>, DatabaseError> {
+    fn open_table_or_none<TableKey: Key + 'static, TableValue: Value + 'static>(
+        &self, definition: TableDefinition<TableKey, TableValue>,
+    ) -> Result<Option<ReadOnlyTable<TableKey, TableValue>>, DatabaseError> {
         match self.open_table(definition) {
             Ok(table) => Ok(Some(table)),
             Err(TableError::TableDoesNotExist(_)) => Ok(None),

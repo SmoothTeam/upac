@@ -21,7 +21,7 @@ use upac_orchestrator::stage::Stage;
 
 use super::{KernelImage, KernelVersion};
 
-use crate::layout::genesis::{MODULE_INDEX_PREFIX, MODULES_DIR};
+use crate::layout::bootstrap::{MODULE_INDEX_PREFIX, MODULES_DIR};
 
 pub struct CommitStage;
 

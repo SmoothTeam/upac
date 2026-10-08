@@ -39,12 +39,15 @@ settle_interval_ms = 100
 # modules.alias, …) first: packages don't ship it (pacman's depmod hook normally generates it), yet
 # both the generator and the booted system's udev need it, so `bootstrap kernel` also imports it into
 # the prefix image. A missing binary is reported as `ToolNotInstalled`, not as a generic I/O error.
+# initramfs.generator_tmp_dir is created inside the exported tree before the generator runs: dracut
+# run with --sysroot keeps its temporary files under <sysroot>/var/tmp and refuses to start without it.
 [initramfs]
 depmod_bin = "depmod"
 dracut_bin = "dracut"
+generator_tmp_dir = "var/tmp"
 mkinitcpio_bin = "mkinitcpio"
 
-# genesis.scratch_dir is the work directory bootstrap keeps on the mounted deployment partition
+# bootstrap.scratch_dir is the work directory bootstrap keeps on the mounted deployment partition
 # for everything too big for the installer's RAM-backed /tmp: extracted --source archives,
 # unpacked packages and the /usr tree exported for the initramfs generator. `MountedTarget` creates
 # it on mount and removes it before unmounting, so nothing is left behind on the installed system.
@@ -53,7 +56,7 @@ mkinitcpio_bin = "mkinitcpio"
 # PrepareStage collects (skipped by it automatically — it only looks at files, never directories) —
 # a literal, 1:1 mirror of the prefix image, imported wholesale by its SystemStage as files no
 # package owns. This is how a built `up`/`upac-lib`/booters (or anything else that must exist
-# outside the normal per-package pipeline) gets onto a genesis'd disk — genesis never resolves or
+# outside the normal per-package pipeline) gets onto a bootstrapped disk — bootstrap never resolves or
 # installs itself automatically, whoever assembles `--source` has to put it there, same assumption
 # already made for the systemd-boot/rEFInd binaries.
 #
@@ -65,7 +68,7 @@ mkinitcpio_bin = "mkinitcpio"
 #
 # composefs_setup_root_unit_path (relative to `system_dir`) is where SystemStage requires to find a
 # `composefs-setup-root.service` unit, and at system_dir's top the empty sysroot directory setup-root
-# mounts the physical root onto — `NotFound` if either is missing, since a genesis'd disk cannot boot at
+# mounts the physical root onto — `NotFound` if either is missing, since a bootstrapped disk cannot boot at
 # all without them. SystemStage deliberately does NOT create the unit's `*.target.wants/`
 # enablement symlink itself — `initrd-root-fs.target` only exists inside the initrd's own systemd
 # instance, so wanting it from the real root's unit tree is a no-op after switch-root. The dracut
@@ -73,10 +76,8 @@ mkinitcpio_bin = "mkinitcpio"
 # (`$SYSTEMCTL --root "${initdir}" add-wants`), which is the only place it can actually take effect.
 #
 # initramfs_filename is fixed by composefs-boot itself, not our choice — `UsrLibModulesVmlinuz::
-# load_all` only recognizes a vmlinuz's companion initramfs under this exact name. uki_filename is
-# our own convention (composefs-boot only requires a `.efi` extension in `lib/modules/<kver>/` for
-# `Type2Entry::load_all` to pick it up, the stem is free) — kept alongside initramfs_filename since
-# `bootstrap kernel` writes either under the same `lib/modules/<kver>/` directory.
+# load_all` only recognizes a vmlinuz's companion initramfs under this exact name. `bootstrap kernel`
+# always builds a plain initramfs: a UKI is assembled from it only when the boot entry is written.
 #
 # modules_dir is where, inside the prefix image, a kernel keeps its modules and where
 # `bootstrap kernel` finds its version and puts the initramfs or UKI. module_index_prefix marks the
@@ -84,9 +85,9 @@ mkinitcpio_bin = "mkinitcpio"
 # them, yet both the generator and the booted system's udev need them, so they go into the image too.
 #
 # subject is the subject of the first transaction and the first config of a bootstrapped system.
-[genesis]
+[bootstrap]
 scratch_dir = ".upac-setup"
-subject = "genesis"
+subject = "bootstrap"
 
 composefs_setup_root_unit_path = "lib/systemd/system/composefs-setup-root.service"
 config_dir = "config"
@@ -95,4 +96,3 @@ system_dir = "system"
 initramfs_filename = "initramfs.img"
 module_index_prefix = "modules."
 modules_dir = "lib/modules"
-uki_filename = "uki.efi"

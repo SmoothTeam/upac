@@ -15,12 +15,14 @@ use upac_deploy::{Sysroot, SysrootMode};
 use upac_orchestrator::context::Context;
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};
 
+use self::discard::DiscardStage;
 use self::select::SelectStage;
 
 use super::stages::RequestedBootPlugin;
 use super::stages::checkout::CheckoutStage;
 use super::stages::swap::SwapStage;
 
+mod discard;
 mod select;
 
 pub(crate) struct RequestedConfig {
@@ -30,10 +32,10 @@ pub(crate) struct RequestedConfig {
 
 pub(crate) struct SelectionWrites(pub Vec<WrittenFile>);
 
-pub fn run(request: RollbackRequest<'_>) -> Result<(), (RollbackStateId, ErrorKind)> {
+pub fn run(request: RollbackRequest<'_>) -> Result<(), (RollbackStateId, ErrorKind, Option<String>)> {
     let config_digest =
-        Digest::from_hex(request.config_digest).map_err(|error| (RollbackStateId::Setup, error.into()))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (RollbackStateId::Setup, error.into()))?;
+        Digest::from_hex(request.config_digest).map_err(|error| (RollbackStateId::Setup, error.into(), None))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (RollbackStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);
@@ -43,7 +45,7 @@ pub fn run(request: RollbackRequest<'_>) -> Result<(), (RollbackStateId, ErrorKi
     });
     context.put(RequestedBootPlugin(request.boot_plugin.to_owned()));
 
-    SequentialOrchestrator::new(stages![SelectStage, CheckoutStage, SwapStage]).run_mutating(
+    SequentialOrchestrator::new(stages![SelectStage, CheckoutStage, SwapStage, DiscardStage]).run_mutating(
         &mut context,
         request.base.cancel_token,
         &|event| request.base.report_progress(event),

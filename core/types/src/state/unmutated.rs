@@ -11,8 +11,7 @@ use super::impl_command_state;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum SearchMetaStateId {
     Searching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(SearchMetaStateId, SearchMeta);
@@ -21,8 +20,7 @@ impl_command_state!(SearchMetaStateId, SearchMeta);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum SearchFilesStateId {
     Searching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(SearchFilesStateId, SearchFiles);
@@ -31,8 +29,7 @@ impl_command_state!(SearchFilesStateId, SearchFiles);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum SearchInMetaStateId {
     Searching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(SearchInMetaStateId, SearchInMeta);
@@ -41,8 +38,7 @@ impl_command_state!(SearchInMetaStateId, SearchInMeta);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum SearchInPackageFilesStateId {
     Searching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(SearchInPackageFilesStateId, SearchInPackageFiles);
@@ -51,8 +47,7 @@ impl_command_state!(SearchInPackageFilesStateId, SearchInPackageFiles);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum ListPackagesStateId {
     Fetching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(ListPackagesStateId, ListPackages);
@@ -61,8 +56,7 @@ impl_command_state!(ListPackagesStateId, ListPackages);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum ListConfigStateId {
     Fetching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(ListConfigStateId, ListConfig);
@@ -71,8 +65,7 @@ impl_command_state!(ListConfigStateId, ListConfig);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum ListPrefixStateId {
     Fetching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(ListPrefixStateId, ListPrefix);
@@ -81,8 +74,7 @@ impl_command_state!(ListPrefixStateId, ListPrefix);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum ListHistoryStateId {
     Fetching = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(ListHistoryStateId, ListHistory);
@@ -92,8 +84,7 @@ impl_command_state!(ListHistoryStateId, ListHistory);
 pub enum DiffPrefixStateId {
     Preparing = 0,
     Comparing = 1,
-    Done = 2,
-    Setup = 3,
+    Setup = 2,
 }
 
 impl_command_state!(DiffPrefixStateId, DiffPrefix);
@@ -103,8 +94,7 @@ impl_command_state!(DiffPrefixStateId, DiffPrefix);
 pub enum DiffConfigStateId {
     Preparing = 0,
     Comparing = 1,
-    Done = 2,
-    Setup = 3,
+    Setup = 2,
 }
 
 impl_command_state!(DiffConfigStateId, DiffConfig);
@@ -114,8 +104,7 @@ impl_command_state!(DiffConfigStateId, DiffConfig);
 pub enum DiffPackagesStateId {
     Preparing = 0,
     Comparing = 1,
-    Done = 2,
-    Setup = 3,
+    Setup = 2,
 }
 
 impl_command_state!(DiffPackagesStateId, DiffPackages);
@@ -125,8 +114,7 @@ impl_command_state!(DiffPackagesStateId, DiffPackages);
 pub enum DiffStateId {
     Preparing = 0,
     Comparing = 1,
-    Done = 2,
-    Setup = 3,
+    Setup = 2,
 }
 
 impl_command_state!(DiffStateId, Diff);

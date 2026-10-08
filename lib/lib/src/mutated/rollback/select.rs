@@ -3,14 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{create_dir_all, read_dir, remove_dir_all};
-use std::io::ErrorKind as IoErrorKind;
-
 use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
 
+use upac_composefs::fs::WrittenFile;
+
 use upac_deploy::Sysroot;
-use upac_deploy::deployment::Deployment;
+use upac_deploy::deployment::{Deployment, PrefixDeploy};
+use upac_deploy::etc::SetAsideEtc;
 
 use upac_macro::stage;
 
@@ -42,50 +42,64 @@ impl Stage<ErrorKind> for SelectStage {
             })
             .ok_or(ErrorKind::NotFound)?;
 
-        let upper_dir = sysroot.live_etc_upper_dir(prefix.digest());
-        let has_changes = match read_dir(&upper_dir) {
-            Ok(mut entries) => entries.next().is_some(),
-            Err(error) if error.kind() == IoErrorKind::NotFound => false,
-            Err(error) => return Err(error.into()),
-        };
-
-        if has_changes {
+        let set_aside = if sysroot.is_live_etc_modified(prefix.digest())? {
             let is_running = sysroot.running_prefix()?.digest() == prefix.digest();
             if !requested.discard_etc_changes || is_running {
                 return Err(ErrorKind::AlreadyExists);
             }
 
-            remove_dir_all(&upper_dir)?;
-            create_dir_all(&upper_dir)?;
-        }
+            Some(sysroot.set_aside_live_etc(prefix.digest())?)
+        } else {
+            None
+        };
 
-        prefix.switch_config(config_index)?;
-
-        let meta_written = sysroot.save_prefix(&prefix)?;
-        let next_written = match sysroot.set_next_prefix(&prefix) {
-            Ok(next_written) => next_written,
+        let writes = match Self::switch_config(sysroot, &mut prefix, config_index) {
+            Ok(writes) => writes,
             Err(error) => {
-                meta_written.restore()?;
-                return Err(error.into());
+                if let Some(set_aside) = &set_aside {
+                    set_aside.restore()?;
+                }
+                return Err(error);
             }
         };
 
-        let target = prefix.digest().clone();
-        context.put(SelectionWrites(vec![meta_written, next_written]));
-        context.put(BootTarget(target));
+        context.put(SelectionWrites(writes));
+        context.put(BootTarget(prefix.digest().clone()));
+        if let Some(set_aside) = set_aside {
+            context.put::<SetAsideEtc>(set_aside);
+        }
 
         Ok(())
     }
 
     fn rollback(&self, context: &mut Context) -> Result<(), ErrorKind> {
-        let Ok(writes) = context.take::<SelectionWrites>() else {
-            return Ok(());
-        };
+        if let Ok(writes) = context.take::<SelectionWrites>() {
+            for written in writes.0.iter().rev() {
+                written.restore()?;
+            }
+        }
 
-        for written in writes.0.iter().rev() {
-            written.restore()?;
+        if let Ok(set_aside) = context.take::<SetAsideEtc>() {
+            set_aside.restore()?;
         }
 
         Ok(())
+    }
+}
+
+impl SelectStage {
+    fn switch_config(
+        sysroot: &Sysroot, prefix: &mut PrefixDeploy, config_index: usize,
+    ) -> Result<Vec<WrittenFile>, ErrorKind> {
+        prefix.switch_config(config_index)?;
+
+        let meta_written = sysroot.save_prefix(prefix)?;
+        match sysroot.set_next_prefix(prefix) {
+            Ok(next_written) => Ok(vec![meta_written, next_written]),
+            Err(error) => {
+                meta_written.restore()?;
+                Err(error.into())
+            }
+        }
     }
 }

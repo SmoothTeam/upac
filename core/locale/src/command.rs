@@ -33,22 +33,22 @@ pub const SHARED_KEYS: &[&str] = &[
 
 const HELP_SUBCOMMAND: &str = "help";
 
-pub fn localize<L: CliLocale>(mut command: Command) -> Command {
+pub fn localize<Localization: CliLocale>(mut command: Command) -> Command {
     command.build();
 
-    localize_command(&mut command, &mut Vec::new(), L::loader());
+    localize_command(&mut command, &mut Vec::new(), Localization::loader());
 
     command
 }
 
-pub fn missing_keys<L: CliLocale>(command: &Command) -> Vec<String> {
+pub fn missing_keys<Localization: CliLocale>(command: &Command) -> Vec<String> {
     let mut command = command.clone();
     command.build();
 
     let mut keys: Vec<String> = SHARED_KEYS.iter().map(|key| (*key).to_owned()).collect();
     collect_keys(&command, &mut Vec::new(), &mut keys);
 
-    let loader = L::loader();
+    let loader = Localization::loader();
     keys.retain(|key| !loader.has(key));
     keys.sort();
     keys.dedup();

@@ -18,8 +18,8 @@ macro_rules! load_symbol {
     };
 }
 
-unsafe fn load_symbol<T: Copy>(library: &Library, name: &str) -> Result<T, DecoderError> {
-    unsafe { library.get::<T>(name.as_bytes()) }
+unsafe fn load_symbol<Symbol: Copy>(library: &Library, name: &str) -> Result<Symbol, DecoderError> {
+    unsafe { library.get::<Symbol>(name.as_bytes()) }
         .map(|symbol| *symbol)
         .map_err(|_| DecoderError::Symbol)
 }

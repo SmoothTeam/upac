@@ -34,7 +34,7 @@ pub(crate) struct RequestedFilesystem {
     pub btrfs_sector_size: u32,
 }
 
-pub fn run(request: SetupFormatRequest<'_>) -> Result<(), (FormatStateId, ErrorKind)> {
+pub fn run(request: SetupFormatRequest<'_>) -> Result<(), (FormatStateId, ErrorKind, Option<String>)> {
     let mut context = Context::default();
     context.put(RequestedDevice(PathBuf::from(request.device_path)));
     context.put(RequireEsp(request.require_esp));

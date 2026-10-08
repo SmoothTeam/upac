@@ -20,17 +20,24 @@ pub struct UnpackStage;
 #[stage]
 impl Stage<ErrorKind> for UnpackStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+        &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), ErrorKind> {
         let source = context.take::<PackageSource>()?;
         let scratch_dir = context.get::<ScratchDir>()?.0.to_string_lossy().into_owned();
         let mut unpacker = context.take::<PackageUnpacker>()?;
 
-        let unpacked = unpacker.unpack_one(&source.path.to_string_lossy(), source.index, &scratch_dir, cancel);
+        let source_path = source.path.to_string_lossy();
+        let package_file_name = source
+            .path
+            .file_name()
+            .unwrap_or(source.path.as_os_str())
+            .to_string_lossy();
+        progress(Some(&package_file_name), 0, 0);
+        let unpacked = unpacker.unpack_one(&source_path, source.index, &scratch_dir, cancel);
         context.put(unpacker);
 
         let (temp, triggers) = unpacked?;
-        context.push(UnpackedPackage { temp, triggers });
+        context.put(UnpackedPackage { temp, triggers });
 
         Ok(())
     }

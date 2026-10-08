@@ -175,9 +175,9 @@ impl Lib {
     }
 
     /// # Safety
-    /// `T` must exactly match the signature of the C symbol `name` resolves to, and the returned value
+    /// `Symbol` must exactly match the signature of the C symbol `name` resolves to, and the returned value
     /// must not outlive `lib`.
-    unsafe fn load_symbol<T: Copy>(lib: &Library, name: &str) -> Result<T> {
+    unsafe fn load_symbol<Symbol: Copy>(lib: &Library, name: &str) -> Result<Symbol> {
         unsafe {
             lib.get(name.as_bytes())
                 .map(|symbol| *symbol)

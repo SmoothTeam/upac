@@ -16,24 +16,35 @@ use upac_orchestrator::stage::Stage;
 
 use super::SourceDir;
 
-use crate::layout::genesis::{COMPOSEFS_SETUP_ROOT_UNIT_PATH, SYSTEM_DIR};
+use crate::layout::bootstrap::{COMPOSEFS_SETUP_ROOT_UNIT_PATH, SYSTEM_DIR};
 
 pub struct SystemStage;
 
 #[stage]
 impl Stage<ErrorKind> for SystemStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+        &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), ErrorKind> {
         let system_dir = context.get::<SourceDir>()?.0.join(SYSTEM_DIR);
 
-        if !system_dir.join(COMPOSEFS_SETUP_ROOT_UNIT_PATH).is_file() || !system_dir.join(SYSROOT_DIR).is_dir() {
+        let unit_path = system_dir.join(COMPOSEFS_SETUP_ROOT_UNIT_PATH);
+        progress(Some(&unit_path.to_string_lossy()), 0, 0);
+        if !unit_path.is_file() {
+            return Err(ErrorKind::NotFound);
+        }
+
+        let sysroot_dir = system_dir.join(SYSROOT_DIR);
+        progress(Some(&sysroot_dir.to_string_lossy()), 0, 0);
+        if !sysroot_dir.is_dir() {
             return Err(ErrorKind::NotFound);
         }
 
         let mut working = context.take::<WorkingPrefix>()?;
-        working.add_unowned_dir(&system_dir, cancel)?;
+        let added = working.add_unowned_dir(&system_dir, cancel, &mut |path| {
+            progress(Some(&path.to_string_lossy()), 0, 0)
+        });
         context.put(working);
+        added?;
 
         Ok(())
     }

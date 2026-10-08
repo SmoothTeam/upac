@@ -22,7 +22,7 @@ pub(crate) struct DesktopContent(pub String);
 
 pub(crate) struct RenderedFiles(pub Vec<(&'static str, String)>);
 
-pub fn run(request: MimeSyncRequest<'_>) -> Result<(), (MimeStateId, ErrorKind)> {
+pub fn run(request: MimeSyncRequest<'_>) -> Result<(), (MimeStateId, ErrorKind, Option<String>)> {
     let mut context = Context::default();
 
     SequentialOrchestrator::new(stages![PreparingStage, RenderingStage, WritingStage]).run_mutating(

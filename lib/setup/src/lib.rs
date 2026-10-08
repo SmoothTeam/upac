@@ -14,7 +14,7 @@ use upac_types::request::format::FsKind;
 
 use upac_deploy::layout::boot::ESP_MOUNT_PRIMARY;
 
-use self::layout::genesis::SCRATCH_DIR;
+use self::layout::bootstrap::SCRATCH_DIR;
 use self::probe::detect_filesystem;
 
 pub mod export;

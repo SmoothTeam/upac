@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::read_dir;
+use std::fs::{create_dir_all, read_dir};
 use std::os::unix::fs::symlink;
 
 use upac_types::CancelToken;
@@ -20,7 +20,8 @@ use upac_orchestrator::stage::Stage;
 
 use super::{ExportDir, KernelVersion};
 
-use crate::layout::genesis::MODULES_DIR;
+use crate::layout::bootstrap::MODULES_DIR;
+use crate::layout::initramfs::GENERATOR_TMP_DIR;
 
 const MERGED_USR_LINKS: &[(&str, &str)] = &[
     ("bin", "usr/bin"),
@@ -43,6 +44,7 @@ impl Stage<ErrorKind> for ExportStage {
         for (link_name, link_target) in MERGED_USR_LINKS {
             symlink(link_target, export_dir.join(link_name))?;
         }
+        create_dir_all(export_dir.join(GENERATOR_TMP_DIR))?;
 
         let mut versions = Vec::new();
         for entry in read_dir(prefix_dir.join(MODULES_DIR))? {

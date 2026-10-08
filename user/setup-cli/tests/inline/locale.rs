@@ -48,8 +48,12 @@ fn single_language_loader(language: &str) -> FluentLanguageLoader {
     loader
 }
 
-fn parse_error<L: CliLocale>(arguments: &[&str]) -> String {
-    render::<L>(try_parse_from::<Cli, L, _, _>(arguments.iter().copied()).err().unwrap())
+fn parse_error<Localization: CliLocale>(arguments: &[&str]) -> String {
+    render::<Localization>(
+        try_parse_from::<Cli, Localization, _, _>(arguments.iter().copied())
+            .err()
+            .unwrap(),
+    )
 }
 
 #[test]

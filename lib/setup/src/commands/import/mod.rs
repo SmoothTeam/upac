@@ -59,8 +59,8 @@ pub(crate) struct UnpackedPackage {
 
 pub fn run(
     request: SetupBootstrapImportRequest<'_>,
-) -> Result<SetupBootstrapImportResponse, (BootstrapImportStateId, ErrorKind)> {
-    let setup_error = |error: ErrorKind| (BootstrapImportStateId::Setup, error);
+) -> Result<SetupBootstrapImportResponse, (BootstrapImportStateId, ErrorKind, Option<String>)> {
+    let setup_error = |error: ErrorKind| (BootstrapImportStateId::Setup, error, None);
 
     let deploy_device = root_partition(request.disk, request.deploy_device).map_err(setup_error)?;
     let target = MountedTarget::mount(
@@ -87,8 +87,7 @@ pub fn run(
 
     SequentialOrchestrator::new(stages![
         PrepareStage,
-        each::<PackageSource>(UnpackStage),
-        each::<UnpackedPackage>(AddStage),
+        each::<PackageSource>(UnpackStage, AddStage),
         SystemStage,
         CommitStage,
         ConfigStage,

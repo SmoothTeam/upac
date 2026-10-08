@@ -21,8 +21,7 @@ pub enum InstallStateId {
     Checkout = 8,
     Swap = 9,
     Retention = 10,
-    Done = 11,
-    Setup = 12,
+    Setup = 11,
 }
 
 impl_command_state!(InstallStateId, Install);
@@ -41,8 +40,7 @@ pub enum UninstallStateId {
     Checkout = 8,
     Swap = 9,
     Retention = 10,
-    Done = 11,
-    Setup = 12,
+    Setup = 11,
 }
 
 impl_command_state!(UninstallStateId, Uninstall);
@@ -61,8 +59,7 @@ pub enum UpdateStateId {
     Checkout = 8,
     Swap = 9,
     Retention = 10,
-    Done = 11,
-    Setup = 12,
+    Setup = 11,
 }
 
 impl_command_state!(UpdateStateId, Update);
@@ -73,7 +70,7 @@ pub enum RollbackStateId {
     Select = 0,
     Checkout = 1,
     Swap = 2,
-    Done = 3,
+    Discard = 3,
     Setup = 4,
 }
 
@@ -91,8 +88,7 @@ pub enum AttachStateId {
     Checkout = 6,
     Swap = 7,
     Retention = 8,
-    Done = 9,
-    Setup = 10,
+    Setup = 9,
 }
 
 impl_command_state!(AttachStateId, Attach);
@@ -109,8 +105,7 @@ pub enum DetachStateId {
     Checkout = 6,
     Swap = 7,
     Retention = 8,
-    Done = 9,
-    Setup = 10,
+    Setup = 9,
 }
 
 impl_command_state!(DetachStateId, Detach);
@@ -119,8 +114,7 @@ impl_command_state!(DetachStateId, Detach);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum CommitStateId {
     Transaction = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(CommitStateId, Commit);
@@ -131,8 +125,7 @@ pub enum GcStateId {
     Pruning = 0,
     CollectRoots = 1,
     Cleaning = 2,
-    Done = 3,
-    Setup = 4,
+    Setup = 3,
 }
 
 impl_command_state!(GcStateId, Gc);
@@ -141,8 +134,7 @@ impl_command_state!(GcStateId, Gc);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum PinStateId {
     SetPinned = 0,
-    Done = 1,
-    Setup = 2,
+    Setup = 1,
 }
 
 impl_command_state!(PinStateId, Pin);
@@ -153,8 +145,7 @@ pub enum MimeStateId {
     Preparing = 0,
     Rendering = 1,
     Writing = 2,
-    Done = 3,
-    Setup = 4,
+    Setup = 3,
 }
 
 impl_command_state!(MimeStateId, Mime);

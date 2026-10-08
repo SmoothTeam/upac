@@ -98,14 +98,14 @@ fn a_prefix_with_two_kernels_is_ambiguous() {
 }
 
 #[test]
-fn a_kernel_is_not_a_uki() {
+fn a_uki_cannot_be_built_from_a_kernel_without_an_initramfs() {
     let (_scratch, sysroot) = scratch_sysroot();
     let prefix_digest = prefix_with_kernels(&sysroot, &["6.6.0"]);
     let esp = scratch_dir("boot-uki-esp");
 
     let result = sysroot.write_boot_entry(&prefix_digest, esp.path(), BootResourceKind::Uki);
 
-    assert_eq!(result, Err(BootEntryError::UnsupportedBootResource));
+    assert_eq!(result, Err(BootEntryError::InitramfsMissing));
 }
 
 #[test]

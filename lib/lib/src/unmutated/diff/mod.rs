@@ -35,12 +35,12 @@ struct DiffSnapshot {
     to_database: MemoryDatabase,
 }
 
-pub fn run(request: DiffRequest<'_>) -> Result<DiffResponse, (DiffStateId, ErrorKind)> {
+pub fn run(request: DiffRequest<'_>) -> Result<DiffResponse, (DiffStateId, ErrorKind, Option<String>)> {
     let requested_prefixes = RequestedPrefixDigestRange::parse(request.from_prefix_digest, request.to_prefix_digest)
-        .map_err(|error| (DiffStateId::Setup, error))?;
+        .map_err(|error| (DiffStateId::Setup, error, None))?;
     let requested_configs = RequestedConfigDigestRange::parse(request.from_config_digest, request.to_config_digest)
-        .map_err(|error| (DiffStateId::Setup, error))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffStateId::Setup, error.into()))?;
+        .map_err(|error| (DiffStateId::Setup, error, None))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (DiffStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

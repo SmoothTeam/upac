@@ -200,8 +200,18 @@ pub enum BootEntryError {
     NoBootResource,
     AmbiguousBootResource,
     UnsupportedBootResource,
+    InitramfsMissing,
+    ToolNotInstalled,
+    ToolFailed,
+    Io(IoErrorKind),
     Repository(RepoError),
     Unexpected,
+}
+
+impl From<IoError> for BootEntryError {
+    fn from(error: IoError) -> Self {
+        BootEntryError::Io(error.kind())
+    }
 }
 
 impl From<RepoError> for BootEntryError {
@@ -222,6 +232,10 @@ impl From<BootEntryError> for ErrorKind {
             BootEntryError::NoBootResource => ErrorKind::NotFound,
             BootEntryError::AmbiguousBootResource => ErrorKind::InvalidEntry,
             BootEntryError::UnsupportedBootResource => ErrorKind::InvalidEntry,
+            BootEntryError::InitramfsMissing => ErrorKind::NotFound,
+            BootEntryError::ToolNotInstalled => ErrorKind::ToolNotInstalled,
+            BootEntryError::ToolFailed => ErrorKind::ToolFailed,
+            BootEntryError::Io(kind) => ErrorKind::from(IoError::from(kind)),
             BootEntryError::Repository(error) => error.into(),
             BootEntryError::Unexpected => ErrorKind::Unexpected,
         }

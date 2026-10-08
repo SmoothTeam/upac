@@ -21,8 +21,8 @@ pub(crate) struct CommitInfo {
     pub message: Option<String>,
 }
 
-pub fn run(request: CommitRequest<'_>) -> Result<(), (CommitStateId, ErrorKind)> {
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (CommitStateId::Setup, error.into()))?;
+pub fn run(request: CommitRequest<'_>) -> Result<(), (CommitStateId, ErrorKind, Option<String>)> {
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (CommitStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

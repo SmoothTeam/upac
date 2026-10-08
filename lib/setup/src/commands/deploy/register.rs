@@ -19,7 +19,7 @@ use upac_orchestrator::stage::Stage;
 
 use super::{DeployedPrefix, RequestedDeploy};
 
-use crate::layout::genesis::SUBJECT;
+use crate::layout::bootstrap::SUBJECT;
 
 pub struct RegisterStage;
 

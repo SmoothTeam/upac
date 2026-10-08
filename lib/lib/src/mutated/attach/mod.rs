@@ -28,9 +28,9 @@ use super::stages::{AttachItem, CommitInfo, RequestedBootPlugin, RequestedPackag
 
 mod put;
 
-pub fn run(request: AttachRequest<'_>) -> Result<(), (AttachStateId, ErrorKind)> {
+pub fn run(request: AttachRequest<'_>) -> Result<(), (AttachStateId, ErrorKind, Option<String>)> {
     if request.files.is_empty() {
-        return Err((AttachStateId::Setup, ErrorKind::InvalidEntry));
+        return Err((AttachStateId::Setup, ErrorKind::InvalidEntry, None));
     }
 
     let items: Vec<AttachItem> = request
@@ -41,7 +41,7 @@ pub fn run(request: AttachRequest<'_>) -> Result<(), (AttachStateId, ErrorKind)>
             target: transfer.target.to_owned(),
         })
         .collect();
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (AttachStateId::Setup, error.into()))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (AttachStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

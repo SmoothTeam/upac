@@ -30,12 +30,13 @@ pub struct UnpackStage {
 #[stage]
 impl Stage<ErrorKind> for UnpackStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+        &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), ErrorKind> {
         let source = context.take::<PackageSource>()?;
         let tmp_path = context.get::<TmpPath>()?.0.clone();
         let mut unpacker = context.take::<PackageUnpacker>()?;
 
+        progress(Some(&source.path), 0, 0);
         let unpacked = unpacker.unpack_one(&source.path, source.index, &tmp_path, cancel);
         context.put(unpacker);
         let (temp, triggers) = unpacked?;

@@ -19,7 +19,8 @@
 # (`state/deploy/<usr-digest>/`, doc §3) — its `upper`/`work` children are the
 # live overlayfs upper/work layers for that usr-digest's `/etc`, matching
 # `composefs-setup-root`'s own hardcoded layout expectation (upstream, not
-# something we get to pick freely).
+# something we get to pick freely). discarded_etc_upper_dir_name is where unsaved /etc changes are
+# set aside while a rollback that discards them runs, so a failed rollback can put them back.
 #
 # sysroot_root_mode is the permission set of the physical root partition's top directory: only root
 # may look into the deploys and the repository it holds.
@@ -32,6 +33,7 @@ prefix_meta_filename = "meta.json"
 next_prefix_filename = "next.json"
 running_prefix_path = "/run/upac/running"
 config_dir_name = "etc"
+discarded_etc_upper_dir_name = "upper.discarded"
 live_etc_upper_dir_name = "upper"
 
 sysroot_root_mode = 0o700
@@ -46,20 +48,31 @@ system_prefix_dir = "usr"
 system_config_dir = "etc"
 defaults_dir = "etc"
 
-# The fixed UKI-direct staging slots (§5.2/§5.3). upac_uki_to_slot is the fixed stem the corresponding UEFI Boot####
-# entry is pre-registered against once, out of scope of this pipeline (`\EFI\Linux\upac-to.efi`) —
-# a content-addressed name would require a new Boot#### NVRAM entry each time, which nothing here
-# creates. upac_uki_from_slot is NOT a second independently-bootable slot — it's a staging name:
-# `write_boot_entry` writes the new image there first, then atomically renames it over
-# upac_uki_to_slot, so a crash mid-write never leaves the one file Boot#### actually points at
-# truncated (the upstream `composefs-boot` writer itself just does a plain, non-atomic
-# `fs::write`). BLS-style images (systemd-boot/grub/refind) use the prefix_digest itself as the
-# entry name instead — content-addressed, no staging needed, since those loaders rescan their
-# entries directory fresh every boot.
+# The fixed UKI slots (§5.2/§5.3), each with its own UEFI Boot#### entry the UKI booter registers once
+# on install — a content-addressed name would need a new NVRAM entry every time. upac_uki_to_slot
+# (`\EFI\Linux\upac-to.efi`) is the image to boot next: `write_boot_entry` builds the new UKI into a
+# staging file next to it and renames it over, so a crash mid-write never leaves it truncated.
+# upac_uki_from_slot is the last image that booted fine, kept by the booter as the fallback entry
+# (seeded on install, promoted from upac-to on a confirmed boot). BLS-style images
+# (systemd-boot/grub/refind) use the prefix_digest itself as the entry name instead —
+# content-addressed, no staging needed, since those loaders rescan their entries directory fresh
+# every boot.
 #
 # esp_mount_primary/esp_mount_fallback are where the ESP is looked for, tried in that order
 # against the running system's mount table — chapter 3 documents the ESP as mounted at either.
+#
+# kernel_arguments are added after composefs=<digest> to every BLS boot entry (whitespace-separated).
+# rw is required: the initramfs mounts the root partition read-only otherwise, and setting up the
+# deploy's /etc overlay has to create its upper/work directories there. A UKI carries its command
+# line inside the image, so nothing can be added to it here.
+#
+# A UKI is never stored in a prefix image: its command line has to carry that image's own digest. It is
+# built when the boot entry is written, from the image's kernel and initramfs, by ukify_bin, and lands
+# in efi_linux_dir on the ESP (the directory composefs-boot and the UKI booter expect it in).
 [boot]
+efi_linux_dir = "EFI/Linux"
+kernel_arguments = "rw"
+ukify_bin = "ukify"
 upac_uki_to_slot = "upac-to"
 upac_uki_from_slot = "upac-from"
 esp_mount_primary = "/efi"

@@ -21,13 +21,16 @@ mod fetching;
 
 pub(crate) struct RequestedPrefixDigest(pub Option<Digest>);
 
-pub fn run(request: ListConfigRequest<'_>) -> Result<ListConfigResponse, (ListConfigStateId, ErrorKind)> {
+pub fn run(
+    request: ListConfigRequest<'_>,
+) -> Result<ListConfigResponse, (ListConfigStateId, ErrorKind, Option<String>)> {
     let requested_prefix_digest = request
         .prefix_digest
         .map(Digest::from_hex)
         .transpose()
-        .map_err(|error| (ListConfigStateId::Setup, error.into()))?;
-    let sysroot = Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListConfigStateId::Setup, error.into()))?;
+        .map_err(|error| (ListConfigStateId::Setup, error.into(), None))?;
+    let sysroot =
+        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (ListConfigStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

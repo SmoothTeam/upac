@@ -48,7 +48,6 @@ stage-writing = Writing
 stage-set-pinned = Set pinned
 stage-comparing = Comparing
 stage-searching = Searching
-stage-done = Done
 stage-unpack = Unpacking packages
 stage-open = Opening prefix
 stage-import = Importing package
@@ -60,6 +59,7 @@ stage-remove = Removing package
 stage-resolve = Resolving package
 stage-apply = Applying file
 stage-select = Selecting configuration
+stage-discard = Discarding unsaved /etc changes
 stage-setup = Setup
 
 error = Error

@@ -11,8 +11,8 @@ use std::slice::{from_raw_parts, from_raw_parts_mut};
 use crate::error::AbiError;
 use crate::memory::{alloc_bytes, free_cslice, free_cvec, free_cvec_owning};
 
-pub fn check_size<T>(struct_size: usize) -> Result<(), AbiError> {
-    if struct_size != size_of::<T>() {
+pub fn check_size<Element>(struct_size: usize) -> Result<(), AbiError> {
+    if struct_size != size_of::<Element>() {
         return Err(AbiError::AbiMismatch);
     }
     Ok(())
@@ -179,14 +179,14 @@ impl From<Option<&str>> for CSlice {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct CVec<T> {
-    pub ptr: *mut T,
+pub struct CVec<Element> {
+    pub ptr: *mut Element,
     pub len: usize,
 }
 
-impl<T> CVec<T> {
+impl<Element> CVec<Element> {
     /// # Safety
-    /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `T` values — this is the
+    /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `Element` values — this is the
     /// entry point that checks an untrusted, C-supplied vector is safe to read further.
     pub unsafe fn validate(&self) -> Result<(), AbiError> {
         if self.ptr.is_null() && self.len > 0 {
@@ -196,9 +196,9 @@ impl<T> CVec<T> {
     }
 
     /// # Safety
-    /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `T` values for the lifetime
+    /// `self.ptr`, if non-null, must point to `self.len` valid, initialized `Element` values for the lifetime
     /// of the returned slice.
-    pub unsafe fn as_slice(&self) -> &[T] {
+    pub unsafe fn as_slice(&self) -> &[Element] {
         if self.ptr.is_null() || self.len == 0 {
             return &[];
         }
@@ -208,7 +208,7 @@ impl<T> CVec<T> {
     /// # Safety
     /// Same contract as `as_slice`, plus the caller must guarantee exclusive access — no other live
     /// reference to this buffer — for the lifetime of the returned slice.
-    pub unsafe fn as_mut_slice(&mut self) -> &mut [T] {
+    pub unsafe fn as_mut_slice(&mut self) -> &mut [Element] {
         if self.ptr.is_null() || self.len == 0 {
             return &mut [];
         }
@@ -223,43 +223,43 @@ impl<T> CVec<T> {
 
     /// # Safety
     /// Same contract as `free_cvec_owning`.
-    pub unsafe fn free_owning(&self, free_elem: impl FnMut(&T)) {
+    pub unsafe fn free_owning(&self, free_elem: impl FnMut(&Element)) {
         unsafe { free_cvec_owning(self, free_elem) }
     }
 }
 
-impl<T> CBorrowed for CVec<T> {
-    type Borrowed = [T];
+impl<Element> CBorrowed for CVec<Element> {
+    type Borrowed = [Element];
 
-    fn from_borrowed(value: &[T]) -> Self {
+    fn from_borrowed(value: &[Element]) -> Self {
         CVec {
-            ptr: value.as_ptr() as *mut T,
+            ptr: value.as_ptr() as *mut Element,
             len: value.len(),
         }
     }
 
-    unsafe fn as_borrowed(&self) -> &[T] {
+    unsafe fn as_borrowed(&self) -> &[Element] {
         unsafe { self.as_slice() }
     }
 }
 
-impl<'vec, T, U> TryFrom<&'vec CVec<T>> for Vec<U>
+impl<'vec, CElement, Element> TryFrom<&'vec CVec<CElement>> for Vec<Element>
 where
-    U: TryFrom<&'vec T>,
-    U::Error: From<AbiError>,
+    Element: TryFrom<&'vec CElement>,
+    Element::Error: From<AbiError>,
 {
-    type Error = U::Error;
+    type Error = Element::Error;
 
-    fn try_from(vec: &'vec CVec<T>) -> Result<Self, U::Error> {
+    fn try_from(vec: &'vec CVec<CElement>) -> Result<Self, Element::Error> {
         unsafe { vec.validate()? };
-        unsafe { vec.as_slice() }.iter().map(U::try_from).collect()
+        unsafe { vec.as_slice() }.iter().map(Element::try_from).collect()
     }
 }
 
-impl<T> COwned for CVec<T> {
-    type Owned = Vec<T>;
+impl<Element> COwned for CVec<Element> {
+    type Owned = Vec<Element>;
 
-    fn from_owned(mut value: Vec<T>) -> Self {
+    fn from_owned(mut value: Vec<Element>) -> Self {
         let len = value.len();
         if len == 0 {
             return CVec {
@@ -268,7 +268,7 @@ impl<T> COwned for CVec<T> {
             };
         }
 
-        let ptr = unsafe { alloc_bytes(len * size_of::<T>()) } as *mut T;
+        let ptr = unsafe { alloc_bytes(len * size_of::<Element>()) } as *mut Element;
         unsafe {
             copy_nonoverlapping(value.as_ptr(), ptr, len);
             value.set_len(0);
@@ -277,7 +277,7 @@ impl<T> COwned for CVec<T> {
         CVec { ptr, len }
     }
 
-    unsafe fn into_owned(self) -> Vec<T> {
+    unsafe fn into_owned(self) -> Vec<Element> {
         let mut owned = Vec::with_capacity(self.len);
 
         if !self.ptr.is_null() && self.len > 0 {

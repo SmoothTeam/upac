@@ -281,6 +281,19 @@ impl Stage<TestError> for RequiresMarkerStage {
     }
 }
 
+struct SubjectFailingStage;
+
+impl Stage<TestError> for SubjectFailingStage {
+    fn run(
+        &self, _context: &mut Context, _cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), TestError> {
+        progress(Some("checked/first"), 0, 0);
+        progress(Some("checked/second"), 0, 0);
+
+        Err(TestError::Stage("subject"))
+    }
+}
+
 struct ReportingStage;
 
 impl Stage<TestError> for ReportingStage {
@@ -322,7 +335,7 @@ fn run_reporting(steps: Vec<Step<TestError>>, context: &mut Context) -> Vec<Repo
 
 fn run(
     mut steps: Vec<Step<TestError>>, context: &mut Context, cancel: &CancelToken,
-) -> Result<Done, (TestState, TestError)> {
+) -> Result<Done, (TestState, TestError, Option<String>)> {
     steps.push(Step::once(Box::new(FinishStage)));
 
     SequentialOrchestrator::new(steps).run_unmutated(context, cancel, &|_| {})
@@ -368,7 +381,10 @@ fn a_failure_rolls_back_every_started_stage_in_reverse_order_including_the_faili
 
     let result = run(steps, &mut Context::default(), &CancelToken::new());
 
-    assert_eq!(result.err(), Some((TestState::Stage(1), TestError::Stage("fail"))));
+    assert_eq!(
+        result.err(),
+        Some((TestState::Stage(1), TestError::Stage("fail"), None))
+    );
     assert_eq!(logged(&log), vec!["run:a", "run:fail", "rollback:fail", "rollback:a"]);
 }
 
@@ -387,7 +403,7 @@ fn cancelling_before_the_first_stage_runs_nothing() {
 
     assert_eq!(
         result.err(),
-        Some((TestState::Stage(0), TestError::Pipeline(PipelineError::Cancelled)))
+        Some((TestState::Stage(0), TestError::Pipeline(PipelineError::Cancelled), None))
     );
     assert!(logged(&log).is_empty());
 }
@@ -412,7 +428,7 @@ fn cancelling_between_stages_stops_before_the_next_stage_and_rolls_back() {
 
     assert_eq!(
         result.err(),
-        Some((TestState::Stage(2), TestError::Pipeline(PipelineError::Cancelled)))
+        Some((TestState::Stage(2), TestError::Pipeline(PipelineError::Cancelled), None))
     );
     assert_eq!(logged(&log), vec!["run:a", "rollback:a"]);
 }
@@ -437,7 +453,11 @@ fn a_failed_rollback_replaces_the_stage_error_and_still_unwinds_the_rest() {
 
     assert_eq!(
         result.err(),
-        Some((TestState::Stage(2), TestError::Pipeline(PipelineError::RollbackFailed)))
+        Some((
+            TestState::Stage(2),
+            TestError::Pipeline(PipelineError::RollbackFailed),
+            None
+        ))
     );
     assert_eq!(logged(&log), vec!["run:a", "run:fail", "rollback:fail", "rollback:a"]);
 }
@@ -520,7 +540,7 @@ fn stages_inside_each_keep_flat_indices() {
 
     assert_eq!(
         result.err(),
-        Some((TestState::Stage(2), TestError::Stage("fail-on-item")))
+        Some((TestState::Stage(2), TestError::Stage("fail-on-item"), None))
     );
 }
 
@@ -581,7 +601,8 @@ fn each_without_its_list_is_rejected_before_anything_runs() {
         result.err(),
         Some((
             TestState::Validation,
-            TestError::Pipeline(PipelineError::PipelineInvalid)
+            TestError::Pipeline(PipelineError::PipelineInvalid),
+            None
         ))
     );
     assert!(logged(&log).is_empty());
@@ -609,7 +630,8 @@ fn the_item_is_not_available_after_its_each() {
         result.err(),
         Some((
             TestState::Validation,
-            TestError::Pipeline(PipelineError::PipelineInvalid)
+            TestError::Pipeline(PipelineError::PipelineInvalid),
+            None
         ))
     );
 }
@@ -632,7 +654,8 @@ fn a_requirement_nobody_provides_is_rejected_before_anything_runs() {
         result.err(),
         Some((
             TestState::Validation,
-            TestError::Pipeline(PipelineError::PipelineInvalid)
+            TestError::Pipeline(PipelineError::PipelineInvalid),
+            None
         ))
     );
     assert!(logged(&log).is_empty());
@@ -673,7 +696,8 @@ fn run_unmutated_rejects_a_pipeline_that_never_provides_the_result() {
         result.err(),
         Some((
             TestState::Validation,
-            TestError::Pipeline(PipelineError::PipelineInvalid)
+            TestError::Pipeline(PipelineError::PipelineInvalid),
+            None
         ))
     );
     assert!(logged(&log).is_empty());
@@ -710,7 +734,8 @@ fn run_mutating_with_response_rejects_a_pipeline_that_never_provides_the_respons
         result.err(),
         Some((
             TestState::Validation,
-            TestError::Pipeline(PipelineError::PipelineInvalid)
+            TestError::Pipeline(PipelineError::PipelineInvalid),
+            None
         ))
     );
     assert!(logged(&log).is_empty());
@@ -794,5 +819,44 @@ fn each_reports_the_item_position_around_every_body_stage() {
             (0, None, 2, 2),
             (1, None, 0, 0),
         ]
+    );
+}
+
+#[test]
+fn a_failing_stage_carries_the_last_subject_it_reported() {
+    let result = run(
+        stages![SubjectFailingStage],
+        &mut Context::default(),
+        &CancelToken::new(),
+    );
+
+    assert_eq!(
+        result.err(),
+        Some((
+            TestState::Stage(0),
+            TestError::Stage("subject"),
+            Some("checked/second".to_owned())
+        ))
+    );
+}
+
+#[test]
+fn a_subject_does_not_leak_from_an_earlier_stage_into_a_later_failure() {
+    let log = new_log();
+    let result = run(
+        stages![
+            ReportingStage,
+            FailingStage {
+                label: "fail",
+                log: Arc::clone(&log)
+            }
+        ],
+        &mut Context::default(),
+        &CancelToken::new(),
+    );
+
+    assert_eq!(
+        result.err(),
+        Some((TestState::Stage(1), TestError::Stage("fail"), None))
     );
 }

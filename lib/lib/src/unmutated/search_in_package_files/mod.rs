@@ -21,11 +21,11 @@ mod searching;
 
 pub fn run(
     request: SearchInPackageFilesRequest<'_>,
-) -> Result<SearchInPackageFilesResponse, (SearchInPackageFilesStateId, ErrorKind)> {
-    let search =
-        Search::new(request.search, request.is_regex).map_err(|error| (SearchInPackageFilesStateId::Setup, error))?;
-    let sysroot =
-        Sysroot::new(SysrootMode::ReadOnly).map_err(|error| (SearchInPackageFilesStateId::Setup, error.into()))?;
+) -> Result<SearchInPackageFilesResponse, (SearchInPackageFilesStateId, ErrorKind, Option<String>)> {
+    let search = Search::new(request.search, request.is_regex)
+        .map_err(|error| (SearchInPackageFilesStateId::Setup, error, None))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadOnly)
+        .map_err(|error| (SearchInPackageFilesStateId::Setup, error.into(), None))?;
 
     let mut context = Context::default();
     context.put(sysroot);

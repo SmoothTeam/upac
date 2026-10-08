@@ -112,12 +112,12 @@ pub struct LibError(pub AbiError);
 
 impl Display for LibError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        write!(
-            formatter,
-            "{}: {}",
-            StageName::new(self.0.domain, self.0.state),
-            error_kind_message(self.0.kind)
-        )
+        let stage = StageName::new(self.0.domain, self.0.state);
+
+        match &self.0.subject {
+            Some(subject) => write!(formatter, "{stage} ({subject}): {}", error_kind_message(self.0.kind)),
+            None => write!(formatter, "{stage}: {}", error_kind_message(self.0.kind)),
+        }
     }
 }
 

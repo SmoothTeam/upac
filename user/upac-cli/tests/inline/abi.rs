@@ -27,6 +27,7 @@ fn invoke_propagates_the_localized_error_on_a_nonzero_code() {
             domain: ErrorDomain::Install,
             state: 0,
             kind: ErrorKind::NotFound,
+            subject: None,
         }
         .into();
         1
@@ -57,6 +58,7 @@ fn invoke_with_response_propagates_the_localized_error_on_a_nonzero_code() {
             domain: ErrorDomain::Install,
             state: 0,
             kind: ErrorKind::NotFound,
+            subject: None,
         }
         .into();
         1

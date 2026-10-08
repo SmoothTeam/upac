@@ -27,13 +27,14 @@ pub struct ImportStage;
 #[stage]
 impl Stage<ErrorKind> for ImportStage {
     fn run(
-        &self, context: &mut Context, cancel: &CancelToken, _progress: &dyn Fn(Option<&str>, u64, u64),
+        &self, context: &mut Context, cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), ErrorKind> {
         let package = context.take::<UnpackedPackage>()?;
         let mut working = context.take::<WorkingPrefix>()?;
         let allow_downgrade = context.get::<AllowDowngrade>()?.0;
 
         let meta = &package.temp.meta;
+        progress(Some(&meta.name), 0, 0);
         let uuid = working
             .database()
             .find_package_uuid(&meta.name, &meta.arch, meta.arch_sub.as_deref())?

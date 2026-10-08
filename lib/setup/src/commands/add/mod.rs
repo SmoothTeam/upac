@@ -29,7 +29,7 @@ pub(crate) struct RequestedPartition {
 
 pub fn run(
     request: SetupPartitionAddRequest<'_>,
-) -> Result<SetupPartitionAddResponse, (PartitionAddStateId, ErrorKind)> {
+) -> Result<SetupPartitionAddResponse, (PartitionAddStateId, ErrorKind, Option<String>)> {
     let mut context = Context::default();
     context.put(RequestedDevice(PathBuf::from(request.device_path)));
     context.put(RequestedPartition {

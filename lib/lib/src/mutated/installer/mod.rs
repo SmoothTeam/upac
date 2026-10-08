@@ -33,13 +33,13 @@ use super::stages::{CommitInfo, PackageSource, RequestedBootPlugin, UnpackedPack
 
 mod import;
 
-pub fn run(request: InstallRequest<'_>) -> Result<(), (InstallStateId, ErrorKind)> {
+pub fn run(request: InstallRequest<'_>) -> Result<(), (InstallStateId, ErrorKind, Option<String>)> {
     if request.packages.is_empty() {
-        return Err((InstallStateId::Setup, ErrorKind::InvalidEntry));
+        return Err((InstallStateId::Setup, ErrorKind::InvalidEntry, None));
     }
 
-    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (InstallStateId::Setup, error.into()))?;
-    let unpacker = PackageUnpacker::new().map_err(|error| (InstallStateId::Setup, error.into()))?;
+    let sysroot = Sysroot::new(SysrootMode::ReadWrite).map_err(|error| (InstallStateId::Setup, error.into(), None))?;
+    let unpacker = PackageUnpacker::new().map_err(|error| (InstallStateId::Setup, error.into(), None))?;
 
     let sources: Vec<PackageSource> = request
         .packages
