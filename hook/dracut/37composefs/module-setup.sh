@@ -16,6 +16,10 @@ depends() {
     return 0
 }
 
+installkernel() {
+    instmods erofs overlay
+}
+
 install() {
     inst \
         "${moddir}/composefs-setup-root" /bin/composefs-setup-root
