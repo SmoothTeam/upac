@@ -145,3 +145,9 @@ inherits = "release"
 
 [profile.release-x86-64-v4]
 inherits = "release"
+
+[profile.release-stripped]
+inherits = "release"
+
+strip = true
+debug = false
