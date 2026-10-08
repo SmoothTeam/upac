@@ -5,9 +5,8 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::fs::{File, read_link, symlink_metadata};
+use std::fs::File;
 use std::io::Read;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use composefs::MAX_INLINE_CONTENT;
@@ -123,34 +122,6 @@ impl Tree {
         &mut self, path: impl AsRef<Path>, target: impl AsRef<OsStr>, stat: Stat,
     ) -> Result<(), RepoError> {
         self.insert_leaf(path.as_ref(), stat, LeafContent::Symlink(target.as_ref().into()))
-    }
-
-    pub fn import_path(&mut self, path: impl AsRef<Path>, source: &Path) -> Result<(), RepoError> {
-        let path = path.as_ref();
-        let metadata = symlink_metadata(source)?;
-        let stat = Stat {
-            st_mode: metadata.mode(),
-            st_uid: metadata.uid(),
-            st_gid: metadata.gid(),
-            st_mtim_sec: metadata.mtime(),
-            st_mtim_nsec: metadata.mtime_nsec() as u32,
-            xattrs: BTreeMap::new(),
-        };
-
-        if metadata.is_dir() {
-            if self.set_dir_stat(path, stat.clone()).is_err() {
-                self.remove(path)?;
-                self.insert_dir(path, stat)?;
-            }
-        } else if metadata.is_symlink() {
-            self.remove(path)?;
-            self.insert_symlink(path, read_link(source)?, stat)?;
-        } else {
-            self.remove(path)?;
-            self.insert_file(path, &File::open(source)?, stat)?;
-        }
-
-        Ok(())
     }
 
     pub fn copy_tree(&self, path: impl AsRef<Path>) -> Result<Tree, RepoError> {

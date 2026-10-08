@@ -11,6 +11,8 @@ use composefs::generic_tree::Stat;
 use composefs::repository::{Repository, RepositoryConfig};
 
 use nix::fcntl::AT_FDCWD;
+use nix::sys::stat::Mode;
+use nix::unistd::mkfifo;
 
 use tempfile::{Builder, TempDir};
 
@@ -169,6 +171,28 @@ fn import_dir_inserts_files_dirs_and_symlinks() {
     assert!(tree.contains("target/sub"));
     assert_eq!(tree.read_file("target/sub/file.txt").unwrap(), b"content");
     assert!(tree.contains("target/sub/link"));
+}
+
+#[test]
+fn import_dir_skips_special_files_and_reports_every_path_before_inserting_it() {
+    let source_dir = scratch_dir("import-special");
+    write(source_dir.path().join("file.txt"), b"content").unwrap();
+    mkfifo(&source_dir.path().join("pipe"), Mode::S_IRUSR | Mode::S_IWUSR).unwrap();
+
+    let (_scratch, repo) = open_repo("import-special-repo");
+    let mut tree = repo.empty_tree();
+    let mut reported = Vec::new();
+
+    let imported = tree
+        .import_dir("", source_dir.path(), &CancelToken::new(), &mut |path| {
+            reported.push(path.to_path_buf())
+        })
+        .unwrap();
+    reported.sort();
+
+    assert_eq!(imported, vec![PathBuf::from("file.txt")]);
+    assert_eq!(reported, vec![PathBuf::from("file.txt"), PathBuf::from("pipe")]);
+    assert!(!tree.contains("pipe"));
 }
 
 #[test]

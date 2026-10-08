@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::ffi::OsStr;
-use std::fs::{File, Permissions, create_dir_all, read_dir, read_link, set_permissions, write};
+use std::fs::{
+    File, Metadata, Permissions, create_dir_all, read_dir, read_link, set_permissions, symlink_metadata, write,
+};
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
@@ -31,38 +33,81 @@ impl Tree {
             }
 
             let entry = entry?;
-            let source_path = entry.path();
-            let metadata = entry.metadata()?;
-            let stat = Stat {
-                st_mode: metadata.mode(),
-                st_uid: metadata.uid(),
-                st_gid: metadata.gid(),
-                st_mtim_sec: metadata.mtime(),
-                st_mtim_nsec: metadata.mtime_nsec() as u32,
-                xattrs: BTreeMap::new(),
-            };
             let name = PathBuf::from(entry.file_name());
             let target = path.join(&name);
             on_entry(&target);
 
-            if metadata.is_dir() {
-                if self.set_dir_stat(&target, stat.clone()).is_err() {
-                    self.remove(&target)?;
-                    self.insert_dir(&target, stat)?;
-                }
+            let source_path = entry.path();
+            let metadata = entry.metadata()?;
 
+            if metadata.is_dir() {
+                self.import_directory(&target, &metadata)?;
                 let nested = self.import_dir(&target, &source_path, cancel, on_entry)?;
                 imported.extend(nested.into_iter().map(|relative| name.join(relative)));
-            } else if metadata.is_symlink() {
-                self.insert_symlink(&target, read_link(&source_path)?, stat)?;
-                imported.push(name);
-            } else {
-                self.insert_file(&target, &File::open(&source_path)?, stat)?;
+            } else if self.import_leaf(&target, &source_path, &metadata)? {
                 imported.push(name);
             }
         }
 
         Ok(imported)
+    }
+
+    pub fn import_path(&mut self, path: impl AsRef<Path>, source: &Path) -> Result<(), RepoError> {
+        let path = path.as_ref();
+        let metadata = symlink_metadata(source)?;
+
+        if metadata.is_dir() {
+            return self.import_directory(path, &metadata);
+        }
+
+        self.remove(path)?;
+        self.import_leaf(path, source, &metadata)?;
+
+        Ok(())
+    }
+
+    fn import_directory(&mut self, target: &Path, metadata: &Metadata) -> Result<(), RepoError> {
+        let stat = Self::file_stat(metadata);
+
+        if self.set_dir_stat(target, stat.clone()).is_err() {
+            self.remove(target)?;
+            self.insert_dir(target, stat)?;
+        }
+
+        Ok(())
+    }
+
+    fn import_leaf(&mut self, target: &Path, source: &Path, metadata: &Metadata) -> Result<bool, RepoError> {
+        let file_type = metadata.file_type();
+
+        if file_type.is_symlink() {
+            self.import_symlink(target, source, metadata)?;
+        } else if file_type.is_file() {
+            self.import_regular_file(target, source, metadata)?;
+        } else {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
+    fn import_symlink(&mut self, target: &Path, source: &Path, metadata: &Metadata) -> Result<(), RepoError> {
+        self.insert_symlink(target, read_link(source)?, Self::file_stat(metadata))
+    }
+
+    fn import_regular_file(&mut self, target: &Path, source: &Path, metadata: &Metadata) -> Result<(), RepoError> {
+        self.insert_file(target, &File::open(source)?, Self::file_stat(metadata))
+    }
+
+    fn file_stat(metadata: &Metadata) -> Stat {
+        Stat {
+            st_mode: metadata.mode(),
+            st_uid: metadata.uid(),
+            st_gid: metadata.gid(),
+            st_mtim_sec: metadata.mtime(),
+            st_mtim_nsec: metadata.mtime_nsec() as u32,
+            xattrs: BTreeMap::new(),
+        }
     }
 
     pub fn export_dir(&self, path: impl AsRef<Path>, dest_dir: &Path, cancel: &CancelToken) -> Result<(), RepoError> {
