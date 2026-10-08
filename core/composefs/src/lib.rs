@@ -24,15 +24,15 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use self::error::RepoError;
 use self::tree::Tree;
 
-mod layout {
-    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
-}
-
 pub mod error;
 pub mod fs;
 pub mod tree;
 
 pub type ObjectID = Sha256HashValue;
+
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digest(ObjectID);

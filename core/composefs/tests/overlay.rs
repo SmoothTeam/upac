@@ -64,7 +64,7 @@ fn untouched_base_entry_survives_when_upper_does_not_touch_it() {
     let upper = scratch_dir("untouched-upper");
     write(upper.path().join("unrelated.txt"), b"something else").unwrap();
 
-    tree.apply_overlay_upper(upper.path()).unwrap();
+    tree.apply_overlay_upper("", upper.path()).unwrap();
 
     assert_eq!(read(&tree, "keep.txt"), b"base content");
 }
@@ -79,7 +79,7 @@ fn upper_file_overrides_base_file() {
     let upper = scratch_dir("override-upper");
     write(upper.path().join("conf"), b"user edit").unwrap();
 
-    tree.apply_overlay_upper(upper.path()).unwrap();
+    tree.apply_overlay_upper("", upper.path()).unwrap();
 
     assert_eq!(read(&tree, "conf"), b"user edit");
 }
@@ -94,7 +94,7 @@ fn whiteout_in_upper_removes_base_entry() {
     let upper = scratch_dir("whiteout-upper");
     write_whiteout(&upper.path().join("gone.txt"));
 
-    tree.apply_overlay_upper(upper.path()).unwrap();
+    tree.apply_overlay_upper("", upper.path()).unwrap();
 
     assert!(!exists(&tree, "gone.txt"));
 }
@@ -112,7 +112,7 @@ fn nested_directory_merges_without_opaque() {
     create_dir_all(upper.path().join("dir")).unwrap();
     write(upper.path().join("dir/b.txt"), b"new b content").unwrap();
 
-    tree.apply_overlay_upper(upper.path()).unwrap();
+    tree.apply_overlay_upper("", upper.path()).unwrap();
 
     assert_eq!(read(&tree, "dir/a.txt"), b"a content");
     assert_eq!(read(&tree, "dir/b.txt"), b"new b content");
@@ -127,7 +127,7 @@ fn tree_overlay_leaves_untouched_base_entries_alone() {
 
     let overlay = repo.empty_tree();
 
-    base.overlay(&overlay).unwrap();
+    base.overlay("", &overlay).unwrap();
 
     assert_eq!(read(&base, "keep.txt"), b"base content");
 }
@@ -142,7 +142,7 @@ fn tree_overlay_file_overrides_base_file() {
     let mut overlay = repo.empty_tree();
     insert(&mut overlay, "tree-override-overlay", "conf", b"overlay content");
 
-    base.overlay(&overlay).unwrap();
+    base.overlay("", &overlay).unwrap();
 
     assert_eq!(read(&base, "conf"), b"overlay content");
 }
@@ -157,7 +157,7 @@ fn tree_overlay_adds_brand_new_path() {
     let mut overlay = repo.empty_tree();
     insert(&mut overlay, "tree-new-overlay", "new.txt", b"new content");
 
-    base.overlay(&overlay).unwrap();
+    base.overlay("", &overlay).unwrap();
 
     assert_eq!(read(&base, "old.txt"), b"old content");
     assert_eq!(read(&base, "new.txt"), b"new content");
@@ -176,7 +176,7 @@ fn tree_overlay_merges_nested_directory_without_removing_siblings() {
     overlay.insert_dir("dir", Stat::uninitialized()).unwrap();
     insert(&mut overlay, "tree-nested-overlay-b", "dir/b.txt", b"new b content");
 
-    base.overlay(&overlay).unwrap();
+    base.overlay("", &overlay).unwrap();
 
     assert_eq!(read(&base, "dir/a.txt"), b"a content");
     assert_eq!(read(&base, "dir/b.txt"), b"new b content");
@@ -197,7 +197,7 @@ fn opaque_directory_drops_base_subtree_entirely() {
     xattr::set(&upper_dir, "trusted.overlay.opaque", b"y").unwrap();
     write(upper_dir.join("new.txt"), b"new content").unwrap();
 
-    tree.apply_overlay_upper(upper.path()).unwrap();
+    tree.apply_overlay_upper("", upper.path()).unwrap();
 
     assert!(!exists(&tree, "dir/old.txt"));
     assert_eq!(read(&tree, "dir/new.txt"), b"new content");

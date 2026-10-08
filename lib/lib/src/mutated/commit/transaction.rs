@@ -35,7 +35,7 @@ impl Stage<ErrorKind> for TransactionStage {
             .clone();
 
         let mut live_config = sysroot.repo().open_tree(&current_config_digest)?;
-        live_config.apply_overlay_upper(&sysroot.live_etc_upper_dir(running_prefix.digest()))?;
+        live_config.apply_overlay_upper("", &sysroot.live_etc_upper_dir(running_prefix.digest()))?;
         let live_config_digest = live_config.commit()?;
 
         if live_config_digest == current_config_digest {

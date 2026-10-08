@@ -99,7 +99,7 @@ impl Tree {
         self.insert_file(target, &File::open(source)?, Self::file_stat(metadata))
     }
 
-    fn file_stat(metadata: &Metadata) -> Stat {
+    pub(super) fn file_stat(metadata: &Metadata) -> Stat {
         Stat {
             st_mode: metadata.mode(),
             st_uid: metadata.uid(),

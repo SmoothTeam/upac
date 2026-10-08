@@ -36,7 +36,7 @@ impl Stage<ErrorKind> for MergeStage {
 
         let current_config = running_prefix.current_config().ok_or(ErrorKind::NotFound)?;
         let mut live_config = sysroot.repo().open_tree(current_config.digest())?;
-        live_config.apply_overlay_upper(&sysroot.live_etc_upper_dir(running_prefix.digest()))?;
+        live_config.apply_overlay_upper("", &sysroot.live_etc_upper_dir(running_prefix.digest()))?;
 
         let (merged_tree, conflicts) = Tree::merge(
             &base_defaults,

@@ -5,25 +5,18 @@
 
 use std::fs::{File, Metadata, read_dir, read_link};
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use composefs::generic_tree::Stat;
 use composefs::tree::Inode;
 
 use super::super::error::RepoError;
 use super::super::layout::deployment::OVERLAY_OPAQUE_XATTR;
-use super::{BTreeMap, Tree};
+use super::Tree;
 
 impl Tree {
-    pub fn apply_overlay_upper(&mut self, upper_dir: &Path) -> Result<(), RepoError> {
-        self.apply_overlay_upper_at(&PathBuf::new(), upper_dir)
-    }
+    pub fn apply_overlay_upper(&mut self, path: impl AsRef<Path>, upper_dir: &Path) -> Result<(), RepoError> {
+        let path = path.as_ref();
 
-    pub fn overlay(&mut self, other: &Tree) -> Result<(), RepoError> {
-        self.overlay_at(&PathBuf::new(), other)
-    }
-
-    fn apply_overlay_upper_at(&mut self, path: &Path, upper_dir: &Path) -> Result<(), RepoError> {
         for entry in read_dir(upper_dir)? {
             let entry = entry?;
             let source_path = entry.path();
@@ -35,14 +28,7 @@ impl Tree {
                 continue;
             }
 
-            let stat = Stat {
-                st_mode: metadata.mode(),
-                st_uid: metadata.uid(),
-                st_gid: metadata.gid(),
-                st_mtim_sec: metadata.mtime(),
-                st_mtim_nsec: metadata.mtime_nsec() as u32,
-                xattrs: BTreeMap::new(),
-            };
+            let stat = Self::file_stat(&metadata);
 
             if metadata.is_dir() {
                 if Self::is_opaque(&source_path)? || self.stat(&child).is_err() {
@@ -52,7 +38,7 @@ impl Tree {
                     self.set_dir_stat(&child, stat)?;
                 }
 
-                self.apply_overlay_upper_at(&child, &source_path)?;
+                self.apply_overlay_upper(&child, &source_path)?;
             } else if metadata.is_symlink() {
                 self.remove(&child)?;
                 self.insert_symlink(&child, read_link(&source_path)?, stat)?;
@@ -65,7 +51,9 @@ impl Tree {
         Ok(())
     }
 
-    fn overlay_at(&mut self, path: &Path, other: &Tree) -> Result<(), RepoError> {
+    pub fn overlay(&mut self, path: impl AsRef<Path>, other: &Tree) -> Result<(), RepoError> {
+        let path = path.as_ref();
+
         for (name, inode) in other.entries(path)? {
             let child = path.join(name);
 
@@ -77,7 +65,7 @@ impl Tree {
                         self.set_dir_stat(&child, directory.stat.clone())?;
                     }
 
-                    self.overlay_at(&child, other)?;
+                    self.overlay(&child, other)?;
                 }
                 Inode::Leaf(..) => {
                     self.remove(&child)?;
