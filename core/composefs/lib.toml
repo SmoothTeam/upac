@@ -18,7 +18,8 @@ overlay_opaque_xattr = "trusted.overlay.opaque"
 [fs]
 new_file_mode = 0o644
 
-# Appended to a conflicting /etc path when allow_conflict_files keeps the package's version next to
-# the user's edited file instead of dropping it.
-[merge]
-upac_new_suffix = ".upac-new"
+# dir_mode is the permission set of every directory a tree builder creates on its own, owned by
+# root:root: the root of a tree built from scratch and the parents insert creates for a new path.
+# A directory that comes from the host or from another tree keeps its own permissions.
+[tree]
+dir_mode = 0o755

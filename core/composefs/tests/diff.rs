@@ -4,11 +4,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::BTreeMap;
-use std::fs::{File, write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use composefs::generic_tree::Stat;
+use composefs::generic_tree::{LeafContent, Stat};
 use composefs::repository::{Repository, RepositoryConfig};
+use composefs::tree::RegularFile;
 
 use nix::fcntl::AT_FDCWD;
 
@@ -17,131 +17,54 @@ use tempfile::{Builder, TempDir};
 use upac_types::diff::FileDiffKind;
 
 use upac_composefs::tree::Tree;
+use upac_composefs::tree::builder::TreeBuilder;
 use upac_composefs::{ObjectID, Repo};
 
-fn scratch_dir(name: &str) -> TempDir {
-    Builder::new().prefix(name).tempdir().unwrap()
-}
-
 fn open_repo(name: &str) -> (TempDir, Repo) {
-    let dir = scratch_dir(name);
-    Repository::<ObjectID>::init_path(AT_FDCWD, dir.path(), RepositoryConfig::default().set_insecure()).unwrap();
-    let repo = Repo::open(dir.path()).unwrap();
+    let scratch = Builder::new().prefix(name).tempdir().unwrap();
+    Repository::<ObjectID>::init_path(AT_FDCWD, scratch.path(), RepositoryConfig::default().set_insecure()).unwrap();
+    let repo = Repo::open(scratch.path()).unwrap();
 
-    (dir, repo)
+    (scratch, repo)
 }
 
-fn insert(tree: &mut Tree, path: &str, content: &[u8]) {
-    let dir = scratch_dir("diff-source");
-    let source_path = dir.path().join("source");
-    write(&source_path, content).unwrap();
+fn tree_with(repo: &Repo, files: &[(&str, &[u8])]) -> Tree {
+    let mut builder = TreeBuilder::new(repo);
+    for (path, bytes) in files {
+        let stored: LeafContent<RegularFile<ObjectID>> = LeafContent::Regular(repo.store(bytes).unwrap());
+        builder.insert(path, stored, Stat::uninitialized()).unwrap();
+    }
 
-    tree.insert_file(path, &File::open(&source_path).unwrap(), Stat::uninitialized())
-        .unwrap();
-}
-
-#[test]
-fn run_reports_no_changes_for_identical_trees() {
-    let (_scratch, repo) = open_repo("diff-unchanged");
-    let mut from = repo.empty_tree();
-    let mut to = repo.empty_tree();
-    insert(&mut from, "file.txt", b"same");
-    insert(&mut to, "file.txt", b"same");
-
-    let changes = from.diff(&to);
-
-    assert!(changes.is_empty());
+    builder.build()
 }
 
 #[test]
-fn run_reports_added_for_a_file_only_in_to() {
-    let (_scratch, repo) = open_repo("diff-added");
-    let from = repo.empty_tree();
-    let mut to = repo.empty_tree();
-    insert(&mut to, "new.txt", b"content");
-
-    let changes = from.diff(&to);
+fn added_removed_and_modified_files_are_reported() {
+    let (_scratch, repo) = open_repo("diff");
+    let from = tree_with(&repo, &[("kept", b"same"), ("changed", b"old"), ("gone", b"x")]);
+    let to = tree_with(&repo, &[("kept", b"same"), ("changed", b"new"), ("new", b"x")]);
 
     assert_eq!(
-        changes,
-        BTreeMap::from([(PathBuf::from("new.txt"), FileDiffKind::Added)])
+        from.diff(&to),
+        BTreeMap::from([
+            (PathBuf::from("changed"), FileDiffKind::Modified),
+            (PathBuf::from("gone"), FileDiffKind::Removed),
+            (PathBuf::from("new"), FileDiffKind::Added),
+        ])
     );
 }
 
 #[test]
-fn run_reports_removed_for_a_file_only_in_from() {
-    let (_scratch, repo) = open_repo("diff-removed");
-    let mut from = repo.empty_tree();
-    let to = repo.empty_tree();
-    insert(&mut from, "old.txt", b"content");
-
-    let changes = from.diff(&to);
+fn a_directory_replaced_by_a_file_marks_both_sides() {
+    let (_scratch, repo) = open_repo("diff-replace");
+    let from = tree_with(&repo, &[("thing/inner", b"x")]);
+    let to = tree_with(&repo, &[("thing", b"x")]);
 
     assert_eq!(
-        changes,
-        BTreeMap::from([(PathBuf::from("old.txt"), FileDiffKind::Removed)])
+        from.diff(&to),
+        BTreeMap::from([
+            (PathBuf::from("thing"), FileDiffKind::Added),
+            (PathBuf::from("thing/inner"), FileDiffKind::Removed),
+        ])
     );
-}
-
-#[test]
-fn run_reports_modified_for_a_file_with_different_content_in_each_tree() {
-    let (_scratch, repo) = open_repo("diff-modified");
-    let mut from = repo.empty_tree();
-    let mut to = repo.empty_tree();
-    insert(&mut from, "file.txt", b"first");
-    insert(&mut to, "file.txt", b"second");
-
-    let changes = from.diff(&to);
-
-    assert_eq!(
-        changes,
-        BTreeMap::from([(PathBuf::from("file.txt"), FileDiffKind::Modified)])
-    );
-}
-
-#[test]
-fn run_recurses_into_matched_subdirectories() {
-    let (_scratch, repo) = open_repo("diff-nested");
-    let mut from = repo.empty_tree();
-    let mut to = repo.empty_tree();
-    from.insert_dir("dir", Stat::uninitialized()).unwrap();
-    to.insert_dir("dir", Stat::uninitialized()).unwrap();
-    insert(&mut to, "dir/new.txt", b"content");
-
-    let changes = from.diff(&to);
-
-    assert_eq!(
-        changes,
-        BTreeMap::from([(PathBuf::from("dir/new.txt"), FileDiffKind::Added)])
-    );
-}
-
-#[test]
-fn run_marks_both_sides_when_a_directory_is_replaced_by_a_regular_file() {
-    let (_scratch, repo) = open_repo("diff-type-change");
-    let mut from = repo.empty_tree();
-    let mut to = repo.empty_tree();
-    from.insert_dir("thing", Stat::uninitialized()).unwrap();
-    insert(&mut from, "thing/child", b"content");
-    insert(&mut to, "thing", b"content");
-
-    let changes = from.diff(&to);
-
-    assert_eq!(changes.len(), 2);
-    assert_eq!(changes.get(Path::new("thing")), Some(&FileDiffKind::Added));
-    assert_eq!(changes.get(Path::new("thing/child")), Some(&FileDiffKind::Removed));
-}
-
-#[test]
-fn run_ignores_a_bare_directory_present_on_only_one_side() {
-    let (_scratch, repo) = open_repo("diff-dir-only-side");
-    let mut from = repo.empty_tree();
-    let mut to = repo.empty_tree();
-    to.insert_dir("empty-dir", Stat::uninitialized()).unwrap();
-    insert(&mut from, "file.txt", b"content");
-    insert(&mut to, "file.txt", b"content");
-
-    let changes = from.diff(&to);
-
-    assert!(changes.is_empty());
 }

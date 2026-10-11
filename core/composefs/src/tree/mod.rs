@@ -3,137 +3,85 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use composefs::MAX_INLINE_CONTENT;
-use composefs::generic_tree::Stat;
-use composefs::repository::ImportContext;
-use composefs::tree::{Directory, FileSystem, Inode, LeafContent, RegularFile};
+use composefs::erofs::reader::erofs_to_filesystem;
+use composefs::generic_tree::{LeafContent, Stat};
+use composefs::tree::{FileSystem, Inode, Leaf, RegularFile};
 
-use super::error::RepoError;
-use super::{Digest, ObjectID, Repo};
+use self::builder::TreeBuilder;
 
-mod diff;
-mod import;
-mod merge;
-mod overlay;
+use crate::error::RepoError;
+use crate::{Digest, ObjectID, Repo};
 
-#[cfg(test)]
-#[path = "../../tests/inline/tree.rs"]
-mod tests;
+pub mod builder;
 
+mod host;
+mod snapshot;
+
+#[derive(Clone)]
 pub struct Tree {
     repo: Repo,
     filesystem: FileSystem<ObjectID>,
-    import_context: ImportContext,
-}
-
-impl Clone for Tree {
-    fn clone(&self) -> Self {
-        Self::new(self.repo.clone(), self.filesystem.clone())
-    }
 }
 
 impl Tree {
-    pub(crate) fn new(repo: Repo, filesystem: FileSystem<ObjectID>) -> Self {
-        Self {
-            repo,
-            filesystem,
-            import_context: ImportContext::default(),
+    pub fn open(repo: &Repo, digest: &Digest) -> Result<Self, RepoError> {
+        let (image, _enable_verity) = repo.repository().open_image(&digest.to_hex())?;
+
+        let mut data = Vec::new();
+        File::from(image).read_to_end(&mut data)?;
+
+        Ok(Self {
+            repo: repo.clone(),
+            filesystem: erofs_to_filesystem(&data)?,
+        })
+    }
+
+    pub fn edit(&self) -> TreeBuilder {
+        TreeBuilder {
+            repo: self.repo.clone(),
+            filesystem: self.filesystem.clone(),
         }
     }
 
-    pub fn upstream(&self) -> &FileSystem<ObjectID> {
+    pub fn filesystem(&self) -> &FileSystem<ObjectID> {
         &self.filesystem
     }
 
-    pub fn commit(self) -> Result<Digest, RepoError> {
-        let Tree {
-            repo, mut filesystem, ..
-        } = self;
-        filesystem.compact();
-
-        repo.commit_filesystem(filesystem)
+    pub fn get(&self, path: impl AsRef<Path>) -> Result<LeafContent<RegularFile<ObjectID>>, RepoError> {
+        Ok(self.leaf(path.as_ref())?.content.clone())
     }
 
-    pub fn contains(&self, path: impl AsRef<Path>) -> bool {
-        self.inode(path.as_ref()).is_ok()
-    }
-
-    pub fn stat(&self, path: impl AsRef<Path>) -> Result<&Stat, RepoError> {
+    pub fn get_metadata(&self, path: impl AsRef<Path>) -> Result<&Stat, RepoError> {
         Ok(self.inode(path.as_ref())?.stat(&self.filesystem.leaves))
     }
 
-    pub fn read_file(&self, path: impl AsRef<Path>) -> Result<Vec<u8>, RepoError> {
-        let (parent, filename) = self.filesystem.root.split(path.as_ref().as_os_str())?;
-        let regular = parent.get_file(filename, &self.filesystem.leaves)?;
-
-        self.regular_content(regular)
-    }
-
-    pub fn insert_dir(&mut self, path: impl AsRef<Path>, stat: Stat) -> Result<(), RepoError> {
-        let (parent, filename) = self.filesystem.root.split_mut(path.as_ref().as_os_str())?;
-        parent.insert(filename, Inode::Directory(Box::new(Directory::new(stat))));
-
-        Ok(())
-    }
-
-    pub fn insert_file(&mut self, path: impl AsRef<Path>, source: &File, stat: Stat) -> Result<(), RepoError> {
-        let size = source.metadata()?.len();
-
-        let regular = if size <= MAX_INLINE_CONTENT as u64 {
-            let mut content = Vec::with_capacity(size as usize);
-            let mut reader = source;
-            reader.read_to_end(&mut content)?;
-
-            RegularFile::Inline(content.into())
-        } else {
-            let (object_id, _method) =
-                self.repo
-                    .upstream()
-                    .ensure_object_from_file(source, size, &mut self.import_context)?;
-
-            RegularFile::External(object_id, size)
-        };
-
-        self.insert_leaf(path.as_ref(), stat, LeafContent::Regular(regular))
-    }
-
-    pub fn insert_bytes(&mut self, path: impl AsRef<Path>, content: &[u8], stat: Stat) -> Result<(), RepoError> {
-        let regular = if content.len() <= MAX_INLINE_CONTENT {
-            RegularFile::Inline(content.into())
-        } else {
-            RegularFile::External(self.repo.upstream().ensure_object(content)?, content.len() as u64)
-        };
-
-        self.insert_leaf(path.as_ref(), stat, LeafContent::Regular(regular))
-    }
-
-    pub fn insert_symlink(
-        &mut self, path: impl AsRef<Path>, target: impl AsRef<OsStr>, stat: Stat,
-    ) -> Result<(), RepoError> {
-        self.insert_leaf(path.as_ref(), stat, LeafContent::Symlink(target.as_ref().into()))
-    }
-
-    pub fn copy_tree(&self, path: impl AsRef<Path>) -> Result<Tree, RepoError> {
+    pub fn get_subtree(&self, path: impl AsRef<Path>) -> Result<Tree, RepoError> {
         let path = path.as_ref();
-        let source_dir = self.filesystem.root.get_directory(path.as_os_str())?;
 
-        let mut copy = Tree::new(self.repo.clone(), FileSystem::new(source_dir.stat.clone()));
-        copy.copy_entries(Path::new(""), self, path)?;
+        let mut builder = TreeBuilder::new(&self.repo);
+        builder.overlay("", self, Some(path))?;
+        builder.update_metadata("", self.get_metadata(path)?.clone())?;
 
-        Ok(copy)
+        Ok(builder.build())
     }
 
-    pub fn remove(&mut self, path: impl AsRef<Path>) -> Result<(), RepoError> {
-        let (parent, filename) = self.filesystem.root.split_mut(path.as_ref().as_os_str())?;
-        parent.remove(filename);
+    pub fn list(&self, path: impl AsRef<Path>) -> Result<Vec<&OsStr>, RepoError> {
+        Ok(self
+            .filesystem
+            .root
+            .get_directory(path.as_ref().as_os_str())?
+            .sorted_entries()
+            .map(|(name, _)| name)
+            .collect())
+    }
 
-        Ok(())
+    pub fn check(&self, path: impl AsRef<Path>) -> bool {
+        self.inode(path.as_ref()).is_ok()
     }
 
     fn inode(&self, path: &Path) -> Result<&Inode<ObjectID>, RepoError> {
@@ -142,57 +90,9 @@ impl Tree {
         parent.lookup(filename).ok_or(RepoError::NotFound)
     }
 
-    fn entries(&self, path: &Path) -> Result<impl Iterator<Item = (&OsStr, &Inode<ObjectID>)>, RepoError> {
-        Ok(self.filesystem.root.get_directory(path.as_os_str())?.sorted_entries())
-    }
+    fn leaf(&self, path: &Path) -> Result<&Leaf<ObjectID>, RepoError> {
+        let (parent, filename) = self.filesystem.root.split(path.as_os_str())?;
 
-    fn set_dir_stat(&mut self, path: &Path, stat: Stat) -> Result<(), RepoError> {
-        self.filesystem.root.get_directory_mut(path.as_os_str())?.stat = stat;
-
-        Ok(())
-    }
-
-    fn insert_leaf(&mut self, path: &Path, stat: Stat, content: LeafContent<ObjectID>) -> Result<(), RepoError> {
-        let leaf_id = self.filesystem.push_leaf(stat, content);
-
-        let (parent, filename) = self.filesystem.root.split_mut(path.as_os_str())?;
-        parent.insert(filename, Inode::leaf(leaf_id));
-
-        Ok(())
-    }
-
-    fn copy_entries(&mut self, path: &Path, source: &Tree, source_path: &Path) -> Result<(), RepoError> {
-        for (name, inode) in source.entries(source_path)? {
-            let child_path = path.join(name);
-            let source_child_path = source_path.join(name);
-
-            match inode {
-                Inode::Directory(directory) => {
-                    self.insert_dir(&child_path, directory.stat.clone())?;
-                    self.copy_entries(&child_path, source, &source_child_path)?;
-                }
-                Inode::Leaf(..) => self.copy_leaf(&child_path, source, &source_child_path)?,
-            }
-        }
-
-        Ok(())
-    }
-
-    fn copy_leaf(&mut self, path: &Path, source: &Tree, source_path: &Path) -> Result<(), RepoError> {
-        let (source_parent, source_filename) = source.filesystem.root.split(source_path.as_os_str())?;
-        let leaf_id = source_parent.leaf_id(source_filename)?;
-        let leaf = source.filesystem.leaf(leaf_id).clone();
-
-        self.insert_leaf(path, leaf.stat, leaf.content)
-    }
-
-    fn regular_content(&self, regular: &RegularFile<ObjectID>) -> Result<Vec<u8>, RepoError> {
-        match regular {
-            RegularFile::Inline(content) => Ok(content.to_vec()),
-            RegularFile::External(object_id, _) | RegularFile::ExternalNoVerity(object_id, _) => {
-                Ok(self.repo.upstream().read_object(object_id)?)
-            }
-            RegularFile::Sparse(size) => Ok(vec![0u8; *size as usize]),
-        }
+        Ok(self.filesystem.leaf(parent.leaf_id(filename)?))
     }
 }

@@ -7,14 +7,12 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
-use composefs::erofs::reader::erofs_to_filesystem;
-use composefs::erofs::writer::{ValidatedFileSystem, mkfs_erofs};
+use composefs::MAX_INLINE_CONTENT;
 use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
-use composefs::generic_tree::Stat;
-use composefs::repository::{GcResult, Repository, RepositoryConfig};
-use composefs::tree::FileSystem;
+use composefs::repository::{GcResult, ImportContext, Repository, RepositoryConfig};
+use composefs::tree::RegularFile;
 
 use nix::fcntl::AT_FDCWD;
 
@@ -22,10 +20,10 @@ use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use self::error::RepoError;
-use self::tree::Tree;
 
 pub mod error;
 pub mod fs;
+pub mod stat;
 pub mod tree;
 
 pub type ObjectID = Sha256HashValue;
@@ -78,47 +76,77 @@ impl<'de> Deserialize<'de> for Digest {
 }
 
 #[derive(Clone)]
-pub struct Repo(Arc<Repository<ObjectID>>);
+pub struct Repo {
+    repository: Arc<Repository<ObjectID>>,
+    import_context: Arc<Mutex<ImportContext>>,
+}
 
 impl Repo {
     pub fn init(path: &Path) -> Result<Self, RepoError> {
         let (repository, _freshly_initialized) = Repository::init_path(AT_FDCWD, path, RepositoryConfig::default())?;
 
-        Ok(Self(Arc::new(repository)))
+        Ok(Self::from_repository(repository))
     }
 
     pub fn open(path: &Path) -> Result<Self, RepoError> {
-        Ok(Self(Arc::new(Repository::open_path(AT_FDCWD, path)?)))
+        Ok(Self::from_repository(Repository::open_path(AT_FDCWD, path)?))
     }
 
-    pub fn upstream(&self) -> &Repository<ObjectID> {
-        &self.0
+    pub fn repository(&self) -> &Repository<ObjectID> {
+        &self.repository
     }
 
-    pub fn empty_tree(&self) -> Tree {
-        Tree::new(self.clone(), FileSystem::new(Stat::uninitialized()))
+    pub fn read(&self, file: &RegularFile<ObjectID>) -> Result<Vec<u8>, RepoError> {
+        match file {
+            RegularFile::Inline(content) => Ok(content.to_vec()),
+            RegularFile::External(object_id, _) | RegularFile::ExternalNoVerity(object_id, _) => {
+                Ok(self.repository.read_object(object_id)?)
+            }
+            RegularFile::Sparse(size) => Ok(vec![0u8; *size as usize]),
+        }
     }
 
-    pub fn open_tree(&self, digest: &Digest) -> Result<Tree, RepoError> {
-        let (image, _enable_verity) = self.0.open_image(&digest.to_hex())?;
+    pub fn store(&self, bytes: &[u8]) -> Result<RegularFile<ObjectID>, RepoError> {
+        if bytes.len() <= MAX_INLINE_CONTENT {
+            return Ok(RegularFile::Inline(bytes.into()));
+        }
 
-        let mut data = Vec::new();
-        File::from(image).read_to_end(&mut data)?;
+        Ok(RegularFile::External(
+            self.repository.ensure_object(bytes)?,
+            bytes.len() as u64,
+        ))
+    }
 
-        Ok(Tree::new(self.clone(), erofs_to_filesystem(&data)?))
+    pub fn store_file(&self, file: &File) -> Result<RegularFile<ObjectID>, RepoError> {
+        let size = file.metadata()?.len();
+
+        if size <= MAX_INLINE_CONTENT as u64 {
+            let mut content = Vec::with_capacity(size as usize);
+            let mut reader = file;
+            reader.read_to_end(&mut content)?;
+
+            return Ok(RegularFile::Inline(content.into()));
+        }
+
+        let mut import_context = self.import_context.lock().unwrap_or_else(PoisonError::into_inner);
+        let (object_id, _method) = self
+            .repository
+            .ensure_object_from_file(file, size, &mut import_context)?;
+
+        Ok(RegularFile::External(object_id, size))
     }
 
     pub fn gc(&self, roots: &[Digest]) -> Result<GcResult, RepoError> {
         let root_hexes: Vec<String> = roots.iter().map(Digest::to_hex).collect();
         let root_names: Vec<&str> = root_hexes.iter().map(String::as_str).collect();
 
-        Ok(self.0.gc(&root_names)?)
+        Ok(self.repository.gc(&root_names)?)
     }
 
-    pub(crate) fn commit_filesystem(&self, filesystem: FileSystem<ObjectID>) -> Result<Digest, RepoError> {
-        let validated = ValidatedFileSystem::new(filesystem)?;
-        let image = mkfs_erofs(&validated);
-
-        Ok(Digest::from(self.0.write_image(None, &image)?))
+    fn from_repository(repository: Repository<ObjectID>) -> Self {
+        Self {
+            repository: Arc::new(repository),
+            import_context: Arc::new(Mutex::new(ImportContext::default())),
+        }
     }
 }
