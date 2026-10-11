@@ -26,6 +26,7 @@ pub enum BootError {
     EfiUnavailable = 5,
     NoFreeBootId = 6,
     Unexpected = 7,
+    WrongPartitionType = 8,
 }
 
 impl From<BootError> for ErrorKind {
@@ -38,6 +39,7 @@ impl From<BootError> for ErrorKind {
             BootError::EfiUnavailable => ErrorKind::NotInitialized,
             BootError::NoFreeBootId => ErrorKind::NoSpaceLeft,
             BootError::Unexpected => ErrorKind::Unexpected,
+            BootError::WrongPartitionType => ErrorKind::WrongPartitionType,
         }
     }
 }

@@ -30,10 +30,6 @@ pub struct CBootPluginInstallRequest {
     pub struct_size: usize,
 
     pub esp_mount_point: CSlice,
-    pub esp_partition_number: u32,
-    pub esp_starting_lba: u64,
-    pub esp_ending_lba: u64,
-    pub esp_unique_partition_guid: [u8; 16],
     pub to_slot: CSlice,
     pub from_slot: CSlice,
 }

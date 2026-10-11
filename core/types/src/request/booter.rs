@@ -27,10 +27,6 @@ pub struct BootPluginConfirmSuccessBootRequest {
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct BootPluginInstallRequest {
     pub esp_mount_point: String,
-    pub esp_partition_number: u32,
-    pub esp_starting_lba: u64,
-    pub esp_ending_lba: u64,
-    pub esp_unique_partition_guid: [u8; 16],
 
     pub to_slot: String,
     pub from_slot: String,

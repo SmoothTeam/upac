@@ -83,17 +83,8 @@ pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i
     let result = BootPluginInstallRequest::try_from(unsafe { &*request })
         .map_err(RefindError::from)
         .and_then(|request| {
-            Refind::new().and_then(|mut refind| {
-                refind.install(
-                    &request.esp_mount_point,
-                    request.esp_partition_number,
-                    request.esp_starting_lba,
-                    request.esp_ending_lba,
-                    request.esp_unique_partition_guid,
-                    &request.to_slot,
-                    &request.from_slot,
-                )
-            })
+            Refind::new()
+                .and_then(|mut refind| refind.install(&request.esp_mount_point, &request.to_slot, &request.from_slot))
         });
 
     plugin_status(result.map_err(BootError::from))

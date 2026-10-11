@@ -43,18 +43,8 @@ impl Booter for Grub {
         self.run_first_available([SET_DEFAULT_BIN_PRIMARY, SET_DEFAULT_BIN_FALLBACK], &[entry_name])
     }
 
-    fn install(
-        &mut self, esp_mount_point: &str, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
-        esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
-    ) -> Result<(), GrubError> {
-        let _ = (
-            esp_partition_number,
-            esp_starting_lba,
-            esp_ending_lba,
-            esp_unique_partition_guid,
-            to_slot,
-            from_slot,
-        );
+    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), GrubError> {
+        let _ = (to_slot, from_slot);
 
         self.run_first_available(
             [INSTALL_BIN_PRIMARY, INSTALL_BIN_FALLBACK],

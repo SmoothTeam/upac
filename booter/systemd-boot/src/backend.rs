@@ -66,18 +66,8 @@ impl Booter for SystemdBoot {
         self.write_loader_variable(LOADER_ENTRY_DEFAULT_VAR, entry_name)
     }
 
-    fn install(
-        &mut self, esp_mount_point: &str, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
-        esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
-    ) -> Result<(), SystemdBootError> {
-        let _ = (
-            esp_partition_number,
-            esp_starting_lba,
-            esp_ending_lba,
-            esp_unique_partition_guid,
-            to_slot,
-            from_slot,
-        );
+    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), SystemdBootError> {
+        let _ = (to_slot, from_slot);
 
         match Command::new(INSTALL_BIN)
             .arg("install")

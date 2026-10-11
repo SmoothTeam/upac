@@ -3,9 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{OpenOptions, copy};
+use std::ffi::OsStr;
+use std::fs::{OpenOptions, copy, metadata};
 use std::os::fd::AsRawFd;
 use std::os::raw::c_long;
+use std::os::unix::fs::MetadataExt;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 
@@ -16,6 +18,8 @@ use efivar::boot::{
 use efivar::efi::{Variable, VariableFlags};
 
 use nix::{ioctl_read, ioctl_write_ptr};
+
+use udev::{Device, DeviceType};
 
 use uuid::Uuid;
 
@@ -81,32 +85,16 @@ impl Booter for Uki {
         Ok(())
     }
 
-    fn install(
-        &mut self, esp_mount_point: &str, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
-        esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
-    ) -> Result<(), UkiError> {
+    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), UkiError> {
         let from_image_path = Self::slot_image_path(esp_mount_point, from_slot);
         if !from_image_path.exists() {
             copy(Self::slot_image_path(esp_mount_point, to_slot), &from_image_path)?;
         }
 
-        let partition_size = esp_ending_lba - esp_starting_lba + 1;
-        let partition_sig = Uuid::from_bytes_le(esp_unique_partition_guid);
+        let hard_drive = Self::esp_hard_drive(esp_mount_point)?;
 
-        self.register_slot(
-            esp_partition_number,
-            esp_starting_lba,
-            partition_size,
-            partition_sig,
-            to_slot,
-        )?;
-        self.register_slot(
-            esp_partition_number,
-            esp_starting_lba,
-            partition_size,
-            partition_sig,
-            from_slot,
-        )?;
+        self.register_slot(hard_drive.clone(), to_slot)?;
+        self.register_slot(hard_drive, from_slot)?;
 
         Ok(())
     }
@@ -138,10 +126,37 @@ impl Uki {
         Err(UkiError::EntryNotFound)
     }
 
-    fn register_slot(
-        &mut self, partition_number: u32, partition_start: u64, partition_size: u64, partition_sig: Uuid,
-        slot_filename: &str,
-    ) -> Result<u16, UkiError> {
+    fn esp_hard_drive(esp_mount_point: &str) -> Result<EFIHardDrive, UkiError> {
+        let partition = Device::from_devnum(DeviceType::Block, metadata(esp_mount_point)?.dev())?;
+        let disk = partition
+            .parent_with_subsystem_devtype("block", "disk")?
+            .ok_or(UkiError::WrongPartitionType)?;
+
+        let parse = |value: Option<&OsStr>| -> Result<u64, UkiError> {
+            value
+                .and_then(OsStr::to_str)
+                .and_then(|value| value.trim().parse().ok())
+                .ok_or(UkiError::WrongPartitionType)
+        };
+        let sectors_per_block = parse(disk.attribute_value("queue/logical_block_size"))? / 512;
+
+        let partition_sig = partition
+            .property_value("PARTUUID")
+            .and_then(OsStr::to_str)
+            .and_then(|partuuid| Uuid::parse_str(partuuid).ok())
+            .ok_or(UkiError::WrongPartitionType)?;
+
+        Ok(EFIHardDrive {
+            partition_number: parse(partition.attribute_value("partition"))? as u32,
+            partition_start: parse(partition.attribute_value("start"))? / sectors_per_block,
+            partition_size: parse(partition.attribute_value("size"))? / sectors_per_block,
+            partition_sig,
+            format: 0x02,
+            sig_type: EFIHardDriveType::Gpt,
+        })
+    }
+
+    fn register_slot(&mut self, hard_drive: EFIHardDrive, slot_filename: &str) -> Result<u16, UkiError> {
         let id = self.free_boot_id()?;
 
         let entry = BootEntry {
@@ -151,14 +166,7 @@ impl Uki {
                 file_path: FilePath {
                     path: format!("{EFI_LINUX_DIR}{slot_filename}.efi"),
                 },
-                hard_drive: EFIHardDrive {
-                    partition_number,
-                    partition_start,
-                    partition_size,
-                    partition_sig,
-                    format: 0x02,
-                    sig_type: EFIHardDriveType::Gpt,
-                },
+                hard_drive,
             }),
             optional_data: Vec::new(),
         };

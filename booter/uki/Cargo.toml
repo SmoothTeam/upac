@@ -33,6 +33,7 @@ upac-lib-types = { workspace = true }
 
 nix      = { workspace = true, features = ["ioctl"] }
 efivar   = { workspace = true }
+udev     = { workspace = true }
 uuid     = { workspace = true }
 
 [build-dependencies]

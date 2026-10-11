@@ -18,6 +18,7 @@ pub enum UkiError {
     EntryNotFound,
     NoFreeBootId,
     InvalidRequest,
+    WrongPartitionType,
     Unexpected,
 }
 
@@ -63,6 +64,7 @@ impl From<UkiError> for BootError {
             UkiError::EntryNotFound => BootError::EntryNotFound,
             UkiError::NoFreeBootId => BootError::NoFreeBootId,
             UkiError::InvalidRequest => BootError::InvalidRequest,
+            UkiError::WrongPartitionType => BootError::WrongPartitionType,
             UkiError::Unexpected => BootError::Unexpected,
         }
     }

@@ -66,19 +66,8 @@ impl Booter for Refind {
         self.write_previous_boot(entry_name)
     }
 
-    fn install(
-        &mut self, esp_mount_point: &str, esp_partition_number: u32, esp_starting_lba: u64, esp_ending_lba: u64,
-        esp_unique_partition_guid: [u8; 16], to_slot: &str, from_slot: &str,
-    ) -> Result<(), RefindError> {
-        let _ = (
-            esp_mount_point,
-            esp_partition_number,
-            esp_starting_lba,
-            esp_ending_lba,
-            esp_unique_partition_guid,
-            to_slot,
-            from_slot,
-        );
+    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), RefindError> {
+        let _ = (esp_mount_point, to_slot, from_slot);
 
         match Command::new(INSTALL_BIN).arg("--yes").status() {
             Ok(status) if status.success() => Ok(()),
