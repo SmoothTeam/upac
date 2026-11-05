@@ -131,8 +131,6 @@ fn every_variant_maps_to_the_documented_error_kind() {
         (RepoError::NotADirectory, ErrorKind::InvalidEntry),
         (RepoError::IsADirectory, ErrorKind::InvalidEntry),
         (RepoError::NotRegularFile, ErrorKind::InvalidEntry),
-        (RepoError::NotASymlink, ErrorKind::InvalidEntry),
-        (RepoError::Cancelled, ErrorKind::Cancelled),
         (RepoError::NoSpaceLeft, ErrorKind::NoSpaceLeft),
         (RepoError::Unexpected, ErrorKind::Unexpected),
     ];

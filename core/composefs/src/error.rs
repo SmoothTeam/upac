@@ -28,8 +28,6 @@ pub enum RepoError {
     NotADirectory,
     IsADirectory,
     NotRegularFile,
-    NotASymlink,
-    Cancelled,
     NoSpaceLeft,
     Unexpected,
 }
@@ -96,10 +94,7 @@ impl From<RepoError> for ErrorKind {
             RepoError::NotFound => ErrorKind::NotFound,
             RepoError::AccessDenied => ErrorKind::PermissionDenied,
             RepoError::InvalidPath | RepoError::InvalidDigest => ErrorKind::InvalidPath,
-            RepoError::NotADirectory | RepoError::IsADirectory | RepoError::NotRegularFile | RepoError::NotASymlink => {
-                ErrorKind::InvalidEntry
-            }
-            RepoError::Cancelled => ErrorKind::Cancelled,
+            RepoError::NotADirectory | RepoError::IsADirectory | RepoError::NotRegularFile => ErrorKind::InvalidEntry,
             RepoError::NoSpaceLeft => ErrorKind::NoSpaceLeft,
             RepoError::Unexpected => ErrorKind::Unexpected,
         }

@@ -3,10 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use composefs::generic_tree::LeafContent;
+use composefs::generic_tree::{LeafContent, LeafId};
 use composefs::tree::{Directory, Inode, Leaf};
 
 use super::Tree;
@@ -29,6 +30,7 @@ impl<'tree> OverlayBuilder<'tree> {
     pub fn commit(self) -> Result<Tree, RepoError> {
         let mut builder = self.lower.edit();
         let mut pending = vec![(PathBuf::new(), &self.upper.filesystem.root)];
+        let mut inserted_leaves: HashMap<LeafId, PathBuf> = HashMap::new();
 
         while let Some((path, directory)) = pending.pop() {
             for (name, inode) in directory.entries() {
@@ -39,9 +41,13 @@ impl<'tree> OverlayBuilder<'tree> {
                         self.overlay_directory(&mut builder, subdirectory, &child)?;
                         pending.push((child, subdirectory));
                     }
-                    Inode::Leaf(leaf_id, _) => {
-                        self.overlay_leaf(&mut builder, &child, self.upper.filesystem.leaf(*leaf_id))?
-                    }
+                    Inode::Leaf(leaf_id, _) => match inserted_leaves.get(leaf_id) {
+                        Some(original) => builder.insert_hard_link(&child, original)?,
+                        None => {
+                            self.overlay_leaf(&mut builder, &child, self.upper.filesystem.leaf(*leaf_id))?;
+                            inserted_leaves.insert(*leaf_id, child);
+                        }
+                    },
                 }
             }
         }

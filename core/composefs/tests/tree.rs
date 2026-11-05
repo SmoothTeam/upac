@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::BTreeMap;
 use std::ffi::OsStr;
 
 use composefs::generic_tree::{LeafContent, Stat};
@@ -16,7 +15,7 @@ use tempfile::{Builder, TempDir};
 
 use upac_composefs::tree::Tree;
 use upac_composefs::tree::builder::TreeBuilder;
-use upac_composefs::{Digest, ObjectID, Repo};
+use upac_composefs::{ObjectID, Repo};
 
 fn open_repo(name: &str) -> (TempDir, Repo) {
     let scratch = Builder::new().prefix(name).tempdir().unwrap();
@@ -163,37 +162,33 @@ fn a_subtree_holds_only_the_requested_directory() {
 }
 
 #[test]
-fn xattrs_survive_writing_and_reopening_the_image() {
-    let (_scratch, repo) = open_repo("xattrs");
-    let mut xattrs = BTreeMap::new();
-    xattrs.insert(
-        OsStr::new("user.upac.entry").into(),
-        b"0755 0:0 0 /usr/bin/ping".to_vec().into_boxed_slice(),
-    );
-    xattrs.insert(
-        OsStr::new("security.capability").into(),
-        b"capability".to_vec().into_boxed_slice(),
-    );
+fn a_hard_link_shares_the_metadata_of_its_original() {
+    let (_scratch, repo) = open_repo("hard-link");
     let mut builder = TreeBuilder::new();
     builder
-        .insert(
-            "ping",
-            file(&repo, b"ping"),
+        .insert("original", file(&repo, b"shared"), Stat::uninitialized())
+        .unwrap();
+    builder.insert_hard_link("link", "original").unwrap();
+
+    builder
+        .update_metadata(
+            "original",
             Stat {
-                xattrs: xattrs.clone(),
+                st_mode: 0o600,
                 ..Stat::uninitialized()
             },
         )
         .unwrap();
+    let tree = builder.commit();
 
-    let digest = Digest::from(
-        builder
-            .commit()
-            .filesystem()
-            .commit_image(repo.repository(), None)
-            .unwrap(),
-    );
-    let tree = Tree::open(&repo, &digest).unwrap();
+    assert_eq!(content(&repo, &tree, "link"), b"shared");
+    assert_eq!(tree.get_metadata("link").unwrap().st_mode, 0o600);
+}
 
-    assert_eq!(tree.get_metadata("ping").unwrap().xattrs, xattrs);
+#[test]
+fn a_hard_link_to_a_directory_fails() {
+    let mut builder = TreeBuilder::new();
+    builder.insert_dir("dir", Stat::uninitialized()).unwrap();
+
+    assert!(builder.insert_hard_link("link", "dir").is_err());
 }

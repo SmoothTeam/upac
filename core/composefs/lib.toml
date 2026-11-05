@@ -3,23 +3,8 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# overlay_opaque_xattr is the fixed extended-attribute name the Linux kernel's
-# overlayfs driver itself looks for to mark a directory opaque (§5.1's "carry
-# over the user's config edits" upper-layer walk) — an external kernel
-# contract, not something a distro/OEM would ever reconfigure, but kept here
-# rather than a bare Rust `const` for the same reason the boot-plugin GUIDs
-# live in `booter.toml`: one documented source of truth for fixed external
-# constants.
 [deployment]
 overlay_opaque_xattr = "trusted.overlay.opaque"
 
-# new_file_mode is the permission set WrittenFile gives a file it creates from scratch; an existing
-# file keeps its own permissions across the atomic replace.
-[fs]
-new_file_mode = 0o644
-
-# dir_mode is the permission set of every directory a tree builder creates on its own, owned by
-# root:root: the root of a tree built from scratch and the parents insert creates for a new path.
-# A directory that comes from the host or from another tree keeps its own permissions.
 [tree]
 dir_mode = 0o755

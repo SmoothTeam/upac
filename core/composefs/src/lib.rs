@@ -3,17 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::fs::{File, Metadata};
+use std::fs::File;
 use std::io::Read;
-use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use composefs::MAX_INLINE_CONTENT;
 use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
-use composefs::generic_tree::Stat;
 use composefs::repository::{GcResult, ImportContext, Repository, RepositoryConfig};
 use composefs::tree::RegularFile;
 
@@ -25,30 +22,12 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use self::error::RepoError;
 
 pub mod error;
-pub mod fs;
 pub mod tree;
 
 pub type ObjectID = Sha256HashValue;
 
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
-}
-
-pub trait ToStat {
-    fn to_stat(&self) -> Stat;
-}
-
-impl ToStat for Metadata {
-    fn to_stat(&self) -> Stat {
-        Stat {
-            st_mode: self.mode(),
-            st_uid: self.uid(),
-            st_gid: self.gid(),
-            st_mtim_sec: self.mtime(),
-            st_mtim_nsec: self.mtime_nsec() as u32,
-            xattrs: BTreeMap::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

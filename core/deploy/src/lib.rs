@@ -22,7 +22,6 @@ use procfs::mounts;
 use upac_types::booter::BootResourceKind;
 
 use upac_composefs::error::RepoError;
-use upac_composefs::fs::WrittenFile;
 use upac_composefs::tree::Tree;
 use upac_composefs::{Digest, Repo};
 
@@ -36,6 +35,7 @@ use self::deployment::PrefixDeploy;
 use self::deployment::meta::PrefixPointer;
 use self::error::{BootEntryError, PrefixCreateError, PrefixEditError, PrefixMetaError, PrefixReadError, SysrootError};
 use self::etc::SetAsideEtc;
+use self::fs::WrittenFile;
 use self::layout::boot::{EFI_LINUX_DIR, KERNEL_ARGUMENTS, UPAC_UKI_TO_SLOT};
 use self::layout::deployment::{
     CONFIG_DIR_NAME, DEPLOYS_DIR, DISCARDED_ETC_UPPER_DIR_NAME, LIVE_ETC_UPPER_DIR_NAME, NEXT_PREFIX_FILENAME,
@@ -49,6 +49,7 @@ pub mod boot;
 pub mod deployment;
 pub mod error;
 pub mod etc;
+pub mod fs;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }

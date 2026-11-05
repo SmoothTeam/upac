@@ -9,9 +9,9 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use upac_composefs::Digest;
-use upac_composefs::fs::WrittenFile;
 
 use super::super::error::PrefixMetaError;
+use super::super::fs::WrittenFile;
 use super::super::layout::deployment::PREFIX_META_FILENAME;
 use super::config::ConfigDeploy;
 

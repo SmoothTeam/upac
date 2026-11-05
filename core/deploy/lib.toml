@@ -77,3 +77,6 @@ upac_uki_to_slot = "upac-to"
 upac_uki_from_slot = "upac-from"
 esp_mount_primary = "/efi"
 esp_mount_fallback = "/boot"
+
+[fs]
+new_file_mode = 0o644

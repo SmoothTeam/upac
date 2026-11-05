@@ -9,7 +9,7 @@ use std::process::Command;
 use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
 
-use upac_composefs::fs::WrittenFile;
+use upac_deploy::fs::WrittenFile;
 
 use upac_macro::stage;
 

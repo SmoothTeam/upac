@@ -6,11 +6,10 @@
 use upac_types::CancelToken;
 use upac_types::error::ErrorKind;
 
-use upac_composefs::fs::WrittenFile;
-
 use upac_deploy::Sysroot;
 use upac_deploy::deployment::{Deployment, PrefixDeploy};
 use upac_deploy::etc::SetAsideEtc;
+use upac_deploy::fs::WrittenFile;
 
 use upac_macro::stage;
 

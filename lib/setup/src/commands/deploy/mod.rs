@@ -11,9 +11,9 @@ use upac_types::request::partition::PartitionKind;
 use upac_types::state::setup::BootstrapDeployStateId;
 
 use upac_composefs::Digest;
-use upac_composefs::fs::WrittenFile;
 
 use upac_deploy::Sysroot;
+use upac_deploy::fs::WrittenFile;
 
 use upac_orchestrator::context::Context;
 use upac_orchestrator::{OrchestratorRun, SequentialOrchestrator, stages};

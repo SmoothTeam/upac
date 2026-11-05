@@ -8,7 +8,7 @@ use std::os::unix::fs::PermissionsExt;
 
 use tempfile::tempdir;
 
-use upac_composefs::fs::WrittenFile;
+use upac_deploy::fs::WrittenFile;
 
 #[test]
 fn write_creates_a_new_file_with_the_given_content() {

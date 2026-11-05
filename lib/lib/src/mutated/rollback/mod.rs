@@ -8,8 +8,8 @@ use upac_types::request::mutated::RollbackRequest;
 use upac_types::state::mutated::RollbackStateId;
 
 use upac_composefs::Digest;
-use upac_composefs::fs::WrittenFile;
 
+use upac_deploy::fs::WrittenFile;
 use upac_deploy::{Sysroot, SysrootMode};
 
 use upac_orchestrator::context::Context;

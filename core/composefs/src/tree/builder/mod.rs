@@ -53,6 +53,16 @@ impl TreeBuilder {
         Ok(())
     }
 
+    pub fn insert_hard_link(&mut self, path: impl AsRef<Path>, original: impl AsRef<Path>) -> Result<(), RepoError> {
+        let (original_parent, original_filename) = self.filesystem.root.split(original.as_ref().as_os_str())?;
+        let leaf_id = original_parent.leaf_id(original_filename)?;
+
+        let (parent, filename) = self.filesystem.root.split_mut(path.as_ref().as_os_str())?;
+        parent.insert(filename, Inode::leaf(leaf_id));
+
+        Ok(())
+    }
+
     pub fn remove(&mut self, path: impl AsRef<Path>) -> Result<(), RepoError> {
         let (parent, filename) = self.filesystem.root.split_mut(path.as_ref().as_os_str())?;
         parent.remove(filename);
@@ -93,5 +103,11 @@ impl TreeBuilder {
         filesystem.compact();
 
         Tree { filesystem }
+    }
+}
+
+impl Default for TreeBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

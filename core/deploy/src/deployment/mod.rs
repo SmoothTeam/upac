@@ -6,11 +6,11 @@
 use std::path::Path;
 
 use upac_composefs::Digest;
-use upac_composefs::fs::WrittenFile;
 
 use upac_types::transaction::Transaction;
 
 use super::error::{PrefixDeployError, PrefixMetaError};
+use super::fs::WrittenFile;
 
 use self::config::ConfigDeploy;
 use self::meta::PrefixMetaState;

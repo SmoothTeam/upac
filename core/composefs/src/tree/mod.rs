@@ -55,7 +55,13 @@ impl Tree {
     }
 
     pub fn get_metadata(&self, path: impl AsRef<Path>) -> Result<&Stat, RepoError> {
-        Ok(self.inode(path.as_ref())?.stat(&self.filesystem.leaves))
+        let path = path.as_ref();
+
+        if let Ok(directory) = self.filesystem.root.get_directory(path.as_os_str()) {
+            return Ok(&directory.stat);
+        }
+
+        Ok(self.inode(path)?.stat(&self.filesystem.leaves))
     }
 
     pub fn get_subtree(&self, path: impl AsRef<Path>) -> Result<Tree, RepoError> {
@@ -79,7 +85,9 @@ impl Tree {
     }
 
     pub fn check(&self, path: impl AsRef<Path>) -> bool {
-        self.inode(path.as_ref()).is_ok()
+        let path = path.as_ref();
+
+        self.filesystem.root.get_directory(path.as_os_str()).is_ok() || self.inode(path).is_ok()
     }
 
     fn inode(&self, path: &Path) -> Result<&Inode<ObjectID>, RepoError> {

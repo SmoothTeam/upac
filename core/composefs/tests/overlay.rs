@@ -137,3 +137,28 @@ fn the_lower_root_keeps_its_own_metadata() {
 
     assert_eq!(tree.get_metadata("").unwrap().st_mode, 0o755);
 }
+
+#[test]
+fn upper_hard_links_stay_linked() {
+    let (_scratch, repo) = open_repo("hard-links");
+    let lower = TreeBuilder::new().commit();
+    let mut upper = TreeBuilder::new();
+    upper
+        .insert("original", file(&repo, b"shared"), Stat::uninitialized())
+        .unwrap();
+    upper.insert_hard_link("link", "original").unwrap();
+    let upper = upper.commit();
+
+    let mut builder = OverlayBuilder::new(&lower, &upper).commit().unwrap().edit();
+    builder
+        .update_metadata(
+            "original",
+            Stat {
+                st_mode: 0o600,
+                ..Stat::uninitialized()
+            },
+        )
+        .unwrap();
+
+    assert_eq!(builder.commit().get_metadata("link").unwrap().st_mode, 0o600);
+}

@@ -12,7 +12,6 @@ use upac_types::diff::DiffFileSource;
 use upac_types::package::PackageInfo;
 
 use upac_composefs::Digest;
-use upac_composefs::fs::WrittenFile;
 
 use upac_decoder_loader::unpack::PackageTemp;
 
@@ -20,6 +19,7 @@ use upac_boot_loader::BootPlugin;
 
 use upac_deploy::deployment::PrefixDeploy;
 use upac_deploy::deployment::config::ConfigDeploy;
+use upac_deploy::fs::WrittenFile;
 
 pub mod checkout;
 pub mod commit;
