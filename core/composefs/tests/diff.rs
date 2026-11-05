@@ -30,7 +30,7 @@ fn open_repo(name: &str) -> (TempDir, Repo) {
 }
 
 fn tree_with(repo: &Repo, directories: &[&str], files: &[(&str, &[u8])]) -> Tree {
-    let mut builder = TreeBuilder::new(repo);
+    let mut builder = TreeBuilder::new();
     for directory in directories {
         builder.insert_dir(directory, Stat::uninitialized()).unwrap();
     }

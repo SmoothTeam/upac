@@ -23,7 +23,6 @@ pub mod overlay;
 
 #[derive(Clone)]
 pub struct Tree {
-    repo: Repo,
     filesystem: FileSystem<ObjectID>,
 }
 
@@ -35,14 +34,12 @@ impl Tree {
         File::from(image).read_to_end(&mut data)?;
 
         Ok(Self {
-            repo: repo.clone(),
             filesystem: erofs_to_filesystem(&data)?,
         })
     }
 
     pub fn edit(&self) -> TreeBuilder {
         TreeBuilder {
-            repo: self.repo.clone(),
             filesystem: self.filesystem.clone(),
         }
     }
@@ -68,10 +65,7 @@ impl Tree {
         };
         filesystem.compact();
 
-        Ok(Tree {
-            repo: self.repo.clone(),
-            filesystem,
-        })
+        Ok(Tree { filesystem })
     }
 
     pub fn list(&self, path: impl AsRef<Path>) -> Result<Vec<&OsStr>, RepoError> {

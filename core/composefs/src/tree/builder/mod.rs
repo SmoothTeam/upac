@@ -11,9 +11,9 @@ use composefs::tree::{Directory, FileSystem, Inode, RegularFile};
 
 use super::Tree;
 
+use crate::ObjectID;
 use crate::error::RepoError;
 use crate::layout::tree::DIR_MODE;
-use crate::{ObjectID, Repo};
 
 const DIRECTORY_STAT: Stat = Stat {
     st_mode: DIR_MODE,
@@ -25,14 +25,12 @@ const DIRECTORY_STAT: Stat = Stat {
 };
 
 pub struct TreeBuilder {
-    pub(super) repo: Repo,
     pub(super) filesystem: FileSystem<ObjectID>,
 }
 
 impl TreeBuilder {
-    pub fn new(repo: &Repo) -> Self {
+    pub fn new() -> Self {
         Self {
-            repo: repo.clone(),
             filesystem: FileSystem::new(DIRECTORY_STAT),
         }
     }
@@ -91,9 +89,9 @@ impl TreeBuilder {
     }
 
     pub fn commit(self) -> Tree {
-        let TreeBuilder { repo, mut filesystem } = self;
+        let TreeBuilder { mut filesystem } = self;
         filesystem.compact();
 
-        Tree { repo, filesystem }
+        Tree { filesystem }
     }
 }

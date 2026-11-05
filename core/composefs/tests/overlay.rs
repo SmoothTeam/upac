@@ -39,7 +39,7 @@ fn content(repo: &Repo, tree: &Tree, path: &str) -> Vec<u8> {
 }
 
 fn tree_with(repo: &Repo, directories: &[&str], files: &[(&str, &[u8])]) -> Tree {
-    let mut builder = TreeBuilder::new(repo);
+    let mut builder = TreeBuilder::new();
     for directory in directories {
         builder.insert_dir(directory, Stat::uninitialized()).unwrap();
     }
@@ -77,7 +77,7 @@ fn directories_merge_and_keep_the_lower_entries() {
 fn a_whiteout_removes_the_lower_entry() {
     let (_scratch, repo) = open_repo("whiteout");
     let lower = tree_with(&repo, &[], &[("conf", b"lower")]);
-    let mut upper = TreeBuilder::new(&repo);
+    let mut upper = TreeBuilder::new();
     upper
         .insert("conf", LeafContent::CharacterDevice(0), Stat::uninitialized())
         .unwrap();
@@ -92,7 +92,7 @@ fn a_whiteout_removes_the_lower_entry() {
 fn an_opaque_directory_replaces_the_lower_one() {
     let (_scratch, repo) = open_repo("opaque");
     let lower = tree_with(&repo, &["dir"], &[("dir/old", b"lower")]);
-    let mut upper = TreeBuilder::new(&repo);
+    let mut upper = TreeBuilder::new();
     let mut xattrs = BTreeMap::new();
     xattrs.insert(
         OsStr::new("trusted.overlay.opaque").into(),
@@ -120,9 +120,8 @@ fn an_opaque_directory_replaces_the_lower_one() {
 
 #[test]
 fn the_lower_root_keeps_its_own_metadata() {
-    let (_scratch, repo) = open_repo("target");
-    let lower = TreeBuilder::new(&repo).commit();
-    let mut upper = TreeBuilder::new(&repo);
+    let lower = TreeBuilder::new().commit();
+    let mut upper = TreeBuilder::new();
     upper
         .update_metadata(
             "",
