@@ -18,6 +18,7 @@ use upac_types::diff::FileDiffKind;
 
 use upac_composefs::tree::Tree;
 use upac_composefs::tree::builder::TreeBuilder;
+use upac_composefs::tree::diff::Diff;
 use upac_composefs::{ObjectID, Repo};
 
 fn open_repo(name: &str) -> (TempDir, Repo) {
@@ -28,25 +29,28 @@ fn open_repo(name: &str) -> (TempDir, Repo) {
     (scratch, repo)
 }
 
-fn tree_with(repo: &Repo, files: &[(&str, &[u8])]) -> Tree {
+fn tree_with(repo: &Repo, directories: &[&str], files: &[(&str, &[u8])]) -> Tree {
     let mut builder = TreeBuilder::new(repo);
+    for directory in directories {
+        builder.insert_dir(directory, Stat::uninitialized()).unwrap();
+    }
     for (path, bytes) in files {
         let stored: LeafContent<RegularFile<ObjectID>> = LeafContent::Regular(repo.store(bytes).unwrap());
         builder.insert(path, stored, Stat::uninitialized()).unwrap();
     }
 
-    builder.build()
+    builder.commit()
 }
 
 #[test]
 fn added_removed_and_modified_files_are_reported() {
     let (_scratch, repo) = open_repo("diff");
-    let from = tree_with(&repo, &[("kept", b"same"), ("changed", b"old"), ("gone", b"x")]);
-    let to = tree_with(&repo, &[("kept", b"same"), ("changed", b"new"), ("new", b"x")]);
+    let from = tree_with(&repo, &[], &[("kept", b"same"), ("changed", b"old"), ("gone", b"x")]);
+    let to = tree_with(&repo, &[], &[("kept", b"same"), ("changed", b"new"), ("new", b"x")]);
 
     assert_eq!(
-        from.diff(&to),
-        BTreeMap::from([
+        Diff::new(&from, &to).diff(),
+        &BTreeMap::from([
             (PathBuf::from("changed"), FileDiffKind::Modified),
             (PathBuf::from("gone"), FileDiffKind::Removed),
             (PathBuf::from("new"), FileDiffKind::Added),
@@ -57,12 +61,12 @@ fn added_removed_and_modified_files_are_reported() {
 #[test]
 fn a_directory_replaced_by_a_file_marks_both_sides() {
     let (_scratch, repo) = open_repo("diff-replace");
-    let from = tree_with(&repo, &[("thing/inner", b"x")]);
-    let to = tree_with(&repo, &[("thing", b"x")]);
+    let from = tree_with(&repo, &["thing"], &[("thing/inner", b"x")]);
+    let to = tree_with(&repo, &[], &[("thing", b"x")]);
 
     assert_eq!(
-        from.diff(&to),
-        BTreeMap::from([
+        Diff::new(&from, &to).diff(),
+        &BTreeMap::from([
             (PathBuf::from("thing"), FileDiffKind::Added),
             (PathBuf::from("thing/inner"), FileDiffKind::Removed),
         ])

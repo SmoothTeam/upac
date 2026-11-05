@@ -10,7 +10,7 @@ use std::path::Path;
 
 use composefs::erofs::reader::erofs_to_filesystem;
 use composefs::generic_tree::{LeafContent, Stat};
-use composefs::tree::{FileSystem, Inode, Leaf, RegularFile};
+use composefs::tree::{FileSystem, Inode, RegularFile};
 
 use self::builder::TreeBuilder;
 
@@ -18,9 +18,8 @@ use crate::error::RepoError;
 use crate::{Digest, ObjectID, Repo};
 
 pub mod builder;
-
-mod host;
-mod snapshot;
+pub mod diff;
+pub mod overlay;
 
 #[derive(Clone)]
 pub struct Tree {
@@ -53,7 +52,9 @@ impl Tree {
     }
 
     pub fn get(&self, path: impl AsRef<Path>) -> Result<LeafContent<RegularFile<ObjectID>>, RepoError> {
-        Ok(self.leaf(path.as_ref())?.content.clone())
+        let (parent, filename) = self.filesystem.root.split(path.as_ref().as_os_str())?;
+
+        Ok(self.filesystem.leaf(parent.leaf_id(filename)?).content.clone())
     }
 
     pub fn get_metadata(&self, path: impl AsRef<Path>) -> Result<&Stat, RepoError> {
@@ -61,13 +62,16 @@ impl Tree {
     }
 
     pub fn get_subtree(&self, path: impl AsRef<Path>) -> Result<Tree, RepoError> {
-        let path = path.as_ref();
+        let mut filesystem = FileSystem {
+            root: self.filesystem.root.get_directory(path.as_ref().as_os_str())?.clone(),
+            leaves: self.filesystem.leaves.clone(),
+        };
+        filesystem.compact();
 
-        let mut builder = TreeBuilder::new(&self.repo);
-        builder.overlay("", self, Some(path))?;
-        builder.update_metadata("", self.get_metadata(path)?.clone())?;
-
-        Ok(builder.build())
+        Ok(Tree {
+            repo: self.repo.clone(),
+            filesystem,
+        })
     }
 
     pub fn list(&self, path: impl AsRef<Path>) -> Result<Vec<&OsStr>, RepoError> {
@@ -88,11 +92,5 @@ impl Tree {
         let (parent, filename) = self.filesystem.root.split(path.as_os_str())?;
 
         parent.lookup(filename).ok_or(RepoError::NotFound)
-    }
-
-    fn leaf(&self, path: &Path) -> Result<&Leaf<ObjectID>, RepoError> {
-        let (parent, filename) = self.filesystem.root.split(path.as_os_str())?;
-
-        Ok(self.filesystem.leaf(parent.leaf_id(filename)?))
     }
 }

@@ -51,30 +51,74 @@ fn stored_content_reads_back_inline_and_from_an_object() {
 }
 
 #[test]
-fn insert_creates_the_missing_parents() {
-    let (_scratch, repo) = open_repo("parents");
+fn insert_without_parents_fails() {
+    let (_scratch, repo) = open_repo("orphan");
     let mut builder = TreeBuilder::new(&repo);
 
-    builder
-        .insert("a/b/file", file(&repo, b"x"), Stat::uninitialized())
-        .unwrap();
-    let tree = builder.build();
+    assert!(
+        builder
+            .insert("a/file", file(&repo, b"x"), Stat::uninitialized())
+            .is_err()
+    );
+}
 
-    assert!(tree.check("a/b"));
-    assert_eq!(tree.get_metadata("a").unwrap().st_mode, 0o755);
+#[test]
+fn update_replaces_the_content_and_keeps_the_metadata() {
+    let (_scratch, repo) = open_repo("update");
+    let mut builder = TreeBuilder::new(&repo);
+    builder
+        .insert(
+            "file",
+            file(&repo, b"old"),
+            Stat {
+                st_mode: 0o600,
+                ..Stat::uninitialized()
+            },
+        )
+        .unwrap();
+
+    builder.update("file", file(&repo, b"new")).unwrap();
+    let tree = builder.commit();
+
+    assert_eq!(content(&repo, &tree, "file"), b"new");
+    assert_eq!(tree.get_metadata("file").unwrap().st_mode, 0o600);
+}
+
+#[test]
+fn update_metadata_keeps_the_content() {
+    let (_scratch, repo) = open_repo("metadata");
+    let mut builder = TreeBuilder::new(&repo);
+    builder
+        .insert("file", file(&repo, b"kept"), Stat::uninitialized())
+        .unwrap();
+
+    builder
+        .update_metadata(
+            "file",
+            Stat {
+                st_mode: 0o600,
+                ..Stat::uninitialized()
+            },
+        )
+        .unwrap();
+    let tree = builder.commit();
+
+    assert_eq!(content(&repo, &tree, "file"), b"kept");
+    assert_eq!(tree.get_metadata("file").unwrap().st_mode, 0o600);
 }
 
 #[test]
 fn remove_drops_the_whole_subtree() {
     let (_scratch, repo) = open_repo("remove");
     let mut builder = TreeBuilder::new(&repo);
+    builder.insert_dir("dir", Stat::uninitialized()).unwrap();
     builder
         .insert("dir/file", file(&repo, b"x"), Stat::uninitialized())
         .unwrap();
 
     builder.remove("dir").unwrap();
 
-    assert!(!builder.build().check("dir"));
+    assert!(!builder.commit().check("dir"));
 }
 
 #[test]
@@ -92,7 +136,7 @@ fn a_committed_tree_reopens_with_its_content() {
         )
         .unwrap();
 
-    let tree = Tree::open(&repo, &builder.commit().unwrap()).unwrap();
+    let tree = builder.commit();
 
     assert_eq!(content(&repo, &tree, "file"), b"hello");
     assert!(matches!(tree.get("link").unwrap(), LeafContent::Symlink(target) if &*target == "file"));
@@ -102,14 +146,16 @@ fn a_committed_tree_reopens_with_its_content() {
 fn a_subtree_holds_only_the_requested_directory() {
     let (_scratch, repo) = open_repo("subtree");
     let mut builder = TreeBuilder::new(&repo);
+    builder.insert_dir("etc", Stat::uninitialized()).unwrap();
     builder
         .insert("etc/conf", file(&repo, b"conf"), Stat::uninitialized())
         .unwrap();
+    builder.insert_dir("bin", Stat::uninitialized()).unwrap();
     builder
         .insert("bin/tool", file(&repo, b"tool"), Stat::uninitialized())
         .unwrap();
 
-    let subtree = builder.build().get_subtree("etc").unwrap();
+    let subtree = builder.commit().get_subtree("etc").unwrap();
 
     assert_eq!(content(&repo, &subtree, "conf"), b"conf");
     assert!(!subtree.check("bin"));

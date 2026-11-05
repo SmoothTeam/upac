@@ -5,7 +5,6 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::path::Path;
 
 use composefs::generic_tree::{LeafContent, Stat};
 use composefs::repository::{Repository, RepositoryConfig};
@@ -17,6 +16,7 @@ use tempfile::{Builder, TempDir};
 
 use upac_composefs::tree::Tree;
 use upac_composefs::tree::builder::TreeBuilder;
+use upac_composefs::tree::overlay::OverlayBuilder;
 use upac_composefs::{ObjectID, Repo};
 
 fn open_repo(name: &str) -> (TempDir, Repo) {
@@ -38,36 +38,36 @@ fn content(repo: &Repo, tree: &Tree, path: &str) -> Vec<u8> {
     }
 }
 
-fn tree_with(repo: &Repo, files: &[(&str, &[u8])]) -> Tree {
+fn tree_with(repo: &Repo, directories: &[&str], files: &[(&str, &[u8])]) -> Tree {
     let mut builder = TreeBuilder::new(repo);
+    for directory in directories {
+        builder.insert_dir(directory, Stat::uninitialized()).unwrap();
+    }
     for (path, bytes) in files {
         builder.insert(path, file(repo, bytes), Stat::uninitialized()).unwrap();
     }
 
-    builder.build()
+    builder.commit()
 }
 
 #[test]
 fn an_upper_file_replaces_the_lower_one() {
     let (_scratch, repo) = open_repo("replace");
-    let mut lower = tree_with(&repo, &[("conf", b"lower")]).edit();
+    let lower = tree_with(&repo, &[], &[("conf", b"lower")]);
+    let upper = tree_with(&repo, &[], &[("conf", b"upper")]);
 
-    lower
-        .overlay("", &tree_with(&repo, &[("conf", b"upper")]), None)
-        .unwrap();
+    let tree = OverlayBuilder::new(&lower, &upper).commit().unwrap();
 
-    assert_eq!(content(&repo, &lower.build(), "conf"), b"upper");
+    assert_eq!(content(&repo, &tree, "conf"), b"upper");
 }
 
 #[test]
 fn directories_merge_and_keep_the_lower_entries() {
     let (_scratch, repo) = open_repo("merge");
-    let mut lower = tree_with(&repo, &[("dir/kept", b"lower")]).edit();
+    let lower = tree_with(&repo, &["dir"], &[("dir/kept", b"lower")]);
+    let upper = tree_with(&repo, &["dir"], &[("dir/added", b"upper")]);
 
-    lower
-        .overlay("", &tree_with(&repo, &[("dir/added", b"upper")]), None)
-        .unwrap();
-    let tree = lower.build();
+    let tree = OverlayBuilder::new(&lower, &upper).commit().unwrap();
 
     assert!(tree.check("dir/kept"));
     assert!(tree.check("dir/added"));
@@ -76,21 +76,22 @@ fn directories_merge_and_keep_the_lower_entries() {
 #[test]
 fn a_whiteout_removes_the_lower_entry() {
     let (_scratch, repo) = open_repo("whiteout");
-    let mut lower = tree_with(&repo, &[("conf", b"lower")]).edit();
+    let lower = tree_with(&repo, &[], &[("conf", b"lower")]);
     let mut upper = TreeBuilder::new(&repo);
     upper
         .insert("conf", LeafContent::CharacterDevice(0), Stat::uninitialized())
         .unwrap();
+    let upper = upper.commit();
 
-    lower.overlay("", &upper.build(), None).unwrap();
+    let tree = OverlayBuilder::new(&lower, &upper).commit().unwrap();
 
-    assert!(!lower.build().check("conf"));
+    assert!(!tree.check("conf"));
 }
 
 #[test]
 fn an_opaque_directory_replaces_the_lower_one() {
     let (_scratch, repo) = open_repo("opaque");
-    let mut lower = tree_with(&repo, &[("dir/old", b"lower")]).edit();
+    let lower = tree_with(&repo, &["dir"], &[("dir/old", b"lower")]);
     let mut upper = TreeBuilder::new(&repo);
     let mut xattrs = BTreeMap::new();
     xattrs.insert(
@@ -109,18 +110,18 @@ fn an_opaque_directory_replaces_the_lower_one() {
     upper
         .insert("dir/new", file(&repo, b"upper"), Stat::uninitialized())
         .unwrap();
+    let upper = upper.commit();
 
-    lower.overlay("", &upper.build(), None).unwrap();
-    let tree = lower.build();
+    let tree = OverlayBuilder::new(&lower, &upper).commit().unwrap();
 
     assert!(!tree.check("dir/old"));
     assert!(tree.check("dir/new"));
 }
 
 #[test]
-fn the_target_path_keeps_its_own_metadata() {
+fn the_lower_root_keeps_its_own_metadata() {
     let (_scratch, repo) = open_repo("target");
-    let mut lower = TreeBuilder::new(&repo);
+    let lower = TreeBuilder::new(&repo).commit();
     let mut upper = TreeBuilder::new(&repo);
     upper
         .update_metadata(
@@ -131,24 +132,9 @@ fn the_target_path_keeps_its_own_metadata() {
             },
         )
         .unwrap();
+    let upper = upper.commit();
 
-    lower.overlay("", &upper.build(), None).unwrap();
+    let tree = OverlayBuilder::new(&lower, &upper).commit().unwrap();
 
-    assert_eq!(lower.build().get_metadata("").unwrap().st_mode, 0o755);
-}
-
-#[test]
-fn a_single_file_overlays_under_another_name() {
-    let (_scratch, repo) = open_repo("single");
-    let mut lower = TreeBuilder::new(&repo);
-
-    lower
-        .overlay(
-            "conf.upac-new",
-            &tree_with(&repo, &[("conf", b"package")]),
-            Some(Path::new("conf")),
-        )
-        .unwrap();
-
-    assert_eq!(content(&repo, &lower.build(), "conf.upac-new"), b"package");
+    assert_eq!(tree.get_metadata("").unwrap().st_mode, 0o755);
 }
