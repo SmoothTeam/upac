@@ -3,153 +3,174 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::io::{Error as IoError, ErrorKind};
-use std::sync::{Arc, PoisonError, RwLock};
+use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::os::unix::ffi::OsStrExt;
+use std::str::FromStr;
 
-use redb::{
-    Builder, Database as RedbDatabase, Key, ReadOnlyTable, ReadTransaction, StorageBackend, TableDefinition,
-    TableError, Value,
-};
+use composefs::fsverity::{FsVerityHashValue, compute_verity};
+use composefs::generic_tree::Stat;
 
-use serde::Serialize;
-use serde::de::DeserializeOwned;
+use upac_composefs::ObjectID;
 
-use uuid::Uuid;
+use upac_types::package::PackageInfo;
 
 use self::error::DatabaseError;
-use self::layout::database::{
-    FILES_BY_PATH_TABLE_NAME, FILES_TABLE_NAME, PACKAGES_BY_NAME_TABLE_NAME, PACKAGES_TABLE_NAME,
-    PACKAGES_TRIGGERS_TABLE_NAME, TRANSACTION_TABLE_NAME,
+use self::layout::entry::{
+    DIR_PREFIX, FILE_PREFIX, PERMISSION_MASK, SEPARATOR as ENTRY_SEPARATOR, SYMLINK_PREFIX, XATTR as ENTRY_XATTR,
 };
+use self::layout::package::{LOSSY_REPLACEMENT, SEPARATOR as PACKAGE_SEPARATOR};
 
-pub mod attribution;
 pub mod error;
-pub mod files;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
-pub mod meta;
 pub mod transaction;
-pub mod triggers;
+pub mod trigger;
 
-pub(crate) const PACKAGES_UUID_TABLE: TableDefinition<Uuid, &[u8]> = TableDefinition::new(PACKAGES_TABLE_NAME);
-pub(crate) const PACKAGES_HASH_TABLE: TableDefinition<u64, Uuid> = TableDefinition::new(PACKAGES_BY_NAME_TABLE_NAME);
-pub(crate) const PACKAGES_TRIGGERS_TABLE: TableDefinition<Uuid, &[u8]> =
-    TableDefinition::new(PACKAGES_TRIGGERS_TABLE_NAME);
-
-pub(crate) const FILES_UUID_TABLE: TableDefinition<(Uuid, u64), &[u8]> = TableDefinition::new(FILES_TABLE_NAME);
-pub(crate) const FILES_UUID_HASH_TABLE: TableDefinition<u64, Uuid> = TableDefinition::new(FILES_BY_PATH_TABLE_NAME);
-
-pub(crate) const TRANSACTION_TABLE: TableDefinition<(), &[u8]> = TableDefinition::new(TRANSACTION_TABLE_NAME);
-
-pub(crate) fn record_encode<Record: Serialize + ?Sized>(record: &Record) -> Result<Vec<u8>, DatabaseError> {
-    postcard::to_allocvec(record).map_err(|_| DatabaseError::WriteError)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PackageEntryKind {
+    File,
+    Symlink,
+    Dir,
 }
 
-pub(crate) fn record_decode<Record: DeserializeOwned>(bytes: &[u8]) -> Result<Record, DatabaseError> {
-    postcard::from_bytes(bytes).map_err(|_| DatabaseError::ReadError)
-}
-
-pub struct MemoryDatabase {
-    database: RedbDatabase,
-    backend: SharedMemoryBackend,
-}
-
-impl MemoryDatabase {
-    pub fn new_in_memory() -> Result<Self, DatabaseError> {
-        let backend = SharedMemoryBackend::new();
-        let database = Builder::new().create_with_backend(backend.clone())?;
-
-        Ok(Self { database, backend })
-    }
-
-    pub fn open_in_memory(bytes: Vec<u8>) -> Result<Self, DatabaseError> {
-        let backend = SharedMemoryBackend(Arc::new(RwLock::new(bytes)));
-        let database = Builder::new().create_with_backend(backend.clone())?;
-
-        Ok(Self { database, backend })
-    }
-
-    pub fn into_bytes(self) -> Result<Vec<u8>, DatabaseError> {
-        drop(self.database);
-
-        Ok(self.backend.into_bytes())
+impl Display for PackageEntryKind {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        formatter.write_str(match self {
+            PackageEntryKind::File => FILE_PREFIX,
+            PackageEntryKind::Symlink => SYMLINK_PREFIX,
+            PackageEntryKind::Dir => DIR_PREFIX,
+        })
     }
 }
 
-pub(crate) trait ReadTransactionExt {
-    fn open_table_or_none<TableKey: Key + 'static, TableValue: Value + 'static>(
-        &self, definition: TableDefinition<TableKey, TableValue>,
-    ) -> Result<Option<ReadOnlyTable<TableKey, TableValue>>, DatabaseError>;
-}
+impl FromStr for PackageEntryKind {
+    type Err = DatabaseError;
 
-impl ReadTransactionExt for ReadTransaction {
-    fn open_table_or_none<TableKey: Key + 'static, TableValue: Value + 'static>(
-        &self, definition: TableDefinition<TableKey, TableValue>,
-    ) -> Result<Option<ReadOnlyTable<TableKey, TableValue>>, DatabaseError> {
-        match self.open_table(definition) {
-            Ok(table) => Ok(Some(table)),
-            Err(TableError::TableDoesNotExist(_)) => Ok(None),
-            Err(error) => Err(error.into()),
+    fn from_str(prefix: &str) -> Result<Self, Self::Err> {
+        match prefix {
+            FILE_PREFIX => Ok(PackageEntryKind::File),
+            SYMLINK_PREFIX => Ok(PackageEntryKind::Symlink),
+            DIR_PREFIX => Ok(PackageEntryKind::Dir),
+            _ => Err(DatabaseError::InvalidEntryId),
         }
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct SharedMemoryBackend(Arc<RwLock<Vec<u8>>>);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PackageId(String);
 
-impl SharedMemoryBackend {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn into_bytes(self) -> Vec<u8> {
-        match Arc::try_unwrap(self.0) {
-            Ok(lock) => lock.into_inner().unwrap_or_else(PoisonError::into_inner),
-            Err(shared) => shared.read().unwrap_or_else(PoisonError::into_inner).clone(),
+impl PackageId {
+    pub fn new(info: &PackageInfo) -> Self {
+        fn lossy(component: &str) -> String {
+            component
+                .replace(['/', '\0'], LOSSY_REPLACEMENT)
+                .replace(PACKAGE_SEPARATOR, LOSSY_REPLACEMENT)
         }
+
+        let mut directory_name = format!("{}{}{}", lossy(&info.name), PACKAGE_SEPARATOR, lossy(&info.arch));
+
+        if let Some(arch_sub) = &info.arch_sub {
+            directory_name.push_str(PACKAGE_SEPARATOR);
+            directory_name.push_str(&lossy(arch_sub));
+        }
+
+        Self(directory_name)
     }
 }
 
-impl StorageBackend for SharedMemoryBackend {
-    fn len(&self) -> Result<u64, IoError> {
-        let buffer = self.0.read().unwrap_or_else(PoisonError::into_inner);
+impl Display for PackageId {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        formatter.write_str(&self.0)
+    }
+}
 
-        Ok(buffer.len() as u64)
+impl FromStr for PackageId {
+    type Err = DatabaseError;
+
+    fn from_str(directory_name: &str) -> Result<Self, Self::Err> {
+        let components: Vec<&str> = directory_name.split(PACKAGE_SEPARATOR).collect();
+
+        if !(2..=3).contains(&components.len()) || components.iter().any(|component| component.is_empty()) {
+            return Err(DatabaseError::InvalidPackageId);
+        }
+
+        Ok(Self(directory_name.to_owned()))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PackageEntryId {
+    kind: PackageEntryKind,
+    content: ObjectID,
+    metadata: ObjectID,
+}
+
+impl PackageEntryId {
+    pub fn new(kind: PackageEntryKind, content: ObjectID, stat: &Stat) -> Self {
+        Self {
+            kind,
+            content,
+            metadata: Self::metadata_hash(stat),
+        }
     }
 
-    fn read(&self, offset: u64, out: &mut [u8]) -> Result<(), IoError> {
-        let buffer = self.0.read().unwrap_or_else(PoisonError::into_inner);
-        let offset = offset as usize;
+    pub fn kind(&self) -> PackageEntryKind {
+        self.kind
+    }
 
-        let Some(source) = buffer.get(offset..offset + out.len()) else {
-            return Err(IoError::from(ErrorKind::UnexpectedEof));
+    pub fn content(&self) -> &ObjectID {
+        &self.content
+    }
+
+    fn metadata_hash(stat: &Stat) -> ObjectID {
+        let mut serialized = Vec::new();
+        serialized.extend_from_slice(&(stat.st_mode & PERMISSION_MASK).to_le_bytes());
+        serialized.extend_from_slice(&stat.st_uid.to_le_bytes());
+        serialized.extend_from_slice(&stat.st_gid.to_le_bytes());
+
+        for (name, value) in &stat.xattrs {
+            if name.as_bytes() == ENTRY_XATTR.as_bytes() {
+                continue;
+            }
+
+            serialized.extend_from_slice(&(name.len() as u64).to_le_bytes());
+            serialized.extend_from_slice(name.as_bytes());
+            serialized.extend_from_slice(&(value.len() as u64).to_le_bytes());
+            serialized.extend_from_slice(value);
+        }
+
+        compute_verity(&serialized)
+    }
+}
+
+impl Display for PackageEntryId {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        write!(
+            formatter,
+            "{}{}{}{}{}",
+            self.kind,
+            ENTRY_SEPARATOR,
+            self.content.to_hex(),
+            ENTRY_SEPARATOR,
+            self.metadata.to_hex()
+        )
+    }
+}
+
+impl FromStr for PackageEntryId {
+    type Err = DatabaseError;
+
+    fn from_str(entry_name: &str) -> Result<Self, Self::Err> {
+        let components: Vec<&str> = entry_name.split(ENTRY_SEPARATOR).collect();
+        let [kind, content, metadata] = components.as_slice() else {
+            return Err(DatabaseError::InvalidEntryId);
         };
 
-        out.copy_from_slice(source);
-        Ok(())
-    }
-
-    fn set_len(&self, len: u64) -> Result<(), IoError> {
-        let mut buffer = self.0.write().unwrap_or_else(PoisonError::into_inner);
-
-        buffer.resize(len as usize, 0);
-        Ok(())
-    }
-
-    fn sync_data(&self) -> Result<(), IoError> {
-        Ok(())
-    }
-
-    fn write(&self, offset: u64, data: &[u8]) -> Result<(), IoError> {
-        let mut buffer = self.0.write().unwrap_or_else(PoisonError::into_inner);
-        let offset = offset as usize;
-
-        let Some(destination) = buffer.get_mut(offset..offset + data.len()) else {
-            return Err(IoError::from(ErrorKind::UnexpectedEof));
-        };
-
-        destination.copy_from_slice(data);
-        Ok(())
+        Ok(Self {
+            kind: kind.parse()?,
+            content: ObjectID::from_hex(content).map_err(|_| DatabaseError::InvalidEntryId)?,
+            metadata: ObjectID::from_hex(metadata).map_err(|_| DatabaseError::InvalidEntryId)?,
+        })
     }
 }

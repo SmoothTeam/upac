@@ -32,7 +32,6 @@ name = "upac_types"
 upac-lib-macro = { workspace = true }
 upac-lib-abi   = { workspace = true }
 
-uuid   = { workspace = true, features = ["serde"] }
 gptman = { workspace = true, optional = true }
 
 serde = { workspace = true }

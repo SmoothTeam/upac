@@ -3,8 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io::Error as IoError;
-use std::str::Utf8Error;
+use std::str::{FromStr, Utf8Error};
 
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +37,30 @@ impl TriggerPosition {
         TriggerPosition::PreRemove,
         TriggerPosition::PostRemove,
     ];
+}
+
+impl Display for TriggerPosition {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
+        formatter.write_str(match self {
+            TriggerPosition::PreInstall => "pre-install",
+            TriggerPosition::PostInstall => "post-install",
+            TriggerPosition::PreUpgrade => "pre-upgrade",
+            TriggerPosition::PostUpgrade => "post-upgrade",
+            TriggerPosition::PreRemove => "pre-remove",
+            TriggerPosition::PostRemove => "post-remove",
+        })
+    }
+}
+
+impl FromStr for TriggerPosition {
+    type Err = DecodeError;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        TriggerPosition::ALL
+            .into_iter()
+            .find(|position| position.to_string() == name)
+            .ok_or(DecodeError::MalformedMetadata)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, CTryToRust, RustToC)]

@@ -3,20 +3,33 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# Names of the redb tables inside the package database embedded in the image.
-# Changing a name means already-built images stop finding their tables when
-# reading their DB (tables are looked up by name) — data isn't lost, but
-# becomes unreachable through the API.
-#
-# database_path is where the redb file itself lives inside the mounted /usr
-# tree (relative to that tree's root, e.g. read via FileHandle::read_file
-# after Deploy::open_tree(prefix_digest), see doc §7). Changing it means
-# already-built images stop finding their own embedded DB on read.
-[database]
-packages_table_name = "packages"
-packages_by_name_table_name = "packages_by_name"
-packages_triggers_table_name = "packages_triggers"
-files_table_name = "files"
-files_by_path_table_name = "files_by_path"
-transaction_table_name = "transaction"
-database_path = "share/upac/packages.redb"
+[entry]
+xattr = "user.upac.entry"
+separator = "-"
+file_prefix = "file"
+symlink_prefix = "symlink"
+dir_prefix = "dir"
+
+permission_mask = 0o7777
+
+[package]
+separator = ":"
+lossy_replacement = "_"
+
+[store]
+root_dir = "pkg"
+
+file_mode = 0o644
+
+[trigger]
+file_name = "triggers"
+xattr = "user.upac.triggers"
+format_xattr = "user.upac.format"
+separator = " "
+line_separator = "\n"
+
+[transaction]
+dir = "upac-tx"
+separator = ":"
+subject_xattr = "user.upac.tx.subject"
+message_xattr = "user.upac.tx.message"

@@ -5,7 +5,7 @@
 
 [package]
 name = "upac-lib-database"
-description = "upac's embedded redb package database: package meta, file ownership and declarative trigger stores"
+description = "upac's package database inside the system image: /pkg node ids, package triggers and the transaction log"
 version.workspace = true
 
 edition.workspace = true
@@ -29,16 +29,10 @@ workspace = true
 name = "upac_database"
 
 [dependencies]
-upac-lib-types = { workspace = true }
-upac-lib-abi   = { workspace = true }
+upac-lib-composefs = { workspace = true }
+upac-lib-types     = { workspace = true }
 
-uuid  = { workspace = true }
-serde = { workspace = true }
-
-redb     = { version = "4.1.0", features = ["uuid"] }
-postcard = { version = "1.1", features = ["alloc"] }
-
-twox-hash = "2.1.3"
+composefs = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }
