@@ -1,14 +1,14 @@
-# Zig
-.zig-cache/
-zig-pkg
-zig-out/
-
 # Rust
 target/
 release/
 Cargo.lock
 .rustc_info.json
 
+# Ai
 Agents
 AGENTS.md
 .claude
+
+#VsCode
+.vscode/
+*.code-workspace
