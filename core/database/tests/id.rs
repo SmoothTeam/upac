@@ -3,9 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::BTreeMap;
-use std::ffi::OsStr;
-
 use composefs::fsverity::compute_verity;
 use composefs::generic_tree::Stat;
 
@@ -48,20 +45,6 @@ fn the_same_content_with_other_permissions_is_another_entry() {
 
     assert_ne!(readable, executable);
     assert_eq!(readable.content(), executable.content());
-}
-
-#[test]
-fn the_entry_xattr_does_not_change_the_id() {
-    let mut with_entry = stat(0o644);
-    with_entry.xattrs = BTreeMap::from([(
-        OsStr::new("user.upac.entry").into(),
-        b"0 /usr/bin/tool".to_vec().into_boxed_slice(),
-    )]);
-
-    assert_eq!(
-        PackageEntryId::new(PackageEntryKind::File, content(b"tool"), &with_entry),
-        PackageEntryId::new(PackageEntryKind::File, content(b"tool"), &stat(0o644))
-    );
 }
 
 #[test]

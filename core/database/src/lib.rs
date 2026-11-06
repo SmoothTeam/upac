@@ -15,9 +15,7 @@ use upac_composefs::ObjectID;
 use upac_types::package::PackageInfo;
 
 use self::error::DatabaseError;
-use self::layout::entry::{
-    DIR_PREFIX, FILE_PREFIX, PERMISSION_MASK, SEPARATOR as ENTRY_SEPARATOR, SYMLINK_PREFIX, XATTR as ENTRY_XATTR,
-};
+use self::layout::entry::{DIR_PREFIX, FILE_PREFIX, PERMISSION_MASK, SEPARATOR as ENTRY_SEPARATOR, SYMLINK_PREFIX};
 use self::layout::package::{LOSSY_REPLACEMENT, SEPARATOR as PACKAGE_SEPARATOR};
 
 pub mod error;
@@ -130,10 +128,6 @@ impl PackageEntryId {
         serialized.extend_from_slice(&stat.st_gid.to_le_bytes());
 
         for (name, value) in &stat.xattrs {
-            if name.as_bytes() == ENTRY_XATTR.as_bytes() {
-                continue;
-            }
-
             serialized.extend_from_slice(&(name.len() as u64).to_le_bytes());
             serialized.extend_from_slice(name.as_bytes());
             serialized.extend_from_slice(&(value.len() as u64).to_le_bytes());
