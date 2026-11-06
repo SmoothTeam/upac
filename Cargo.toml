@@ -9,20 +9,20 @@ members = [
     "core/pki",
     "core/types",
     "core/locale",
-    "core/orchestrator",
     "core/composefs",
     "core/database",
     "core/deploy",
     "core/hooks",
-    "core/booter/booter-loader",
-    "core/decoder/decoder-loader",
-    "core/decoder/decoder-kit",
+    "lib/orchestrator",
     "lib/lib",
     "lib/setup",
+    "booter/booter-loader",
     "booter/uki",
     "booter/systemd-boot",
     "booter/grub",
     "booter/refind",
+    "decoder/decoder-loader",
+    "decoder/decoder-kit",
     "decoder/alpm",
     "decoder/deb",
     "decoder/rpm",
@@ -57,14 +57,14 @@ upac-lib-macro          = { path = "core/macro" }
 upac-lib-types          = { path = "core/types" }
 upac-lib-abi            = { path = "core/abi" }
 upac-lib-locale         = { path = "core/locale" }
-upac-lib-orchestrator   = { path = "core/orchestrator" }
+upac-lib-orchestrator   = { path = "lib/orchestrator" }
 upac-lib-composefs      = { path = "core/composefs" }
 upac-lib-database       = { path = "core/database" }
 upac-lib-deploy         = { path = "core/deploy" }
-upac-lib-decoder-loader = { path = "core/decoder/decoder-loader", default-features = false }
-upac-lib-decoder-kit    = { path = "core/decoder/decoder-kit" }
+upac-lib-decoder-loader = { path = "decoder/decoder-loader", default-features = false }
+upac-lib-decoder-kit    = { path = "decoder/decoder-kit" }
 upac-lib-hooks          = { path = "core/hooks" }
-upac-lib-booter-loader  = { path = "core/booter/booter-loader", default-features = false }
+upac-lib-booter-loader  = { path = "booter/booter-loader", default-features = false }
 
 upac-lib = { path = "lib/lib", default-features = false }
 upac-lib-setup    = { path = "lib/setup" }
