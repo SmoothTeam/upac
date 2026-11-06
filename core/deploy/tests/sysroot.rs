@@ -3,31 +3,22 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::{File, create_dir_all, read, write};
-use std::path::Path;
+use std::fs::create_dir_all;
 
-use composefs::generic_tree::Stat;
 use composefs::repository::{Repository, RepositoryConfig};
 
 use nix::fcntl::AT_FDCWD;
 
 use tempfile::TempDir;
 
-use upac_types::transaction::{Transaction, TransactionKind};
-
 use upac_composefs::{Digest, ObjectID};
 
-use upac_database::MemoryDatabase;
-use upac_database::layout::database::DATABASE_PATH;
-use upac_database::transaction::TransactionStoreMut;
-
 use upac_deploy::Sysroot;
-use upac_deploy::deployment::config::ConfigDeploy;
-use upac_deploy::deployment::{Deployment, PrefixDeploy};
-use upac_deploy::error::{PrefixCreateError, PrefixMetaError, PrefixReadError, SysrootError};
-use upac_deploy::layout::deployment::{CONFIG_DIR_NAME, DEPLOYS_DIR, LIVE_ETC_UPPER_DIR_NAME, REPO_DIR};
+use upac_deploy::deployment::SystemDeploy;
+use upac_deploy::error::{DeployError, SysrootError};
+use upac_deploy::layout::deployment::{DEPLOYS_DIR, REPO_DIR};
 
-fn scratch_root() -> TempDir {
+fn scratch_sysroot() -> (TempDir, Sysroot) {
     let scratch = TempDir::new().unwrap();
 
     create_dir_all(scratch.path().join(DEPLOYS_DIR)).unwrap();
@@ -38,45 +29,13 @@ fn scratch_root() -> TempDir {
     )
     .unwrap();
 
-    scratch
+    let sysroot = Sysroot::open(scratch.path()).unwrap();
+
+    (scratch, sysroot)
 }
 
 fn digest(seed: u8) -> Digest {
     Digest::from_hex(&format!("{seed:02x}").repeat(32)).unwrap()
-}
-
-fn transaction() -> Transaction {
-    Transaction::new(None, TransactionKind::Install, "install foo".to_owned(), None)
-}
-
-fn commit_prefix_tree(sysroot: &Sysroot, scratch: &Path, transaction: Option<&Transaction>) -> Digest {
-    let mut database = MemoryDatabase::new_in_memory().unwrap();
-    if let Some(transaction) = transaction {
-        database.set_transaction(transaction).unwrap();
-    }
-
-    let database_path = scratch.join("packages.redb");
-    write(&database_path, database.into_bytes().unwrap()).unwrap();
-
-    let mut tree = sysroot.repo().empty_tree();
-    tree.insert_dir("share", Stat::uninitialized()).unwrap();
-    tree.insert_dir("share/upac", Stat::uninitialized()).unwrap();
-    tree.insert_file(
-        DATABASE_PATH,
-        &File::open(&database_path).unwrap(),
-        Stat::uninitialized(),
-    )
-    .unwrap();
-
-    tree.commit().unwrap()
-}
-
-fn new_prefix(sysroot: &Sysroot, scratch: &Path) -> PrefixDeploy {
-    let transaction = transaction();
-    let prefix_digest = commit_prefix_tree(sysroot, scratch, Some(&transaction));
-    let config = ConfigDeploy::new(digest(11), "install".to_owned(), None);
-
-    PrefixDeploy::new(prefix_digest, transaction, config)
 }
 
 #[test]
@@ -100,189 +59,51 @@ fn opening_fails_when_the_repository_dir_is_missing() {
 }
 
 #[test]
-fn a_created_prefix_reads_back_with_its_transaction_and_state() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let prefix = new_prefix(&sysroot, scratch.path());
+fn list_yields_every_deploy_and_skips_the_current_link() {
+    let (_scratch, sysroot) = scratch_sysroot();
+    let first = SystemDeploy::create(&sysroot, digest(1)).unwrap();
+    SystemDeploy::create(&sysroot, digest(2)).unwrap();
+    sysroot.set_current(&first).unwrap();
 
-    sysroot.create_prefix(&prefix).unwrap();
+    let mut digests: Vec<Digest> = sysroot
+        .list()
+        .unwrap()
+        .map(|deploy| deploy.unwrap().digest().clone())
+        .collect();
+    digests.sort_by_key(Digest::to_hex);
 
-    assert_eq!(sysroot.prefix(prefix.digest()), Ok(prefix));
+    assert_eq!(digests, vec![digest(1), digest(2)]);
 }
 
 #[test]
-fn creating_an_existing_prefix_fails() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let prefix = new_prefix(&sysroot, scratch.path());
+fn the_current_deploy_reads_back_what_was_set() {
+    let (_scratch, sysroot) = scratch_sysroot();
+    let first = SystemDeploy::create(&sysroot, digest(1)).unwrap();
+    let second = SystemDeploy::create(&sysroot, digest(2)).unwrap();
 
-    sysroot.create_prefix(&prefix).unwrap();
+    sysroot.set_current(&first).unwrap();
+    sysroot.set_current(&second).unwrap();
+
+    assert_eq!(sysroot.current().unwrap(), second);
+}
+
+#[test]
+fn the_current_deploy_is_missing_until_it_is_set() {
+    let (_scratch, sysroot) = scratch_sysroot();
+
+    assert_eq!(sysroot.current().err(), Some(SysrootError::PointerNotFound));
+}
+
+#[test]
+fn a_current_link_to_a_removed_deploy_fails() {
+    let (_scratch, sysroot) = scratch_sysroot();
+    let deploy = SystemDeploy::create(&sysroot, digest(1)).unwrap();
+    sysroot.set_current(&deploy).unwrap();
+
+    deploy.remove().unwrap();
 
     assert_eq!(
-        sysroot.create_prefix(&prefix),
-        Err(PrefixCreateError::AlreadyExists(prefix.digest().clone()))
+        sysroot.current().err(),
+        Some(SysrootError::Deploy(DeployError::NotFound))
     );
-}
-
-#[test]
-fn saved_changes_are_read_back() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let mut prefix = new_prefix(&sysroot, scratch.path());
-    sysroot.create_prefix(&prefix).unwrap();
-
-    prefix.set_pinned(true);
-    prefix.add_config(ConfigDeploy::new(digest(12), "commit".to_owned(), None));
-    sysroot.save_prefix(&prefix).unwrap();
-
-    assert_eq!(sysroot.prefix(prefix.digest()), Ok(prefix));
-}
-
-#[test]
-fn identical_content_from_two_transactions_gives_two_prefixes() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-
-    let first = new_prefix(&sysroot, scratch.path());
-    let second = new_prefix(&sysroot, scratch.path());
-    sysroot.create_prefix(&first).unwrap();
-    sysroot.create_prefix(&second).unwrap();
-
-    assert_ne!(first.digest(), second.digest());
-    assert_eq!(sysroot.prefixes().unwrap().len(), 2);
-}
-
-#[test]
-fn removing_a_prefix_deletes_it_and_repeating_it_is_harmless() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let prefix = new_prefix(&sysroot, scratch.path());
-    sysroot.create_prefix(&prefix).unwrap();
-
-    sysroot.remove_prefix(prefix.digest()).unwrap();
-    sysroot.remove_prefix(prefix.digest()).unwrap();
-
-    assert!(sysroot.prefixes().unwrap().is_empty());
-}
-
-#[test]
-fn a_tree_without_a_transaction_cannot_be_read_as_a_prefix() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let tree_digest = commit_prefix_tree(&sysroot, scratch.path(), None);
-
-    assert_eq!(sysroot.prefix(&tree_digest), Err(PrefixReadError::TransactionMissing));
-}
-
-#[test]
-fn the_live_etc_upper_dir_lives_inside_the_prefix_dir() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-
-    let expected = scratch
-        .path()
-        .join(DEPLOYS_DIR)
-        .join(digest(1).to_hex())
-        .join(CONFIG_DIR_NAME)
-        .join(LIVE_ETC_UPPER_DIR_NAME);
-
-    assert_eq!(sysroot.live_etc_upper_dir(&digest(1)), expected);
-}
-
-#[test]
-fn the_next_prefix_reads_back_what_was_set() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let prefix = new_prefix(&sysroot, scratch.path());
-    sysroot.create_prefix(&prefix).unwrap();
-
-    sysroot.set_next_prefix(&prefix).unwrap();
-
-    assert_eq!(sysroot.next_prefix(), Ok(prefix));
-}
-
-#[test]
-fn the_next_prefix_is_missing_until_it_is_set() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-
-    assert_eq!(
-        sysroot.next_prefix(),
-        Err(PrefixReadError::Meta(PrefixMetaError::NotFound))
-    );
-}
-
-#[test]
-fn the_next_pointer_does_not_count_as_a_prefix() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let prefix = new_prefix(&sysroot, scratch.path());
-    sysroot.create_prefix(&prefix).unwrap();
-    sysroot.set_next_prefix(&prefix).unwrap();
-
-    assert_eq!(sysroot.prefixes().unwrap().len(), 1);
-}
-
-#[test]
-fn a_created_prefix_has_the_etc_dir_setup_root_expects() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let prefix = new_prefix(&sysroot, scratch.path());
-
-    sysroot.create_prefix(&prefix).unwrap();
-
-    let etc_dir = scratch
-        .path()
-        .join(DEPLOYS_DIR)
-        .join(prefix.digest().to_hex())
-        .join(CONFIG_DIR_NAME);
-    assert!(etc_dir.is_dir());
-}
-
-#[test]
-fn live_etc_changes_are_detected_only_when_the_upper_dir_has_entries() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let upper_dir = sysroot.live_etc_upper_dir(&digest(1));
-
-    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
-
-    create_dir_all(&upper_dir).unwrap();
-    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
-
-    write(upper_dir.join("hostname"), b"edited").unwrap();
-    assert!(sysroot.is_live_etc_modified(&digest(1)).unwrap());
-}
-
-#[test]
-fn set_aside_live_etc_changes_come_back_on_restore() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let upper_dir = sysroot.live_etc_upper_dir(&digest(1));
-    create_dir_all(&upper_dir).unwrap();
-    write(upper_dir.join("hostname"), b"edited").unwrap();
-
-    let set_aside = sysroot.set_aside_live_etc(&digest(1)).unwrap();
-    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
-
-    set_aside.restore().unwrap();
-    assert_eq!(read(upper_dir.join("hostname")).unwrap(), b"edited");
-}
-
-#[test]
-fn discarded_live_etc_changes_are_gone_and_a_leftover_does_not_block_the_next_set_aside() {
-    let scratch = scratch_root();
-    let sysroot = Sysroot::open(scratch.path()).unwrap();
-    let upper_dir = sysroot.live_etc_upper_dir(&digest(1));
-    create_dir_all(&upper_dir).unwrap();
-    write(upper_dir.join("hostname"), b"first").unwrap();
-
-    let leftover = sysroot.set_aside_live_etc(&digest(1)).unwrap();
-    drop(leftover);
-
-    write(upper_dir.join("hostname"), b"second").unwrap();
-    sysroot.set_aside_live_etc(&digest(1)).unwrap().discard().unwrap();
-
-    assert!(upper_dir.is_dir());
-    assert!(!sysroot.is_live_etc_modified(&digest(1)).unwrap());
 }

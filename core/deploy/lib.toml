@@ -3,80 +3,26 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-# Names of the well-known directories on the deployment partition (deploy
-# records + composefs repo, see doc §3). Changing a name means existing
-# installs stop finding their deploys/repo on upgrade.
-#
-# next_prefix_filename is the JSON file inside deploys_dir naming the prefix
-# deploy that boots next; `up` writes it together with the boot entry and
-# builds every new prefix on top of it. running_prefix_path is the plain-text
-# file (just the digest) upac's setup-root writes at boot naming the prefix it
-# actually mounted; it lives in /run, so it only ever describes the current boot.
-#
-# prefix_meta_filename is the file inside a prefix deploy's directory that
-# holds its mutable state: pinned, its own config deploys and the current one.
-# config_dir_name is fixed relative to a single prefix deploy directory
-# (`state/deploy/<usr-digest>/`, doc §3) — its `upper`/`work` children are the
-# live overlayfs upper/work layers for that usr-digest's `/etc`, matching
-# `composefs-setup-root`'s own hardcoded layout expectation (upstream, not
-# something we get to pick freely). discarded_etc_upper_dir_name is where unsaved /etc changes are
-# set aside while a rollback that discards them runs, so a failed rollback can put them back.
-#
-# sysroot_root_mode is the permission set of the physical root partition's top directory: only root
+# sysroot_root_mode is the permission set of the physical partition's top directory: only root
 # may look into the deploys and the repository it holds.
 [deployment]
 root_dir = "/"
-deploys_dir = "state/deploy"
+deploys_dir = "deploy"
 repo_dir = "composefs"
-sysroot_dir = "sysroot"
-prefix_meta_filename = "meta.json"
-next_prefix_filename = "next.json"
-running_prefix_path = "/run/upac/running"
-config_dir_name = "etc"
-discarded_etc_upper_dir_name = "upper.discarded"
-live_etc_upper_dir_name = "upper"
+sysroot_dir = "state"
+current_link = "current"
+current_link_staging = "current.new"
+config_dir = "config"
+upper_dir = "upper"
+work_dir = "work"
+history_dir = "history"
+pinned_file = "pinned"
 
 sysroot_root_mode = 0o700
 
-# system_prefix_dir/system_config_dir are where the prefix image and the config image are mounted
-# on the booted system, relative to its root. A package lays its files out under the same paths,
-# so a package's usr/ is imported into the root of the prefix image and its etc/ into defaults_dir.
-# defaults_dir is where, inside the prefix image, the packages' pristine /etc lives: the base and
-# the new side of the three-way /etc merge, rolled back together with the prefix.
-[prefix]
-system_prefix_dir = "usr"
-system_config_dir = "etc"
-defaults_dir = "etc"
-
-# The fixed UKI slots (§5.2/§5.3), each with its own UEFI Boot#### entry the UKI booter registers once
-# on install — a content-addressed name would need a new NVRAM entry every time. upac_uki_to_slot
-# (`\EFI\Linux\upac-to.efi`) is the image to boot next: `write_boot_entry` builds the new UKI into a
-# staging file next to it and renames it over, so a crash mid-write never leaves it truncated.
-# upac_uki_from_slot is the last image that booted fine, kept by the booter as the fallback entry
-# (seeded on install, promoted from upac-to on a confirmed boot). BLS-style images
-# (systemd-boot/grub/refind) use the prefix_digest itself as the entry name instead —
-# content-addressed, no staging needed, since those loaders rescan their entries directory fresh
-# every boot.
-#
-# esp_mount_primary/esp_mount_fallback are where the ESP is looked for, tried in that order
-# against the running system's mount table — chapter 3 documents the ESP as mounted at either.
-#
-# kernel_arguments are added after composefs=<digest> to every BLS boot entry (whitespace-separated).
-# rw is required: the initramfs mounts the root partition read-only otherwise, and setting up the
-# deploy's /etc overlay has to create its upper/work directories there. A UKI carries its command
-# line inside the image, so nothing can be added to it here.
-#
-# A UKI is never stored in a prefix image: its command line has to carry that image's own digest. It is
-# built when the boot entry is written, from the image's kernel and initramfs, by ukify_bin, and lands
-# in efi_linux_dir on the ESP (the directory composefs-boot and the UKI booter expect it in).
-[boot]
-efi_linux_dir = "EFI/Linux"
-kernel_arguments = "rw"
-ukify_bin = "ukify"
-upac_uki_to_slot = "upac-to"
-upac_uki_from_slot = "upac-from"
-esp_mount_primary = "/efi"
-esp_mount_fallback = "/boot"
-
 [fs]
 new_file_mode = 0o644
+
+[snapshot]
+digest_xattr = "user.upac.snapshot.digest"
+message_xattr = "user.upac.snapshot.message"

@@ -5,15 +5,13 @@
 
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
-use anyhow::anyhow;
-
 use nix::errno::Errno;
 
 use procfs::ProcError;
 
 use upac_composefs::error::RepoError;
 
-use upac_deploy::error::{BootEntryError, EspError, SysrootError};
+use upac_deploy::error::{DeployError, SysrootError};
 
 use upac_types::error::ErrorKind;
 
@@ -44,6 +42,13 @@ fn every_variant_maps_to_the_documented_error_kind() {
         (SysrootError::SysrootDirUnavailable, ErrorKind::NotFound),
         (SysrootError::DeploysDirNotFound, ErrorKind::NotFound),
         (SysrootError::RepoDirNotFound, ErrorKind::NotFound),
+        (SysrootError::InvalidDeploy, ErrorKind::InvalidEntry),
+        (SysrootError::PointerNotFound, ErrorKind::NotFound),
+        (SysrootError::InvalidPointer, ErrorKind::InvalidEntry),
+        (
+            SysrootError::Deploy(DeployError::AlreadyExists),
+            ErrorKind::AlreadyExists,
+        ),
         (SysrootError::Repository(RepoError::NotFound), ErrorKind::NotFound),
         (SysrootError::System(Errno::EIO), ErrorKind::Unexpected),
     ];
@@ -51,38 +56,4 @@ fn every_variant_maps_to_the_documented_error_kind() {
     for (error, expected) in cases {
         assert_eq!(ErrorKind::from(error), expected);
     }
-}
-
-#[test]
-fn every_boot_entry_variant_maps_to_the_documented_error_kind() {
-    let cases = [
-        (BootEntryError::NoBootResource, ErrorKind::NotFound),
-        (BootEntryError::AmbiguousBootResource, ErrorKind::InvalidEntry),
-        (BootEntryError::UnsupportedBootResource, ErrorKind::InvalidEntry),
-        (BootEntryError::Repository(RepoError::NotFound), ErrorKind::NotFound),
-        (BootEntryError::Unexpected, ErrorKind::Unexpected),
-    ];
-
-    for (error, expected) in cases {
-        assert_eq!(ErrorKind::from(error), expected);
-    }
-}
-
-#[test]
-fn an_anyhow_error_from_composefs_boot_maps_to_unexpected() {
-    assert_eq!(BootEntryError::from(anyhow!("boom")), BootEntryError::Unexpected);
-}
-
-#[test]
-fn esp_errors_map_to_the_documented_error_kind() {
-    assert_eq!(ErrorKind::from(EspError::MountInfoUnavailable), ErrorKind::Unexpected);
-    assert_eq!(ErrorKind::from(EspError::NotFound), ErrorKind::NotFound);
-}
-
-#[test]
-fn a_proc_error_while_looking_for_the_esp_maps_to_mount_info_unavailable() {
-    assert_eq!(
-        EspError::from(ProcError::NotFound(None)),
-        EspError::MountInfoUnavailable
-    );
 }
