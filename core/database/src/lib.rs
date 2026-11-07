@@ -10,9 +10,11 @@ use std::str::FromStr;
 
 use composefs::fsverity::{FsVerityHashValue, compute_verity};
 use composefs::generic_tree::{LeafContent, Stat};
-use composefs::tree::RegularFile;
+use composefs::tree::{Inode, RegularFile};
 
 use upac_composefs::ObjectID;
+use upac_composefs::error::RepoError;
+use upac_composefs::tree::view::TreeView;
 
 use upac_types::package::PackageInfo;
 
@@ -62,17 +64,22 @@ pub struct PackageId(String);
 
 impl PackageId {
     pub fn new(info: &PackageInfo) -> Self {
-        fn lossy(component: &str) -> String {
+        fn sanitize_component(component: &str) -> String {
             component
                 .replace(['/', '\0'], LOSSY_REPLACEMENT)
                 .replace(PACKAGE_SEPARATOR, LOSSY_REPLACEMENT)
         }
 
-        let mut directory_name = format!("{}{}{}", lossy(&info.name), PACKAGE_SEPARATOR, lossy(&info.arch));
+        let mut directory_name = format!(
+            "{}{}{}",
+            sanitize_component(&info.name),
+            PACKAGE_SEPARATOR,
+            sanitize_component(&info.arch)
+        );
 
         if let Some(arch_sub) = &info.arch_sub {
             directory_name.push_str(PACKAGE_SEPARATOR);
-            directory_name.push_str(&lossy(arch_sub));
+            directory_name.push_str(&sanitize_component(arch_sub));
         }
 
         Self(directory_name)
@@ -108,7 +115,7 @@ pub struct PackageEntryId {
 
 impl PackageEntryId {
     pub fn new(kind: PackageEntryKind, content: ObjectID, stat: &Stat, place: &Path) -> Self {
-        fn metadata_hash(stat: &Stat, place: &Path) -> ObjectID {
+        fn hash_metadata(stat: &Stat, place: &Path) -> ObjectID {
             let place = place.as_os_str().as_bytes();
 
             let mut serialized = Vec::new();
@@ -131,7 +138,7 @@ impl PackageEntryId {
         Self {
             kind,
             content,
-            metadata: metadata_hash(stat, place),
+            metadata: hash_metadata(stat, place),
         }
     }
 
@@ -139,7 +146,9 @@ impl PackageEntryId {
         content: &LeafContent<RegularFile<ObjectID>>, stat: &Stat, place: &Path,
     ) -> Result<Self, DatabaseError> {
         let (kind, content) = match content {
-            LeafContent::Regular(RegularFile::External(object, _)) => (PackageEntryKind::File, object.clone()),
+            LeafContent::Regular(RegularFile::External(object, _) | RegularFile::ExternalNoVerity(object, _)) => {
+                (PackageEntryKind::File, object.clone())
+            }
             LeafContent::Regular(RegularFile::Inline(bytes)) => (PackageEntryKind::File, compute_verity(bytes)),
             LeafContent::Symlink(target) => (PackageEntryKind::Symlink, compute_verity(target.as_bytes())),
             _ => return Err(DatabaseError::UnsupportedEntry),
@@ -157,12 +166,34 @@ impl PackageEntryId {
         )
     }
 
+    pub fn from_place(view: TreeView<'_>, place: &Path) -> Result<Option<Self>, DatabaseError> {
+        if !view.check(place) {
+            return Ok(None);
+        }
+
+        let filesystem = view.filesystem();
+        let (parent, name) = filesystem.root.split(place.as_os_str()).map_err(RepoError::from)?;
+
+        match parent.lookup(name).ok_or(RepoError::NotFound)? {
+            Inode::Directory(directory) => Ok(Some(Self::from_directory(&directory.stat, place))),
+            Inode::Leaf(leaf_id, _) => {
+                let leaf = filesystem.leaf(*leaf_id);
+
+                Self::from_leaf(&leaf.content, &leaf.stat, place).map(Some)
+            }
+        }
+    }
+
     pub fn kind(&self) -> PackageEntryKind {
         self.kind
     }
 
     pub fn content(&self) -> &ObjectID {
         &self.content
+    }
+
+    pub fn metadata(&self) -> &ObjectID {
+        &self.metadata
     }
 }
 

@@ -8,11 +8,12 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
-use composefs::generic_tree::{LeafContent, Stat};
+use composefs::generic_tree::{LeafContent, LeafId, Stat};
 use composefs::tree::RegularFile;
 
-use upac_composefs::tree::Tree;
+use upac_composefs::error::RepoError;
 use upac_composefs::tree::builder::TreeBuilder;
+use upac_composefs::tree::view::TreeView;
 
 use upac_types::decoder::{PackageTrigger, PackageTriggers};
 
@@ -26,9 +27,13 @@ pub struct PackageStore<TreeAccess> {
     tree: TreeAccess,
 }
 
-impl<'tree> PackageStore<&'tree Tree> {
-    pub fn read(tree: &'tree Tree) -> Self {
+impl<'tree> PackageStore<TreeView<'tree>> {
+    pub fn read(tree: TreeView<'tree>) -> Self {
         Self { tree }
+    }
+
+    pub fn contains(&self, package: &PackageId) -> bool {
+        self.tree.check(PathBuf::from(ROOT_DIR).join(package.to_string()))
     }
 
     pub fn list(&self) -> Result<Vec<PackageId>, DatabaseError> {
@@ -53,6 +58,37 @@ impl<'tree> PackageStore<&'tree Tree> {
             .collect()
     }
 
+    pub fn entry_leaf(&self, package: &PackageId, entry: &PackageEntryId) -> Result<LeafId, DatabaseError> {
+        if entry.kind() == PackageEntryKind::Dir {
+            return Err(DatabaseError::EntryKindMismatch);
+        }
+
+        let path = Self::entry_path(package, entry);
+        let (parent, name) = self
+            .tree
+            .filesystem()
+            .root
+            .split(path.as_os_str())
+            .map_err(RepoError::from)?;
+
+        Ok(parent.leaf_id(name).map_err(RepoError::from)?)
+    }
+
+    pub fn entry_directory(&self, package: &PackageId, entry: &PackageEntryId) -> Result<PathBuf, DatabaseError> {
+        if entry.kind() != PackageEntryKind::Dir {
+            return Err(DatabaseError::EntryKindMismatch);
+        }
+
+        let LeafContent::Symlink(target) = self.tree.get(Self::entry_path(package, entry))? else {
+            return Err(DatabaseError::InvalidEntryId);
+        };
+
+        Path::new(&target)
+            .strip_prefix(LINK_ROOT)
+            .map(Path::to_path_buf)
+            .map_err(|_| DatabaseError::InvalidEntryId)
+    }
+
     pub fn triggers(&self, package: &PackageId) -> Result<Option<PackageTriggers>, DatabaseError> {
         let path = PathBuf::from(ROOT_DIR).join(package.to_string()).join(FILE_NAME);
 
@@ -66,7 +102,7 @@ impl<'tree> PackageStore<&'tree Tree> {
             .xattr_text(stat, XATTR)?
             .split(LINE_SEPARATOR)
             .filter(|line| !line.is_empty())
-            .map(|line| self.trigger_parse(line))
+            .map(|line| self.parse_trigger(line))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Some(PackageTriggers {
@@ -97,9 +133,7 @@ impl<'tree> PackageStore<&'tree mut TreeBuilder> {
     }
 
     pub fn insert(&mut self, package: &PackageId, entry: &PackageEntryId, place: &Path) -> Result<(), DatabaseError> {
-        let path = PathBuf::from(ROOT_DIR)
-            .join(package.to_string())
-            .join(entry.to_string());
+        let path = Self::entry_path(package, entry);
 
         match entry.kind() {
             PackageEntryKind::File | PackageEntryKind::Symlink => self.tree.insert_hard_link(path, place)?,
@@ -153,16 +187,19 @@ impl<'tree> PackageStore<&'tree mut TreeBuilder> {
     fn stat(mode: u32, xattrs: BTreeMap<Box<OsStr>, Box<[u8]>>) -> Stat {
         Stat {
             st_mode: mode,
-            st_uid: 0,
-            st_gid: 0,
-            st_mtim_sec: 0,
-            st_mtim_nsec: 0,
             xattrs,
+            ..Stat::uninitialized()
         }
     }
 }
 
 impl<TreeAccess> PackageStore<TreeAccess> {
+    fn entry_path(package: &PackageId, entry: &PackageEntryId) -> PathBuf {
+        PathBuf::from(ROOT_DIR)
+            .join(package.to_string())
+            .join(entry.to_string())
+    }
+
     fn xattr_text<'stat>(&self, stat: &'stat Stat, name: &str) -> Result<&'stat str, DatabaseError> {
         let value = stat
             .xattrs
@@ -172,7 +209,7 @@ impl<TreeAccess> PackageStore<TreeAccess> {
         from_utf8(value).map_err(|_| DatabaseError::InvalidTriggers)
     }
 
-    fn trigger_parse(&self, line: &str) -> Result<PackageTrigger, DatabaseError> {
+    fn parse_trigger(&self, line: &str) -> Result<PackageTrigger, DatabaseError> {
         let (position, name) = line.split_once(SEPARATOR).ok_or(DatabaseError::InvalidTriggers)?;
 
         Ok(PackageTrigger {

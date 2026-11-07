@@ -11,8 +11,8 @@ use std::str::from_utf8;
 use composefs::generic_tree::{LeafContent, Stat};
 use composefs::tree::RegularFile;
 
-use upac_composefs::tree::Tree;
 use upac_composefs::tree::builder::TreeBuilder;
+use upac_composefs::tree::view::TreeView;
 
 use upac_types::transaction::Transaction;
 
@@ -24,8 +24,8 @@ pub struct TransactionStore<TreeAccess> {
     tree: TreeAccess,
 }
 
-impl<'tree> TransactionStore<&'tree Tree> {
-    pub fn read(tree: &'tree Tree) -> Self {
+impl<'tree> TransactionStore<TreeView<'tree>> {
+    pub fn read(tree: TreeView<'tree>) -> Self {
         Self { tree }
     }
 
@@ -40,7 +40,7 @@ impl<'tree> TransactionStore<&'tree Tree> {
         for record_name in self.tree.list(&directory)? {
             let stat = self.tree.get_metadata(directory.join(record_name))?;
 
-            transactions.push(self.transaction_parse(record_name, stat)?);
+            transactions.push(self.parse_transaction(record_name, stat)?);
         }
         transactions.sort_by_key(|transaction| transaction.timestamp);
 
@@ -56,11 +56,7 @@ impl<'tree> TransactionStore<&'tree mut TreeBuilder> {
     pub fn init(&mut self) -> Result<(), DatabaseError> {
         let stat = Stat {
             st_mode: DIR_MODE,
-            st_uid: 0,
-            st_gid: 0,
-            st_mtim_sec: 0,
-            st_mtim_nsec: 0,
-            xattrs: BTreeMap::new(),
+            ..Stat::uninitialized()
         };
 
         self.tree.insert_dir(PathBuf::from(ROOT_DIR).join(DIR), stat)?;
@@ -77,11 +73,8 @@ impl<'tree> TransactionStore<&'tree mut TreeBuilder> {
 
         let stat = Stat {
             st_mode: FILE_MODE,
-            st_uid: 0,
-            st_gid: 0,
-            st_mtim_sec: 0,
-            st_mtim_nsec: 0,
             xattrs,
+            ..Stat::uninitialized()
         };
 
         let path = PathBuf::from(ROOT_DIR)
@@ -96,7 +89,7 @@ impl<'tree> TransactionStore<&'tree mut TreeBuilder> {
 }
 
 impl<TreeAccess> TransactionStore<TreeAccess> {
-    fn transaction_parse(&self, record_name: &OsStr, stat: &Stat) -> Result<Transaction, DatabaseError> {
+    fn parse_transaction(&self, record_name: &OsStr, stat: &Stat) -> Result<Transaction, DatabaseError> {
         let (timestamp, kind) = record_name
             .to_str()
             .and_then(|record_name| record_name.split_once(SEPARATOR))
