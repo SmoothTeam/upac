@@ -81,6 +81,12 @@ impl<'tree> PackageStore<&'tree mut TreeBuilder> {
         Self { tree: builder }
     }
 
+    pub fn init(&mut self) -> Result<(), DatabaseError> {
+        self.tree.insert_dir(ROOT_DIR, Self::stat(DIR_MODE, BTreeMap::new()))?;
+
+        Ok(())
+    }
+
     pub fn create(&mut self, package: &PackageId) -> Result<(), DatabaseError> {
         self.tree.insert_dir(
             PathBuf::from(ROOT_DIR).join(package.to_string()),

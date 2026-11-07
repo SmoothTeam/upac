@@ -5,18 +5,17 @@
 
 use std::ffi::OsStr;
 
-use composefs::generic_tree::Stat;
-
 use upac_composefs::tree::builder::TreeBuilder;
 
 use upac_types::transaction::{Transaction, TransactionKind};
 
+use upac_database::package::PackageStore;
 use upac_database::transaction::TransactionStore;
 
 fn builder_with_log() -> TreeBuilder {
     let mut builder = TreeBuilder::new();
-    builder.insert_dir("pkg", Stat::uninitialized()).unwrap();
-    builder.insert_dir("pkg/upac-tx", Stat::uninitialized()).unwrap();
+    PackageStore::write(&mut builder).init().unwrap();
+    TransactionStore::write(&mut builder).init().unwrap();
 
     builder
 }
@@ -82,6 +81,20 @@ fn a_tree_without_a_log_has_no_transactions() {
     let tree = TreeBuilder::new().commit();
 
     assert!(TransactionStore::read(&tree).list().unwrap().is_empty());
+}
+
+#[test]
+fn an_initialised_log_is_empty() {
+    let tree = builder_with_log().commit();
+
+    assert!(TransactionStore::read(&tree).list().unwrap().is_empty());
+}
+
+#[test]
+fn the_log_needs_the_package_root() {
+    let mut builder = TreeBuilder::new();
+
+    assert!(TransactionStore::write(&mut builder).init().is_err());
 }
 
 #[test]

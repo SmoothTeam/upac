@@ -17,7 +17,7 @@ use upac_composefs::tree::builder::TreeBuilder;
 use upac_types::transaction::Transaction;
 
 use super::error::DatabaseError;
-use super::layout::store::{FILE_MODE, ROOT_DIR};
+use super::layout::store::{DIR_MODE, FILE_MODE, ROOT_DIR};
 use super::layout::transaction::{DIR, MESSAGE_XATTR, SEPARATOR, SUBJECT_XATTR};
 
 pub struct TransactionStore<TreeAccess> {
@@ -51,6 +51,21 @@ impl<'tree> TransactionStore<&'tree Tree> {
 impl<'tree> TransactionStore<&'tree mut TreeBuilder> {
     pub fn write(builder: &'tree mut TreeBuilder) -> Self {
         Self { tree: builder }
+    }
+
+    pub fn init(&mut self) -> Result<(), DatabaseError> {
+        let stat = Stat {
+            st_mode: DIR_MODE,
+            st_uid: 0,
+            st_gid: 0,
+            st_mtim_sec: 0,
+            st_mtim_nsec: 0,
+            xattrs: BTreeMap::new(),
+        };
+
+        self.tree.insert_dir(PathBuf::from(ROOT_DIR).join(DIR), stat)?;
+
+        Ok(())
     }
 
     pub fn append(&mut self, transaction: &Transaction) -> Result<(), DatabaseError> {

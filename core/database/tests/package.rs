@@ -18,6 +18,7 @@ use upac_types::decoder::{PackageTrigger, PackageTriggers, TriggerPosition};
 use upac_types::package::PackageInfo;
 
 use upac_database::package::PackageStore;
+use upac_database::transaction::TransactionStore;
 use upac_database::{PackageEntryId, PackageEntryKind, PackageId};
 
 fn package(name: &str) -> PackageId {
@@ -37,8 +38,10 @@ fn file_stat() -> Stat {
 
 fn system_builder() -> TreeBuilder {
     let mut builder = TreeBuilder::new();
+    PackageStore::write(&mut builder).init().unwrap();
+    TransactionStore::write(&mut builder).init().unwrap();
 
-    for directory in ["pkg", "pkg/upac-tx", "cmp", "cmp/usr", "cmp/usr/bin", "cmp/usr/lib"] {
+    for directory in ["cmp", "cmp/usr", "cmp/usr/bin", "cmp/usr/lib"] {
         builder.insert_dir(directory, Stat::uninitialized()).unwrap();
     }
 
@@ -102,6 +105,13 @@ fn installed(entries: &[(PackageEntryId, &str)], package_triggers: Option<&Packa
     }
 
     builder.commit()
+}
+
+#[test]
+fn an_initialised_store_lists_no_packages() {
+    let tree = system_builder().commit();
+
+    assert!(PackageStore::read(&tree).list().unwrap().is_empty());
 }
 
 #[test]
