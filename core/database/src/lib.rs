@@ -5,6 +5,7 @@
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
 use std::str::FromStr;
 
 use composefs::fsverity::{FsVerityHashValue, compute_verity};
@@ -105,11 +106,11 @@ pub struct PackageEntryId {
 }
 
 impl PackageEntryId {
-    pub fn new(kind: PackageEntryKind, content: ObjectID, stat: &Stat) -> Self {
+    pub fn new(kind: PackageEntryKind, content: ObjectID, stat: &Stat, place: &Path) -> Self {
         Self {
             kind,
             content,
-            metadata: Self::metadata_hash(stat),
+            metadata: Self::metadata_hash(stat, place),
         }
     }
 
@@ -121,8 +122,12 @@ impl PackageEntryId {
         &self.content
     }
 
-    fn metadata_hash(stat: &Stat) -> ObjectID {
+    fn metadata_hash(stat: &Stat, place: &Path) -> ObjectID {
+        let place = place.as_os_str().as_bytes();
+
         let mut serialized = Vec::new();
+        serialized.extend_from_slice(&(place.len() as u64).to_le_bytes());
+        serialized.extend_from_slice(place);
         serialized.extend_from_slice(&(stat.st_mode & PERMISSION_MASK).to_le_bytes());
         serialized.extend_from_slice(&stat.st_uid.to_le_bytes());
         serialized.extend_from_slice(&stat.st_gid.to_le_bytes());

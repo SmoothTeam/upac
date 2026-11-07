@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::path::Path;
+
 use composefs::fsverity::compute_verity;
 use composefs::generic_tree::Stat;
 
@@ -33,18 +35,52 @@ fn package(name: &str, arch: &str, arch_sub: Option<&str>) -> PackageId {
 
 #[test]
 fn an_entry_id_reads_back_from_its_name() {
-    let id = PackageEntryId::new(PackageEntryKind::Symlink, content(b"target"), &stat(0o777));
+    let id = PackageEntryId::new(
+        PackageEntryKind::Symlink,
+        content(b"target"),
+        &stat(0o777),
+        Path::new("/cmp/usr/lib/link"),
+    );
 
     assert_eq!(id.to_string().parse::<PackageEntryId>().unwrap(), id);
 }
 
 #[test]
 fn the_same_content_with_other_permissions_is_another_entry() {
-    let readable = PackageEntryId::new(PackageEntryKind::File, content(b"same"), &stat(0o644));
-    let executable = PackageEntryId::new(PackageEntryKind::File, content(b"same"), &stat(0o755));
+    let place = Path::new("/cmp/usr/bin/tool");
+    let readable = PackageEntryId::new(PackageEntryKind::File, content(b"same"), &stat(0o644), place);
+    let executable = PackageEntryId::new(PackageEntryKind::File, content(b"same"), &stat(0o755), place);
 
     assert_ne!(readable, executable);
     assert_eq!(readable.content(), executable.content());
+}
+
+#[test]
+fn the_same_file_in_another_place_is_another_entry() {
+    let first = PackageEntryId::new(
+        PackageEntryKind::File,
+        content(b""),
+        &stat(0o644),
+        Path::new("/cmp/usr/lib/python3/a/__init__.py"),
+    );
+    let second = PackageEntryId::new(
+        PackageEntryKind::File,
+        content(b""),
+        &stat(0o644),
+        Path::new("/cmp/usr/lib/python3/b/__init__.py"),
+    );
+
+    assert_ne!(first, second);
+    assert_eq!(first.content(), second.content());
+}
+
+#[test]
+fn the_same_file_in_the_same_place_is_the_same_entry() {
+    let place = Path::new("/cmp/usr/share/doc/common/LICENSE");
+    let from_one_package = PackageEntryId::new(PackageEntryKind::File, content(b"license"), &stat(0o644), place);
+    let from_another_package = PackageEntryId::new(PackageEntryKind::File, content(b"license"), &stat(0o644), place);
+
+    assert_eq!(from_one_package, from_another_package);
 }
 
 #[test]
