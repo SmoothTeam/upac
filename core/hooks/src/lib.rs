@@ -22,10 +22,37 @@ mod primitive;
 pub mod builder;
 pub mod error;
 
+type MatchedHooks<'hooks> = BTreeMap<(Reverse<i32>, &'hooks str), &'hooks Hook>;
+
 #[derive(Debug)]
 pub struct Hooks {
     hooks: BTreeMap<String, Hook>,
     triggers: HashMap<String, HashMap<String, String>>,
+}
+
+impl Hooks {
+    fn matching(&self, position: TriggerPosition, packages: &[PackageTriggers]) -> MatchedHooks<'_> {
+        let mut matched = BTreeMap::new();
+
+        for package in packages {
+            let Some(table) = self.triggers.get(&package.format) else {
+                continue;
+            };
+
+            for trigger in package.triggers.iter().filter(|trigger| trigger.position == position) {
+                let Some((hook_name, hook)) = table
+                    .get(&trigger.name)
+                    .and_then(|hook_name| self.hooks.get_key_value(hook_name))
+                else {
+                    continue;
+                };
+
+                matched.insert((Reverse(hook.priority()), hook_name.as_str()), hook);
+            }
+        }
+
+        matched
+    }
 }
 
 #[derive(Debug, Default)]
@@ -42,25 +69,7 @@ impl HookExecution {
         &mut self, hooks: &Hooks, position: TriggerPosition, packages: &[PackageTriggers], root: BorrowedFd,
         cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
     ) -> Result<(), HookError> {
-        let mut matched = BTreeMap::new();
-
-        for package in packages {
-            let Some(table) = hooks.triggers.get(&package.format) else {
-                continue;
-            };
-
-            for trigger in package.triggers.iter().filter(|trigger| trigger.position == position) {
-                let Some((hook_name, hook)) = table
-                    .get(&trigger.name)
-                    .and_then(|hook_name| hooks.hooks.get_key_value(hook_name))
-                else {
-                    continue;
-                };
-
-                matched.insert((Reverse(hook.priority()), hook_name.as_str()), hook);
-            }
-        }
-
+        let matched = hooks.matching(position, packages);
         let total = matched.len() as u64;
 
         for (done, ((_, hook_name), hook)) in matched.into_iter().enumerate() {
