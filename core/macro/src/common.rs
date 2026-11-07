@@ -3,9 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! Consts and type-introspection helpers shared by more than one derive
-//! macro in this crate.
-
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
@@ -84,6 +81,10 @@ pub(crate) fn segment_name(ty: &Type) -> Option<String> {
 
 pub(crate) fn is_str_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(path) if path.path.is_ident("str"))
+}
+
+pub(crate) fn is_str_ref(ty: &Type) -> bool {
+    matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
 }
 
 pub(crate) struct FieldCondition {

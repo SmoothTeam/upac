@@ -3,31 +3,49 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! `#[derive(CTryToRust)]` — generates `impl TryFrom<&CRust> for Rust`,
-//! validating the C-ABI struct first and then converting it into a Rust
-//! domain type (fallible inbound direction).
-//!
-//! Two modes, picked automatically from the target struct's own generics:
-//!   no lifetime   -> owned mode: `String`/`Vec<String>`/`Option<String>` fields
-//!                    are copied out of the C-ABI buffers (`.to_owned()`), a
-//!                    `*mut T` field stays a raw pointer and passes through
-//!                    unchecked (e.g. `*mut c_void` hook contexts).
-//!   `Name<'a>`    -> borrowed mode: `&'a str`/`Vec<&'a str>`/`Option<&'a str>`
-//!                    fields borrow directly from the C-ABI buffers (no
-//!                    allocation at all), and a `&'a T` field is built by
-//!                    `T::from_ptr` from the matching raw pointer on the C side.
-//! Which mode applies is entirely driven by how each field is written on
-//! the Rust struct — nothing needs to be passed in by the caller.
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, TypeReference, parse_macro_input};
 
-use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_type, segment_name};
+use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_ref, is_str_type, segment_name};
 
-fn is_str_ref(ty: &Type) -> bool {
-    matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
+pub(crate) fn expand(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    let c_name = format_ident!("C{name}");
+    let lifetime = input.generics.lifetimes().next().map(|param| param.lifetime.clone());
+
+    let fields = match &input.data {
+        Data::Struct(s) => match &s.fields {
+            Fields::Named(named) => &named.named,
+            _ => {
+                return Error::new_spanned(name, "CTryToRust only supports structs with named fields")
+                    .to_compile_error()
+                    .into();
+            }
+        },
+        _ => {
+            return Error::new_spanned(name, "CTryToRust only supports structs")
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    let mut field_values = Vec::new();
+
+    for field in fields {
+        let Some(ident) = field.ident.as_ref() else {
+            return Error::new_spanned(field, "CTryToRust only supports named fields")
+                .to_compile_error()
+                .into();
+        };
+
+        let value = field_from_c_fallible(ident, &field.ty);
+        field_values.push(quote! { #ident: #value, });
+    }
+
+    try_from_impl(name, &c_name, lifetime.as_ref(), &field_values).into()
 }
 
 fn string_from_c(ident: &Ident) -> TokenStream2 {
@@ -182,42 +200,4 @@ fn try_from_impl(
             }
         },
     }
-}
-
-pub(crate) fn expand(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = &input.ident;
-    let c_name = format_ident!("C{name}");
-    let lifetime = input.generics.lifetimes().next().map(|param| param.lifetime.clone());
-
-    let fields = match &input.data {
-        Data::Struct(s) => match &s.fields {
-            Fields::Named(named) => &named.named,
-            _ => {
-                return Error::new_spanned(name, "CTryToRust only supports structs with named fields")
-                    .to_compile_error()
-                    .into();
-            }
-        },
-        _ => {
-            return Error::new_spanned(name, "CTryToRust only supports structs")
-                .to_compile_error()
-                .into();
-        }
-    };
-
-    let mut field_values = Vec::new();
-
-    for field in fields {
-        let Some(ident) = field.ident.as_ref() else {
-            return Error::new_spanned(field, "CTryToRust only supports named fields")
-                .to_compile_error()
-                .into();
-        };
-
-        let value = field_from_c_fallible(ident, &field.ty);
-        field_values.push(quote! { #ident: #value, });
-    }
-
-    try_from_impl(name, &c_name, lifetime.as_ref(), &field_values).into()
 }

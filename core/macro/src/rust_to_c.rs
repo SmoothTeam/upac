@@ -3,22 +3,49 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! `#[derive(RustToC)]` — generates `impl From<Rust> for CRust`, converting
-//! a Rust domain type into its C-ABI mirror (outbound direction). Both
-//! `String` and `&str` fields (and `Vec`/`Option` of either) are supported —
-//! a borrowed `&'a str` still copies into an owned `CSlice` here, since the
-//! C side always needs its own buffer regardless of whether the Rust source
-//! owned its string or just borrowed it for the duration of the call.
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, parse_macro_input};
 
-use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_type, segment_name};
+use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_ref, is_str_type, segment_name};
 
-fn is_str_ref(ty: &Type) -> bool {
-    matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
+pub(crate) fn expand(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    let c_name = format_ident!("C{name}");
+    let lifetime = input.generics.lifetimes().next().map(|param| param.lifetime.clone());
+
+    let fields = match &input.data {
+        Data::Struct(s) => match &s.fields {
+            Fields::Named(named) => &named.named,
+            _ => {
+                return Error::new_spanned(name, "RustToC only supports structs with named fields")
+                    .to_compile_error()
+                    .into();
+            }
+        },
+        _ => {
+            return Error::new_spanned(name, "RustToC only supports structs")
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    let mut field_values = Vec::new();
+
+    for field in fields {
+        let Some(ident) = field.ident.as_ref() else {
+            return Error::new_spanned(field, "RustToC only supports named fields")
+                .to_compile_error()
+                .into();
+        };
+
+        let value = field_to_c(ident, &field.ty);
+        field_values.push(quote! { #ident: #value, });
+    }
+
+    to_c_impl(name, &c_name, lifetime.as_ref(), &field_values).into()
 }
 
 fn string_to_c(ident: &Ident) -> TokenStream2 {
@@ -132,42 +159,4 @@ fn to_c_impl(name: &Ident, c_name: &Ident, lifetime: Option<&Lifetime>, field_va
             }
         },
     }
-}
-
-pub(crate) fn expand(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = &input.ident;
-    let c_name = format_ident!("C{name}");
-    let lifetime = input.generics.lifetimes().next().map(|param| param.lifetime.clone());
-
-    let fields = match &input.data {
-        Data::Struct(s) => match &s.fields {
-            Fields::Named(named) => &named.named,
-            _ => {
-                return Error::new_spanned(name, "RustToC only supports structs with named fields")
-                    .to_compile_error()
-                    .into();
-            }
-        },
-        _ => {
-            return Error::new_spanned(name, "RustToC only supports structs")
-                .to_compile_error()
-                .into();
-        }
-    };
-
-    let mut field_values = Vec::new();
-
-    for field in fields {
-        let Some(ident) = field.ident.as_ref() else {
-            return Error::new_spanned(field, "RustToC only supports named fields")
-                .to_compile_error()
-                .into();
-        };
-
-        let value = field_to_c(ident, &field.ty);
-        field_values.push(quote! { #ident: #value, });
-    }
-
-    to_c_impl(name, &c_name, lifetime.as_ref(), &field_values).into()
 }

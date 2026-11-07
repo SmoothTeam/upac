@@ -3,12 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! `#[stage]` — on an `impl Stage<E> for …` block, reads the `run` body and generates
-//! `requires()` from every `context.get::<T>()`/`context.take::<T>()` and `provides()` from every
-//! `context.put(…)`, `context.replace(…)` and `context.push(…)` (a pushed `T` provides `Vec<T>`), so the orchestrator can
-//! validate a pipeline's context slots before running it. `context` may only be used through those
-//! calls inside `run`, and one slot type may only be put once; overwriting on purpose is `replace`.
-
 use std::collections::HashMap;
 
 use proc_macro::TokenStream;
@@ -234,31 +228,6 @@ impl<'ast> Visit<'ast> for ContextAccess {
     }
 }
 
-fn deduplicated(types: Vec<Type>) -> Vec<Type> {
-    let mut seen = Vec::new();
-    let mut unique = Vec::new();
-
-    for ty in types {
-        let key = ty.to_token_stream().to_string();
-        if !seen.contains(&key) {
-            seen.push(key);
-            unique.push(ty);
-        }
-    }
-
-    unique
-}
-
-fn type_ids_fn(name: &str, types: &[Type]) -> TokenStream2 {
-    let name = Ident::new(name, Span::call_site());
-
-    quote! {
-        fn #name(&self) -> ::std::vec::Vec<::std::any::TypeId> {
-            ::std::vec![#(::std::any::TypeId::of::<#types>()),*]
-        }
-    }
-}
-
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let mut item_impl = parse_macro_input!(input as ItemImpl);
 
@@ -283,11 +252,36 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
         return combined.to_compile_error().into();
     }
 
-    let requires = type_ids_fn("requires", &deduplicated(access.requires));
-    let provides = type_ids_fn("provides", &deduplicated(access.provides));
+    let requires = type_ids_fn("requires", &deduplicate(access.requires));
+    let provides = type_ids_fn("provides", &deduplicate(access.provides));
 
     item_impl.items.push(parse_quote!(#requires));
     item_impl.items.push(parse_quote!(#provides));
 
     item_impl.into_token_stream().into()
+}
+
+fn deduplicate(types: Vec<Type>) -> Vec<Type> {
+    let mut seen = Vec::new();
+    let mut unique = Vec::new();
+
+    for ty in types {
+        let key = ty.to_token_stream().to_string();
+        if !seen.contains(&key) {
+            seen.push(key);
+            unique.push(ty);
+        }
+    }
+
+    unique
+}
+
+fn type_ids_fn(name: &str, types: &[Type]) -> TokenStream2 {
+    let name = Ident::new(name, Span::call_site());
+
+    quote! {
+        fn #name(&self) -> ::std::vec::Vec<::std::any::TypeId> {
+            ::std::vec![#(::std::any::TypeId::of::<#types>()),*]
+        }
+    }
 }

@@ -3,11 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! `#[derive(CNew)]` — generates a `new(...)` constructor for a C-ABI struct. Every field except
-//! `struct_size` becomes a parameter, in declaration order; `struct_size` itself is computed via
-//! `size_of::<Self>()` rather than taken as a parameter, so callers never need to import
-//! `std::mem::size_of` just to build a request/response struct.
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;

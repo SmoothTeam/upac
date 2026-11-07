@@ -3,45 +3,12 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! `#[derive(CEnum)]` — for a fieldless `#[repr(uN)]` enum carried over the
-//! C ABI as its raw integer, generates `TryFrom<uN>` (unknown values become
-//! `AbiError::InvalidEntry`) and `From<Enum> for uN`.
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Attribute, Data, DeriveInput, Error, Fields, Ident, parse_macro_input};
 
 const REPRS: &[&str] = &["u8", "u16", "u32", "i32"];
-
-fn repr_type(attrs: &[Attribute]) -> Option<Ident> {
-    attrs
-        .iter()
-        .filter(|attr| attr.path().is_ident("repr"))
-        .find_map(|attr| attr.parse_args::<Ident>().ok())
-        .filter(|repr| REPRS.contains(&repr.to_string().as_str()))
-}
-
-fn c_enum_impl(name: &Ident, repr: &Ident, arms: &[TokenStream2]) -> TokenStream2 {
-    quote! {
-        impl TryFrom<#repr> for #name {
-            type Error = ::upac_abi::error::AbiError;
-
-            fn try_from(value: #repr) -> Result<Self, ::upac_abi::error::AbiError> {
-                match value {
-                    #(#arms)*
-                    _ => Err(::upac_abi::error::AbiError::InvalidEntry),
-                }
-            }
-        }
-
-        impl From<#name> for #repr {
-            fn from(value: #name) -> Self {
-                value as #repr
-            }
-        }
-    }
-}
 
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -81,4 +48,33 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     }
 
     c_enum_impl(name, &repr, &arms).into()
+}
+
+fn repr_type(attrs: &[Attribute]) -> Option<Ident> {
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("repr"))
+        .find_map(|attr| attr.parse_args::<Ident>().ok())
+        .filter(|repr| REPRS.contains(&repr.to_string().as_str()))
+}
+
+fn c_enum_impl(name: &Ident, repr: &Ident, arms: &[TokenStream2]) -> TokenStream2 {
+    quote! {
+        impl TryFrom<#repr> for #name {
+            type Error = ::upac_abi::error::AbiError;
+
+            fn try_from(value: #repr) -> Result<Self, ::upac_abi::error::AbiError> {
+                match value {
+                    #(#arms)*
+                    _ => Err(::upac_abi::error::AbiError::InvalidEntry),
+                }
+            }
+        }
+
+        impl From<#name> for #repr {
+            fn from(value: #name) -> Self {
+                value as #repr
+            }
+        }
+    }
 }

@@ -3,45 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! `#[derive(StageKey)]` — generates `stage_key(&self) -> &'static str` for a
-//! fieldless enum, converting each variant's PascalCase name into a
-//! `stage-kebab-case` Fluent message id at compile time (e.g. `PrepareBoot` ->
-//! `"stage-prepare-boot"`), so callers never hand-maintain a separate
-//! variant-name-to-key table.
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Error, Fields, Ident, parse_macro_input};
-
-fn to_kebab_case(name: &str) -> String {
-    let mut result = String::new();
-
-    for (index, ch) in name.chars().enumerate() {
-        if ch.is_uppercase() {
-            if index != 0 {
-                result.push('-');
-            }
-            result.extend(ch.to_lowercase());
-        } else {
-            result.push(ch);
-        }
-    }
-
-    result
-}
-
-fn stage_key_impl(name: &Ident, arms: &[TokenStream2]) -> TokenStream2 {
-    quote! {
-        impl #name {
-            pub fn stage_key(&self) -> &'static str {
-                match self {
-                    #(#arms)*
-                }
-            }
-        }
-    }
-}
 
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -73,4 +38,33 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     }
 
     stage_key_impl(name, &arms).into()
+}
+
+fn to_kebab_case(name: &str) -> String {
+    let mut result = String::new();
+
+    for (index, character) in name.chars().enumerate() {
+        if character.is_uppercase() {
+            if index != 0 {
+                result.push('-');
+            }
+            result.extend(character.to_lowercase());
+        } else {
+            result.push(character);
+        }
+    }
+
+    result
+}
+
+fn stage_key_impl(name: &Ident, arms: &[TokenStream2]) -> TokenStream2 {
+    quote! {
+        impl #name {
+            pub fn stage_key(&self) -> &'static str {
+                match self {
+                    #(#arms)*
+                }
+            }
+        }
+    }
 }

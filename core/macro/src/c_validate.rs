@@ -3,10 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-//! `#[derive(CValidate)]` — generates an unsafe `validate()` that checks
-//! `struct_size` and every field, driven by `#[optional]`/`#[non_empty]`
-//! field attributes.
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 
@@ -19,35 +15,60 @@ use syn::{
 
 use crate::common::{field_condition, generic_arg, is_validatable_composite, segment_name};
 
+pub(crate) fn expand(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    let fields = match &input.data {
+        Data::Struct(s) => match &s.fields {
+            Fields::Named(named) => &named.named,
+            _ => {
+                return Error::new_spanned(name, "CValidate only supports structs with named fields")
+                    .to_compile_error()
+                    .into();
+            }
+        },
+        _ => {
+            return Error::new_spanned(name, "CValidate only supports structs")
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    let validations: Vec<TokenStream2> = fields.iter().map(validate_field).collect();
+
+    validate_impl(name, &validations).into()
+}
+
 fn is_attr_present(field: &Field, name: &str) -> bool {
     field.attrs.iter().any(|attr| attr.path().is_ident(name))
 }
 
-fn cslice_validate(ident: &Ident, optional: bool, non_empty: bool) -> TokenStream2 {
-    let empty_check = empty_check(ident, non_empty);
+fn validate_cslice(ident: &Ident, optional: bool, non_empty: bool) -> TokenStream2 {
+    let empty_guard = check_empty(ident, non_empty);
 
     if optional {
         quote! {
             if !self.#ident.ptr.is_null() {
                 unsafe { self.#ident.validate()? };
-                #empty_check
+                #empty_guard
             }
         }
     } else {
         quote! {
             unsafe { self.#ident.validate()?; }
-            #empty_check
+            #empty_guard
         }
     }
 }
 
-fn composite_validate(ident: &Ident) -> TokenStream2 {
+fn validate_composite(ident: &Ident) -> TokenStream2 {
     quote! {
         unsafe { self.#ident.validate()?; }
     }
 }
 
-fn empty_check(ident: &Ident, non_empty: bool) -> TokenStream2 {
+fn check_empty(ident: &Ident, non_empty: bool) -> TokenStream2 {
     if non_empty {
         quote! {
             if self.#ident.len == 0 {
@@ -59,8 +80,8 @@ fn empty_check(ident: &Ident, non_empty: bool) -> TokenStream2 {
     }
 }
 
-fn cvec_element_check(ident: &Ident, seg: &PathSegment) -> TokenStream2 {
-    match generic_arg(seg).and_then(segment_name) {
+fn check_cvec_elements(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
+    match generic_arg(segment).and_then(segment_name) {
         Some(inner) if inner == "CSlice" || is_validatable_composite(&inner) => quote! {
             for element in unsafe { self.#ident.as_slice() } {
                 unsafe { element.validate()? };
@@ -70,35 +91,35 @@ fn cvec_element_check(ident: &Ident, seg: &PathSegment) -> TokenStream2 {
     }
 }
 
-fn cvec_validate(ident: &Ident, seg: &PathSegment, non_empty: bool) -> TokenStream2 {
-    let empty_check = empty_check(ident, non_empty);
-    let element_check = cvec_element_check(ident, seg);
+fn validate_cvec(ident: &Ident, segment: &PathSegment, non_empty: bool) -> TokenStream2 {
+    let empty_guard = check_empty(ident, non_empty);
+    let element_guard = check_cvec_elements(ident, segment);
 
     quote! {
         unsafe { self.#ident.validate()?; }
-        #empty_check
-        #element_check
+        #empty_guard
+        #element_guard
     }
 }
 
-fn field_path_validate(ident: &Ident, seg: &PathSegment, optional: bool, non_empty: bool) -> TokenStream2 {
-    match seg.ident.to_string().as_str() {
-        "CSlice" => cslice_validate(ident, optional, non_empty),
-        "CVec" => cvec_validate(ident, seg, non_empty),
-        name if is_validatable_composite(name) => composite_validate(ident),
+fn validate_field_path(ident: &Ident, segment: &PathSegment, optional: bool, non_empty: bool) -> TokenStream2 {
+    match segment.ident.to_string().as_str() {
+        "CSlice" => validate_cslice(ident, optional, non_empty),
+        "CVec" => validate_cvec(ident, segment, non_empty),
+        name if is_validatable_composite(name) => validate_composite(ident),
         _ => quote! {},
     }
 }
 
-fn field_ptr_validate(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
-    let Type::Path(tp) = ptr.elem.as_ref() else {
+fn validate_field_ptr(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
+    let Type::Path(type_path) = ptr.elem.as_ref() else {
         return quote! {};
     };
-    let Some(seg) = tp.path.segments.last() else {
+    let Some(segment) = type_path.path.segments.last() else {
         return quote! {};
     };
 
-    let name = seg.ident.to_string();
+    let name = segment.ident.to_string();
 
     if is_validatable_composite(&name) {
         quote! {
@@ -114,7 +135,7 @@ fn field_ptr_validate(ident: &Ident, ptr: &TypePtr) -> TokenStream2 {
     }
 }
 
-fn bitflags_validate(ident: &Ident, field: &Field) -> SynResult<TokenStream2> {
+fn validate_bitflags(ident: &Ident, field: &Field) -> SynResult<TokenStream2> {
     let Some(attr) = field.attrs.iter().find(|attr| attr.path().is_ident("bitflags")) else {
         return Ok(quote! {});
     };
@@ -128,7 +149,7 @@ fn bitflags_validate(ident: &Ident, field: &Field) -> SynResult<TokenStream2> {
     })
 }
 
-fn field_validate(field: &Field) -> TokenStream2 {
+fn validate_field(field: &Field) -> TokenStream2 {
     let Some(ident) = field.ident.as_ref() else {
         return quote! { compile_error!("CValidate only supports named fields") };
     };
@@ -136,15 +157,15 @@ fn field_validate(field: &Field) -> TokenStream2 {
     let non_empty = is_attr_present(field, "non_empty");
 
     let type_validation = match &field.ty {
-        Type::Path(tp) => match tp.path.segments.last() {
-            Some(seg) => field_path_validate(ident, seg, optional, non_empty),
+        Type::Path(type_path) => match type_path.path.segments.last() {
+            Some(segment) => validate_field_path(ident, segment, optional, non_empty),
             None => quote! {},
         },
-        Type::Ptr(ptr) => field_ptr_validate(ident, ptr),
+        Type::Ptr(ptr) => validate_field_ptr(ident, ptr),
         _ => quote! {},
     };
 
-    let bitflags_validation = match bitflags_validate(ident, field) {
+    let bitflags_validation = match validate_bitflags(ident, field) {
         Ok(tokens) => tokens,
         Err(error) => return error.to_compile_error(),
     };
@@ -184,29 +205,4 @@ fn validate_impl(name: &Ident, validations: &[TokenStream2]) -> TokenStream2 {
             }
         }
     }
-}
-
-pub(crate) fn expand(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = &input.ident;
-
-    let fields = match &input.data {
-        Data::Struct(s) => match &s.fields {
-            Fields::Named(named) => &named.named,
-            _ => {
-                return Error::new_spanned(name, "CValidate only supports structs with named fields")
-                    .to_compile_error()
-                    .into();
-            }
-        },
-        _ => {
-            return Error::new_spanned(name, "CValidate only supports structs")
-                .to_compile_error()
-                .into();
-        }
-    };
-
-    let validations: Vec<TokenStream2> = fields.iter().map(field_validate).collect();
-
-    validate_impl(name, &validations).into()
 }
