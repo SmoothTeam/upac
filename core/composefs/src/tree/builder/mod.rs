@@ -10,6 +10,7 @@ use composefs::generic_tree::{LeafContent, Stat};
 use composefs::tree::{Directory, FileSystem, Inode, RegularFile};
 
 use super::Tree;
+use super::view::TreeView;
 
 use crate::ObjectID;
 use crate::error::RepoError;
@@ -98,16 +99,31 @@ impl TreeBuilder {
         Ok(())
     }
 
-    pub fn commit(self) -> Tree {
-        let TreeBuilder { mut filesystem } = self;
-        filesystem.compact();
+    pub fn view(&self) -> TreeView<'_> {
+        TreeView::new(&self.filesystem)
+    }
 
-        Tree { filesystem }
+    pub fn commit(self) -> Tree {
+        Tree::from(self.filesystem)
     }
 }
 
 impl Default for TreeBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl From<FileSystem<ObjectID>> for TreeBuilder {
+    fn from(filesystem: FileSystem<ObjectID>) -> Self {
+        Self { filesystem }
+    }
+}
+
+impl From<Tree> for TreeBuilder {
+    fn from(tree: Tree) -> Self {
+        Self {
+            filesystem: tree.filesystem,
+        }
     }
 }
