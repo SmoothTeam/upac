@@ -12,8 +12,7 @@ use crate::types::CSlice;
 pub struct CSetupBootstrapImportResponse {
     pub struct_size: usize,
 
-    pub prefix_digest: CSlice,
-    pub config_digest: CSlice,
+    pub digest: CSlice,
 }
 
 #[repr(C)]
@@ -21,5 +20,5 @@ pub struct CSetupBootstrapImportResponse {
 pub struct CSetupBootstrapKernelResponse {
     pub struct_size: usize,
 
-    pub prefix_digest: CSlice,
+    pub digest: CSlice,
 }

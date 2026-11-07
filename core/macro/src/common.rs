@@ -17,7 +17,7 @@ pub(crate) const PRIMITIVES: &[&str] = &[
 pub(crate) const ABI_ENUMS: &[&str] = &[
     "FileDiffKind",
     "PackageDiffKind",
-    "DiffFileSource",
+    "TransactionKind",
     "FsKind",
     "PartitionKind",
     "InitramfsGenerator",
@@ -26,16 +26,13 @@ pub(crate) const ABI_ENUMS: &[&str] = &[
     "TriggerPosition",
 ];
 
-pub(crate) const VALIDATABLE_LIB_ENTRYS_COMPOSITES: &[&str] = &[
-    "CDiffFileCommonEntry",
-    "CDiffPrefixFileEntry",
-    "CDiffConfigFileEntry",
-    "CDiffUntrackedFileEntry",
+pub(crate) const VALIDATABLE_LIB_ENTRY_COMPOSITES: &[&str] = &[
+    "CDiffFileEntry",
     "CDiffPackageEntry",
-    "CConfigCommitEntry",
     "CSearchFileEntry",
-    "CPrefixEntry",
-    "CHistoryEntry",
+    "CDeployEntry",
+    "CTransactionEntry",
+    "CConfigSnapshotEntry",
 ];
 
 pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] = &[
@@ -49,7 +46,7 @@ pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] = &[
 pub(crate) const VALIDATABLE_LIB_REQUEST_COMPOSITES: &[&str] = &["CRequestBase", "CFileTransfer"];
 
 pub(crate) const VALIDATABLE_COMPOSITE_CATEGORIES: &[&[&str]] = &[
-    VALIDATABLE_LIB_ENTRYS_COMPOSITES,
+    VALIDATABLE_LIB_ENTRY_COMPOSITES,
     VALIDATABLE_LIB_PACKAGE_COMPOSITES,
     VALIDATABLE_LIB_REQUEST_COMPOSITES,
 ];

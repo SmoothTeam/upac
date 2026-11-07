@@ -18,15 +18,11 @@ pub struct CInstallRequest {
 
     pub boot_plugin: CSlice,
 
-    pub tmp_path: CSlice,
-
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
 
     pub packages: CVec<CSlice>,
-
-    pub allow_conflict_files: bool,
 }
 
 #[repr(C)]
@@ -37,8 +33,6 @@ pub struct CUpdateRequest {
 
     pub boot_plugin: CSlice,
 
-    pub tmp_path: CSlice,
-
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
@@ -46,7 +40,6 @@ pub struct CUpdateRequest {
     pub packages: CVec<CSlice>,
 
     pub allow_downgrade: bool,
-    pub allow_conflict_files: bool,
 }
 
 #[repr(C)]
@@ -60,9 +53,8 @@ pub struct CUninstallRequest {
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
-    pub packages: CVec<CPackageInfo>,
 
-    pub purge: bool,
+    pub packages: CVec<CPackageInfo>,
 }
 
 #[repr(C)]
@@ -73,9 +65,8 @@ pub struct CRollbackRequest {
 
     pub boot_plugin: CSlice,
 
-    pub config_digest: CSlice,
-
-    pub discard_etc_changes: bool,
+    #[non_empty]
+    pub digest: CSlice,
 }
 
 #[repr(C)]
@@ -111,10 +102,8 @@ pub struct CAttachRequest {
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
-    pub files: CVec<CFileTransfer>,
-    pub file_package: CPackageInfo,
 
-    pub scope: u8,
+    pub files: CVec<CFileTransfer>,
 }
 
 #[repr(C)]
@@ -128,10 +117,8 @@ pub struct CDetachRequest {
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
-    pub files: CVec<CSlice>,
-    pub file_package: CPackageInfo,
 
-    pub scope: u8,
+    pub files: CVec<CSlice>,
 }
 
 #[repr(C)]
@@ -155,6 +142,7 @@ pub struct CPinRequest {
     pub base: CRequestBase,
 
     #[non_empty]
-    pub prefix_digest: CSlice,
+    pub digest: CSlice,
+
     pub pinned: bool,
 }

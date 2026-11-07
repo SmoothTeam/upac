@@ -19,17 +19,7 @@ pub struct CListPackagesRequest {
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CListConfigRequest {
-    pub struct_size: usize,
-    pub base: CRequestBase,
-
-    #[optional]
-    pub prefix_digest: CSlice,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CListPrefixRequest {
+pub struct CListDeploysRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 }
@@ -39,42 +29,19 @@ pub struct CListPrefixRequest {
 pub struct CListHistoryRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
+
+    #[optional]
+    pub digest: CSlice,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CDiffPrefixRequest {
+pub struct CListConfigRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
     #[optional]
-    pub from_prefix_digest: CSlice,
-    #[optional]
-    pub to_prefix_digest: CSlice,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CDiffConfigRequest {
-    pub struct_size: usize,
-    pub base: CRequestBase,
-
-    #[optional]
-    pub from_config_digest: CSlice,
-    #[optional]
-    pub to_config_digest: CSlice,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CDiffPackagesRequest {
-    pub struct_size: usize,
-    pub base: CRequestBase,
-
-    #[optional]
-    pub from_prefix_digest: CSlice,
-    #[optional]
-    pub to_prefix_digest: CSlice,
+    pub digest: CSlice,
 }
 
 #[repr(C)]
@@ -84,13 +51,9 @@ pub struct CDiffRequest {
     pub base: CRequestBase,
 
     #[optional]
-    pub from_prefix_digest: CSlice,
+    pub from_digest: CSlice,
     #[optional]
-    pub to_prefix_digest: CSlice,
-    #[optional]
-    pub from_config_digest: CSlice,
-    #[optional]
-    pub to_config_digest: CSlice,
+    pub to_digest: CSlice,
 }
 
 #[repr(C)]

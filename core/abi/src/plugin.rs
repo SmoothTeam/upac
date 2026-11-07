@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::os::raw::c_void;
+
 use crate::request::booter::{
     CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
 };
@@ -24,3 +26,6 @@ pub type BootResourceKindFn = unsafe extern "C" fn() -> u8;
 pub type DecodeFn = unsafe extern "C" fn(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32;
 
 pub type FreeDecodeResponseFn = unsafe extern "C" fn(response: *mut CDecodeResponse);
+
+pub type StoreObjectFn =
+    unsafe extern "C" fn(store_ctx: *mut c_void, data: *const u8, len: usize, object_id_out: *mut [u8; 32]) -> i32;

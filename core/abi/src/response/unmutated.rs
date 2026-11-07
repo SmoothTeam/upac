@@ -6,8 +6,7 @@
 use upac_macro::{CFree, CNew, CValidate};
 
 use super::entry::{
-    CConfigCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
-    CHistoryEntry, CPrefixEntry, CSearchFileEntry,
+    CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
 };
 
 use crate::package::CPackageMeta;
@@ -43,13 +42,6 @@ pub struct CSearchInPackageFilesResponse {
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CListConfigResponse {
-    pub struct_size: usize,
-    pub commits: CVec<CConfigCommitEntry>,
-}
-
-#[repr(C)]
-#[derive(CFree, CNew, CValidate)]
 pub struct CListPackagesResponse {
     pub struct_size: usize,
     pub metas: CVec<CPackageMeta>,
@@ -57,43 +49,29 @@ pub struct CListPackagesResponse {
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CListPrefixResponse {
+pub struct CListDeploysResponse {
     pub struct_size: usize,
-    pub prefixes: CVec<CPrefixEntry>,
+    pub deploys: CVec<CDeployEntry>,
 }
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
 pub struct CListHistoryResponse {
     pub struct_size: usize,
-    pub history: CVec<CHistoryEntry>,
+    pub transactions: CVec<CTransactionEntry>,
 }
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CDiffPrefixResponse {
+pub struct CListConfigResponse {
     pub struct_size: usize,
-    pub files: CVec<CDiffPrefixFileEntry>,
-}
-
-#[repr(C)]
-#[derive(CFree, CNew, CValidate)]
-pub struct CDiffConfigResponse {
-    pub struct_size: usize,
-    pub files: CVec<CDiffConfigFileEntry>,
-}
-
-#[repr(C)]
-#[derive(CFree, CNew, CValidate)]
-pub struct CDiffPackagesResponse {
-    pub struct_size: usize,
-    pub diff_packages: CVec<CDiffPackageEntry>,
+    pub snapshots: CVec<CConfigSnapshotEntry>,
 }
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
 pub struct CDiffResponse {
     pub struct_size: usize,
-    pub diff_packages: CVec<CDiffPackageEntry>,
-    pub unattached_files: CVec<CDiffUntrackedFileEntry>,
+    pub packages: CVec<CDiffPackageEntry>,
+    pub files: CVec<CDiffFileEntry>,
 }

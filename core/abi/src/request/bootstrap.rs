@@ -26,7 +26,6 @@ pub struct CSetupBootstrapImportRequest {
     #[optional]
     pub tmp_path: CSlice,
     pub source: CSlice,
-    pub empty_config: bool,
 }
 
 #[repr(C)]
@@ -45,7 +44,7 @@ pub struct CSetupBootstrapKernelRequest {
     pub mount_point: CSlice,
     #[optional]
     pub tmp_path: CSlice,
-    pub prefix_digest: CSlice,
+    pub digest: CSlice,
     pub initramfs_generator: u8,
 }
 
@@ -65,8 +64,7 @@ pub struct CSetupBootstrapDeployRequest {
 
     #[optional]
     pub mount_point: CSlice,
-    pub prefix_digest: CSlice,
-    pub config_digest: CSlice,
+    pub digest: CSlice,
     pub boot_plugin: CSlice,
     pub pinned: bool,
 }

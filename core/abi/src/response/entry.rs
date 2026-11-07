@@ -10,18 +10,7 @@ use crate::types::{CSlice, CVec};
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CDiffPackageEntry {
-    pub struct_size: usize,
-
-    pub name: CSlice,
-    pub kind: u8,
-    pub version: CVersion,
-    pub files: CVec<CDiffPrefixFileEntry>,
-}
-
-#[repr(C)]
-#[derive(CFree, CNew, CValidate)]
-pub struct CDiffFileCommonEntry {
+pub struct CDiffFileEntry {
     pub struct_size: usize,
 
     pub path: CSlice,
@@ -30,43 +19,13 @@ pub struct CDiffFileCommonEntry {
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CDiffPrefixFileEntry {
+pub struct CDiffPackageEntry {
     pub struct_size: usize,
 
-    pub common: CDiffFileCommonEntry,
-    pub source: u8,
-    pub package_name: CSlice,
-    pub is_user: bool,
-}
-
-#[repr(C)]
-#[derive(CFree, CNew, CValidate)]
-pub struct CDiffConfigFileEntry {
-    pub struct_size: usize,
-
-    pub common: CDiffFileCommonEntry,
-    #[optional]
-    pub package_name: CSlice,
-}
-
-#[repr(C)]
-#[derive(CFree, CNew, CValidate)]
-pub struct CDiffUntrackedFileEntry {
-    pub struct_size: usize,
-
-    pub common: CDiffFileCommonEntry,
-    pub source: u8,
-}
-
-#[repr(C)]
-#[derive(CFree, CNew, CValidate)]
-pub struct CConfigCommitEntry {
-    pub struct_size: usize,
-
-    pub config_digest: CSlice,
-    pub subject: CSlice,
-    #[optional]
-    pub message: CSlice,
+    pub name: CSlice,
+    pub kind: u8,
+    pub version: CVersion,
+    pub files: CVec<CDiffFileEntry>,
 }
 
 #[repr(C)]
@@ -81,29 +40,33 @@ pub struct CSearchFileEntry {
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CPrefixEntry {
+pub struct CDeployEntry {
     pub struct_size: usize,
 
-    pub prefix_digest: CSlice,
-    pub subject: CSlice,
-    #[optional]
-    pub message: CSlice,
-    pub timestamp: u64,
-    #[optional]
-    pub working_config: CSlice,
+    pub digest: CSlice,
+    pub pinned: bool,
+    pub current: bool,
 }
 
 #[repr(C)]
 #[derive(CFree, CNew, CValidate)]
-pub struct CHistoryEntry {
+pub struct CTransactionEntry {
     pub struct_size: usize,
 
-    pub prefix_digest: CSlice,
+    pub timestamp: u64,
+    pub kind: u8,
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
+}
+
+#[repr(C)]
+#[derive(CFree, CNew, CValidate)]
+pub struct CConfigSnapshotEntry {
+    pub struct_size: usize,
+
     pub timestamp: u64,
+    pub digest: CSlice,
     #[optional]
-    pub working_config: CSlice,
-    pub config_history: CVec<CConfigCommitEntry>,
+    pub message: CSlice,
 }
