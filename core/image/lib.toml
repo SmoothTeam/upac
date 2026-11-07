@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+[image]
+cmp_dir = "cmp"
+package_config_dir = "etc"
+config_defaults_source_dir = "usr/etc"
+config_defaults_dir = "config-defaults"
+binary_dir = "binary"
+library_dir = "library"
+state_dir = "state"
+
+[hidden]
+file_name = ".hidden"
+symlink_xattr = "user.upac.symlink.hidden"
+
+[hidden.root_symlinks]
+usr = "/cmp/usr"
+etc = "/cmp/etc"
+bin = "/cmp/usr/bin"
+lib = "/cmp/usr/lib"
+lib64 = "/cmp/usr/lib64"
+sbin = "/cmp/usr/bin"

@@ -13,6 +13,7 @@ members = [
     "core/database",
     "core/deploy",
     "core/hooks",
+    "core/image",
     "lib/orchestrator",
     "lib/lib",
     "lib/setup",
@@ -64,6 +65,7 @@ upac-lib-deploy         = { path = "core/deploy" }
 upac-lib-decoder-loader = { path = "decoder/decoder-loader", default-features = false }
 upac-lib-decoder-kit    = { path = "decoder/decoder-kit" }
 upac-lib-hooks          = { path = "core/hooks" }
+upac-lib-image          = { path = "core/image" }
 upac-lib-booter-loader  = { path = "booter/booter-loader", default-features = false }
 
 upac-lib = { path = "lib/lib", default-features = false }
@@ -89,6 +91,7 @@ uuid          = { version = "1", features = ["v4"] }
 serde         = { version = "1", features = ["derive"] }
 syn           = { version = "3", features = ["full", "visit"] }
 ctrlc         = { version = "3.5.2", features = ["termination"] }
+object        = { version = "0.39.1", default-features = false, features = ["read_core", "elf", "std"] }
 
 colored        = "3.1.1"
 libloading     = "0.9"
