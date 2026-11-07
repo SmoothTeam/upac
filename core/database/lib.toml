@@ -17,8 +17,11 @@ lossy_replacement = "_"
 
 [store]
 root_dir = "pkg"
+link_root = "/"
 
 file_mode = 0o644
+dir_mode = 0o755
+link_mode = 0o777
 
 [trigger]
 file_name = "triggers"

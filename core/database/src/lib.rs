@@ -23,8 +23,8 @@ pub mod error;
 pub mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
+pub mod package;
 pub mod transaction;
-pub mod trigger;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PackageEntryKind {
