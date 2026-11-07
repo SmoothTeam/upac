@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 [image]
+root_dir = "/"
 cmp_dir = "cmp"
 package_config_dir = "etc"
 config_defaults_source_dir = "usr/etc"
@@ -11,15 +12,45 @@ config_defaults_dir = "config-defaults"
 binary_dir = "binary"
 library_dir = "library"
 state_dir = "state"
+name_separator = "-"
 
-[hidden]
-file_name = ".hidden"
-symlink_xattr = "user.upac.symlink.hidden"
+dir_mode = 0o755
+file_mode = 0o644
+link_mode = 0o777
+hash_length = 12
 
-[hidden.root_symlinks]
+[image.path_dirs]
+bin = "usr/bin"
+sbin = "usr/sbin"
+
+[image.library_dirs]
+lib = "usr/lib"
+lib64 = "usr/lib64"
+
+[base]
+dir_mode = 0o755
+link_mode = 0o777
+
+dirs = [
+    "cmp",
+    "cmp/usr",
+    "cmp/usr/bin",
+    "cmp/usr/etc",
+    "cmp/usr/lib",
+    "cmp/usr/lib64",
+    "cmp/etc",
+    "state",
+]
+
+[base.symlinks]
 usr = "/cmp/usr"
 etc = "/cmp/etc"
 bin = "/cmp/usr/bin"
 lib = "/cmp/usr/lib"
 lib64 = "/cmp/usr/lib64"
 sbin = "/cmp/usr/bin"
+
+[hidden]
+file_name = ".hidden"
+symlink_xattr = "user.upac.symlink.hidden"
+line_separator = "\n"

@@ -46,7 +46,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     generated.push_str("    ];\n");
                 }
-                _ => return Err(format!("lib.toml: {section}.{key} must be a string, integer or table").into()),
+                Value::Array(items) => {
+                    generated.push_str(&format!("    pub const {key}: &[&str] = &[\n"));
+
+                    for item in items {
+                        let item = item
+                            .as_str()
+                            .ok_or_else(|| format!("lib.toml: {section}.{key} items must be strings"))?;
+                        generated.push_str(&format!("        {item:?},\n"));
+                    }
+
+                    generated.push_str("    ];\n");
+                }
+                _ => {
+                    return Err(format!("lib.toml: {section}.{key} must be a string, integer, array or table").into());
+                }
             }
         }
 

@@ -11,6 +11,11 @@ use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageError {
+    PackageExists,
+    PackageNotInstalled,
+    MissingBase,
+    PathConflict,
+    DirectoryConflict,
     Tree(RepoError),
     Database(DatabaseError),
 }
@@ -30,6 +35,9 @@ impl From<DatabaseError> for ImageError {
 impl From<ImageError> for ErrorKind {
     fn from(error: ImageError) -> Self {
         match error {
+            ImageError::PathConflict | ImageError::DirectoryConflict => ErrorKind::InvalidEntry,
+            ImageError::PackageExists => ErrorKind::AlreadyExists,
+            ImageError::PackageNotInstalled | ImageError::MissingBase => ErrorKind::NotFound,
             ImageError::Tree(error) => error.into(),
             ImageError::Database(error) => error.into(),
         }

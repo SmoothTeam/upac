@@ -5,7 +5,7 @@
 
 [package]
 name = "upac-lib-image"
-description = "upac's system image assembly: package import into /cmp and /pkg, derived directories and pre-commit checks"
+description = "upac's system image assembly: the image base, package install and removal in /cmp and /pkg, derived directories"
 version.workspace = true
 
 edition.workspace = true
@@ -33,7 +33,7 @@ upac-lib-composefs = { workspace = true }
 upac-lib-database  = { workspace = true }
 upac-lib-types     = { workspace = true }
 
-object = { workspace = true }
+composefs = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }
