@@ -31,9 +31,7 @@ pub struct TreeBuilder {
 
 impl TreeBuilder {
     pub fn new() -> Self {
-        Self {
-            filesystem: FileSystem::new(DIRECTORY_STAT),
-        }
+        Self::from(FileSystem::new(DIRECTORY_STAT))
     }
 
     pub fn insert(
@@ -144,8 +142,6 @@ impl From<FileSystem<ObjectID>> for TreeBuilder {
 
 impl From<Tree> for TreeBuilder {
     fn from(tree: Tree) -> Self {
-        Self {
-            filesystem: tree.filesystem,
-        }
+        Self::from(tree.filesystem)
     }
 }
