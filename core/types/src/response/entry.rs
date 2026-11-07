@@ -3,33 +3,32 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use serde::{Deserialize, Serialize};
-
 use upac_abi::package::CVersion;
 use upac_abi::response::entry::{
-    CConfigCommitEntry, CDiffConfigFileEntry, CDiffFileCommonEntry, CDiffPackageEntry, CDiffPrefixFileEntry,
-    CDiffUntrackedFileEntry, CHistoryEntry, CPrefixEntry, CSearchFileEntry,
+    CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
 };
 use upac_abi::types::{COwned, CSlice, CVec};
 
 use upac_macro::{CTryToRust, RustToC};
 
-use crate::diff::{DiffFileSource, FileDiffKind, PackageDiffKind};
+use crate::diff::{FileDiffKind, PackageDiffKind};
 use crate::error::ErrorKind;
 use crate::package::Version;
+use crate::transaction::TransactionKind;
 
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FileEntryScope {
-    Prefix = 0,
-    Config = 1,
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct DiffFileEntry {
+    pub path: String,
+    pub kind: FileDiffKind,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FileEntry {
-    pub path: String,
-    pub is_user: bool,
-    pub scope: FileEntryScope,
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct DiffPackageEntry {
+    pub name: String,
+    pub kind: PackageDiffKind,
+    pub version: Version,
+
+    pub files: Vec<DiffFileEntry>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -40,69 +39,23 @@ pub struct SearchFileEntry {
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct PrefixEntry {
-    pub prefix_digest: String,
+pub struct DeployEntry {
+    pub digest: String,
+    pub pinned: bool,
+    pub current: bool,
+}
 
-    pub subject: String,
-    pub message: Option<String>,
-
+#[derive(Debug, Clone, RustToC, CTryToRust)]
+pub struct TransactionEntry {
     pub timestamp: u64,
-
-    pub working_config: Option<String>,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct ConfigCommitEntry {
-    pub config_digest: String,
-
+    pub kind: TransactionKind,
     pub subject: String,
     pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct HistoryEntry {
-    pub prefix_digest: String,
-
-    pub subject: String,
-    pub message: Option<String>,
-
+pub struct ConfigSnapshotEntry {
     pub timestamp: u64,
-
-    pub working_config: Option<String>,
-    pub config_history: Vec<ConfigCommitEntry>,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffFileCommonEntry {
-    pub path: String,
-    pub kind: FileDiffKind,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffPrefixFileEntry {
-    pub common: DiffFileCommonEntry,
-    pub source: DiffFileSource,
-    pub package_name: String,
-    pub is_user: bool,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffConfigFileEntry {
-    pub common: DiffFileCommonEntry,
-    pub package_name: Option<String>,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffPackageEntry {
-    pub name: String,
-    pub kind: PackageDiffKind,
-    pub version: Version,
-
-    pub files: Vec<DiffPrefixFileEntry>,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffUntrackedFileEntry {
-    pub common: DiffFileCommonEntry,
-    pub source: DiffFileSource,
+    pub digest: String,
+    pub message: Option<String>,
 }

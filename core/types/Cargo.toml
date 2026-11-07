@@ -37,8 +37,5 @@ gptman = { workspace = true, optional = true }
 serde = { workspace = true }
 toml  = { workspace = true }
 
-[dev-dependencies]
-nix = { workspace = true }
-
 [features]
 gpt = ["dep:gptman"]

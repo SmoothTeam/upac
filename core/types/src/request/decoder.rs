@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::os::raw::c_void;
+
+use upac_abi::plugin::StoreObjectFn;
 use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::types::{COwned, CSlice};
 
@@ -14,7 +17,8 @@ use crate::error::ErrorKind;
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DecodeRequest<'data> {
     pub package_path: &'data str,
-    pub output_dir: &'data str,
     pub checksum: [u8; 32],
+    pub store_object: StoreObjectFn,
+    pub store_ctx: *mut c_void,
     pub cancel_token: &'data CancelToken,
 }

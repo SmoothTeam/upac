@@ -63,12 +63,12 @@ impl_command_state!(ListConfigStateId, ListConfig);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum ListPrefixStateId {
+pub enum ListDeploysStateId {
     Fetching = 0,
     Setup = 1,
 }
 
-impl_command_state!(ListPrefixStateId, ListPrefix);
+impl_command_state!(ListDeploysStateId, ListDeploys);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
@@ -78,36 +78,6 @@ pub enum ListHistoryStateId {
 }
 
 impl_command_state!(ListHistoryStateId, ListHistory);
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum DiffPrefixStateId {
-    Preparing = 0,
-    Comparing = 1,
-    Setup = 2,
-}
-
-impl_command_state!(DiffPrefixStateId, DiffPrefix);
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum DiffConfigStateId {
-    Preparing = 0,
-    Comparing = 1,
-    Setup = 2,
-}
-
-impl_command_state!(DiffConfigStateId, DiffConfig);
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum DiffPackagesStateId {
-    Preparing = 0,
-    Comparing = 1,
-    Setup = 2,
-}
-
-impl_command_state!(DiffPackagesStateId, DiffPackages);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]

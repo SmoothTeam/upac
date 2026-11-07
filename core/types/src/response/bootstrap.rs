@@ -12,11 +12,10 @@ use crate::error::ErrorKind;
 
 #[derive(Debug, Clone, CTryToRust, RustToC)]
 pub struct SetupBootstrapImportResponse {
-    pub prefix_digest: String,
-    pub config_digest: String,
+    pub digest: String,
 }
 
 #[derive(Debug, Clone, CTryToRust, RustToC)]
 pub struct SetupBootstrapKernelResponse {
-    pub prefix_digest: String,
+    pub digest: String,
 }

@@ -6,9 +6,8 @@
 use upac_abi::package::CPackageInfo;
 use upac_abi::request::CRequestBase;
 use upac_abi::request::unmutated::{
-    CDiffConfigRequest, CDiffPackagesRequest, CDiffPrefixRequest, CDiffRequest, CListConfigRequest,
-    CListHistoryRequest, CListPackagesRequest, CListPrefixRequest, CSearchFilesRequest, CSearchInMetaRequest,
-    CSearchInPackageFilesRequest, CSearchMetaRequest,
+    CDiffRequest, CListConfigRequest, CListDeploysRequest, CListHistoryRequest, CListPackagesRequest,
+    CSearchFilesRequest, CSearchInMetaRequest, CSearchInPackageFilesRequest, CSearchMetaRequest,
 };
 use upac_abi::types::{COwned, CSlice};
 
@@ -25,49 +24,27 @@ pub struct ListPackagesRequest<'data> {
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct ListConfigRequest<'data> {
-    pub base: RequestBase<'data>,
-    pub prefix_digest: Option<&'data str>,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct ListPrefixRequest<'data> {
+pub struct ListDeploysRequest<'data> {
     pub base: RequestBase<'data>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct ListHistoryRequest<'data> {
     pub base: RequestBase<'data>,
+    pub digest: Option<&'data str>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffPrefixRequest<'data> {
+pub struct ListConfigRequest<'data> {
     pub base: RequestBase<'data>,
-    pub from_prefix_digest: Option<&'data str>,
-    pub to_prefix_digest: Option<&'data str>,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffConfigRequest<'data> {
-    pub base: RequestBase<'data>,
-    pub from_config_digest: Option<&'data str>,
-    pub to_config_digest: Option<&'data str>,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct DiffPackagesRequest<'data> {
-    pub base: RequestBase<'data>,
-    pub from_prefix_digest: Option<&'data str>,
-    pub to_prefix_digest: Option<&'data str>,
+    pub digest: Option<&'data str>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DiffRequest<'data> {
     pub base: RequestBase<'data>,
-    pub from_prefix_digest: Option<&'data str>,
-    pub to_prefix_digest: Option<&'data str>,
-    pub from_config_digest: Option<&'data str>,
-    pub to_config_digest: Option<&'data str>,
+    pub from_digest: Option<&'data str>,
+    pub to_digest: Option<&'data str>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]

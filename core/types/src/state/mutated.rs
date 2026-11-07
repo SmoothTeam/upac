@@ -10,85 +10,67 @@ use super::impl_command_state;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum InstallStateId {
-    Unpack = 0,
-    PreHooks = 1,
-    Open = 2,
-    Import = 3,
-    Commit = 4,
-    Merge = 5,
+    Open = 0,
+    Decode = 1,
+    Import = 2,
+    Hooks = 3,
+    Check = 4,
+    Commit = 5,
     Deploy = 6,
-    PostHooks = 7,
-    Checkout = 8,
-    Swap = 9,
-    Retention = 10,
-    Setup = 11,
+    Boot = 7,
+    Switch = 8,
+    Retention = 9,
+    Setup = 10,
 }
 
 impl_command_state!(InstallStateId, Install);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum UninstallStateId {
-    Open = 0,
-    Prepare = 1,
-    PreHooks = 2,
-    Remove = 3,
-    Commit = 4,
-    Merge = 5,
-    Deploy = 6,
-    PostHooks = 7,
-    Checkout = 8,
-    Swap = 9,
-    Retention = 10,
-    Setup = 11,
-}
-
-impl_command_state!(UninstallStateId, Uninstall);
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum UpdateStateId {
-    Unpack = 0,
-    PreHooks = 1,
-    Open = 2,
-    Import = 3,
-    Commit = 4,
-    Merge = 5,
+    Open = 0,
+    Decode = 1,
+    Import = 2,
+    Hooks = 3,
+    Check = 4,
+    Commit = 5,
     Deploy = 6,
-    PostHooks = 7,
-    Checkout = 8,
-    Swap = 9,
-    Retention = 10,
-    Setup = 11,
+    Boot = 7,
+    Switch = 8,
+    Retention = 9,
+    Setup = 10,
 }
 
 impl_command_state!(UpdateStateId, Update);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum RollbackStateId {
-    Select = 0,
-    Checkout = 1,
-    Swap = 2,
-    Discard = 3,
-    Setup = 4,
+pub enum UninstallStateId {
+    Open = 0,
+    Remove = 1,
+    Hooks = 2,
+    Check = 3,
+    Commit = 4,
+    Deploy = 5,
+    Boot = 6,
+    Switch = 7,
+    Retention = 8,
+    Setup = 9,
 }
 
-impl_command_state!(RollbackStateId, Rollback);
+impl_command_state!(UninstallStateId, Uninstall);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum AttachStateId {
     Open = 0,
-    Resolve = 1,
-    Apply = 2,
-    Commit = 3,
-    Merge = 4,
-    Deploy = 5,
-    Checkout = 6,
-    Swap = 7,
-    Retention = 8,
-    Setup = 9,
+    Apply = 1,
+    Commit = 2,
+    Deploy = 3,
+    Boot = 4,
+    Switch = 5,
+    Retention = 6,
+    Setup = 7,
 }
 
 impl_command_state!(AttachStateId, Attach);
@@ -97,23 +79,33 @@ impl_command_state!(AttachStateId, Attach);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum DetachStateId {
     Open = 0,
-    Resolve = 1,
-    Apply = 2,
-    Commit = 3,
-    Merge = 4,
-    Deploy = 5,
-    Checkout = 6,
-    Swap = 7,
-    Retention = 8,
-    Setup = 9,
+    Apply = 1,
+    Commit = 2,
+    Deploy = 3,
+    Boot = 4,
+    Switch = 5,
+    Retention = 6,
+    Setup = 7,
 }
 
 impl_command_state!(DetachStateId, Detach);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
+pub enum RollbackStateId {
+    Select = 0,
+    Deploy = 1,
+    Boot = 2,
+    Switch = 3,
+    Setup = 4,
+}
+
+impl_command_state!(RollbackStateId, Rollback);
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum CommitStateId {
-    Transaction = 0,
+    Snapshot = 0,
     Setup = 1,
 }
 

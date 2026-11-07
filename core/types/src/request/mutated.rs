@@ -16,7 +16,6 @@ use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
-use crate::diff::DiffFileSource;
 use crate::error::ErrorKind;
 use crate::package::PackageInfo;
 
@@ -24,23 +23,17 @@ use crate::package::PackageInfo;
 pub struct InstallRequest<'data> {
     pub base: RequestBase<'data>,
 
-    pub tmp_path: &'data str,
-
     pub subject: &'data str,
     pub message: Option<&'data str>,
 
     pub packages: Vec<&'data str>,
 
     pub boot_plugin: &'data str,
-
-    pub allow_conflict_files: bool,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct UpdateRequest<'data> {
     pub base: RequestBase<'data>,
-
-    pub tmp_path: &'data str,
 
     pub subject: &'data str,
     pub message: Option<&'data str>,
@@ -50,7 +43,6 @@ pub struct UpdateRequest<'data> {
     pub boot_plugin: &'data str,
 
     pub allow_downgrade: bool,
-    pub allow_conflict_files: bool,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -63,16 +55,13 @@ pub struct UninstallRequest<'data> {
     pub packages: Vec<PackageInfo>,
 
     pub boot_plugin: &'data str,
-
-    pub purge: bool,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct RollbackRequest<'data> {
     pub base: RequestBase<'data>,
-    pub config_digest: &'data str,
+    pub digest: &'data str,
     pub boot_plugin: &'data str,
-    pub discard_etc_changes: bool,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -96,11 +85,8 @@ pub struct AttachRequest<'data> {
     pub message: Option<&'data str>,
 
     pub files: Vec<FileTransfer<'data>>,
-    pub file_package: PackageInfo,
 
     pub boot_plugin: &'data str,
-
-    pub scope: DiffFileSource,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -111,11 +97,8 @@ pub struct DetachRequest<'data> {
     pub message: Option<&'data str>,
 
     pub files: Vec<&'data str>,
-    pub file_package: PackageInfo,
 
     pub boot_plugin: &'data str,
-
-    pub scope: DiffFileSource,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -131,6 +114,6 @@ pub struct MimeSyncRequest<'data> {
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct PinRequest<'data> {
     pub base: RequestBase<'data>,
-    pub prefix_digest: &'data str,
+    pub digest: &'data str,
     pub pinned: bool,
 }

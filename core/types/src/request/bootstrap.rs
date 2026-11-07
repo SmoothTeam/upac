@@ -31,7 +31,6 @@ pub struct SetupBootstrapImportRequest<'data> {
     pub mount_point: Option<&'data str>,
     pub tmp_path: Option<&'data str>,
     pub source: &'data str,
-    pub empty_config: bool,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -43,7 +42,7 @@ pub struct SetupBootstrapKernelRequest<'data> {
 
     pub mount_point: Option<&'data str>,
     pub tmp_path: Option<&'data str>,
-    pub prefix_digest: &'data str,
+    pub digest: &'data str,
     pub initramfs_generator: InitramfsGenerator,
 }
 
@@ -56,8 +55,7 @@ pub struct SetupBootstrapDeployRequest<'data> {
     pub deploy_device: Option<&'data str>,
 
     pub mount_point: Option<&'data str>,
-    pub prefix_digest: &'data str,
-    pub config_digest: &'data str,
+    pub digest: &'data str,
     pub boot_plugin: &'data str,
     pub pinned: bool,
 }

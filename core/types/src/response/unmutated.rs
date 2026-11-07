@@ -5,59 +5,41 @@
 
 use upac_abi::package::CPackageMeta;
 use upac_abi::response::entry::{
-    CConfigCommitEntry, CDiffConfigFileEntry, CDiffPackageEntry, CDiffPrefixFileEntry, CDiffUntrackedFileEntry,
-    CHistoryEntry, CPrefixEntry, CSearchFileEntry,
+    CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
 };
 use upac_abi::response::unmutated::{
-    CDiffConfigResponse, CDiffPackagesResponse, CDiffPrefixResponse, CDiffResponse, CListConfigResponse,
-    CListHistoryResponse, CListPackagesResponse, CListPrefixResponse, CSearchFilesResponse, CSearchInMetaResponse,
-    CSearchInPackageFilesResponse, CSearchMetaResponse,
+    CDiffResponse, CListConfigResponse, CListDeploysResponse, CListHistoryResponse, CListPackagesResponse,
+    CSearchFilesResponse, CSearchInMetaResponse, CSearchInPackageFilesResponse, CSearchMetaResponse,
 };
 use upac_abi::types::{COwned, CVec};
 
 use upac_macro::RustToC;
 
 use super::entry::{
-    ConfigCommitEntry, DiffConfigFileEntry, DiffPackageEntry, DiffPrefixFileEntry, DiffUntrackedFileEntry,
-    HistoryEntry, PrefixEntry, SearchFileEntry,
+    ConfigSnapshotEntry, DeployEntry, DiffFileEntry, DiffPackageEntry, SearchFileEntry, TransactionEntry,
 };
 
 use crate::package::PackageMeta;
 
 #[derive(Debug, Clone, RustToC)]
-pub struct DiffPrefixResponse {
-    pub files: Vec<DiffPrefixFileEntry>,
-}
-
-#[derive(Debug, Clone, RustToC)]
-pub struct DiffConfigResponse {
-    pub files: Vec<DiffConfigFileEntry>,
-}
-
-#[derive(Debug, Clone, RustToC)]
-pub struct DiffPackagesResponse {
-    pub diff_packages: Vec<DiffPackageEntry>,
-}
-
-#[derive(Debug, Clone, RustToC)]
 pub struct DiffResponse {
-    pub diff_packages: Vec<DiffPackageEntry>,
-    pub unattached_files: Vec<DiffUntrackedFileEntry>,
+    pub packages: Vec<DiffPackageEntry>,
+    pub files: Vec<DiffFileEntry>,
 }
 
 #[derive(Debug, Clone, RustToC)]
-pub struct ListPrefixResponse {
-    pub prefixes: Vec<PrefixEntry>,
+pub struct ListDeploysResponse {
+    pub deploys: Vec<DeployEntry>,
 }
 
 #[derive(Debug, Clone, RustToC)]
 pub struct ListHistoryResponse {
-    pub history: Vec<HistoryEntry>,
+    pub transactions: Vec<TransactionEntry>,
 }
 
 #[derive(Debug, Clone, RustToC)]
 pub struct ListConfigResponse {
-    pub commits: Vec<ConfigCommitEntry>,
+    pub snapshots: Vec<ConfigSnapshotEntry>,
 }
 
 #[derive(Debug, Clone, RustToC)]

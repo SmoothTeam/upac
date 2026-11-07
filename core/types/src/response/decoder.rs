@@ -14,6 +14,7 @@ use crate::package::{PackageDependency, PackageMeta};
 #[derive(Debug, Clone, CTryToRust)]
 pub struct DecodeResponse {
     pub meta: PackageMeta,
+    pub dumpfile: String,
     pub dependencies: Vec<PackageDependency>,
     pub triggers: Vec<PackageTrigger>,
 }

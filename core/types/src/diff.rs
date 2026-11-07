@@ -21,10 +21,3 @@ pub enum PackageDiffKind {
     Modified = 2,
     FilesChanged = 3,
 }
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
-pub enum DiffFileSource {
-    Prefix = 0,
-    Config = 1,
-}

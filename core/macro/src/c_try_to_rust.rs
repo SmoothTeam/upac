@@ -8,7 +8,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, TypeReference, parse_macro_input};
 
-use crate::common::{ABI_ENUMS, PRIMITIVES, generic_arg, is_str_ref, is_str_type, segment_name};
+use crate::common::{ABI_ENUMS, PASSTHROUGH_TYPES, PRIMITIVES, generic_arg, is_str_ref, is_str_type, segment_name};
 
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -68,7 +68,7 @@ fn option_from_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
 
     match segment_name(inner).as_deref() {
         Some("String") => quote! { Option::<&str>::try_from(&value.#ident)?.map(str::to_owned) },
-        Some("HookMessageFn") => quote! { value.#ident },
+        Some(name) if PASSTHROUGH_TYPES.contains(&name) => quote! { value.#ident },
         _ => quote! { compile_error!("CTryToRust: unsupported Option inner type") },
     }
 }
@@ -130,7 +130,7 @@ fn field_path_from_c(ident: &Ident, segment: &PathSegment) -> TokenStream2 {
         "String" => string_from_c(ident),
         "Option" => option_from_c(ident, segment),
         "Vec" => vec_from_c(ident, segment),
-        name if PRIMITIVES.contains(&name) => primitive_from_c(ident),
+        name if PRIMITIVES.contains(&name) || PASSTHROUGH_TYPES.contains(&name) => primitive_from_c(ident),
         name if ABI_ENUMS.contains(&name) => abi_enum_from_c(ident, name),
         name => composite_from_c(ident, name),
     }

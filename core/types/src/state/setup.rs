@@ -11,12 +11,11 @@ use super::impl_command_state;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum BootstrapImportStateId {
     Prepare = 0,
-    Unpack = 1,
-    Add = 2,
-    System = 3,
+    Decode = 1,
+    Import = 2,
+    Hooks = 3,
     Commit = 4,
-    Config = 5,
-    Setup = 6,
+    Setup = 5,
 }
 
 impl_command_state!(BootstrapImportStateId, BootstrapImport);

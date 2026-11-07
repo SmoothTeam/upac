@@ -9,15 +9,18 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+use upac_macro::CEnum;
+
 use crate::error::ErrorKind;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, CEnum)]
 pub enum TransactionKind {
-    Bootstrap,
-    Install,
-    Update,
-    Uninstall,
-    Files,
+    Bootstrap = 0,
+    Install = 1,
+    Update = 2,
+    Uninstall = 3,
+    Files = 4,
 }
 
 impl TransactionKind {
