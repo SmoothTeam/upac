@@ -9,7 +9,8 @@ use std::path::Path;
 use std::str::FromStr;
 
 use composefs::fsverity::{FsVerityHashValue, compute_verity};
-use composefs::generic_tree::Stat;
+use composefs::generic_tree::{LeafContent, Stat};
+use composefs::tree::RegularFile;
 
 use upac_composefs::ObjectID;
 
@@ -107,11 +108,53 @@ pub struct PackageEntryId {
 
 impl PackageEntryId {
     pub fn new(kind: PackageEntryKind, content: ObjectID, stat: &Stat, place: &Path) -> Self {
+        fn metadata_hash(stat: &Stat, place: &Path) -> ObjectID {
+            let place = place.as_os_str().as_bytes();
+
+            let mut serialized = Vec::new();
+            serialized.extend_from_slice(&(place.len() as u64).to_le_bytes());
+            serialized.extend_from_slice(place);
+            serialized.extend_from_slice(&(stat.st_mode & PERMISSION_MASK).to_le_bytes());
+            serialized.extend_from_slice(&stat.st_uid.to_le_bytes());
+            serialized.extend_from_slice(&stat.st_gid.to_le_bytes());
+
+            for (name, value) in &stat.xattrs {
+                serialized.extend_from_slice(&(name.len() as u64).to_le_bytes());
+                serialized.extend_from_slice(name.as_bytes());
+                serialized.extend_from_slice(&(value.len() as u64).to_le_bytes());
+                serialized.extend_from_slice(value);
+            }
+
+            compute_verity(&serialized)
+        }
+
         Self {
             kind,
             content,
-            metadata: Self::metadata_hash(stat, place),
+            metadata: metadata_hash(stat, place),
         }
+    }
+
+    pub fn from_leaf(
+        content: &LeafContent<RegularFile<ObjectID>>, stat: &Stat, place: &Path,
+    ) -> Result<Self, DatabaseError> {
+        let (kind, content) = match content {
+            LeafContent::Regular(RegularFile::External(object, _)) => (PackageEntryKind::File, object.clone()),
+            LeafContent::Regular(RegularFile::Inline(bytes)) => (PackageEntryKind::File, compute_verity(bytes)),
+            LeafContent::Symlink(target) => (PackageEntryKind::Symlink, compute_verity(target.as_bytes())),
+            _ => return Err(DatabaseError::UnsupportedEntry),
+        };
+
+        Ok(Self::new(kind, content, stat, place))
+    }
+
+    pub fn from_directory(stat: &Stat, place: &Path) -> Self {
+        Self::new(
+            PackageEntryKind::Dir,
+            compute_verity(place.as_os_str().as_bytes()),
+            stat,
+            place,
+        )
     }
 
     pub fn kind(&self) -> PackageEntryKind {
@@ -120,26 +163,6 @@ impl PackageEntryId {
 
     pub fn content(&self) -> &ObjectID {
         &self.content
-    }
-
-    fn metadata_hash(stat: &Stat, place: &Path) -> ObjectID {
-        let place = place.as_os_str().as_bytes();
-
-        let mut serialized = Vec::new();
-        serialized.extend_from_slice(&(place.len() as u64).to_le_bytes());
-        serialized.extend_from_slice(place);
-        serialized.extend_from_slice(&(stat.st_mode & PERMISSION_MASK).to_le_bytes());
-        serialized.extend_from_slice(&stat.st_uid.to_le_bytes());
-        serialized.extend_from_slice(&stat.st_gid.to_le_bytes());
-
-        for (name, value) in &stat.xattrs {
-            serialized.extend_from_slice(&(name.len() as u64).to_le_bytes());
-            serialized.extend_from_slice(name.as_bytes());
-            serialized.extend_from_slice(&(value.len() as u64).to_le_bytes());
-            serialized.extend_from_slice(value);
-        }
-
-        compute_verity(&serialized)
     }
 }
 

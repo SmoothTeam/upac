@@ -13,6 +13,7 @@ pub enum DatabaseError {
     InvalidEntryId,
     InvalidTriggers,
     InvalidTransaction,
+    UnsupportedEntry,
     Tree(RepoError),
 }
 
@@ -28,7 +29,8 @@ impl From<DatabaseError> for ErrorKind {
             DatabaseError::InvalidPackageId
             | DatabaseError::InvalidEntryId
             | DatabaseError::InvalidTriggers
-            | DatabaseError::InvalidTransaction => ErrorKind::InvalidEntry,
+            | DatabaseError::InvalidTransaction
+            | DatabaseError::UnsupportedEntry => ErrorKind::InvalidEntry,
             DatabaseError::Tree(error) => error.into(),
         }
     }

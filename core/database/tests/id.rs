@@ -3,15 +3,18 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::ffi::OsStr;
 use std::path::Path;
 
 use composefs::fsverity::compute_verity;
-use composefs::generic_tree::Stat;
+use composefs::generic_tree::{LeafContent, Stat};
+use composefs::tree::RegularFile;
 
 use upac_composefs::ObjectID;
 
 use upac_types::package::PackageInfo;
 
+use upac_database::error::DatabaseError;
 use upac_database::{PackageEntryId, PackageEntryKind, PackageId};
 
 fn stat(mode: u32) -> Stat {
@@ -81,6 +84,60 @@ fn the_same_file_in_the_same_place_is_the_same_entry() {
     let from_another_package = PackageEntryId::new(PackageEntryKind::File, content(b"license"), &stat(0o644), place);
 
     assert_eq!(from_one_package, from_another_package);
+}
+
+#[test]
+fn an_inline_file_is_named_by_the_verity_of_its_bytes() {
+    let place = Path::new("cmp/usr/share/small");
+    let leaf = LeafContent::Regular(RegularFile::Inline(Box::from(&b"small"[..])));
+
+    assert_eq!(
+        PackageEntryId::from_leaf(&leaf, &stat(0o644), place).unwrap(),
+        PackageEntryId::new(PackageEntryKind::File, content(b"small"), &stat(0o644), place)
+    );
+}
+
+#[test]
+fn a_stored_file_is_named_by_its_object() {
+    let place = Path::new("cmp/usr/lib/big.so");
+    let object = content(b"big");
+    let leaf = LeafContent::Regular(RegularFile::External(object.clone(), 3));
+
+    assert_eq!(
+        PackageEntryId::from_leaf(&leaf, &stat(0o755), place).unwrap(),
+        PackageEntryId::new(PackageEntryKind::File, object, &stat(0o755), place)
+    );
+}
+
+#[test]
+fn a_symlink_is_named_by_its_target() {
+    let place = Path::new("cmp/usr/lib/libfoo.so");
+    let leaf = LeafContent::Symlink(OsStr::new("libfoo.so.1").into());
+
+    assert_eq!(
+        PackageEntryId::from_leaf(&leaf, &stat(0o777), place).unwrap(),
+        PackageEntryId::new(PackageEntryKind::Symlink, content(b"libfoo.so.1"), &stat(0o777), place)
+    );
+}
+
+#[test]
+fn a_directory_is_named_by_its_place() {
+    let place = Path::new("cmp/usr/lib");
+
+    assert_eq!(
+        PackageEntryId::from_directory(&stat(0o755), place),
+        PackageEntryId::new(PackageEntryKind::Dir, content(b"cmp/usr/lib"), &stat(0o755), place)
+    );
+}
+
+#[test]
+fn a_device_has_no_entry_id() {
+    let leaf = LeafContent::CharacterDevice(0x0103);
+
+    assert_eq!(
+        PackageEntryId::from_leaf(&leaf, &stat(0o666), Path::new("cmp/dev/null")).unwrap_err(),
+        DatabaseError::UnsupportedEntry
+    );
 }
 
 #[test]
