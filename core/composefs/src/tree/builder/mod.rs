@@ -54,6 +54,28 @@ impl TreeBuilder {
         Ok(())
     }
 
+    pub fn try_insert(
+        &mut self, path: impl AsRef<Path>, content: LeafContent<RegularFile<ObjectID>>, stat: Stat,
+    ) -> Result<(), RepoError> {
+        let path = path.as_ref();
+
+        if self.view().check(path) {
+            return Err(RepoError::AlreadyExists);
+        }
+
+        self.insert(path, content, stat)
+    }
+
+    pub fn try_insert_dir(&mut self, path: impl AsRef<Path>, stat: Stat) -> Result<(), RepoError> {
+        let path = path.as_ref();
+
+        if self.view().check(path) {
+            return Err(RepoError::AlreadyExists);
+        }
+
+        self.insert_dir(path, stat)
+    }
+
     pub fn insert_hard_link(&mut self, path: impl AsRef<Path>, original: impl AsRef<Path>) -> Result<(), RepoError> {
         let (original_parent, original_filename) = self.filesystem.root.split(original.as_ref().as_os_str())?;
         let leaf_id = original_parent.leaf_id(original_filename)?;

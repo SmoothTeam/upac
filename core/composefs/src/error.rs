@@ -22,6 +22,7 @@ pub enum RepoError {
     UnsupportedVersion,
     IncompatibleFeatures,
     NotFound,
+    AlreadyExists,
     AccessDenied,
     InvalidPath,
     InvalidDigest,
@@ -92,6 +93,7 @@ impl From<RepoError> for ErrorKind {
                 ErrorKind::Unexpected
             }
             RepoError::NotFound => ErrorKind::NotFound,
+            RepoError::AlreadyExists => ErrorKind::AlreadyExists,
             RepoError::AccessDenied => ErrorKind::PermissionDenied,
             RepoError::InvalidPath | RepoError::InvalidDigest => ErrorKind::InvalidPath,
             RepoError::NotADirectory | RepoError::IsADirectory | RepoError::NotRegularFile => ErrorKind::InvalidEntry,
