@@ -6,6 +6,8 @@
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 use std::str::from_utf8;
 
+use nix::errno::Errno;
+
 use upac_hooks::error::HookError;
 
 use upac_types::error::ErrorKind;
@@ -24,6 +26,11 @@ fn io_error_maps_to_io_with_the_same_kind() {
     let error = IoError::new(IoErrorKind::PermissionDenied, "denied");
 
     assert_eq!(HookError::from(error), HookError::Io(IoErrorKind::PermissionDenied));
+}
+
+#[test]
+fn errno_maps_to_io_with_the_matching_kind() {
+    assert_eq!(HookError::from(Errno::ENOENT), HookError::Io(IoErrorKind::NotFound));
 }
 
 #[test]
@@ -56,7 +63,21 @@ fn every_variant_maps_to_the_documented_error_kind() {
         (HookError::Encoding, ErrorKind::InvalidEntry),
         (HookError::MalformedSignature, ErrorKind::InvalidEntry),
         (HookError::InvalidSignature, ErrorKind::InvalidEntry),
-        (HookError::TriggerConflict("deb".to_owned()), ErrorKind::InvalidEntry),
+        (
+            HookError::DuplicateHook("ldconfig".to_owned()),
+            ErrorKind::AlreadyExists,
+        ),
+        (
+            HookError::TriggerConflict {
+                format: "deb".to_owned(),
+                name: "postinst".to_owned(),
+                hooks: ("first".to_owned(), "second".to_owned()),
+            },
+            ErrorKind::InvalidEntry,
+        ),
+        (HookError::InvalidPath, ErrorKind::InvalidPath),
+        (HookError::Command(Some(1)), ErrorKind::ToolFailed),
+        (HookError::Cancelled, ErrorKind::Cancelled),
     ];
 
     for (error, expected) in cases {

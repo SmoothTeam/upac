@@ -5,7 +5,7 @@
 
 [package]
 name = "upac-lib-hooks"
-description = "upac's signed hook files: loading and verification, pipeline and declarative-trigger matching, execution with rollback"
+description = "upac's signed hook files: loading and verification, package-trigger matching, execution inside a given root with rollback"
 version.workspace = true
 
 edition.workspace = true
@@ -30,10 +30,10 @@ name = "upac_hooks"
 
 [dependencies]
 upac-lib-types = { workspace = true }
-upac-lib-abi   = { workspace = true }
 upac-lib-pki   = { workspace = true }
 
 serde = { workspace = true }
+nix   = { workspace = true }
 toml  = { workspace = true }
 
 [dev-dependencies]

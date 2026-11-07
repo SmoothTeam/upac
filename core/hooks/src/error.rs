@@ -7,6 +7,7 @@ use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 use std::str::Utf8Error;
 
+use nix::errno::Errno;
 use toml::de::Error as TomlError;
 
 use upac_types::error::ErrorKind;
@@ -21,7 +22,15 @@ pub enum HookError {
     Encoding,
     MalformedSignature,
     InvalidSignature,
-    TriggerConflict(String),
+    DuplicateHook(String),
+    TriggerConflict {
+        format: String,
+        name: String,
+        hooks: (String, String),
+    },
+    InvalidPath,
+    Command(Option<i32>),
+    Cancelled,
 }
 
 impl From<TomlError> for HookError {
@@ -33,6 +42,12 @@ impl From<TomlError> for HookError {
 impl From<IoError> for HookError {
     fn from(error: IoError) -> Self {
         HookError::Io(error.kind())
+    }
+}
+
+impl From<Errno> for HookError {
+    fn from(error: Errno) -> Self {
+        HookError::Io(IoError::from(error).kind())
     }
 }
 
@@ -61,7 +76,11 @@ impl From<HookError> for ErrorKind {
             HookError::Encoding => ErrorKind::InvalidEntry,
             HookError::MalformedSignature => ErrorKind::InvalidEntry,
             HookError::InvalidSignature => ErrorKind::InvalidEntry,
-            HookError::TriggerConflict(_) => ErrorKind::InvalidEntry,
+            HookError::DuplicateHook(_) => ErrorKind::AlreadyExists,
+            HookError::TriggerConflict { .. } => ErrorKind::InvalidEntry,
+            HookError::InvalidPath => ErrorKind::InvalidPath,
+            HookError::Command(_) => ErrorKind::ToolFailed,
+            HookError::Cancelled => ErrorKind::Cancelled,
         }
     }
 }

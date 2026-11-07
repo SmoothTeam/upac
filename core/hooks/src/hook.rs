@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::collections::HashMap;
+use std::os::fd::BorrowedFd;
 
 use serde::Deserialize;
 
@@ -15,14 +16,11 @@ use super::primitive::{Primitive, Step};
 mod tests;
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Hook {
-    #[serde(default)]
-    pub(crate) priority: i32,
-    #[serde(default)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Hook {
+    priority: i32,
     critical: bool,
-    #[serde(default)]
-    pub(crate) triggers: HashMap<String, Vec<String>>,
-    #[serde(default)]
+    triggers: HashMap<String, Vec<String>>,
     steps: Vec<Primitive>,
     #[serde(skip)]
     executed: usize,
@@ -39,13 +37,21 @@ impl Hook {
         Ok(hook)
     }
 
-    pub fn execute(&mut self) -> Result<(), HookError> {
+    pub(crate) fn priority(&self) -> i32 {
+        self.priority
+    }
+
+    pub(crate) fn triggers(&self) -> &HashMap<String, Vec<String>> {
+        &self.triggers
+    }
+
+    pub(crate) fn execute(&mut self, root: BorrowedFd) -> Result<(), HookError> {
         while let Some(step) = self.steps.get_mut(self.executed) {
-            match step.execute() {
+            match step.execute(root) {
                 Ok(()) => self.executed += 1,
                 Err(error) => {
                     if self.critical {
-                        let _ = self.rollback();
+                        let _ = self.rollback(root);
 
                         return Err(error);
                     }
@@ -58,10 +64,10 @@ impl Hook {
         Ok(())
     }
 
-    pub fn rollback(&mut self) -> Result<(), HookError> {
+    pub(crate) fn rollback(&mut self, root: BorrowedFd) -> Result<(), HookError> {
         while let Some(index) = self.executed.checked_sub(1) {
             if let Some(step) = self.steps.get(index) {
-                step.rollback()?;
+                step.rollback(root)?;
             }
 
             self.executed = index;

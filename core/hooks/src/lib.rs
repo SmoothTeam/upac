@@ -3,105 +3,88 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::collections::{HashMap, HashSet};
-use std::fs::{read, read_dir};
-use std::path::Path;
-use std::str::from_utf8;
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, HashMap};
+use std::os::fd::BorrowedFd;
 
+use upac_types::CancelToken;
 use upac_types::decoder::{PackageTriggers, TriggerPosition};
-
-use upac_pki::signature::{HookSignature, RootCertificate};
 
 use self::error::HookError;
 use self::hook::Hook;
-use self::layout::hooks::{HOOK_EXTENSION, HOOKS_DIR, ROOT_CERT_PATH, SIGNATURE_EXTENSION};
-use self::triggers::build_trigger_table;
 
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
+mod hook;
 mod primitive;
-mod triggers;
 
+pub mod builder;
 pub mod error;
-pub mod hook;
 
-#[cfg(test)]
-#[path = "../tests/inline/hooks.rs"]
-mod tests;
-
+#[derive(Debug)]
 pub struct Hooks {
-    hooks: Vec<Hook>,
+    hooks: BTreeMap<String, Hook>,
+    triggers: HashMap<String, HashMap<String, String>>,
 }
 
-impl Hooks {
-    pub fn load() -> Result<Self, HookError> {
-        Self::load_from(Path::new(HOOKS_DIR), Path::new(ROOT_CERT_PATH))
+#[derive(Debug, Default)]
+pub struct HookExecution {
+    executed: Vec<Hook>,
+}
+
+impl HookExecution {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn load_from(hooks_dir: &Path, root_cert_path: &Path) -> Result<Self, HookError> {
-        let root_bytes = read(root_cert_path)?;
-        let root_certificate = RootCertificate::from_bytes(&root_bytes)?;
+    pub fn execute(
+        &mut self, hooks: &Hooks, position: TriggerPosition, packages: &[PackageTriggers], root: BorrowedFd,
+        cancel: &CancelToken, progress: &dyn Fn(Option<&str>, u64, u64),
+    ) -> Result<(), HookError> {
+        let mut matched = BTreeMap::new();
 
-        let mut hooks = Vec::new();
-
-        for entry in read_dir(hooks_dir)? {
-            let path = entry?.path();
-
-            if path.extension().and_then(|extension| extension.to_str()) != Some(HOOK_EXTENSION) {
-                continue;
-            }
-
-            let mut signature_path = path.clone().into_os_string();
-            signature_path.push(".");
-            signature_path.push(SIGNATURE_EXTENSION);
-
-            let hook_bytes = read(&path)?;
-            let signature_bytes = read(&signature_path)?;
-
-            let signature = HookSignature::from_bytes(&signature_bytes)?;
-            signature.verify(&hook_bytes, &root_certificate)?;
-
-            hooks.push(Hook::parse(from_utf8(&hook_bytes)?)?);
-        }
-
-        Ok(Self { hooks })
-    }
-
-    pub fn matching(self, position: TriggerPosition, packages: &[PackageTriggers]) -> Result<Vec<Hook>, HookError> {
-        let mut tables = HashMap::new();
         for package in packages {
-            if !tables.contains_key(&package.format) {
-                tables.insert(
-                    package.format.clone(),
-                    build_trigger_table(&self.hooks, &package.format)?,
-                );
-            }
-        }
-
-        let mut matched_indices = HashSet::new();
-        for package in packages {
-            let Some(table) = tables.get(&package.format) else {
+            let Some(table) = hooks.triggers.get(&package.format) else {
                 continue;
             };
 
-            for trigger in &package.triggers {
-                if trigger.position != position {
+            for trigger in package.triggers.iter().filter(|trigger| trigger.position == position) {
+                let Some((hook_name, hook)) = table
+                    .get(&trigger.name)
+                    .and_then(|hook_name| hooks.hooks.get_key_value(hook_name))
+                else {
                     continue;
-                }
+                };
 
-                if let Some(hook_index) = table.get(trigger.name.as_str()) {
-                    matched_indices.insert(*hook_index);
-                }
+                matched.insert((Reverse(hook.priority()), hook_name.as_str()), hook);
             }
         }
 
-        Ok(self
-            .hooks
-            .into_iter()
-            .enumerate()
-            .filter(|(hook_index, _)| matched_indices.contains(hook_index))
-            .map(|(_, hook)| hook)
-            .collect())
+        let total = matched.len() as u64;
+
+        for (done, ((_, hook_name), hook)) in matched.into_iter().enumerate() {
+            if cancel.is_cancelled() {
+                return Err(HookError::Cancelled);
+            }
+
+            let mut running = hook.clone();
+            let result = running.execute(root);
+            self.executed.push(running);
+            result?;
+
+            progress(Some(hook_name), done as u64 + 1, total);
+        }
+
+        Ok(())
+    }
+
+    pub fn rollback(&mut self, root: BorrowedFd) -> Result<(), HookError> {
+        while let Some(hook) = self.executed.last_mut() {
+            hook.rollback(root)?;
+            self.executed.pop();
+        }
+
+        Ok(())
     }
 }
