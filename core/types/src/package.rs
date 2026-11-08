@@ -5,7 +5,7 @@
 
 use std::cmp::Ordering;
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufRead, BufReader};
 use std::mem::size_of;
 use std::path::Path;
 
@@ -22,7 +22,6 @@ use upac_macro::{CTryToRust, RustToC};
 use crate::CancelToken;
 use crate::decoder::DecodeError;
 use crate::error::ErrorKind;
-use crate::layout::checksum::CHUNK_SIZE;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum VersionToken<'raw> {
@@ -122,21 +121,23 @@ pub struct PackageChecksum([u8; 32]);
 
 impl PackageChecksum {
     pub fn compute(package_path: &Path, cancel: &CancelToken) -> Result<Self, DecodeError> {
-        let mut file = File::open(package_path)?;
+        let mut reader = BufReader::new(File::open(package_path)?);
         let mut hasher = Sha256::new();
-        let mut buffer = [0u8; CHUNK_SIZE];
 
         loop {
             if cancel.is_cancelled() {
                 return Err(DecodeError::Cancelled);
             }
 
-            let bytes_read = file.read(&mut buffer)?;
-            if bytes_read == 0 {
+            let buffer = reader.fill_buf()?;
+            if buffer.is_empty() {
                 break;
             }
 
-            hasher.update(&buffer[..bytes_read]);
+            hasher.update(buffer);
+
+            let consumed = buffer.len();
+            reader.consume(consumed);
         }
 
         Ok(Self(hasher.finalize().into()))

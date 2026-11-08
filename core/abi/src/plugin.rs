@@ -25,5 +25,7 @@ pub type BootResourceKindFn = unsafe extern "C" fn() -> u8;
 
 pub type DecodeFn = unsafe extern "C" fn(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32;
 
-pub type StoreObjectFn =
-    unsafe extern "C" fn(store_ctx: *mut c_void, data: *const u8, len: usize, object_id_out: *mut [u8; 32]) -> i32;
+pub type CreateFileFn = unsafe extern "C" fn(store_ctx: *mut c_void, fd_out: *mut i32) -> i32;
+
+pub type FinishFileFn =
+    unsafe extern "C" fn(store_ctx: *mut c_void, fd: i32, size: u64, object_id_out: *mut [u8; 32]) -> i32;

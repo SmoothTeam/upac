@@ -20,7 +20,7 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-include = ["/src", "lib.toml", "build.rs"]
+include = ["/src"]
 
 [lints]
 workspace = true
@@ -37,9 +37,6 @@ gptman = { workspace = true, optional = true }
 serde = { workspace = true }
 sha2  = { workspace = true }
 toml  = { workspace = true }
-
-[build-dependencies]
-toml = { workspace = true }
 
 [features]
 gpt = ["dep:gptman"]

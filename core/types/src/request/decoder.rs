@@ -6,7 +6,7 @@
 use std::os::raw::c_void;
 
 use upac_abi::package::CPackageChecksum;
-use upac_abi::plugin::StoreObjectFn;
+use upac_abi::plugin::{CreateFileFn, FinishFileFn};
 use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::types::{COwned, CSlice};
 
@@ -20,7 +20,8 @@ use crate::package::PackageChecksum;
 pub struct DecodeRequest<'data> {
     pub package_path: &'data str,
     pub checksum: PackageChecksum,
-    pub store_object: StoreObjectFn,
+    pub create_file: CreateFileFn,
+    pub finish_file: FinishFileFn,
     pub store_ctx: *mut c_void,
     pub cancel_token: &'data CancelToken,
 }
