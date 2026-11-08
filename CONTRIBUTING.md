@@ -128,8 +128,7 @@ For files where a comment header doesn't make sense (e.g. Markdown, TOML), add a
 - Flat `key = value` TOML configs (`rustfmt.toml` and similar — not `Cargo.toml`): bool fields,
   then string fields, then number fields, each group separated by a blank line.
 - No `const X: &Type = value;` for a fixed value (a path, a protocol string, a GUID, ...) directly
-  in a `.rs` file — ever. It goes in a `.toml` file (`lib.toml`, or a crate-local equivalent like
-  `booter.toml`) with a comment explaining what the value is and why it's fixed, read in via a
+  in a `.rs` file — ever. It goes in the crate's own `lib.toml` with a comment explaining what the value is and why it's fixed, read in via a
   `build.rs` codegen step. The only thing allowed to live as a literal in Rust source is a genuine
   cross-language C-ABI contract expressed as a real type (an enum discriminant, a `#[repr(C)]`
   field) — never a bare string/scalar constant standing in for one.
