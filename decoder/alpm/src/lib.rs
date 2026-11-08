@@ -52,7 +52,7 @@ pub unsafe extern "C" fn decode(request: *const CDecodeRequest, response_out: *m
 
         request.checksum.verify(package_path, request.cancel_token)?;
 
-        let objects = ObjectStore::new(request.store_object, request.store_ctx);
+        let objects = ObjectStore::new(request.create_file, request.finish_file, request.store_ctx);
         let archive = AlpmArchive::read(package_path, &objects, request.cancel_token)?;
 
         let DecodedPackageMeta { meta, dependencies } = PkgInfo(&archive.pkginfo).decode(request.checksum)?;

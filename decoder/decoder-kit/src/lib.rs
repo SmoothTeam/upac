@@ -7,8 +7,10 @@
 use std::collections::BTreeMap;
 #[cfg(feature = "plugin")]
 use std::ffi::OsStr;
+#[cfg(feature = "host")]
+use std::fs::File;
 #[cfg(feature = "plugin")]
-use std::io::Read;
+use std::io::{Read, copy};
 #[cfg(feature = "host")]
 use std::mem::MaybeUninit;
 #[cfg(any(feature = "host", feature = "plugin"))]
@@ -19,8 +21,6 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 #[cfg(feature = "plugin")]
 use std::path::{Component, PathBuf};
-#[cfg(feature = "host")]
-use std::slice::from_raw_parts;
 
 #[cfg(feature = "plugin")]
 use composefs::MAX_INLINE_CONTENT;
@@ -46,7 +46,7 @@ use upac_abi::plugin::DecodeFn;
 #[cfg(feature = "dynamic-plugins")]
 use upac_abi::plugin::DecodePluginAbiVersionFn;
 #[cfg(feature = "plugin")]
-use upac_abi::plugin::StoreObjectFn;
+use upac_abi::plugin::{CreateFileFn, FinishFileFn};
 #[cfg(feature = "host")]
 use upac_abi::request::decoder::CDecodeRequest;
 #[cfg(feature = "host")]
@@ -67,10 +67,10 @@ use upac_types::CancelToken;
 use upac_types::decoder::DecodeError;
 #[cfg(feature = "host")]
 use upac_types::package::PackageChecksum;
-#[cfg(any(feature = "host", feature = "plugin"))]
-use upac_types::plugin::plugin_result;
 #[cfg(feature = "host")]
 use upac_types::plugin::plugin_status;
+#[cfg(any(feature = "host", feature = "plugin"))]
+use upac_types::plugin::{ObjectFile, plugin_result};
 #[cfg(feature = "host")]
 use upac_types::request::decoder::DecodeRequest;
 #[cfg(feature = "host")]
@@ -108,7 +108,8 @@ pub struct BuiltinDecoder {
 
 #[cfg(feature = "plugin")]
 pub struct ObjectStore {
-    store_object: StoreObjectFn,
+    create_file: CreateFileFn,
+    finish_file: FinishFileFn,
     store_ctx: *mut c_void,
 }
 
@@ -124,41 +125,55 @@ pub struct Decoder {
 
 #[cfg(feature = "plugin")]
 impl ObjectStore {
-    pub fn new(store_object: StoreObjectFn, store_ctx: *mut c_void) -> Self {
+    pub fn new(create_file: CreateFileFn, finish_file: FinishFileFn, store_ctx: *mut c_void) -> Self {
         Self {
-            store_object,
+            create_file,
+            finish_file,
             store_ctx,
         }
     }
 
-    pub fn store(&self, data: &[u8]) -> Result<RegularFile<ObjectID>, DecodeError> {
-        if data.len() <= MAX_INLINE_CONTENT {
-            return Ok(RegularFile::Inline(data.into()));
+    pub fn store<Reader: Read>(&self, reader: &mut Reader, size: u64) -> Result<RegularFile<ObjectID>, DecodeError> {
+        if size <= MAX_INLINE_CONTENT as u64 {
+            let mut content = Vec::new();
+            reader.read_to_end(&mut content)?;
+
+            return Ok(RegularFile::Inline(content.into()));
+        }
+
+        let mut fd = 0;
+        let status = unsafe { (self.create_file)(self.store_ctx, &mut fd) };
+        plugin_result::<DecodeError>(status).map_err(|error| error.unwrap_or(DecodeError::Io))?;
+
+        let mut file = unsafe { ObjectFile::from_raw(fd) }.map_err(|_| DecodeError::Io)?;
+
+        if copy(reader, &mut file)? != size {
+            return Err(DecodeError::MalformedMetadata);
         }
 
         let mut object_id = [0u8; 32];
-        let status = unsafe { (self.store_object)(self.store_ctx, data.as_ptr(), data.len(), &mut object_id) };
+        let status = unsafe { (self.finish_file)(self.store_ctx, i32::from(file), size, &mut object_id) };
         plugin_result::<DecodeError>(status).map_err(|error| error.unwrap_or(DecodeError::Io))?;
 
         let object_id = ObjectID::read_from_bytes(&object_id).map_err(|_| DecodeError::Io)?;
 
-        Ok(RegularFile::External(object_id, data.len() as u64))
+        Ok(RegularFile::External(object_id, size))
     }
 
     pub fn insert_entry<Reader: Read>(
         &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>,
     ) -> Result<(), DecodeError> {
-        let mut content = Vec::new();
-
-        if matches!(entry.header().entry_type(), EntryType::Regular | EntryType::Continuous) {
-            entry.read_to_end(&mut content)?;
-        }
-
-        self.insert_entry_with(builder, entry, &content)
+        self.insert(builder, entry, None)
     }
 
     pub fn insert_entry_with<Reader: Read>(
         &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>, content: &[u8],
+    ) -> Result<(), DecodeError> {
+        self.insert(builder, entry, Some(content))
+    }
+
+    fn insert<Reader: Read>(
+        &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>, content: Option<&[u8]>,
     ) -> Result<(), DecodeError> {
         fn normalize(path: &Path) -> PathBuf {
             path.components()
@@ -210,7 +225,20 @@ impl ObjectStore {
                 inserted => inserted,
             },
             EntryType::Regular | EntryType::Continuous => {
-                builder.insert(&path, LeafContent::Regular(self.store(content)?), stat)
+                let file = match content {
+                    Some(mut content) => {
+                        let size = content.len() as u64;
+
+                        self.store(&mut content, size)?
+                    }
+                    None => {
+                        let size = entry.size();
+
+                        self.store(entry, size)?
+                    }
+                };
+
+                builder.insert(&path, LeafContent::Regular(file), stat)
             }
             EntryType::Symlink => {
                 let target = entry.link_name()?.ok_or(DecodeError::MalformedMetadata)?;
@@ -269,25 +297,44 @@ impl Decoder {
     pub fn decode(
         &self, package_path: &Path, repo: &Repo, cancel: &CancelToken,
     ) -> Result<DecodeResponse, DecoderError> {
-        unsafe extern "C" fn store_object(
-            store_ctx: *mut c_void, data: *const u8, len: usize, object_id_out: *mut [u8; 32],
-        ) -> i32 {
-            fn store(
-                store_ctx: *mut c_void, data: *const u8, len: usize, object_id_out: *mut [u8; 32],
-            ) -> Result<(), DecodeError> {
+        unsafe extern "C" fn create_file(store_ctx: *mut c_void, fd_out: *mut i32) -> i32 {
+            fn create(store_ctx: *mut c_void, fd_out: *mut i32) -> Result<(), DecodeError> {
                 let repo = unsafe { store_ctx.cast::<Repo>().as_ref() }.ok_or(DecodeError::InvalidRequest)?;
 
-                if object_id_out.is_null() || (data.is_null() && len != 0) {
+                if fd_out.is_null() {
                     return Err(DecodeError::InvalidRequest);
                 }
 
-                let bytes = if len == 0 {
-                    &[][..]
-                } else {
-                    unsafe { from_raw_parts(data, len) }
-                };
+                let file = repo.repository().create_object_tmpfile().map_err(|_| DecodeError::Io)?;
 
-                let object_id = repo.repository().ensure_object(bytes).map_err(|_| DecodeError::Io)?;
+                unsafe { fd_out.write(i32::from(ObjectFile::from(File::from(file)))) };
+
+                Ok(())
+            }
+
+            plugin_status(create(store_ctx, fd_out))
+        }
+
+        unsafe extern "C" fn finish_file(
+            store_ctx: *mut c_void, fd: i32, size: u64, object_id_out: *mut [u8; 32],
+        ) -> i32 {
+            fn finish(
+                store_ctx: *mut c_void, fd: i32, size: u64, object_id_out: *mut [u8; 32],
+            ) -> Result<(), DecodeError> {
+                let file = unsafe { ObjectFile::from_raw(fd) }
+                    .map_err(|_| DecodeError::InvalidRequest)?
+                    .into_file();
+
+                let repo = unsafe { store_ctx.cast::<Repo>().as_ref() }.ok_or(DecodeError::InvalidRequest)?;
+
+                if object_id_out.is_null() {
+                    return Err(DecodeError::InvalidRequest);
+                }
+
+                let (object_id, _method) = repo
+                    .repository()
+                    .finalize_object_tmpfile(file, size)
+                    .map_err(|_| DecodeError::Io)?;
                 let object_id = <[u8; 32]>::try_from(object_id.as_bytes()).map_err(|_| DecodeError::Io)?;
 
                 unsafe { object_id_out.write(object_id) };
@@ -295,7 +342,7 @@ impl Decoder {
                 Ok(())
             }
 
-            plugin_status(store(store_ctx, data, len, object_id_out))
+            plugin_status(finish(store_ctx, fd, size, object_id_out))
         }
 
         let checksum = PackageChecksum::compute(package_path, cancel)?;
@@ -303,7 +350,8 @@ impl Decoder {
         let request: CDecodeRequest = DecodeRequest {
             package_path: package_path.to_str().ok_or(DecoderError::InvalidPath)?,
             checksum,
-            store_object,
+            create_file,
+            finish_file,
             store_ctx: (repo as *const Repo).cast_mut().cast::<c_void>(),
             cancel_token: cancel,
         }
