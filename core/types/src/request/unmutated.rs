@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::package::CPackageInfo;
+use upac_abi::CPackageInfo;
 use upac_abi::request::CRequestBase;
 use upac_abi::request::unmutated::{
     CDiffRequest, CListConfigRequest, CListDeploysRequest, CListHistoryRequest, CListPackagesRequest,
@@ -15,8 +15,8 @@ use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
+use crate::PackageInfo;
 use crate::error::ErrorKind;
-use crate::package::PackageInfo;
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct ListPackagesRequest<'data> {

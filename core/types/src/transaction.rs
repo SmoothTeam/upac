@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use upac_macro::CEnum;
 
-use crate::error::ErrorKind;
+use crate::error::{ErrorDomain, ErrorKind};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, CEnum)]
@@ -54,6 +54,15 @@ impl FromStr for TransactionKind {
             .find(|kind| kind.to_string() == name)
             .ok_or(ErrorKind::InvalidEntry)
     }
+}
+
+pub trait CommandState: Copy {
+    const DOMAIN: ErrorDomain;
+    const VALIDATION: Self;
+
+    fn as_u32(self) -> u32;
+
+    fn from_stage_index(index: usize) -> Self;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

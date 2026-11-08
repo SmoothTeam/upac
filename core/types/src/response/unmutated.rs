@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::package::CPackageMeta;
+use upac_abi::CPackageMeta;
 use upac_abi::response::entry::{
     CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
 };
@@ -19,7 +19,7 @@ use super::entry::{
     ConfigSnapshotEntry, DeployEntry, DiffFileEntry, DiffPackageEntry, SearchFileEntry, TransactionEntry,
 };
 
-use crate::package::PackageMeta;
+use crate::PackageMeta;
 
 #[derive(Debug, Clone, RustToC)]
 pub struct DiffResponse {

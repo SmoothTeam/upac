@@ -17,7 +17,7 @@ use upac_abi::error::{AbiError, CError};
 
 use upac_macro::{CEnum, CTryToRust, RustToC};
 
-use super::traits::CommandState;
+use super::transaction::CommandState;
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]

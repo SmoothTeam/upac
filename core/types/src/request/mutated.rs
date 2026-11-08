@@ -8,7 +8,7 @@ use upac_abi::request::mutated::{
     CPinRequest, CRollbackRequest, CUninstallRequest, CUpdateRequest,
 };
 
-use upac_abi::package::CPackageInfo;
+use upac_abi::CPackageInfo;
 use upac_abi::request::CRequestBase;
 use upac_abi::types::{COwned, CSlice, CVec};
 
@@ -16,8 +16,8 @@ use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
+use crate::PackageInfo;
 use crate::error::ErrorKind;
-use crate::package::PackageInfo;
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct InstallRequest<'data> {

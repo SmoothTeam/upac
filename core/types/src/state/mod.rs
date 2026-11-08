@@ -9,7 +9,7 @@ pub mod unmutated;
 
 macro_rules! impl_command_state {
     ($name:ident, $domain:ident) => {
-        impl crate::traits::CommandState for $name {
+        impl crate::transaction::CommandState for $name {
             const DOMAIN: $crate::error::ErrorDomain = $crate::error::ErrorDomain::$domain;
             const VALIDATION: Self = $name::Setup;
 
