@@ -28,8 +28,9 @@ name = "upac_boot_grub"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-lib-abi   = { workspace = true }
-upac-lib-types = { workspace = true }
+upac-lib-abi        = { workspace = true }
+upac-lib-booter-kit = { workspace = true, features = ["plugin"] }
+upac-lib-types      = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }

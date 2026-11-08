@@ -8,24 +8,24 @@ use std::io::ErrorKind as IoErrorKind;
 use std::path::Path;
 use std::process::Command;
 
-use upac_types::booter::BootResourceKind;
+use upac_booter_kit::BootBackend;
 
-use upac_types::traits::Booter;
+use upac_types::booter::{BootError, BootResourceKind};
 
-use super::error::GrubError;
-use super::grub::{
-    INSTALL_BIN_FALLBACK, INSTALL_BIN_PRIMARY, INSTALL_BOOTLOADER_ID, INSTALL_TARGET, REBOOT_BIN_FALLBACK,
-    REBOOT_BIN_PRIMARY, SET_DEFAULT_BIN_FALLBACK, SET_DEFAULT_BIN_PRIMARY,
+use super::layout::config::{CONTENTS, DIRECTORY, FILE};
+use super::layout::install::{
+    BOOT_DIRECTORY_FLAG, BOOTLOADER_ID, BOOTLOADER_ID_FLAG, EFI_DIRECTORY_FLAG, TARGET, TARGET_FLAG,
+    TOOLS as INSTALL_TOOLS,
 };
-
-const GRUB_CFG_CONTENTS: &str = "insmod blscfg\nblscfg\n";
+use super::layout::reboot::TOOLS as REBOOT_TOOLS;
+use super::layout::set_default::TOOLS as SET_DEFAULT_TOOLS;
 
 pub struct Grub;
 
-impl Booter for Grub {
-    type Error = GrubError;
+impl BootBackend for Grub {
+    type Error = BootError;
 
-    fn new() -> Result<Self, GrubError> {
+    fn new() -> Result<Self, BootError> {
         Ok(Grub)
     }
 
@@ -33,50 +33,46 @@ impl Booter for Grub {
         BootResourceKind::Bls
     }
 
-    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), GrubError> {
-        self.run_first_available([REBOOT_BIN_PRIMARY, REBOOT_BIN_FALLBACK], &[entry_name])
+    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), BootError> {
+        run_installed_tool(REBOOT_TOOLS, &[entry_name])
     }
 
-    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), GrubError> {
+    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), BootError> {
         let _ = esp_mount_point;
 
-        self.run_first_available([SET_DEFAULT_BIN_PRIMARY, SET_DEFAULT_BIN_FALLBACK], &[entry_name])
+        run_installed_tool(SET_DEFAULT_TOOLS, &[entry_name])
     }
 
-    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), GrubError> {
+    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), BootError> {
         let _ = (to_slot, from_slot);
 
-        self.run_first_available(
-            [INSTALL_BIN_PRIMARY, INSTALL_BIN_FALLBACK],
+        run_installed_tool(
+            INSTALL_TOOLS,
             &[
-                &format!("--target={INSTALL_TARGET}"),
-                &format!("--efi-directory={esp_mount_point}"),
-                &format!("--boot-directory={esp_mount_point}"),
-                &format!("--bootloader-id={INSTALL_BOOTLOADER_ID}"),
+                &format!("{TARGET_FLAG}{TARGET}"),
+                &format!("{EFI_DIRECTORY_FLAG}{esp_mount_point}"),
+                &format!("{BOOT_DIRECTORY_FLAG}{esp_mount_point}"),
+                &format!("{BOOTLOADER_ID_FLAG}{BOOTLOADER_ID}"),
             ],
         )?;
 
-        let grub_cfg = Path::new(esp_mount_point).join("grub").join("grub.cfg");
-        if let Some(parent) = grub_cfg.parent() {
-            create_dir_all(parent)?;
-        }
-        write(&grub_cfg, GRUB_CFG_CONTENTS)?;
+        let config_directory = Path::new(esp_mount_point).join(DIRECTORY);
+        create_dir_all(&config_directory)?;
+        write(config_directory.join(FILE), CONTENTS)?;
 
         Ok(())
     }
 }
 
-impl Grub {
-    fn run_first_available(&self, candidates: [&str; 2], args: &[&str]) -> Result<(), GrubError> {
-        for candidate in candidates {
-            match Command::new(candidate).args(args).status() {
-                Ok(status) if status.success() => return Ok(()),
-                Ok(_) => return Err(GrubError::Unexpected),
-                Err(error) if error.kind() == IoErrorKind::NotFound => continue,
-                Err(error) => return Err(GrubError::from(error)),
-            }
+fn run_installed_tool(tools: &[&str], arguments: &[&str]) -> Result<(), BootError> {
+    for tool in tools {
+        match Command::new(tool).args(arguments).status() {
+            Ok(status) if status.success() => return Ok(()),
+            Ok(_) => return Err(BootError::Unexpected),
+            Err(error) if error.kind() == IoErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
         }
-
-        Err(GrubError::ToolNotFound)
     }
+
+    Err(BootError::ToolNotInstalled)
 }

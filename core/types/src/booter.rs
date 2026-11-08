@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::io::Error as IoError;
+use std::io::ErrorKind as IoErrorKind;
+
 use upac_macro::CEnum;
 
 use crate::error::ErrorKind;
@@ -25,6 +28,21 @@ pub enum BootError {
     NoFreeBootId = 6,
     Unexpected = 7,
     WrongPartitionType = 8,
+}
+
+impl From<IoError> for BootError {
+    fn from(error: IoError) -> Self {
+        match error.kind() {
+            IoErrorKind::PermissionDenied => BootError::PermissionDenied,
+            _ => BootError::Unexpected,
+        }
+    }
+}
+
+impl From<ErrorKind> for BootError {
+    fn from(_: ErrorKind) -> Self {
+        BootError::InvalidRequest
+    }
 }
 
 impl From<BootError> for ErrorKind {
