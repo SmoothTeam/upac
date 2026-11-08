@@ -21,6 +21,10 @@ pub mod state;
 pub mod traits;
 pub mod transaction;
 
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
+
 #[repr(transparent)]
 #[derive(Debug, Default)]
 pub struct CancelToken(AtomicU8);

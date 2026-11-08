@@ -8,6 +8,7 @@ use std::sync::atomic::AtomicU8;
 
 use upac_macro::{CFree, CNew, CValidate};
 
+use crate::package::CPackageChecksum;
 use crate::plugin::StoreObjectFn;
 use crate::types::CSlice;
 
@@ -18,7 +19,7 @@ pub struct CDecodeRequest {
 
     pub package_path: CSlice,
 
-    pub checksum: [u8; 32],
+    pub checksum: CPackageChecksum,
 
     pub store_object: StoreObjectFn,
     pub store_ctx: *mut c_void,

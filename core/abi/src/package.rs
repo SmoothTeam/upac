@@ -8,6 +8,8 @@ use upac_macro::{CFree, CNew, CValidate};
 use crate::CONSTRAINT_ANY;
 use crate::types::CSlice;
 
+pub type CPackageChecksum = [u8; 32];
+
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CVersion {
@@ -34,7 +36,7 @@ pub struct CPackageMeta {
     pub license: CSlice,
     #[optional]
     pub url: CSlice,
-    pub sha256: [u8; 32],
+    pub checksum: CPackageChecksum,
     pub installed_size: u64,
 }
 

@@ -5,6 +5,7 @@
 
 use std::os::raw::c_void;
 
+use upac_abi::package::CPackageChecksum;
 use upac_abi::plugin::StoreObjectFn;
 use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::types::{COwned, CSlice};
@@ -13,11 +14,12 @@ use upac_macro::{CTryToRust, RustToC};
 
 use crate::CancelToken;
 use crate::error::ErrorKind;
+use crate::package::PackageChecksum;
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DecodeRequest<'data> {
     pub package_path: &'data str,
-    pub checksum: [u8; 32],
+    pub checksum: PackageChecksum,
     pub store_object: StoreObjectFn,
     pub store_ctx: *mut c_void,
     pub cancel_token: &'data CancelToken,

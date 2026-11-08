@@ -6,7 +6,7 @@
 use super::booter::BootResourceKind;
 use super::decoder::DecodeError;
 use super::error::ErrorDomain;
-use super::package::DecodedPackageMeta;
+use super::package::{DecodedPackageMeta, PackageChecksum};
 
 pub trait CommandState: Copy {
     const DOMAIN: ErrorDomain;
@@ -28,5 +28,5 @@ pub trait Booter: Sized {
 }
 
 pub trait DecodeMeta {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError>;
+    fn decode(&self, checksum: PackageChecksum) -> Result<DecodedPackageMeta, DecodeError>;
 }

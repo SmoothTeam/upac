@@ -4,17 +4,25 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::cmp::Ordering;
+use std::fs::File;
+use std::io::Read;
 use std::mem::size_of;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use upac_abi::package::{CPackageDependency, CPackageInfo, CPackageMeta, CVersion};
+use sha2::{Digest, Sha256};
+
+use upac_abi::package::{CPackageChecksum, CPackageDependency, CPackageInfo, CPackageMeta, CVersion};
 use upac_abi::types::{COwned, CSlice};
 use upac_abi::{CONSTRAINT_ANY, CONSTRAINT_EQUAL, CONSTRAINT_GREATER, CONSTRAINT_LESS};
 
 use upac_macro::{CTryToRust, RustToC};
 
+use crate::CancelToken;
+use crate::decoder::DecodeError;
 use crate::error::ErrorKind;
+use crate::layout::checksum::CHUNK_SIZE;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum VersionToken<'raw> {
@@ -108,6 +116,55 @@ impl Version {
     }
 }
 
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PackageChecksum([u8; 32]);
+
+impl PackageChecksum {
+    pub fn compute(package_path: &Path, cancel: &CancelToken) -> Result<Self, DecodeError> {
+        let mut file = File::open(package_path)?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0u8; CHUNK_SIZE];
+
+        loop {
+            if cancel.is_cancelled() {
+                return Err(DecodeError::Cancelled);
+            }
+
+            let bytes_read = file.read(&mut buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+
+            hasher.update(&buffer[..bytes_read]);
+        }
+
+        Ok(Self(hasher.finalize().into()))
+    }
+
+    pub fn verify(&self, package_path: &Path, cancel: &CancelToken) -> Result<(), DecodeError> {
+        if Self::compute(package_path, cancel)? == *self {
+            Ok(())
+        } else {
+            Err(DecodeError::ChecksumMismatch)
+        }
+    }
+}
+
+impl From<PackageChecksum> for CPackageChecksum {
+    fn from(checksum: PackageChecksum) -> Self {
+        checksum.0
+    }
+}
+
+impl TryFrom<&CPackageChecksum> for PackageChecksum {
+    type Error = ErrorKind;
+
+    fn try_from(checksum: &CPackageChecksum) -> Result<Self, ErrorKind> {
+        Ok(Self(*checksum))
+    }
+}
+
 #[derive(Debug, Clone, CTryToRust, RustToC, Serialize, Deserialize)]
 pub struct PackageMeta {
     pub name: String,
@@ -118,7 +175,7 @@ pub struct PackageMeta {
     pub description: String,
     pub license: Option<String>,
     pub url: Option<String>,
-    pub sha256: [u8; 32],
+    pub checksum: PackageChecksum,
     pub installed_size: u64,
 }
 
@@ -159,6 +216,13 @@ impl VersionConstraint {
             (false, false, true) => Some(VersionConstraint::Greater),
             _ => None,
         }
+    }
+
+    pub fn parse_prefix(token: &[u8], operators: &[(&[u8], VersionConstraint)]) -> Option<(VersionConstraint, usize)> {
+        operators
+            .iter()
+            .find(|(operator, _)| token.starts_with(operator))
+            .map(|(operator, constraint)| (*constraint, operator.len()))
     }
 
     fn from_wire_bits(bits: u8) -> Option<VersionConstraint> {

@@ -20,7 +20,7 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-include = ["/src"]
+include = ["/src", "lib.toml", "build.rs"]
 
 [lints]
 workspace = true
@@ -35,7 +35,11 @@ upac-lib-abi   = { workspace = true }
 gptman = { workspace = true, optional = true }
 
 serde = { workspace = true }
+sha2  = { workspace = true }
 toml  = { workspace = true }
+
+[build-dependencies]
+toml = { workspace = true }
 
 [features]
 gpt = ["dep:gptman"]
