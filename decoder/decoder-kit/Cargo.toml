@@ -5,7 +5,7 @@
 
 [package]
 name = "upac-lib-decoder-kit"
-description = "Plugin-side toolkit for upac's package decoders: checksum verification, dependency operator parsing and decode response building"
+description = "upac's package decoder kit: one decoder, built in or loaded from its manifest, decoding a package into the store"
 version.workspace = true
 
 edition.workspace = true
@@ -29,7 +29,24 @@ workspace = true
 name = "upac_decoder_kit"
 
 [dependencies]
-upac-lib-types = { workspace = true }
-upac-lib-abi   = { workspace = true }
+upac-lib-abi       = { workspace = true }
+upac-lib-composefs = { workspace = true, optional = true }
+upac-lib-types     = { workspace = true, optional = true }
 
-sha2 = { workspace = true }
+libloading = { workspace = true, optional = true }
+serde      = { workspace = true, optional = true }
+toml       = { workspace = true, optional = true }
+
+mime     = { version = "0.3.17", optional = true }
+zerocopy = { version = "0.8", optional = true }
+
+[features]
+host = [
+    "dep:upac-lib-composefs",
+    "dep:upac-lib-types",
+    "dep:serde",
+    "dep:toml",
+    "dep:mime",
+    "dep:zerocopy",
+]
+dynamic-plugins = ["host", "dep:libloading"]

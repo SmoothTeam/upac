@@ -20,11 +20,15 @@ pub enum DecoderError {
     Failed(DecodeError),
     InvalidResponse,
     Io(IoErrorKind),
+    InvalidPath,
     Manifest,
-    DuplicateFormat(String),
-    UnknownFormat(String),
     InvalidMimeType,
-    NoDecoders,
+}
+
+impl From<DecodeError> for DecoderError {
+    fn from(error: DecodeError) -> Self {
+        DecoderError::Failed(error)
+    }
 }
 
 impl From<ErrorKind> for DecoderError {
@@ -60,11 +64,9 @@ impl From<DecoderError> for ErrorKind {
             DecoderError::Failed(error) => error.into(),
             DecoderError::InvalidResponse => ErrorKind::InvalidEntry,
             DecoderError::Io(_) => ErrorKind::ReadFailed,
+            DecoderError::InvalidPath => ErrorKind::InvalidPath,
             DecoderError::Manifest => ErrorKind::InvalidEntry,
-            DecoderError::DuplicateFormat(_) => ErrorKind::InvalidEntry,
-            DecoderError::UnknownFormat(_) => ErrorKind::NotFound,
             DecoderError::InvalidMimeType => ErrorKind::InvalidEntry,
-            DecoderError::NoDecoders => ErrorKind::NotFound,
         }
     }
 }

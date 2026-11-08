@@ -7,8 +7,8 @@ use upac_abi::DECODER_ABI_VERSION;
 use upac_abi::request::decoder::CDecodeRequest;
 use upac_abi::response::decoder::CDecodeResponse;
 
-use upac_decoder_kit::{build_decode_response, verify};
-use upac_types::decoder::{BuiltinDecoder, DecodeError};
+use upac_decoder_kit::BuiltinDecoder;
+use upac_types::decoder::DecodeError;
 use upac_types::plugin::plugin_status;
 use upac_types::request::decoder::DecodeRequest;
 use upac_types::traits::DecodeMeta;

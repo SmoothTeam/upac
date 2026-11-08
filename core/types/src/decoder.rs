@@ -10,7 +10,6 @@ use std::str::{FromStr, Utf8Error};
 use serde::{Deserialize, Serialize};
 
 use upac_abi::package::CPackageTrigger;
-use upac_abi::plugin::DecodeFn;
 use upac_abi::types::{COwned, CSlice};
 
 use upac_macro::{CEnum, CTryToRust, RustToC};
@@ -119,11 +118,4 @@ impl From<DecodeError> for ErrorKind {
             DecodeError::Cancelled => ErrorKind::Cancelled,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct BuiltinDecoder {
-    pub format: &'static str,
-    pub extensions: &'static [&'static str],
-    pub decode: DecodeFn,
 }

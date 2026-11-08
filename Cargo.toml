@@ -22,7 +22,6 @@ members = [
     "booter/systemd-boot",
     "booter/grub",
     "booter/refind",
-    "decoder/decoder-loader",
     "decoder/decoder-kit",
     "decoder/alpm",
     "decoder/deb",
@@ -62,8 +61,7 @@ upac-lib-orchestrator   = { path = "lib/orchestrator" }
 upac-lib-composefs      = { path = "core/composefs" }
 upac-lib-database       = { path = "core/database" }
 upac-lib-deploy         = { path = "core/deploy" }
-upac-lib-decoder-loader = { path = "decoder/decoder-loader", default-features = false }
-upac-lib-decoder-kit    = { path = "decoder/decoder-kit" }
+upac-lib-decoder-kit    = { path = "decoder/decoder-kit", default-features = false }
 upac-lib-hooks          = { path = "core/hooks" }
 upac-lib-image          = { path = "core/image" }
 upac-lib-booter-loader  = { path = "booter/booter-loader", default-features = false }
