@@ -3,115 +3,102 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fs::OpenOptions;
+use std::fs::File;
 use std::io::ErrorKind as IoErrorKind;
-use std::os::fd::AsRawFd;
-use std::os::raw::c_long;
+use std::iter::once;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::Command;
-use std::str::FromStr;
 
-use efivar::VarManager;
 use efivar::efi::{Variable, VariableFlags};
+use efivar::{Error as EfivarError, VarManager, system};
 
-use nix::{ioctl_read, ioctl_write_ptr};
+use rustix::fs::{IFlags, ioctl_getflags, ioctl_setflags};
 
 use uuid::Uuid;
 
-use upac_types::booter::BootResourceKind;
+use upac_booter_kit::BootBackend;
 
-use upac_types::traits::Booter;
+use upac_types::booter::{BootError, BootResourceKind};
 
-use super::boot::{EFIVARFS_PATH, LOADER_ENTRY_DEFAULT_VAR, LOADER_ENTRY_ONE_SHOT_VAR, SD_BOOT_LOADER_GUID};
-use super::error::SystemdBootError;
-use super::systemd_boot::INSTALL_BIN;
-
-const FS_IMMUTABLE_FL: c_long = 0x0000_0010;
-
-ioctl_read!(fs_ioc_getflags, b'f', 1, c_long);
-ioctl_write_ptr!(fs_ioc_setflags, b'f', 2, c_long);
-
-macro_rules! encode_utf16_null {
-    ($value:expr) => {{
-        let mut bytes: Vec<u8> = $value.encode_utf16().flat_map(u16::to_le_bytes).collect();
-        bytes.extend_from_slice(&[0x00, 0x00]);
-        bytes
-    }};
-}
+use super::layout::efivarfs::PATH as EFIVARFS_PATH;
+use super::layout::install::{COMMAND, ESP_PATH_FLAG, TOOL};
+use super::layout::loader::{ENTRY_DEFAULT, ENTRY_ONE_SHOT, VENDOR_GUID};
 
 pub struct SystemdBoot {
     manager: Box<dyn VarManager>,
 }
 
-impl Booter for SystemdBoot {
-    type Error = SystemdBootError;
+impl BootBackend for SystemdBoot {
+    type Error = BootError;
 
-    fn new() -> Result<Self, SystemdBootError> {
-        Ok(Self {
-            manager: catch_unwind(AssertUnwindSafe(efivar::system))?,
-        })
+    fn new() -> Result<Self, BootError> {
+        let manager = catch_unwind(AssertUnwindSafe(system)).map_err(|_| BootError::EfiUnavailable)?;
+
+        Ok(Self { manager })
     }
 
     fn boot_resource_kind() -> BootResourceKind {
         BootResourceKind::Bls
     }
 
-    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), SystemdBootError> {
-        self.write_loader_variable(LOADER_ENTRY_ONE_SHOT_VAR, entry_name)
+    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), BootError> {
+        self.write_loader_variable(ENTRY_ONE_SHOT, entry_name)
     }
 
-    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), SystemdBootError> {
+    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), BootError> {
         let _ = esp_mount_point;
 
-        self.write_loader_variable(LOADER_ENTRY_DEFAULT_VAR, entry_name)
+        self.write_loader_variable(ENTRY_DEFAULT, entry_name)
     }
 
-    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), SystemdBootError> {
+    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), BootError> {
         let _ = (to_slot, from_slot);
 
-        match Command::new(INSTALL_BIN)
-            .arg("install")
-            .arg(format!("--esp-path={esp_mount_point}"))
+        match Command::new(TOOL)
+            .arg(COMMAND)
+            .arg(format!("{ESP_PATH_FLAG}{esp_mount_point}"))
             .status()
         {
             Ok(status) if status.success() => Ok(()),
-            Ok(_) => Err(SystemdBootError::Unexpected),
-            Err(error) if error.kind() == IoErrorKind::NotFound => Err(SystemdBootError::ToolNotFound),
-            Err(error) => Err(SystemdBootError::from(error)),
+            Ok(_) => Err(BootError::Unexpected),
+            Err(error) if error.kind() == IoErrorKind::NotFound => Err(BootError::ToolNotInstalled),
+            Err(error) => Err(error.into()),
         }
     }
 }
 
 impl SystemdBoot {
-    fn write_loader_variable(&mut self, name: &str, entry_name: &str) -> Result<(), SystemdBootError> {
-        let guid = Uuid::from_str(SD_BOOT_LOADER_GUID)?;
-        let variable = Variable::new_with_vendor(name, guid);
+    fn write_loader_variable(&mut self, name: &str, entry_name: &str) -> Result<(), BootError> {
+        fn clear_immutable(variable: &Variable) {
+            let Ok(file) = File::open(format!("{EFIVARFS_PATH}/{variable}")) else {
+                return;
+            };
 
-        Self::clear_immutable(&variable);
+            let Ok(flags) = ioctl_getflags(&file) else {
+                return;
+            };
+
+            if flags.contains(IFlags::IMMUTABLE) {
+                let _ = ioctl_setflags(&file, flags.difference(IFlags::IMMUTABLE));
+            }
+        }
+
+        let vendor_guid = Uuid::parse_str(VENDOR_GUID).map_err(|_| BootError::Unexpected)?;
+        let variable = Variable::new_with_vendor(name, vendor_guid);
+
+        clear_immutable(&variable);
+
+        let value: Vec<u8> = entry_name
+            .encode_utf16()
+            .chain(once(0))
+            .flat_map(u16::to_le_bytes)
+            .collect();
 
         self.manager
-            .write(&variable, VariableFlags::default(), &encode_utf16_null!(entry_name))?;
-
-        Ok(())
-    }
-
-    fn clear_immutable(variable: &Variable) {
-        let Ok(file) = OpenOptions::new()
-            .read(true)
-            .open(format!("{EFIVARFS_PATH}/{variable}"))
-        else {
-            return;
-        };
-        let fd = file.as_raw_fd();
-
-        let mut flags: c_long = 0;
-        if unsafe { fs_ioc_getflags(fd, &mut flags) }.is_err() {
-            return;
-        }
-
-        if flags & FS_IMMUTABLE_FL != 0 {
-            flags &= !FS_IMMUTABLE_FL;
-            let _ = unsafe { fs_ioc_setflags(fd, &flags) };
-        }
+            .write(&variable, VariableFlags::default(), &value)
+            .map_err(|error| match error {
+                EfivarError::PermissionDenied { .. } => BootError::PermissionDenied,
+                _ => BootError::Unexpected,
+            })
     }
 }

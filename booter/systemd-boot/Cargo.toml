@@ -28,12 +28,13 @@ name = "upac_boot_systemd_boot"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-lib-abi   = { workspace = true }
-upac-lib-types = { workspace = true }
+upac-lib-abi        = { workspace = true }
+upac-lib-booter-kit = { workspace = true, features = ["plugin"] }
+upac-lib-types      = { workspace = true }
 
-nix      = { workspace = true, features = ["ioctl"] }
-efivar   = { workspace = true }
-uuid     = { workspace = true }
+efivar = { workspace = true }
+rustix = { workspace = true }
+uuid   = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }
