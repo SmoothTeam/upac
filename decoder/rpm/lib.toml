@@ -56,11 +56,8 @@ none = "none"
 root = "root"
 
 [capabilities]
-xattr = "security.capability"
 prefix = "cap_"
 all = "all"
-revision = 0x02000000
-effective = 0x000001
 names = [
     "chown",
     "dac_override",

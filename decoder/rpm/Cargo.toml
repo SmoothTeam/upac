@@ -33,10 +33,11 @@ upac-lib-composefs   = { workspace = true }
 upac-lib-decoder-kit = { workspace = true, features = ["plugin"] }
 upac-lib-types       = { workspace = true }
 
-composefs = { workspace = true }
-cpio      = { workspace = true }
-flate2    = { workspace = true }
-nix       = { workspace = true }
+composefs     = { workspace = true }
+cpio          = { workspace = true }
+flate2        = { workspace = true }
+linux-raw-sys = { workspace = true }
+nix           = { workspace = true }
 xz2    = { workspace = true }
 zstd   = { workspace = true }
 

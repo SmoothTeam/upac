@@ -3,9 +3,18 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use linux_raw_sys::general::{CAP_LAST_CAP, VFS_CAP_FLAGS_EFFECTIVE, VFS_CAP_REVISION_2, XATTR_NAME_CAPS};
+
 use upac_types::decoder::DecodeError;
 
-use super::layout::capabilities::{ALL, EFFECTIVE, NAMES, PREFIX, REVISION};
+use super::layout::capabilities::{ALL, NAMES, PREFIX};
+
+pub const CAPABILITY_XATTR: &[u8] = match XATTR_NAME_CAPS.as_slice().split_last() {
+    Some((_, name)) => name,
+    None => &[],
+};
+
+const _: () = assert!(NAMES.len() == CAP_LAST_CAP as usize + 1);
 
 #[derive(Default)]
 pub struct FileCapabilities {
@@ -88,9 +97,9 @@ impl FileCapabilities {
 
     pub fn to_xattr(&self) -> Box<[u8]> {
         let magic = if self.effective == 0 {
-            REVISION
+            VFS_CAP_REVISION_2
         } else {
-            REVISION | EFFECTIVE
+            VFS_CAP_REVISION_2 | VFS_CAP_FLAGS_EFFECTIVE
         };
 
         let permitted = self.permitted.to_le_bytes();

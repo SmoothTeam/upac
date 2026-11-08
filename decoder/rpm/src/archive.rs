@@ -29,9 +29,8 @@ use upac_decoder_kit::{ObjectStore, write_tree_entry};
 use upac_types::CancelToken;
 use upac_types::decoder::DecodeError;
 
-use super::capabilities::FileCapabilities;
+use super::capabilities::{CAPABILITY_XATTR, FileCapabilities};
 use super::header::Header;
-use super::layout::capabilities::XATTR as CAPABILITY_XATTR;
 use super::layout::owners::ROOT;
 use super::layout::payload::{DEFAULT_COMPRESSOR, FORMAT as CPIO_FORMAT, GZIP, NONE, XZ, ZSTD};
 use super::layout::tags::{
@@ -81,7 +80,7 @@ impl RpmArchive {
                     && !text.is_empty()
                 {
                     xattrs.insert(
-                        Box::from(OsStr::new(CAPABILITY_XATTR)),
+                        Box::from(OsStr::from_bytes(CAPABILITY_XATTR)),
                         FileCapabilities::parse(text)?.to_xattr(),
                     );
                 }
