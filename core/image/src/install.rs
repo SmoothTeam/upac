@@ -7,11 +7,11 @@ use std::ffi::OsStr;
 use std::path::{Component, Path, PathBuf};
 
 use composefs::generic_tree::{LeafContent, Stat};
-use composefs::tree::{Inode, Leaf};
+use composefs::tree::Leaf;
 
 use upac_composefs::ObjectID;
 use upac_composefs::error::RepoError;
-use upac_composefs::tree::Tree;
+use upac_composefs::tree::entry::TreeEntry;
 
 use upac_database::error::DatabaseError;
 use upac_database::package::PackageStore;
@@ -27,7 +27,7 @@ use super::layout::image::{CMP_DIR, CONFIG_DEFAULTS_SOURCE_DIR, PACKAGE_CONFIG_D
 
 impl ImageBuilder {
     pub fn install(
-        &mut self, info: &PackageInfo, package: &Tree, triggers: &PackageTriggers,
+        &mut self, info: &PackageInfo, entries: &[TreeEntry], triggers: &PackageTriggers,
     ) -> Result<PackageId, ImageError> {
         fn relocate(package_path: &Path) -> PathBuf {
             let Ok(rest) = package_path.strip_prefix(PACKAGE_CONFIG_DIR) else {
@@ -48,24 +48,25 @@ impl ImageBuilder {
             return Err(ImageError::PackageExists);
         }
 
-        let view = package.view();
-        let (configs, rest): (Vec<_>, Vec<_>) = view
+        let (hard_links, files): (Vec<_>, Vec<_>) = entries
+            .iter()
+            .partition(|tree_entry| matches!(tree_entry, TreeEntry::HardLink(..)));
+        let (configs, rest): (Vec<_>, Vec<_>) = files
             .into_iter()
-            .partition(|(package_path, _)| package_path.starts_with(PACKAGE_CONFIG_DIR));
+            .partition(|tree_entry| tree_entry.path().starts_with(PACKAGE_CONFIG_DIR));
 
         let mut placed = Vec::new();
 
-        for (package_path, inode) in rest.into_iter().chain(configs) {
-            let place = relocate(&package_path);
+        for tree_entry in rest.into_iter().chain(configs).chain(hard_links) {
+            let place = relocate(tree_entry.path());
 
-            let entry = match inode {
-                Inode::Directory(directory) => self.place_directory(&place, &directory.stat)?,
-                Inode::Leaf(leaf_id, _) => {
-                    match self.place_leaf(&package_path, &place, view.filesystem().leaf(*leaf_id))? {
-                        Some(entry) => entry,
-                        None => continue,
-                    }
-                }
+            let entry = match tree_entry {
+                TreeEntry::Directory(_, stat) => self.place_directory(&place, stat)?,
+                TreeEntry::Leaf(package_path, leaf) => match self.place_leaf(package_path, &place, leaf)? {
+                    Some(entry) => entry,
+                    None => continue,
+                },
+                TreeEntry::HardLink(_, original) => self.place_hard_link(&place, &relocate(original))?,
             };
 
             placed.push((entry, place));
@@ -152,6 +153,20 @@ impl ImageBuilder {
         Ok(Some(entry))
     }
 
+    fn place_hard_link(&mut self, place: &Path, original: &Path) -> Result<PackageEntryId, ImageError> {
+        let view = self.builder.view();
+        let entry = PackageEntryId::from_leaf(&view.get(original)?, view.get_metadata(original)?, place)?;
+
+        let inserted = if view.check(place) {
+            Err(RepoError::AlreadyExists)
+        } else {
+            self.builder.insert_hard_link(place, original)
+        };
+        self.resolve_insertion(place, &entry, inserted)?;
+
+        Ok(entry)
+    }
+
     fn resolve_insertion(
         &self, place: &Path, entry: &PackageEntryId, inserted: Result<(), RepoError>,
     ) -> Result<(), ImageError> {
@@ -164,6 +179,7 @@ impl ImageBuilder {
                 }
                 _ => Err(ImageError::PathConflict),
             },
+            Err(RepoError::NotFound) => Err(ImageError::MissingParent),
             Err(error) => Err(error.into()),
         }
     }

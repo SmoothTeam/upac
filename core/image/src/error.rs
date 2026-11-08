@@ -14,6 +14,7 @@ pub enum ImageError {
     PackageExists,
     PackageNotInstalled,
     MissingBase,
+    MissingParent,
     PathConflict,
     DirectoryConflict,
     Tree(RepoError),
@@ -37,7 +38,9 @@ impl From<ImageError> for ErrorKind {
         match error {
             ImageError::PathConflict | ImageError::DirectoryConflict => ErrorKind::InvalidEntry,
             ImageError::PackageExists => ErrorKind::AlreadyExists,
-            ImageError::PackageNotInstalled | ImageError::MissingBase => ErrorKind::NotFound,
+            ImageError::PackageNotInstalled | ImageError::MissingBase | ImageError::MissingParent => {
+                ErrorKind::NotFound
+            }
             ImageError::Tree(error) => error.into(),
             ImageError::Database(error) => error.into(),
         }

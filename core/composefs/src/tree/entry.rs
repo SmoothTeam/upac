@@ -101,6 +101,12 @@ impl TreeEntry {
         ))
     }
 
+    pub fn path(&self) -> &Path {
+        match self {
+            Self::Directory(path, _) | Self::Leaf(path, _) | Self::HardLink(path, _) => path,
+        }
+    }
+
     pub fn write(&self, dumpfile: &mut String) -> Result<(), RepoError> {
         fn join_root(path: &Path) -> PathBuf {
             once(Component::RootDir)
