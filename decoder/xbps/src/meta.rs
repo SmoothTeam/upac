@@ -10,11 +10,10 @@ use quick_xml::escape::resolve_xml_entity;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
-use upac_types::decoder::DecodeError;
-use upac_types::package::{
+use upac_types::decoder::{DecodeError, DecodeMeta};
+use upac_types::{
     DecodedPackageMeta, PackageChecksum, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
 };
-use upac_types::traits::DecodeMeta;
 
 use super::layout::props::{
     ARCH_KEY, ARRAY_TAG, DEPEND_KEY, DESCRIPTION_KEY, KEY_TAG, LICENSE_KEY, MAINTAINER_KEY, NAME_KEY, SIZE_KEY,

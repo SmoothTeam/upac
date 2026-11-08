@@ -45,15 +45,15 @@ use zerocopy::IntoBytes;
 
 #[cfg(feature = "dynamic-plugins")]
 use upac_abi::DECODER_ABI_VERSION;
-use upac_abi::plugin::DecodeFn;
+#[cfg(feature = "host")]
+use upac_abi::request::CDecodeRequest;
+use upac_abi::request::DecodeFn;
 #[cfg(feature = "dynamic-plugins")]
-use upac_abi::plugin::DecodePluginAbiVersionFn;
+use upac_abi::request::DecodePluginAbiVersionFn;
 #[cfg(feature = "plugin")]
-use upac_abi::plugin::{CreateFileFn, FinishFileFn};
+use upac_abi::request::{CreateFileFn, FinishFileFn};
 #[cfg(feature = "host")]
-use upac_abi::request::decoder::CDecodeRequest;
-#[cfg(feature = "host")]
-use upac_abi::response::decoder::CDecodeResponse;
+use upac_abi::response::CDecodeResponse;
 #[cfg(feature = "plugin")]
 use upac_abi::{OWNER_SEPARATOR, OWNER_XATTR};
 
@@ -65,19 +65,15 @@ use upac_composefs::Repo;
 use upac_composefs::tree::entry::TreeEntry;
 
 #[cfg(feature = "host")]
-use upac_types::CancelToken;
+use upac_types::decoder::plugin_status;
 #[cfg(any(feature = "host", feature = "plugin"))]
-use upac_types::decoder::DecodeError;
+use upac_types::decoder::{DecodeError, ObjectFile, plugin_result};
 #[cfg(feature = "host")]
-use upac_types::package::PackageChecksum;
+use upac_types::request::DecodeRequest;
 #[cfg(feature = "host")]
-use upac_types::plugin::plugin_status;
-#[cfg(any(feature = "host", feature = "plugin"))]
-use upac_types::plugin::{ObjectFile, plugin_result};
+use upac_types::response::DecodeResponse;
 #[cfg(feature = "host")]
-use upac_types::request::decoder::DecodeRequest;
-#[cfg(feature = "host")]
-use upac_types::response::decoder::DecodeResponse;
+use upac_types::{CancelToken, PackageChecksum};
 
 #[cfg(feature = "host")]
 use self::error::DecoderError;

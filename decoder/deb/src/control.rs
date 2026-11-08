@@ -5,11 +5,10 @@
 
 use std::collections::HashMap;
 
-use upac_types::decoder::DecodeError;
-use upac_types::package::{
+use upac_types::decoder::{DecodeError, DecodeMeta};
+use upac_types::{
     DecodedPackageMeta, PackageChecksum, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
 };
-use upac_types::traits::DecodeMeta;
 
 use super::layout::control::{
     ARCH_KEY, DEPENDS_KEY, DESCRIPTION_KEY, INSTALLED_SIZE_KEY, MAINTAINER_KEY, NAME_KEY, URL_KEY, VERSION_KEY,

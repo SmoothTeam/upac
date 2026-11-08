@@ -6,17 +6,15 @@
 use std::path::Path;
 
 use upac_abi::DECODER_ABI_VERSION;
-use upac_abi::request::decoder::CDecodeRequest;
-use upac_abi::response::decoder::CDecodeResponse;
+use upac_abi::request::CDecodeRequest;
+use upac_abi::response::CDecodeResponse;
 
 use upac_decoder_kit::{BuiltinDecoder, ObjectStore};
 
-use upac_types::decoder::DecodeError;
-use upac_types::package::DecodedPackageMeta;
-use upac_types::plugin::plugin_status;
-use upac_types::request::decoder::DecodeRequest;
-use upac_types::response::decoder::DecodeResponse;
-use upac_types::traits::DecodeMeta;
+use upac_types::DecodedPackageMeta;
+use upac_types::decoder::{DecodeError, DecodeMeta, plugin_status};
+use upac_types::request::DecodeRequest;
+use upac_types::response::DecodeResponse;
 
 use self::archive::AlpmArchive;
 use self::layout::manifest::{EXTENSIONS, FORMAT};

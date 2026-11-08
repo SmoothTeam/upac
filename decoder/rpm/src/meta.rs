@@ -3,11 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_types::decoder::DecodeError;
-use upac_types::package::{
+use upac_types::decoder::{DecodeError, DecodeMeta};
+use upac_types::{
     DecodedPackageMeta, PackageChecksum, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
 };
-use upac_types::traits::DecodeMeta;
 
 use super::header::Header;
 use super::layout::tags::{
