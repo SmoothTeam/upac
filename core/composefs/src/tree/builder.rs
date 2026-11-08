@@ -9,15 +9,22 @@ use std::path::Path;
 use composefs::generic_tree::{LeafContent, Stat};
 use composefs::tree::{Directory, FileSystem, Inode, RegularFile};
 
+use nix::sys::stat::Mode;
+
 use super::Tree;
 use super::view::TreeView;
 
 use crate::ObjectID;
 use crate::error::RepoError;
-use crate::layout::tree::DIR_MODE;
+
+const DIRECTORY_MODE: Mode = Mode::S_IRWXU
+    .union(Mode::S_IRGRP)
+    .union(Mode::S_IXGRP)
+    .union(Mode::S_IROTH)
+    .union(Mode::S_IXOTH);
 
 const DIRECTORY_STAT: Stat = Stat {
-    st_mode: DIR_MODE,
+    st_mode: DIRECTORY_MODE.bits(),
     st_uid: 0,
     st_gid: 0,
     st_mtim_sec: 0,

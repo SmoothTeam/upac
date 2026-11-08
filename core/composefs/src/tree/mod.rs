@@ -19,6 +19,7 @@ use crate::{Digest, ObjectID, Repo};
 
 pub mod builder;
 pub mod diff;
+pub mod entry;
 pub mod overlay;
 pub mod view;
 

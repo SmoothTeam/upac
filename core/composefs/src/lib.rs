@@ -26,10 +26,6 @@ pub mod tree;
 
 pub type ObjectID = Sha256HashValue;
 
-mod layout {
-    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digest(ObjectID);
 

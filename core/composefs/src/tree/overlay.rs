@@ -5,8 +5,10 @@
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
+use composefs::erofs::format::XATTR_OVERLAY_OPAQUE_ROOT;
 use composefs::generic_tree::{LeafContent, LeafId};
 use composefs::tree::{Directory, Inode, Leaf};
 
@@ -15,7 +17,6 @@ use super::builder::TreeBuilder;
 
 use crate::ObjectID;
 use crate::error::RepoError;
-use crate::layout::deployment::OVERLAY_OPAQUE_XATTR;
 
 pub struct OverlayBuilder<'tree> {
     lower: &'tree Tree,
@@ -61,7 +62,7 @@ impl<'tree> OverlayBuilder<'tree> {
         let mut stat = subdirectory.stat.clone();
         let is_opaque = stat
             .xattrs
-            .remove(OsStr::new(OVERLAY_OPAQUE_XATTR))
+            .remove(OsStr::from_bytes(XATTR_OVERLAY_OPAQUE_ROOT))
             .is_some_and(|value| value.as_ref() == b"y");
 
         if !is_opaque && let Ok(directory) = builder.filesystem.root.get_directory_mut(path.as_os_str()) {

@@ -20,7 +20,7 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-include = ["/src", "lib.toml", "build.rs"]
+include = ["/src"]
 
 [lints]
 workspace = true
@@ -37,6 +37,3 @@ anyhow    = { workspace = true }
 serde     = { workspace = true }
 
 hex = "0.4"
-
-[build-dependencies]
-toml = { workspace = true }
