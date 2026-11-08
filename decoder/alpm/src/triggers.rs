@@ -5,7 +5,7 @@
 
 use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
-use super::alpm::{POST_INSTALL_FN, POST_REMOVE_FN, POST_UPGRADE_FN, PRE_INSTALL_FN, PRE_REMOVE_FN, PRE_UPGRADE_FN};
+use super::layout::install::{POST_INSTALL, POST_REMOVE, POST_UPGRADE, PRE_INSTALL, PRE_REMOVE, PRE_UPGRADE};
 
 pub fn scan(content: &str) -> Vec<PackageTrigger> {
     TriggerPosition::ALL
@@ -21,12 +21,12 @@ pub fn scan(content: &str) -> Vec<PackageTrigger> {
 
 fn native_name(position: TriggerPosition) -> &'static str {
     match position {
-        TriggerPosition::PreInstall => PRE_INSTALL_FN,
-        TriggerPosition::PostInstall => POST_INSTALL_FN,
-        TriggerPosition::PreUpgrade => PRE_UPGRADE_FN,
-        TriggerPosition::PostUpgrade => POST_UPGRADE_FN,
-        TriggerPosition::PreRemove => PRE_REMOVE_FN,
-        TriggerPosition::PostRemove => POST_REMOVE_FN,
+        TriggerPosition::PreInstall => PRE_INSTALL,
+        TriggerPosition::PostInstall => POST_INSTALL,
+        TriggerPosition::PreUpgrade => PRE_UPGRADE,
+        TriggerPosition::PostUpgrade => POST_UPGRADE,
+        TriggerPosition::PreRemove => PRE_REMOVE,
+        TriggerPosition::PostRemove => POST_REMOVE,
     }
 }
 

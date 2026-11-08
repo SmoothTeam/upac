@@ -5,17 +5,15 @@
 
 use std::collections::HashMap;
 
-use upac_decoder_kit::parse_constraint_prefix;
 use upac_types::decoder::DecodeError;
 use upac_types::package::{
-    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+    DecodedPackageMeta, PackageChecksum, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
 };
 use upac_types::traits::DecodeMeta;
 
-use super::alpm::{
-    PKGINFO_ARCH_KEY, PKGINFO_DEPEND_KEY, PKGINFO_DESCRIPTION_KEY, PKGINFO_EPOCH_KEY, PKGINFO_LICENSE_KEY,
-    PKGINFO_MAINTAINER_KEY, PKGINFO_NAME_KEY, PKGINFO_RELEASE_KEY, PKGINFO_SIZE_KEY, PKGINFO_URL_KEY,
-    PKGINFO_VERSION_KEY,
+use super::layout::pkginfo::{
+    ARCH_KEY, DEPEND_KEY, DESCRIPTION_KEY, EPOCH_KEY, LICENSE_KEY, MAINTAINER_KEY, NAME_KEY, RELEASE_KEY, SIZE_KEY,
+    URL_KEY, VERSION_KEY,
 };
 
 macro_rules! required_field {
@@ -44,19 +42,19 @@ const OPERATORS: [(&[u8], VersionConstraint); 5] = [
 pub struct PkgInfo<'content>(pub &'content str);
 
 impl DecodeMeta for PkgInfo<'_> {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
+    fn decode(&self, checksum: PackageChecksum) -> Result<DecodedPackageMeta, DecodeError> {
         let (mut fields, dependencies) = self.parse_fields()?;
 
-        let name = required_field!(fields, PKGINFO_NAME_KEY);
-        let version = required_field!(fields, PKGINFO_VERSION_KEY);
+        let name = required_field!(fields, NAME_KEY);
+        let version = required_field!(fields, VERSION_KEY);
 
-        let raw_version = match fields.remove(PKGINFO_RELEASE_KEY) {
+        let raw_version = match fields.remove(RELEASE_KEY) {
             Some(release) => format!("{version}-{release}"),
             None => version,
         };
 
-        let epoch = numeric_field!(fields, PKGINFO_EPOCH_KEY);
-        let installed_size = numeric_field!(fields, PKGINFO_SIZE_KEY);
+        let epoch = numeric_field!(fields, EPOCH_KEY);
+        let installed_size = numeric_field!(fields, SIZE_KEY);
 
         let meta = PackageMeta {
             name,
@@ -64,13 +62,13 @@ impl DecodeMeta for PkgInfo<'_> {
                 epoch,
                 raw: raw_version,
             },
-            arch: fields.remove(PKGINFO_ARCH_KEY).unwrap_or_else(|| "any".to_owned()),
+            arch: fields.remove(ARCH_KEY).unwrap_or_else(|| "any".to_owned()),
             arch_sub: None,
-            maintainer: fields.remove(PKGINFO_MAINTAINER_KEY).unwrap_or_default(),
-            description: fields.remove(PKGINFO_DESCRIPTION_KEY).unwrap_or_default(),
-            license: fields.remove(PKGINFO_LICENSE_KEY),
-            url: fields.remove(PKGINFO_URL_KEY),
-            sha256,
+            maintainer: fields.remove(MAINTAINER_KEY).unwrap_or_default(),
+            description: fields.remove(DESCRIPTION_KEY).unwrap_or_default(),
+            license: fields.remove(LICENSE_KEY),
+            url: fields.remove(URL_KEY),
+            checksum,
             installed_size,
         };
 
@@ -93,7 +91,7 @@ impl PkgInfo<'_> {
                 continue;
             };
 
-            if key == PKGINFO_DEPEND_KEY {
+            if key == DEPEND_KEY {
                 dependencies.push(Self::parse_dependency(value)?);
             } else {
                 fields.insert(key, value.to_owned());
@@ -107,7 +105,7 @@ impl PkgInfo<'_> {
         let bytes = value.as_bytes();
 
         for index in 0..bytes.len() {
-            let Some((constraint, operator_len)) = parse_constraint_prefix(&bytes[index..], &OPERATORS) else {
+            let Some((constraint, operator_len)) = VersionConstraint::parse_prefix(&bytes[index..], &OPERATORS) else {
                 continue;
             };
 

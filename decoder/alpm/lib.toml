@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+format = "alpm"
+library = "/usr/lib/upac/decoders/libupac_decoder_alpm.so"
+mime = "application/x-alpm-package"
+
+extensions = ["pkg.tar", "pkg.tar.gz", "pkg.tar.xz", "pkg.tar.zst"]
+
+[entries]
+pkginfo = ".PKGINFO"
+install = ".INSTALL"
+
+skipped = [".BUILDINFO", ".MTREE", ".CHANGELOG"]
+
+[pkginfo]
+name_key = "pkgname"
+version_key = "pkgver"
+release_key = "pkgrel"
+epoch_key = "epoch"
+description_key = "pkgdesc"
+url_key = "url"
+maintainer_key = "packager"
+size_key = "size"
+arch_key = "arch"
+license_key = "license"
+depend_key = "depend"
+
+[install]
+pre_install = "pre_install"
+post_install = "post_install"
+pre_upgrade = "pre_upgrade"
+post_upgrade = "post_upgrade"
+pre_remove = "pre_remove"
+post_remove = "post_remove"

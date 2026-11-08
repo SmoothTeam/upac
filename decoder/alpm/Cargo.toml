@@ -29,8 +29,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 upac-lib-abi         = { workspace = true }
+upac-lib-composefs   = { workspace = true }
+upac-lib-decoder-kit = { workspace = true, features = ["plugin"] }
 upac-lib-types       = { workspace = true }
-upac-lib-decoder-kit = { workspace = true }
 
 flate2 = { workspace = true }
 tar    = { workspace = true }
