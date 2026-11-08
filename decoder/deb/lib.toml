@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+format = "deb"
+library = "/usr/lib/upac/decoders/libupac_decoder_deb.so"
+mime = "application/vnd.debian.binary-package"
+
+extensions = ["deb"]
+
+[members]
+control_prefix = "control.tar"
+data_prefix = "data.tar"
+
+[control]
+entry = "control"
+name_key = "Package"
+version_key = "Version"
+installed_size_key = "Installed-Size"
+arch_key = "Architecture"
+description_key = "Description"
+url_key = "Homepage"
+maintainer_key = "Maintainer"
+depends_key = "Depends"
+
+[scripts]
+preinst = "preinst"
+postinst = "postinst"
+prerm = "prerm"
+postrm = "postrm"
+
+[copyright]
+dir_prefix = "usr/share/doc/"
+entry_suffix = "/copyright"
+license_prefix = "License:"

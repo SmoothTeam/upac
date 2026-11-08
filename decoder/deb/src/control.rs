@@ -5,16 +5,14 @@
 
 use std::collections::HashMap;
 
-use upac_decoder_kit::parse_constraint_prefix;
 use upac_types::decoder::DecodeError;
 use upac_types::package::{
-    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+    DecodedPackageMeta, PackageChecksum, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
 };
 use upac_types::traits::DecodeMeta;
 
-use super::deb::{
-    CONTROL_ARCH_KEY, CONTROL_DEPENDS_KEY, CONTROL_DESCRIPTION_KEY, CONTROL_INSTALLED_SIZE_KEY, CONTROL_MAINTAINER_KEY,
-    CONTROL_NAME_KEY, CONTROL_URL_KEY, CONTROL_VERSION_KEY,
+use super::layout::control::{
+    ARCH_KEY, DEPENDS_KEY, DESCRIPTION_KEY, INSTALLED_SIZE_KEY, MAINTAINER_KEY, NAME_KEY, URL_KEY, VERSION_KEY,
 };
 
 macro_rules! required_field {
@@ -46,24 +44,24 @@ pub struct ControlFile<'content> {
 }
 
 impl DecodeMeta for ControlFile<'_> {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
+    fn decode(&self, checksum: PackageChecksum) -> Result<DecodedPackageMeta, DecodeError> {
         let (mut fields, dependencies) = self.parse_fields()?;
 
-        let name = required_field!(fields, CONTROL_NAME_KEY);
-        let raw_version = required_field!(fields, CONTROL_VERSION_KEY);
+        let name = required_field!(fields, NAME_KEY);
+        let raw_version = required_field!(fields, VERSION_KEY);
 
-        let installed_size = numeric_field!(fields, CONTROL_INSTALLED_SIZE_KEY);
+        let installed_size = numeric_field!(fields, INSTALLED_SIZE_KEY);
 
         let meta = PackageMeta {
             name,
             version: Version::parse(&raw_version),
-            arch: fields.remove(CONTROL_ARCH_KEY).unwrap_or_else(|| "all".to_owned()),
+            arch: fields.remove(ARCH_KEY).unwrap_or_else(|| "all".to_owned()),
             arch_sub: None,
-            maintainer: fields.remove(CONTROL_MAINTAINER_KEY).unwrap_or_default(),
-            description: fields.remove(CONTROL_DESCRIPTION_KEY).unwrap_or_default(),
+            maintainer: fields.remove(MAINTAINER_KEY).unwrap_or_default(),
+            description: fields.remove(DESCRIPTION_KEY).unwrap_or_default(),
             license: self.license.clone(),
-            url: fields.remove(CONTROL_URL_KEY),
-            sha256,
+            url: fields.remove(URL_KEY),
+            checksum,
             installed_size,
         };
 
@@ -86,7 +84,7 @@ impl ControlFile<'_> {
                 continue;
             };
 
-            if key == CONTROL_DEPENDS_KEY {
+            if key == DEPENDS_KEY {
                 dependencies.extend(Self::parse_depends(value)?);
             } else {
                 fields.insert(key, value.to_owned());
@@ -109,7 +107,7 @@ impl ControlFile<'_> {
         let bytes = raw.as_bytes();
 
         for index in 0..bytes.len() {
-            let Some((constraint, operator_len)) = parse_constraint_prefix(&bytes[index..], &OPERATORS) else {
+            let Some((constraint, operator_len)) = VersionConstraint::parse_prefix(&bytes[index..], &OPERATORS) else {
                 continue;
             };
 

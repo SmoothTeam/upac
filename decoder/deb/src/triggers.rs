@@ -5,7 +5,7 @@
 
 use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
-use super::deb::{POSTINST_FILE, POSTRM_FILE, PREINST_FILE, PRERM_FILE};
+use super::layout::scripts::{POSTINST, POSTRM, PREINST, PRERM};
 
 pub fn scan(scripts_present: &[String]) -> Vec<PackageTrigger> {
     TriggerPosition::ALL
@@ -26,9 +26,9 @@ pub fn scan(scripts_present: &[String]) -> Vec<PackageTrigger> {
 
 fn native_name(position: TriggerPosition) -> &'static str {
     match position {
-        TriggerPosition::PreInstall | TriggerPosition::PreUpgrade => PREINST_FILE,
-        TriggerPosition::PostInstall | TriggerPosition::PostUpgrade => POSTINST_FILE,
-        TriggerPosition::PreRemove => PRERM_FILE,
-        TriggerPosition::PostRemove => POSTRM_FILE,
+        TriggerPosition::PreInstall | TriggerPosition::PreUpgrade => PREINST,
+        TriggerPosition::PostInstall | TriggerPosition::PostUpgrade => POSTINST,
+        TriggerPosition::PreRemove => PRERM,
+        TriggerPosition::PostRemove => POSTRM,
     }
 }

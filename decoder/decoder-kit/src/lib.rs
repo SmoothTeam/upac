@@ -148,6 +148,18 @@ impl ObjectStore {
     pub fn insert_entry<Reader: Read>(
         &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>,
     ) -> Result<(), DecodeError> {
+        let mut content = Vec::new();
+
+        if matches!(entry.header().entry_type(), EntryType::Regular | EntryType::Continuous) {
+            entry.read_to_end(&mut content)?;
+        }
+
+        self.insert_entry_with(builder, entry, &content)
+    }
+
+    pub fn insert_entry_with<Reader: Read>(
+        &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>, content: &[u8],
+    ) -> Result<(), DecodeError> {
         fn normalize(path: &Path) -> PathBuf {
             path.components()
                 .filter(|component| matches!(component, Component::Normal(_)))
@@ -198,10 +210,7 @@ impl ObjectStore {
                 inserted => inserted,
             },
             EntryType::Regular | EntryType::Continuous => {
-                let mut data = Vec::new();
-                entry.read_to_end(&mut data)?;
-
-                builder.insert(&path, LeafContent::Regular(self.store(&data)?), stat)
+                builder.insert(&path, LeafContent::Regular(self.store(content)?), stat)
             }
             EntryType::Symlink => {
                 let target = entry.link_name()?.ok_or(DecodeError::MalformedMetadata)?;
