@@ -36,6 +36,7 @@ upac-lib-types       = { workspace = true }
 composefs = { workspace = true }
 cpio      = { workspace = true }
 flate2    = { workspace = true }
+nix       = { workspace = true }
 xz2    = { workspace = true }
 zstd   = { workspace = true }
 

@@ -104,11 +104,3 @@ names = [
     "bpf",
     "checkpoint_restore",
 ]
-
-[mode]
-type_mask = 0o170000
-directory = 0o040000
-regular = 0o100000
-symlink = 0o120000
-permission_mask = 0o7777
-missing_directory = 0o755

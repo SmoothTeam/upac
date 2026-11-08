@@ -14,8 +14,6 @@ use tar::{Archive as TarArchive, Entry};
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_composefs::tree::builder::TreeBuilder;
-
 use upac_decoder_kit::ObjectStore;
 
 use upac_types::CancelToken;
@@ -66,7 +64,7 @@ impl DebArchive {
         }
 
         let mut outer = ArArchive::new(File::open(package_path)?);
-        let mut builder = TreeBuilder::new();
+        let mut dumpfile = String::new();
 
         let mut control = None;
         let mut scripts = Vec::new();
@@ -117,9 +115,9 @@ impl DebArchive {
                         entry.read_to_end(&mut content)?;
 
                         license = parse_license(&content);
-                        objects.insert_entry_with(&mut builder, &mut entry, &content)?;
+                        objects.write_entry_with(&mut dumpfile, &mut entry, &content)?;
                     } else {
-                        objects.insert_entry(&mut builder, &mut entry)?;
+                        objects.write_entry(&mut dumpfile, &mut entry)?;
                     }
                 }
             }
@@ -130,11 +128,6 @@ impl DebArchive {
         if !is_data_read {
             return Err(DecodeError::MissingMetadata);
         }
-
-        let dumpfile = builder
-            .view()
-            .to_dumpfile()
-            .map_err(|_| DecodeError::MalformedMetadata)?;
 
         Ok(Self {
             control,

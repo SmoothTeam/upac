@@ -13,8 +13,6 @@ use tar::Archive;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_composefs::tree::builder::TreeBuilder;
-
 use upac_decoder_kit::ObjectStore;
 
 use upac_types::CancelToken;
@@ -50,7 +48,7 @@ impl AlpmArchive {
         }
 
         let mut archive = Archive::new(open_reader(package_path, File::open(package_path)?)?);
-        let mut builder = TreeBuilder::new();
+        let mut dumpfile = String::new();
 
         let mut pkginfo = None;
         let mut install = None;
@@ -67,15 +65,11 @@ impl AlpmArchive {
                 PKGINFO_ENTRY => pkginfo = Some(read_to_string(&mut entry)?),
                 INSTALL_ENTRY => install = Some(read_to_string(&mut entry)?),
                 skipped if SKIPPED_ENTRIES.contains(&skipped) => {}
-                _ => objects.insert_entry(&mut builder, &mut entry)?,
+                _ => objects.write_entry(&mut dumpfile, &mut entry)?,
             }
         }
 
         let pkginfo = pkginfo.ok_or(DecodeError::MissingMetadata)?;
-        let dumpfile = builder
-            .view()
-            .to_dumpfile()
-            .map_err(|_| DecodeError::MalformedMetadata)?;
 
         Ok(Self {
             pkginfo,

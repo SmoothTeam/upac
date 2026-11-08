@@ -5,5 +5,3 @@
 
 [tar]
 xattr_prefix = "SCHILY.xattr."
-
-permission_mask = 0o7777

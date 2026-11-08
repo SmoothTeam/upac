@@ -17,20 +17,23 @@ use std::mem::MaybeUninit;
 use std::os::raw::c_void;
 #[cfg(feature = "plugin")]
 use std::os::unix::ffi::OsStrExt;
-#[cfg(any(feature = "host", feature = "plugin"))]
-use std::path::Path;
 #[cfg(feature = "plugin")]
-use std::path::{Component, PathBuf};
+use std::path::Component;
+#[cfg(feature = "host")]
+use std::path::Path;
 
 #[cfg(feature = "plugin")]
 use composefs::MAX_INLINE_CONTENT;
 #[cfg(feature = "plugin")]
 use composefs::generic_tree::{LeafContent, Stat};
 #[cfg(feature = "plugin")]
-use composefs::tree::RegularFile;
+use composefs::tree::{Leaf, RegularFile};
 
 #[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
+
+#[cfg(feature = "plugin")]
+use nix::sys::stat::Mode;
 
 #[cfg(feature = "plugin")]
 use tar::{Entry, EntryType};
@@ -57,9 +60,7 @@ use upac_composefs::ObjectID;
 #[cfg(feature = "host")]
 use upac_composefs::Repo;
 #[cfg(feature = "plugin")]
-use upac_composefs::error::RepoError;
-#[cfg(feature = "plugin")]
-use upac_composefs::tree::builder::TreeBuilder;
+use upac_composefs::tree::entry::TreeEntry;
 
 #[cfg(feature = "host")]
 use upac_types::CancelToken;
@@ -79,7 +80,7 @@ use upac_types::response::decoder::DecodeResponse;
 #[cfg(feature = "host")]
 use self::error::DecoderError;
 #[cfg(feature = "plugin")]
-use self::layout::tar::{PERMISSION_MASK, XATTR_PREFIX};
+use self::layout::tar::XATTR_PREFIX;
 #[cfg(feature = "dynamic-plugins")]
 use self::manifest::DecoderManifest;
 
@@ -160,31 +161,25 @@ impl ObjectStore {
         Ok(RegularFile::External(object_id, size))
     }
 
-    pub fn insert_entry<Reader: Read>(
-        &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>,
+    pub fn write_entry<Reader: Read>(
+        &self, dumpfile: &mut String, entry: &mut Entry<'_, Reader>,
     ) -> Result<(), DecodeError> {
-        self.insert(builder, entry, None)
+        self.write(dumpfile, entry, None)
     }
 
-    pub fn insert_entry_with<Reader: Read>(
-        &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>, content: &[u8],
+    pub fn write_entry_with<Reader: Read>(
+        &self, dumpfile: &mut String, entry: &mut Entry<'_, Reader>, content: &[u8],
     ) -> Result<(), DecodeError> {
-        self.insert(builder, entry, Some(content))
+        self.write(dumpfile, entry, Some(content))
     }
 
-    fn insert<Reader: Read>(
-        &self, builder: &mut TreeBuilder, entry: &mut Entry<'_, Reader>, content: Option<&[u8]>,
+    fn write<Reader: Read>(
+        &self, dumpfile: &mut String, entry: &mut Entry<'_, Reader>, content: Option<&[u8]>,
     ) -> Result<(), DecodeError> {
-        fn normalize(path: &Path) -> PathBuf {
-            path.components()
-                .filter(|component| matches!(component, Component::Normal(_)))
-                .collect()
-        }
-
         fn read_stat<Reader: Read>(entry: &mut Entry<'_, Reader>) -> Result<Stat, DecodeError> {
             let header = entry.header();
 
-            let st_mode = header.mode()? & PERMISSION_MASK;
+            let st_mode = Mode::from_bits_truncate(header.mode()?).bits();
             let st_uid = u32::try_from(header.uid()?).map_err(|_| DecodeError::MalformedMetadata)?;
             let st_gid = u32::try_from(header.gid()?).map_err(|_| DecodeError::MalformedMetadata)?;
             let st_mtim_sec = i64::try_from(header.mtime()?).map_err(|_| DecodeError::MalformedMetadata)?;
@@ -211,49 +206,47 @@ impl ObjectStore {
             })
         }
 
-        let path = normalize(&entry.path()?);
-        if path.as_os_str().is_empty() {
+        let path = entry.path()?.into_owned();
+        if path
+            .components()
+            .all(|component| matches!(component, Component::CurDir | Component::RootDir))
+        {
             return Ok(());
         }
 
         let entry_type = entry.header().entry_type();
         let stat = read_stat(entry)?;
 
-        let inserted = match entry_type {
-            EntryType::Directory => match builder.try_insert_dir(&path, stat.clone()) {
-                Err(RepoError::AlreadyExists) => builder.update_metadata(&path, stat),
-                inserted => inserted,
-            },
-            EntryType::Regular | EntryType::Continuous => {
-                let file = match content {
-                    Some(mut content) => {
-                        let size = content.len() as u64;
-
-                        self.store(&mut content, size)?
-                    }
-                    None => {
-                        let size = entry.size();
-
-                        self.store(entry, size)?
-                    }
-                };
-
-                builder.insert(&path, LeafContent::Regular(file), stat)
-            }
-            EntryType::Symlink => {
-                let target = entry.link_name()?.ok_or(DecodeError::MalformedMetadata)?;
-
-                builder.insert(&path, LeafContent::Symlink(target.as_os_str().into()), stat)
-            }
+        let content = match entry_type {
+            EntryType::Directory => return write_tree_entry(dumpfile, TreeEntry::Directory(path, stat)),
             EntryType::Link => {
-                let original = normalize(&entry.link_name()?.ok_or(DecodeError::MalformedMetadata)?);
+                let original = entry.link_name()?.ok_or(DecodeError::MalformedMetadata)?;
 
-                builder.insert_hard_link(&path, &original)
+                return write_tree_entry(dumpfile, TreeEntry::HardLink(path, original.into_owned()));
             }
-            _ => Ok(()),
+            EntryType::Regular | EntryType::Continuous => LeafContent::Regular(match content {
+                Some(mut content) => {
+                    let size = content.len() as u64;
+
+                    self.store(&mut content, size)?
+                }
+                None => {
+                    let size = entry.size();
+
+                    self.store(entry, size)?
+                }
+            }),
+            EntryType::Symlink => LeafContent::Symlink(
+                entry
+                    .link_name()?
+                    .ok_or(DecodeError::MalformedMetadata)?
+                    .as_os_str()
+                    .into(),
+            ),
+            _ => return Ok(()),
         };
 
-        inserted.map_err(|_| DecodeError::MalformedMetadata)
+        write_tree_entry(dumpfile, TreeEntry::Leaf(path, Leaf { stat, content }))
     }
 }
 
@@ -386,6 +379,11 @@ impl From<&BuiltinDecoder> for Decoder {
             _library: None,
         }
     }
+}
+
+#[cfg(feature = "plugin")]
+pub fn write_tree_entry(dumpfile: &mut String, tree_entry: TreeEntry) -> Result<(), DecodeError> {
+    tree_entry.write(dumpfile).map_err(|_| DecodeError::MalformedMetadata)
 }
 
 #[cfg(feature = "dynamic-plugins")]

@@ -35,6 +35,7 @@ upac-lib-types     = { workspace = true, optional = true }
 
 composefs  = { workspace = true, optional = true }
 libloading = { workspace = true, optional = true }
+nix        = { workspace = true, optional = true }
 serde      = { workspace = true, optional = true }
 tar        = { workspace = true, optional = true }
 toml       = { workspace = true, optional = true }
@@ -48,6 +49,7 @@ toml = { workspace = true }
 plugin = [
     "dep:composefs",
     "dep:upac-lib-composefs",
+    "dep:nix",
     "dep:tar",
     "dep:upac-lib-types",
     "dep:zerocopy",

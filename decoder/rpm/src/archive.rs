@@ -11,19 +11,20 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 
 use composefs::generic_tree::{LeafContent, Stat};
-use composefs::tree::RegularFile;
+use composefs::tree::{Leaf, RegularFile};
 
 use cpio::newc::Reader as CpioReader;
 use flate2::read::GzDecoder;
 use xz2::read::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
+use nix::sys::stat::{Mode, SFlag};
+
 use upac_abi::{OWNER_SEPARATOR, OWNER_XATTR};
 
-use upac_composefs::error::RepoError;
-use upac_composefs::tree::builder::TreeBuilder;
+use upac_composefs::tree::entry::TreeEntry;
 
-use upac_decoder_kit::ObjectStore;
+use upac_decoder_kit::{ObjectStore, write_tree_entry};
 
 use upac_types::CancelToken;
 use upac_types::decoder::DecodeError;
@@ -31,12 +32,15 @@ use upac_types::decoder::DecodeError;
 use super::capabilities::FileCapabilities;
 use super::header::Header;
 use super::layout::capabilities::XATTR as CAPABILITY_XATTR;
-use super::layout::mode::{DIRECTORY, MISSING_DIRECTORY, PERMISSION_MASK, REGULAR, SYMLINK, TYPE_MASK};
 use super::layout::owners::ROOT;
 use super::layout::payload::{DEFAULT_COMPRESSOR, FORMAT as CPIO_FORMAT, GZIP, NONE, XZ, ZSTD};
 use super::layout::tags::{
     BASE_NAMES, DIR_INDEXES, DIR_NAMES, FILE_CAPS, FILE_GROUP_NAME, FILE_USER_NAME, PAYLOAD_COMPRESSOR, PAYLOAD_FORMAT,
 };
+
+const DIRECTORY: u32 = SFlag::S_IFDIR.bits();
+const REGULAR: u32 = SFlag::S_IFREG.bits();
+const SYMLINK: u32 = SFlag::S_IFLNK.bits();
 
 pub struct RpmArchive {
     pub header: Header,
@@ -45,18 +49,10 @@ pub struct RpmArchive {
 
 impl RpmArchive {
     pub fn read(package_path: &Path, objects: &ObjectStore, cancel: &CancelToken) -> Result<Self, DecodeError> {
-        fn normalize(path: &Path) -> Result<PathBuf, DecodeError> {
-            if path
-                .components()
-                .any(|component| matches!(component, Component::ParentDir))
-            {
-                return Err(DecodeError::MalformedMetadata);
-            }
-
-            Ok(path
-                .components()
-                .filter(|component| matches!(component, Component::Normal(_)))
-                .collect())
+        fn strip_root(path: &Path) -> PathBuf {
+            path.components()
+                .filter(|component| !matches!(component, Component::CurDir | Component::RootDir))
+                .collect()
         }
 
         fn read_xattrs(header: &Header) -> Result<HashMap<PathBuf, BTreeMap<Box<OsStr>, Box<[u8]>>>, DecodeError> {
@@ -100,34 +96,10 @@ impl RpmArchive {
                     .and_then(|dir_index| dir_names.get(dir_index))
                     .ok_or(DecodeError::MalformedMetadata)?;
 
-                path_xattrs.insert(normalize(&Path::new(dir_name).join(base_name))?, xattrs);
+                path_xattrs.insert(strip_root(&Path::new(dir_name).join(base_name)), xattrs);
             }
 
             Ok(path_xattrs)
-        }
-
-        fn insert_parents(builder: &mut TreeBuilder, path: &Path) -> Result<(), DecodeError> {
-            let mut missing: Vec<&Path> = path
-                .ancestors()
-                .skip(1)
-                .filter(|ancestor| !ancestor.as_os_str().is_empty())
-                .take_while(|ancestor| !builder.view().check(ancestor))
-                .collect();
-            missing.reverse();
-
-            for directory in missing {
-                builder
-                    .insert_dir(
-                        directory,
-                        Stat {
-                            st_mode: MISSING_DIRECTORY,
-                            ..Stat::uninitialized()
-                        },
-                    )
-                    .map_err(|_| DecodeError::MalformedMetadata)?;
-            }
-
-            Ok(())
         }
 
         let mut file = File::open(package_path)?;
@@ -151,7 +123,7 @@ impl RpmArchive {
 
         let mut path_xattrs = read_xattrs(&header)?;
 
-        let mut builder = TreeBuilder::new();
+        let mut dumpfile = String::new();
         let mut pending_links: HashMap<u32, Vec<(PathBuf, Stat)>> = HashMap::new();
 
         loop {
@@ -166,16 +138,14 @@ impl RpmArchive {
                 break;
             }
 
-            let path = normalize(Path::new(entry.name()))?;
+            let path = strip_root(Path::new(entry.name()));
             if path.as_os_str().is_empty() {
                 payload = entry_reader.finish()?;
                 continue;
             }
 
-            insert_parents(&mut builder, &path)?;
-
             let stat = Stat {
-                st_mode: entry.mode() & PERMISSION_MASK,
+                st_mode: Mode::from_bits_truncate(entry.mode()).bits(),
                 st_uid: entry.uid(),
                 st_gid: entry.gid(),
                 st_mtim_sec: i64::from(entry.mtime()),
@@ -183,39 +153,30 @@ impl RpmArchive {
                 xattrs: path_xattrs.remove(&path).unwrap_or_default(),
             };
 
-            let inserted = match entry.mode() & TYPE_MASK {
-                DIRECTORY => match builder.try_insert_dir(&path, stat.clone()) {
-                    Err(RepoError::AlreadyExists) => builder.update_metadata(&path, stat),
-                    inserted => inserted,
-                },
+            match entry.mode() & SFlag::S_IFMT.bits() {
+                DIRECTORY => write_tree_entry(&mut dumpfile, TreeEntry::Directory(path, stat))?,
                 SYMLINK => {
                     let mut target = Vec::new();
                     entry_reader.read_to_end(&mut target)?;
 
-                    builder.insert(&path, LeafContent::Symlink(OsStr::from_bytes(&target).into()), stat)
+                    let content = LeafContent::Symlink(OsStr::from_bytes(&target).into());
+
+                    write_tree_entry(&mut dumpfile, TreeEntry::Leaf(path, Leaf { stat, content }))?;
                 }
                 REGULAR if entry.nlink() > 1 && entry.file_size() == 0 => {
                     pending_links.entry(entry.ino()).or_default().push((path, stat));
-
-                    Ok(())
                 }
                 REGULAR => {
-                    let content = objects.store(&mut entry_reader, u64::from(entry.file_size()))?;
+                    let content = LeafContent::Regular(objects.store(&mut entry_reader, u64::from(entry.file_size()))?);
 
-                    builder
-                        .insert(&path, LeafContent::Regular(content), stat)
-                        .and_then(|()| {
-                            pending_links
-                                .remove(&entry.ino())
-                                .unwrap_or_default()
-                                .iter()
-                                .try_for_each(|(link, _)| builder.insert_hard_link(link, &path))
-                        })
+                    write_tree_entry(&mut dumpfile, TreeEntry::Leaf(path.clone(), Leaf { stat, content }))?;
+
+                    for (link, _) in pending_links.remove(&entry.ino()).unwrap_or_default() {
+                        write_tree_entry(&mut dumpfile, TreeEntry::HardLink(link, path.clone()))?;
+                    }
                 }
-                _ => Ok(()),
-            };
-
-            inserted.map_err(|_| DecodeError::MalformedMetadata)?;
+                _ => {}
+            }
 
             payload = entry_reader.finish()?;
         }
@@ -227,20 +188,14 @@ impl RpmArchive {
                 continue;
             };
 
-            builder
-                .insert(
-                    &original,
-                    LeafContent::Regular(RegularFile::Inline(Box::default())),
-                    stat,
-                )
-                .and_then(|()| links.try_for_each(|(link, _)| builder.insert_hard_link(&link, &original)))
-                .map_err(|_| DecodeError::MalformedMetadata)?;
-        }
+            let content = LeafContent::Regular(RegularFile::Inline(Box::default()));
 
-        let dumpfile = builder
-            .view()
-            .to_dumpfile()
-            .map_err(|_| DecodeError::MalformedMetadata)?;
+            write_tree_entry(&mut dumpfile, TreeEntry::Leaf(original.clone(), Leaf { stat, content }))?;
+
+            for (link, _) in links {
+                write_tree_entry(&mut dumpfile, TreeEntry::HardLink(link, original.clone()))?;
+            }
+        }
 
         Ok(Self { header, dumpfile })
     }

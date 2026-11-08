@@ -12,8 +12,6 @@ use tar::Archive;
 use xz2::bufread::XzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
 
-use upac_composefs::tree::builder::TreeBuilder;
-
 use upac_decoder_kit::ObjectStore;
 
 use upac_types::CancelToken;
@@ -53,7 +51,7 @@ impl XbpsArchive {
         }
 
         let mut archive = Archive::new(open_reader(File::open(package_path)?)?);
-        let mut builder = TreeBuilder::new();
+        let mut dumpfile = String::new();
 
         let mut props = None;
         let mut install_present = false;
@@ -72,15 +70,11 @@ impl XbpsArchive {
                 INSTALL_ENTRY => install_present = true,
                 REMOVE_ENTRY => remove_present = true,
                 skipped if SKIPPED_ENTRIES.contains(&skipped) => {}
-                _ => objects.insert_entry(&mut builder, &mut entry)?,
+                _ => objects.write_entry(&mut dumpfile, &mut entry)?,
             }
         }
 
         let props = props.ok_or(DecodeError::MissingMetadata)?;
-        let dumpfile = builder
-            .view()
-            .to_dumpfile()
-            .map_err(|_| DecodeError::MalformedMetadata)?;
 
         Ok(Self {
             props,
