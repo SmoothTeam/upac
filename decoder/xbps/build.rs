@@ -11,57 +11,23 @@ use std::path::Path;
 use toml::{Value, from_str};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let manifest_dir = var("CARGO_MANIFEST_DIR")?;
+    fn render_strings(values: &[Value], context: &str) -> Result<String, Box<dyn Error>> {
+        let mut rendered = String::from("&[");
 
-    let mut generated = String::new();
-    generated.push_str(&generate_decoder_toml(&manifest_dir)?);
-    generated.push_str(&generate_manifest_module(&manifest_dir)?);
+        for value in values {
+            let value = value
+                .as_str()
+                .ok_or_else(|| format!("lib.toml: {context} entries must be strings"))?;
+            rendered.push_str(&format!("{value:?}, "));
+        }
 
-    let out = Path::new(&var("OUT_DIR")?).join("layout.rs");
-    write(out, generated)?;
+        rendered.push(']');
 
-    Ok(())
-}
-
-fn generate_decoder_toml(manifest_dir: &str) -> Result<String, Box<dyn Error>> {
-    let source = Path::new(manifest_dir).join("../decoder.toml");
-
-    println!("cargo:rerun-if-changed={}", source.display());
-
-    let raw = read_to_string(&source)?;
-    let config: Value = from_str(&raw)?;
-
-    let section = "xbps";
-    let entries = config
-        .get(section)
-        .and_then(Value::as_table)
-        .ok_or_else(|| format!("decoder.toml: [{section}] must be a table"))?;
-
-    let mut generated = String::new();
-    generated.push_str(&format!("pub mod {section} {{\n"));
-
-    for (key, value) in entries {
-        let rendered = if let Some(value) = value.as_str() {
-            format!("&str = {value:?}")
-        } else if let Some(value) = value.as_integer() {
-            format!("u32 = {value}")
-        } else {
-            return Err(format!("decoder.toml: {section}.{key} must be a string or integer").into());
-        };
-
-        generated.push_str(&format!("    pub const {}: {rendered};\n", key.to_uppercase()));
+        Ok(rendered)
     }
 
-    generated.push_str("}\n");
-
-    Ok(generated)
-}
-
-/// Compiles this crate's own deployable manifest (`format`/`extensions`) into constants, so a
-/// `builtin-xbps` build can dispatch by format without reading `upac-xbps.toml` from disk at
-/// runtime — `library`/`mime` are runtime-deployment-only fields, not needed here.
-fn generate_manifest_module(manifest_dir: &str) -> Result<String, Box<dyn Error>> {
-    let source = Path::new(manifest_dir).join("upac-xbps.toml");
+    let manifest_dir = var("CARGO_MANIFEST_DIR")?;
+    let source = Path::new(&manifest_dir).join("lib.toml");
 
     println!("cargo:rerun-if-changed={}", source.display());
 
@@ -71,29 +37,49 @@ fn generate_manifest_module(manifest_dir: &str) -> Result<String, Box<dyn Error>
     let format = config
         .get("format")
         .and_then(Value::as_str)
-        .ok_or("upac-xbps.toml: format must be a string")?;
+        .ok_or("lib.toml: format must be a string")?;
 
     let extensions = config
         .get("extensions")
         .and_then(Value::as_array)
-        .ok_or("upac-xbps.toml: extensions must be an array")?
-        .iter()
-        .map(|entry| {
-            entry
-                .as_str()
-                .ok_or("upac-xbps.toml: extensions entries must be strings")
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+        .ok_or("lib.toml: extensions must be an array")?;
 
     let mut generated = String::new();
     generated.push_str("pub mod manifest {\n");
     generated.push_str(&format!("    pub const FORMAT: &str = {format:?};\n"));
-    generated.push_str("    pub const EXTENSIONS: &[&str] = &[\n");
-    for extension in extensions {
-        generated.push_str(&format!("        {extension:?},\n"));
-    }
-    generated.push_str("    ];\n");
+    generated.push_str(&format!(
+        "    pub const EXTENSIONS: &[&str] = {};\n",
+        render_strings(extensions, "extensions")?
+    ));
     generated.push_str("}\n");
 
-    Ok(generated)
+    let sections = config.as_table().ok_or("lib.toml: root must be a table")?;
+    for (section, entries) in sections {
+        let Some(entries) = entries.as_table() else {
+            continue;
+        };
+
+        generated.push_str(&format!("pub mod {section} {{\n"));
+
+        for (key, value) in entries {
+            let key = key.to_uppercase();
+
+            match value {
+                Value::String(text) => generated.push_str(&format!("    pub const {key}: &str = {text:?};\n")),
+                Value::Integer(number) => generated.push_str(&format!("    pub const {key}: u32 = {number};\n")),
+                Value::Array(values) => generated.push_str(&format!(
+                    "    pub const {key}: &[&str] = {};\n",
+                    render_strings(values, &format!("{section}.{key}"))?
+                )),
+                _ => return Err(format!("lib.toml: {section}.{key} must be a string, integer or array").into()),
+            }
+        }
+
+        generated.push_str("}\n");
+    }
+
+    let out = Path::new(&var("OUT_DIR")?).join("layout.rs");
+    write(out, generated)?;
+
+    Ok(())
 }

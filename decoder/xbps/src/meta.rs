@@ -10,16 +10,15 @@ use quick_xml::escape::resolve_xml_entity;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
-use upac_decoder_kit::parse_constraint_prefix;
 use upac_types::decoder::DecodeError;
 use upac_types::package::{
-    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+    DecodedPackageMeta, PackageChecksum, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
 };
 use upac_types::traits::DecodeMeta;
 
-use super::xbps::{
-    ARCHITECTURE_KEY, HOMEPAGE_KEY, INSTALLED_SIZE_KEY, LICENSE_KEY, MAINTAINER_KEY, PKGNAME_KEY, RUN_DEPENDS_KEY,
-    SHORT_DESC_KEY, VERSION_KEY,
+use super::layout::props::{
+    ARCH_KEY, ARRAY_TAG, DEPEND_KEY, DESCRIPTION_KEY, KEY_TAG, LICENSE_KEY, MAINTAINER_KEY, NAME_KEY, SIZE_KEY,
+    URL_KEY, VERSION_KEY,
 };
 
 macro_rules! required_field {
@@ -45,42 +44,37 @@ const OPERATORS: [(&[u8], VersionConstraint); 2] = [
 pub struct Props<'content>(pub &'content str);
 
 impl DecodeMeta for Props<'_> {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
-        let (mut fields, run_depends) = Self::parse_plist(self.0)?;
+    fn decode(&self, checksum: PackageChecksum) -> Result<DecodedPackageMeta, DecodeError> {
+        let (mut fields, dependencies) = self.parse_fields()?;
 
-        let name = required_field!(fields, PKGNAME_KEY);
+        let name = required_field!(fields, NAME_KEY);
         let raw_version = required_field!(fields, VERSION_KEY);
 
-        let installed_size = numeric_field!(fields, INSTALLED_SIZE_KEY);
+        let installed_size = numeric_field!(fields, SIZE_KEY);
 
         let meta = PackageMeta {
             name,
             version: Version::parse(&raw_version),
-            arch: fields.remove(ARCHITECTURE_KEY).unwrap_or_default(),
+            arch: fields.remove(ARCH_KEY).unwrap_or_default(),
             arch_sub: None,
             maintainer: fields.remove(MAINTAINER_KEY).unwrap_or_default(),
-            description: fields.remove(SHORT_DESC_KEY).unwrap_or_default(),
+            description: fields.remove(DESCRIPTION_KEY).unwrap_or_default(),
             license: fields.remove(LICENSE_KEY),
-            url: fields.remove(HOMEPAGE_KEY),
-            sha256,
+            url: fields.remove(URL_KEY),
+            checksum,
             installed_size,
         };
-
-        let dependencies = run_depends
-            .iter()
-            .map(|dep| Self::parse_dependency(dep))
-            .collect::<Result<_, _>>()?;
 
         Ok(DecodedPackageMeta { meta, dependencies })
     }
 }
 
 impl Props<'_> {
-    fn parse_plist(xml: &str) -> Result<(HashMap<String, String>, Vec<String>), DecodeError> {
-        let mut reader = Reader::from_str(xml);
+    fn parse_fields(&self) -> Result<(HashMap<String, String>, Vec<PackageDependency>), DecodeError> {
+        let mut reader = Reader::from_str(self.0);
 
         let mut fields = HashMap::new();
-        let mut run_depends = Vec::new();
+        let mut dependencies = Vec::new();
         let mut current_key: Option<String> = None;
         let mut in_array = false;
         let mut buffer = String::new();
@@ -88,7 +82,7 @@ impl Props<'_> {
         loop {
             match reader.read_event().map_err(|_| DecodeError::MalformedMetadata)? {
                 Event::Eof => break,
-                Event::Start(tag) if tag.name().as_ref() == "array" => in_array = true,
+                Event::Start(tag) if tag.name().as_ref() == ARRAY_TAG.as_bytes() => in_array = true,
                 Event::Start(_) => buffer.clear(),
                 Event::Text(text) => buffer.push_str(&text),
                 Event::GeneralRef(reference) => {
@@ -101,19 +95,19 @@ impl Props<'_> {
                         buffer.push_str(resolved);
                     }
                 }
-                Event::End(tag) if tag.name().as_ref() == "array" => {
+                Event::End(tag) if tag.name().as_ref() == ARRAY_TAG.as_bytes() => {
                     in_array = false;
                     current_key = None;
                 }
-                Event::End(tag) if tag.name().as_ref() == "key" => {
+                Event::End(tag) if tag.name().as_ref() == KEY_TAG.as_bytes() => {
                     current_key = Some(take(&mut buffer));
                 }
                 Event::End(_) => {
                     let value = take(&mut buffer);
 
                     if in_array {
-                        if current_key.as_deref() == Some(RUN_DEPENDS_KEY) {
-                            run_depends.push(value);
+                        if current_key.as_deref() == Some(DEPEND_KEY) {
+                            dependencies.push(Self::parse_dependency(&value)?);
                         }
                     } else if let Some(key) = current_key.take() {
                         fields.insert(key, value);
@@ -123,30 +117,30 @@ impl Props<'_> {
             }
         }
 
-        Ok((fields, run_depends))
+        Ok((fields, dependencies))
     }
 
-    fn parse_dependency(raw: &str) -> Result<PackageDependency, DecodeError> {
-        let bytes = raw.as_bytes();
+    fn parse_dependency(value: &str) -> Result<PackageDependency, DecodeError> {
+        let bytes = value.as_bytes();
 
         for index in 0..bytes.len() {
-            let Some((constraint, operator_len)) = parse_constraint_prefix(&bytes[index..], &OPERATORS) else {
+            let Some((constraint, operator_len)) = VersionConstraint::parse_prefix(&bytes[index..], &OPERATORS) else {
                 continue;
             };
 
-            let version = Version::parse(&raw[index + operator_len..]);
+            let version = Version::parse(&value[index + operator_len..]);
             if version.raw.is_empty() {
                 return Err(DecodeError::MalformedMetadata);
             }
 
             return Ok(PackageDependency {
-                name: raw[..index].to_owned(),
+                name: value[..index].to_owned(),
                 requirement: VersionRequirement::Bounded { constraint, version },
             });
         }
 
         Ok(PackageDependency {
-            name: raw.to_owned(),
+            name: value.to_owned(),
             requirement: VersionRequirement::Any,
         })
     }

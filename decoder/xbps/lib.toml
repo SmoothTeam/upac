@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+format = "xbps"
+library = "/usr/lib/upac/decoders/libupac_decoder_xbps.so"
+mime = "application/x-xbps-package"
+
+extensions = ["xbps"]
+
+[entries]
+prefix = "./"
+props = "props.plist"
+install = "INSTALL"
+remove = "REMOVE"
+
+skipped = ["files.plist"]
+
+[scripts]
+pre_action = "pre"
+post_action = "post"
+
+[props]
+name_key = "pkgname"
+version_key = "version"
+arch_key = "architecture"
+description_key = "short_desc"
+maintainer_key = "maintainer"
+license_key = "license"
+url_key = "homepage"
+size_key = "installed_size"
+depend_key = "run_depends"
+array_tag = "array"
+key_tag = "key"

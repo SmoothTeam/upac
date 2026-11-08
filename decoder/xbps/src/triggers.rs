@@ -5,7 +5,8 @@
 
 use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
-use super::xbps::{INSTALL_ENTRY, POST_ACTION, PRE_ACTION, REMOVE_ENTRY};
+use super::layout::entries::{INSTALL as INSTALL_ENTRY, REMOVE as REMOVE_ENTRY};
+use super::layout::scripts::{POST_ACTION, PRE_ACTION};
 
 pub fn scan(install_present: bool, remove_present: bool) -> Vec<PackageTrigger> {
     TriggerPosition::ALL
