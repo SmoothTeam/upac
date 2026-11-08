@@ -6,7 +6,6 @@
 use upac_macro::{CFree, CNew, CValidate};
 
 use crate::package::{CPackageDependency, CPackageMeta, CPackageTrigger};
-use crate::plugin::FreeDecodeResponseFn;
 use crate::types::{CSlice, CVec};
 
 #[repr(C)]
@@ -20,12 +19,10 @@ pub struct CDecodeResponse {
 
     pub dependencies: CVec<CPackageDependency>,
     pub triggers: CVec<CPackageTrigger>,
-
-    pub free: FreeDecodeResponseFn,
 }
 
 impl Drop for CDecodeResponse {
     fn drop(&mut self) {
-        unsafe { (self.free)(self) };
+        unsafe { self.free() };
     }
 }
