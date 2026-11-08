@@ -5,7 +5,7 @@
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::package::CVersion;
+use crate::CVersion;
 use crate::types::{CSlice, CVec};
 
 #[repr(C)]

@@ -7,7 +7,7 @@ use upac_macro::{CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
-use crate::package::CPackageInfo;
+use crate::CPackageInfo;
 use crate::types::{CSlice, CVec};
 
 #[repr(C)]

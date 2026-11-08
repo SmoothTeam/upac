@@ -9,7 +9,7 @@ use super::entry::{
     CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
 };
 
-use crate::package::CPackageMeta;
+use crate::CPackageMeta;
 use crate::types::CVec;
 
 #[repr(C)]
