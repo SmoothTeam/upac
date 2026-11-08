@@ -17,7 +17,7 @@ members = [
     "lib/orchestrator",
     "lib/lib",
     "lib/setup",
-    "booter/booter-loader",
+    "booter/booter-kit",
     "booter/uki",
     "booter/systemd-boot",
     "booter/grub",
@@ -64,7 +64,7 @@ upac-lib-deploy         = { path = "core/deploy" }
 upac-lib-decoder-kit    = { path = "decoder/decoder-kit", default-features = false }
 upac-lib-hooks          = { path = "core/hooks" }
 upac-lib-image          = { path = "core/image" }
-upac-lib-booter-loader  = { path = "booter/booter-loader", default-features = false }
+upac-lib-booter-kit     = { path = "booter/booter-kit", default-features = false }
 
 upac-lib = { path = "lib/lib", default-features = false }
 upac-lib-setup    = { path = "lib/setup" }

@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use upac_abi::plugin::{BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
-
 use upac_macro::CEnum;
 
 use crate::error::ErrorKind;
@@ -42,13 +40,4 @@ impl From<BootError> for ErrorKind {
             BootError::WrongPartitionType => ErrorKind::WrongPartitionType,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct BuiltinBooter {
-    pub name: &'static str,
-    pub set_one_shot: SetOneShotFn,
-    pub confirm_boot: ConfirmBootFn,
-    pub install: InstallFn,
-    pub boot_resource_kind: BootResourceKindFn,
 }
