@@ -20,18 +20,15 @@ use zstd::stream::read::Decoder as ZstdDecoder;
 
 use nix::sys::stat::{Mode, SFlag};
 
-use upac_abi::{OWNER_SEPARATOR, OWNER_XATTR};
-
 use upac_composefs::tree::entry::TreeEntry;
 
-use upac_decoder_kit::{ObjectStore, write_tree_entry};
+use upac_decoder_kit::{ObjectStore, insert_owner, write_tree_entry};
 
 use upac_types::CancelToken;
 use upac_types::decoder::DecodeError;
 
 use super::capabilities::{CAPABILITY_XATTR, FileCapabilities};
 use super::header::Header;
-use super::layout::owners::ROOT;
 use super::layout::payload::{DEFAULT_COMPRESSOR, FORMAT as CPIO_FORMAT, GZIP, NONE, XZ, ZSTD};
 use super::layout::tags::{
     BASE_NAMES, DIR_INDEXES, DIR_NAMES, FILE_CAPS, FILE_GROUP_NAME, FILE_USER_NAME, PAYLOAD_COMPRESSOR, PAYLOAD_FORMAT,
@@ -67,13 +64,8 @@ impl RpmArchive {
             for (index, base_name) in base_names.iter().enumerate() {
                 let mut xattrs = BTreeMap::new();
 
-                if let (Some(user), Some(group)) = (users.get(index), groups.get(index))
-                    && !(user == ROOT && group == ROOT)
-                {
-                    xattrs.insert(
-                        Box::from(OsStr::new(OWNER_XATTR)),
-                        Box::from(format!("{user}{OWNER_SEPARATOR}{group}").as_bytes()),
-                    );
+                if let (Some(user), Some(group)) = (users.get(index), groups.get(index)) {
+                    insert_owner(&mut xattrs, user, group);
                 }
 
                 if let Some(text) = capabilities.get(index)

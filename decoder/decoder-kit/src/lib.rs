@@ -54,6 +54,8 @@ use upac_abi::plugin::{CreateFileFn, FinishFileFn};
 use upac_abi::request::decoder::CDecodeRequest;
 #[cfg(feature = "host")]
 use upac_abi::response::decoder::CDecodeResponse;
+#[cfg(feature = "plugin")]
+use upac_abi::{OWNER_SEPARATOR, OWNER_XATTR};
 
 #[cfg(feature = "plugin")]
 use upac_composefs::ObjectID;
@@ -79,6 +81,8 @@ use upac_types::response::decoder::DecodeResponse;
 
 #[cfg(feature = "host")]
 use self::error::DecoderError;
+#[cfg(feature = "plugin")]
+use self::layout::owners::ROOT as ROOT_OWNER;
 #[cfg(feature = "plugin")]
 use self::layout::tar::XATTR_PREFIX;
 #[cfg(feature = "dynamic-plugins")]
@@ -184,7 +188,20 @@ impl ObjectStore {
             let st_gid = u32::try_from(header.gid()?).map_err(|_| DecodeError::MalformedMetadata)?;
             let st_mtim_sec = i64::try_from(header.mtime()?).map_err(|_| DecodeError::MalformedMetadata)?;
 
+            let user = header
+                .username()
+                .map_err(|_| DecodeError::InvalidUtf8)?
+                .map(str::to_owned);
+            let group = header
+                .groupname()
+                .map_err(|_| DecodeError::InvalidUtf8)?
+                .map(str::to_owned);
+
             let mut xattrs = BTreeMap::new();
+
+            if let (Some(user), Some(group)) = (user, group) {
+                insert_owner(&mut xattrs, &user, &group);
+            }
 
             if let Some(extensions) = entry.pax_extensions()? {
                 for extension in extensions {
@@ -379,6 +396,18 @@ impl From<&BuiltinDecoder> for Decoder {
             _library: None,
         }
     }
+}
+
+#[cfg(feature = "plugin")]
+pub fn insert_owner(xattrs: &mut BTreeMap<Box<OsStr>, Box<[u8]>>, user: &str, group: &str) {
+    if user.is_empty() || group.is_empty() || (user == ROOT_OWNER && group == ROOT_OWNER) {
+        return;
+    }
+
+    xattrs.insert(
+        Box::from(OsStr::new(OWNER_XATTR)),
+        Box::from(format!("{user}{OWNER_SEPARATOR}{group}").as_bytes()),
+    );
 }
 
 #[cfg(feature = "plugin")]

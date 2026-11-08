@@ -52,9 +52,6 @@ xz = "xz"
 zstd = "zstd"
 none = "none"
 
-[owners]
-root = "root"
-
 [capabilities]
 prefix = "cap_"
 all = "all"
