@@ -6,7 +6,6 @@
 use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 
-use mime::FromStrError as MimeParseError;
 use toml::de::Error as TomlError;
 
 use upac_types::decoder::DecodeError;
@@ -22,7 +21,6 @@ pub enum DecoderError {
     Io(IoErrorKind),
     InvalidPath,
     Manifest,
-    InvalidMimeType,
 }
 
 impl From<DecodeError> for DecoderError {
@@ -49,12 +47,6 @@ impl From<TomlError> for DecoderError {
     }
 }
 
-impl From<MimeParseError> for DecoderError {
-    fn from(_: MimeParseError) -> Self {
-        DecoderError::InvalidMimeType
-    }
-}
-
 impl From<DecoderError> for ErrorKind {
     fn from(error: DecoderError) -> Self {
         match error {
@@ -66,7 +58,6 @@ impl From<DecoderError> for ErrorKind {
             DecoderError::Io(_) => ErrorKind::ReadFailed,
             DecoderError::InvalidPath => ErrorKind::InvalidPath,
             DecoderError::Manifest => ErrorKind::InvalidEntry,
-            DecoderError::InvalidMimeType => ErrorKind::InvalidEntry,
         }
     }
 }

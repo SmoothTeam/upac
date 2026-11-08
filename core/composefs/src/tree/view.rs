@@ -6,6 +6,7 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use composefs::dumpfile::write_dumpfile;
 use composefs::generic_tree::{LeafContent, Stat};
 use composefs::tree::{Directory, FileSystem, Inode, RegularFile};
 
@@ -53,6 +54,13 @@ impl<'tree> TreeView<'tree> {
             root: self.filesystem.root.get_directory(path.as_ref().as_os_str())?.clone(),
             leaves: self.filesystem.leaves.clone(),
         }))
+    }
+
+    pub fn to_dumpfile(&self) -> Result<String, RepoError> {
+        let mut dumpfile = Vec::new();
+        write_dumpfile(&mut dumpfile, self.filesystem).map_err(|_| RepoError::InvalidDumpfile)?;
+
+        String::from_utf8(dumpfile).map_err(|_| RepoError::InvalidDumpfile)
     }
 
     pub fn list(&self, path: impl AsRef<Path>) -> Result<Vec<&'tree OsStr>, RepoError> {

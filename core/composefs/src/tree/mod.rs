@@ -6,8 +6,10 @@
 use std::fs::File;
 use std::io::Read;
 
+use composefs::dumpfile::dumpfile_to_filesystem;
 use composefs::erofs::reader::erofs_to_filesystem;
-use composefs::tree::FileSystem;
+use composefs::generic_tree::LeafContent;
+use composefs::tree::{FileSystem, RegularFile};
 
 use self::builder::TreeBuilder;
 use self::view::TreeView;
@@ -35,6 +37,24 @@ impl Tree {
         Ok(Self {
             filesystem: erofs_to_filesystem(&data)?,
         })
+    }
+
+    pub fn from_dumpfile(dumpfile: &str, repo: &Repo) -> Result<Self, RepoError> {
+        let filesystem: FileSystem<ObjectID> =
+            dumpfile_to_filesystem(dumpfile).map_err(|_| RepoError::InvalidDumpfile)?;
+
+        for leaf in &filesystem.leaves {
+            if let LeafContent::Regular(
+                RegularFile::External(object_id, _) | RegularFile::ExternalNoVerity(object_id, _),
+            ) = &leaf.content
+            {
+                repo.repository()
+                    .open_object(object_id)
+                    .map_err(|_| RepoError::NotFound)?;
+            }
+        }
+
+        Ok(Self::from(filesystem))
     }
 
     pub fn edit(&self) -> TreeBuilder {

@@ -5,7 +5,7 @@
 
 [package]
 name = "upac-lib-decoder-kit"
-description = "upac's package decoder kit: one decoder, built in or loaded from its manifest, decoding a package into the store"
+description = "upac's package decoder kit: tools to turn a package archive into a tree and objects, and one decoder on the host side"
 version.workspace = true
 
 edition.workspace = true
@@ -20,7 +20,7 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-include = ["/src"]
+include = ["/src", "lib.toml", "build.rs"]
 
 [lints]
 workspace = true
@@ -33,20 +33,30 @@ upac-lib-abi       = { workspace = true }
 upac-lib-composefs = { workspace = true, optional = true }
 upac-lib-types     = { workspace = true, optional = true }
 
+composefs  = { workspace = true, optional = true }
 libloading = { workspace = true, optional = true }
 serde      = { workspace = true, optional = true }
+tar        = { workspace = true, optional = true }
 toml       = { workspace = true, optional = true }
 
-mime     = { version = "0.3.17", optional = true }
 zerocopy = { version = "0.8", optional = true }
 
+[build-dependencies]
+toml = { workspace = true }
+
 [features]
+plugin = [
+    "dep:composefs",
+    "dep:upac-lib-composefs",
+    "dep:tar",
+    "dep:upac-lib-types",
+    "dep:zerocopy",
+]
 host = [
     "dep:upac-lib-composefs",
     "dep:upac-lib-types",
     "dep:serde",
     "dep:toml",
-    "dep:mime",
     "dep:zerocopy",
 ]
 dynamic-plugins = ["host", "dep:libloading"]

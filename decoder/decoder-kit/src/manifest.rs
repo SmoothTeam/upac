@@ -5,9 +5,6 @@
 
 use std::fs::read_to_string;
 use std::path::Path;
-use std::str::FromStr;
-
-use mime::Mime;
 
 use serde::Deserialize;
 
@@ -23,10 +20,6 @@ pub struct DecoderManifest {
 
 impl DecoderManifest {
     pub fn read(manifest_path: &Path) -> Result<Self, DecoderError> {
-        let manifest: DecoderManifest = toml::from_str(&read_to_string(manifest_path)?)?;
-
-        Mime::from_str(&manifest.mime)?;
-
-        Ok(manifest)
+        Ok(toml::from_str(&read_to_string(manifest_path)?)?)
     }
 }
