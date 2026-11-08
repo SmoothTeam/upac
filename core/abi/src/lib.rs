@@ -19,6 +19,9 @@ pub const BOOT_ABI_VERSION: u32 = 3;
 pub const DECODER_ABI_VERSION: u32 = 3;
 pub const SETUP_ABI_VERSION: u32 = 3;
 
+pub const OWNER_XATTR: &str = "user.upac.owner";
+pub const OWNER_SEPARATOR: &str = ":";
+
 pub const CONSTRAINT_LESS: u8 = 0b001;
 pub const CONSTRAINT_EQUAL: u8 = 0b010;
 pub const CONSTRAINT_GREATER: u8 = 0b100;
