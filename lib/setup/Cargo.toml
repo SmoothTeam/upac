@@ -28,8 +28,13 @@ name = "upac_setup"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-lib-decoder-loader = { workspace = true, features = ["builtin-all-decoders"] }
+upac-lib-decoder-kit    = { workspace = true, features = ["host"] }
 upac-lib-booter-loader  = { workspace = true, features = ["builtin-all-booters"] }
+
+upac-decoders-alpm = { workspace = true }
+upac-decoders-deb  = { workspace = true }
+upac-decoders-rpm  = { workspace = true }
+upac-decoders-xbps = { workspace = true }
 upac-lib-types          = { workspace = true, features = ["gpt"] }
 upac-lib-abi            = { workspace = true }
 upac-lib-macro          = { workspace = true }
@@ -52,10 +57,10 @@ zstd       = { workspace = true }
 tempfile   = { workspace = true }
 gptman     = { workspace = true }
 
-sevenz-rust2 = "0.22.2"
+sevenz-rust2 = "0.25.0"
 btrfs-mkfs = "0.13.0"
 fatfs      = "0.3"
-zip = "8.6.0"
+zip = "9.4.2"
 
 [build-dependencies]
 toml = { workspace = true }

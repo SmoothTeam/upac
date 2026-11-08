@@ -81,9 +81,9 @@ upac-decoders-rpm  = { path = "decoder/rpm", package = "upac-decoder-rpm", defau
 upac-decoders-xbps = { path = "decoder/xbps", package = "upac-decoder-xbps", default-features = false }
 
 i18n-embed    = { version = "0.16", features = ["fluent-system", "desktop-requester", "filesystem-assets"] }
-composefs-oci = { version = "0.9.0", features = ["composefs-boot", "boot", "tar"] }
+composefs-oci = { version = "0.10.0", features = ["composefs-boot", "boot", "tar"] }
 nix           = { version = "0.31.3", features = ["mount", "sched", "fs", "net"] }
-composefs     = { version = "0.9.0", features = ["tempfile"] }
+composefs     = { version = "0.10.0", features = ["tempfile"] }
 clap          = { version = "4.6.1", features = ["derive"] }
 uuid          = { version = "1", features = ["v4"] }
 serde         = { version = "1", features = ["derive"] }
@@ -98,7 +98,7 @@ toml           = "1.1.2"
 sha2           = "0.11"
 anyhow         = "1"
 quote          = "1"
-composefs-boot = "0.9.0"
+composefs-boot = "0.10.0"
 indicatif      = "0.18.4"
 efivar         = "2.0.0"
 gptman         = "3.1.1"
