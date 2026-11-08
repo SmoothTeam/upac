@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use composefs::tree::{Inode, Leaf, LeafContent, RegularFile};
 
-use upac_types::diff::FileDiffKind;
+use upac_types::FileDiffKind;
 
 use super::Tree;
 

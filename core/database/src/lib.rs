@@ -16,7 +16,7 @@ use upac_composefs::ObjectID;
 use upac_composefs::error::RepoError;
 use upac_composefs::tree::view::TreeView;
 
-use upac_types::package::PackageInfo;
+use upac_types::PackageInfo;
 
 use self::error::DatabaseError;
 use self::layout::entry::{DIR_PREFIX, FILE_PREFIX, PERMISSION_MASK, SEPARATOR as ENTRY_SEPARATOR, SYMLINK_PREFIX};

@@ -17,8 +17,8 @@ use upac_database::error::DatabaseError;
 use upac_database::package::PackageStore;
 use upac_database::{PackageEntryId, PackageEntryKind, PackageId};
 
+use upac_types::PackageInfo;
 use upac_types::decoder::PackageTriggers;
-use upac_types::package::PackageInfo;
 
 use super::ImageBuilder;
 use super::error::ImageError;
