@@ -22,10 +22,12 @@ use self::archive::RpmArchive;
 use self::layout::manifest::{EXTENSIONS, FORMAT};
 
 mod archive;
-pub mod header;
+mod capabilities;
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
+
+pub mod header;
 pub mod meta;
 pub mod triggers;
 

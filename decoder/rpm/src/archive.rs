@@ -28,12 +28,14 @@ use upac_decoder_kit::ObjectStore;
 use upac_types::CancelToken;
 use upac_types::decoder::DecodeError;
 
+use super::capabilities::FileCapabilities;
 use super::header::Header;
+use super::layout::capabilities::XATTR as CAPABILITY_XATTR;
 use super::layout::mode::{DIRECTORY, MISSING_DIRECTORY, PERMISSION_MASK, REGULAR, SYMLINK, TYPE_MASK};
 use super::layout::owners::ROOT;
 use super::layout::payload::{DEFAULT_COMPRESSOR, FORMAT as CPIO_FORMAT, GZIP, NONE, XZ, ZSTD};
 use super::layout::tags::{
-    BASE_NAMES, DIR_INDEXES, DIR_NAMES, FILE_GROUP_NAME, FILE_USER_NAME, PAYLOAD_COMPRESSOR, PAYLOAD_FORMAT,
+    BASE_NAMES, DIR_INDEXES, DIR_NAMES, FILE_CAPS, FILE_GROUP_NAME, FILE_USER_NAME, PAYLOAD_COMPRESSOR, PAYLOAD_FORMAT,
 };
 
 pub struct RpmArchive {
@@ -57,21 +59,38 @@ impl RpmArchive {
                 .collect())
         }
 
-        fn read_owners(header: &Header) -> Result<HashMap<PathBuf, String>, DecodeError> {
+        fn read_xattrs(header: &Header) -> Result<HashMap<PathBuf, BTreeMap<Box<OsStr>, Box<[u8]>>>, DecodeError> {
             let users = header.string_array(FILE_USER_NAME)?;
             let groups = header.string_array(FILE_GROUP_NAME)?;
+            let capabilities = header.string_array(FILE_CAPS)?;
             let base_names = header.string_array(BASE_NAMES)?;
             let dir_names = header.string_array(DIR_NAMES)?;
             let dir_indexes = header.int32_array(DIR_INDEXES)?;
 
-            let mut owners = HashMap::new();
+            let mut path_xattrs = HashMap::new();
 
             for (index, base_name) in base_names.iter().enumerate() {
-                let (Some(user), Some(group)) = (users.get(index), groups.get(index)) else {
-                    continue;
-                };
+                let mut xattrs = BTreeMap::new();
 
-                if user == ROOT && group == ROOT {
+                if let (Some(user), Some(group)) = (users.get(index), groups.get(index))
+                    && !(user == ROOT && group == ROOT)
+                {
+                    xattrs.insert(
+                        Box::from(OsStr::new(OWNER_XATTR)),
+                        Box::from(format!("{user}{OWNER_SEPARATOR}{group}").as_bytes()),
+                    );
+                }
+
+                if let Some(text) = capabilities.get(index)
+                    && !text.is_empty()
+                {
+                    xattrs.insert(
+                        Box::from(OsStr::new(CAPABILITY_XATTR)),
+                        FileCapabilities::parse(text)?.to_xattr(),
+                    );
+                }
+
+                if xattrs.is_empty() {
                     continue;
                 }
 
@@ -81,13 +100,10 @@ impl RpmArchive {
                     .and_then(|dir_index| dir_names.get(dir_index))
                     .ok_or(DecodeError::MalformedMetadata)?;
 
-                owners.insert(
-                    normalize(&Path::new(dir_name).join(base_name))?,
-                    format!("{user}{OWNER_SEPARATOR}{group}"),
-                );
+                path_xattrs.insert(normalize(&Path::new(dir_name).join(base_name))?, xattrs);
             }
 
-            Ok(owners)
+            Ok(path_xattrs)
         }
 
         fn insert_parents(builder: &mut TreeBuilder, path: &Path) -> Result<(), DecodeError> {
@@ -133,7 +149,7 @@ impl RpmArchive {
             _ => return Err(DecodeError::UnsupportedFormat),
         };
 
-        let owners = read_owners(&header)?;
+        let mut path_xattrs = read_xattrs(&header)?;
 
         let mut builder = TreeBuilder::new();
         let mut pending_links: HashMap<u32, Vec<(PathBuf, Stat)>> = HashMap::new();
@@ -158,18 +174,13 @@ impl RpmArchive {
 
             insert_parents(&mut builder, &path)?;
 
-            let mut xattrs = BTreeMap::new();
-            if let Some(owner) = owners.get(&path) {
-                xattrs.insert(Box::from(OsStr::new(OWNER_XATTR)), Box::from(owner.as_bytes()));
-            }
-
             let stat = Stat {
                 st_mode: entry.mode() & PERMISSION_MASK,
                 st_uid: entry.uid(),
                 st_gid: entry.gid(),
                 st_mtim_sec: i64::from(entry.mtime()),
                 st_mtim_nsec: 0,
-                xattrs,
+                xattrs: path_xattrs.remove(&path).unwrap_or_default(),
             };
 
             let inserted = match entry.mode() & TYPE_MASK {
