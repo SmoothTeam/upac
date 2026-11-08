@@ -6,7 +6,8 @@
 use upac_types::decoder::{PackageTrigger, TriggerPosition};
 
 use super::header::Header;
-use super::rpm::{POSTIN_NAME, POSTIN_TAG, POSTUN_NAME, POSTUN_TAG, PREIN_NAME, PREIN_TAG, PREUN_NAME, PREUN_TAG};
+use super::layout::scripts::{POSTIN as POSTIN_NAME, POSTUN as POSTUN_NAME, PREIN as PREIN_NAME, PREUN as PREUN_NAME};
+use super::layout::tags::{POSTIN as POSTIN_TAG, POSTUN as POSTUN_TAG, PREIN as PREIN_TAG, PREUN as PREUN_TAG};
 
 pub fn scan(header: &Header) -> Vec<PackageTrigger> {
     TriggerPosition::ALL

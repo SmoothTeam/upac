@@ -7,7 +7,7 @@ use std::io::{Read, Seek, SeekFrom};
 
 use upac_types::decoder::DecodeError;
 
-use super::rpm::LEAD_SIZE;
+use super::layout::lead::SIZE as LEAD_SIZE;
 
 const LEAD_MAGIC: [u8; 4] = [0xED, 0xAB, 0xEE, 0xDB];
 const SECTION_MAGIC: [u8; 3] = [0x8E, 0xAD, 0xE8];

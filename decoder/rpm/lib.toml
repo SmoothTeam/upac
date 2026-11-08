@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: 2026 JustPav
+# SPDX-FileCopyrightText: 2026 SmoothTeam
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
+
+format = "rpm"
+library = "/usr/lib/upac/decoders/libupac_decoder_rpm.so"
+mime = "application/x-rpm"
+
+extensions = ["rpm"]
+
+[lead]
+size = 96
+
+[scripts]
+prein = "pre"
+postin = "post"
+preun = "preun"
+postun = "postun"
+
+[tags]
+name = 1000
+version = 1001
+release = 1002
+summary = 1004
+size = 1009
+license = 1014
+packager = 1015
+url = 1020
+arch = 1022
+prein = 1023
+postin = 1024
+preun = 1025
+postun = 1026
+file_user_name = 1039
+file_group_name = 1040
+require_flags = 1048
+require_name = 1049
+require_version = 1050
+dir_indexes = 1116
+base_names = 1117
+dir_names = 1118
+payload_format = 1124
+payload_compressor = 1125
+
+[payload]
+format = "cpio"
+default_compressor = "gzip"
+gzip = "gzip"
+xz = "xz"
+zstd = "zstd"
+none = "none"
+
+[owners]
+root = "root"
+
+[mode]
+type_mask = 0o170000
+directory = 0o040000
+regular = 0o100000
+symlink = 0o120000
+permission_mask = 0o7777
+missing_directory = 0o755

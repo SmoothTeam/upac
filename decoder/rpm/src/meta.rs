@@ -5,14 +5,15 @@
 
 use upac_types::decoder::DecodeError;
 use upac_types::package::{
-    DecodedPackageMeta, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
+    DecodedPackageMeta, PackageChecksum, PackageDependency, PackageMeta, Version, VersionConstraint, VersionRequirement,
 };
 use upac_types::traits::DecodeMeta;
 
 use super::header::Header;
-use super::rpm::{
-    ARCH_TAG, LICENSE_TAG, NAME_TAG, PACKAGER_TAG, RELEASE_TAG, REQUIRE_FLAGS_TAG, REQUIRE_NAME_TAG,
-    REQUIRE_VERSION_TAG, SIZE_TAG, SUMMARY_TAG, URL_TAG, VERSION_TAG,
+use super::layout::tags::{
+    ARCH as ARCH_TAG, LICENSE as LICENSE_TAG, NAME as NAME_TAG, PACKAGER as PACKAGER_TAG, RELEASE as RELEASE_TAG,
+    REQUIRE_FLAGS as REQUIRE_FLAGS_TAG, REQUIRE_NAME as REQUIRE_NAME_TAG, REQUIRE_VERSION as REQUIRE_VERSION_TAG,
+    SIZE as SIZE_TAG, SUMMARY as SUMMARY_TAG, URL as URL_TAG, VERSION as VERSION_TAG,
 };
 
 const SENSE_LESS: i32 = 0x02;
@@ -21,7 +22,7 @@ const SENSE_EQUAL: i32 = 0x08;
 const SENSE_RPMLIB: i32 = 0x0100_0000;
 
 impl DecodeMeta for Header {
-    fn decode(&self, sha256: [u8; 32]) -> Result<DecodedPackageMeta, DecodeError> {
+    fn decode(&self, checksum: PackageChecksum) -> Result<DecodedPackageMeta, DecodeError> {
         let name = self.string(NAME_TAG)?.ok_or(DecodeError::MalformedMetadata)?;
         let version = self.string(VERSION_TAG)?.ok_or(DecodeError::MalformedMetadata)?;
 
@@ -42,7 +43,7 @@ impl DecodeMeta for Header {
             description: self.string(SUMMARY_TAG)?.unwrap_or_default(),
             license: self.string(LICENSE_TAG)?,
             url: self.string(URL_TAG)?,
-            sha256,
+            checksum,
             installed_size,
         };
 
