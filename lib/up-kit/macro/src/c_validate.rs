@@ -13,7 +13,7 @@ use syn::{
     parse_macro_input,
 };
 
-use crate::common::{field_condition, generic_arg, is_validatable_composite, segment_name};
+use crate::common::{field_condition, generic_arg, is_out_field, is_validatable_composite, segment_name};
 
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -153,6 +153,11 @@ fn validate_field(field: &Field) -> TokenStream2 {
     let Some(ident) = field.ident.as_ref() else {
         return quote! { compile_error!("CValidate only supports named fields") };
     };
+
+    if is_out_field(field) {
+        return quote! {};
+    }
+
     let optional = is_attr_present(field, "optional");
     let non_empty = is_attr_present(field, "non_empty");
 

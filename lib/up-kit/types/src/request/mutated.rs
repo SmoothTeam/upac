@@ -8,7 +8,7 @@ use upac_abi::request::mutated::{
     CPinRequest, CRollbackRequest, CUninstallRequest, CUpdateRequest,
 };
 
-use upac_abi::CPackageInfo;
+use upac_abi::CPackageId;
 use upac_abi::request::CRequestBase;
 use upac_abi::types::{COwned, CSlice, CVec};
 
@@ -16,8 +16,8 @@ use upac_macro::{CTryToRust, RustToC};
 
 use super::RequestBase;
 
-use crate::PackageInfo;
 use crate::error::ErrorKind;
+use crate::package::PackageId;
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct InstallRequest<'data> {
@@ -27,8 +27,6 @@ pub struct InstallRequest<'data> {
     pub message: Option<&'data str>,
 
     pub packages: Vec<&'data str>,
-
-    pub boot_plugin: &'data str,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -40,8 +38,6 @@ pub struct UpdateRequest<'data> {
 
     pub packages: Vec<&'data str>,
 
-    pub boot_plugin: &'data str,
-
     pub allow_downgrade: bool,
 }
 
@@ -52,16 +48,13 @@ pub struct UninstallRequest<'data> {
     pub subject: &'data str,
     pub message: Option<&'data str>,
 
-    pub packages: Vec<PackageInfo>,
-
-    pub boot_plugin: &'data str,
+    pub packages: Vec<PackageId>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct RollbackRequest<'data> {
     pub base: RequestBase<'data>,
     pub digest: &'data str,
-    pub boot_plugin: &'data str,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -85,8 +78,6 @@ pub struct AttachRequest<'data> {
     pub message: Option<&'data str>,
 
     pub files: Vec<FileTransfer<'data>>,
-
-    pub boot_plugin: &'data str,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -97,8 +88,6 @@ pub struct DetachRequest<'data> {
     pub message: Option<&'data str>,
 
     pub files: Vec<&'data str>,
-
-    pub boot_plugin: &'data str,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]

@@ -8,6 +8,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Error, Fields, parse_macro_input};
 
+use crate::common::is_out_field;
+
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
@@ -29,7 +31,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     };
 
     let mut params: Vec<TokenStream2> = Vec::new();
-    let mut field_idents = Vec::new();
+    let mut field_values: Vec<TokenStream2> = Vec::new();
 
     for field in fields {
         let Some(ident) = field.ident.as_ref() else {
@@ -42,9 +44,14 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
             continue;
         }
 
+        if is_out_field(field) {
+            field_values.push(quote! { #ident: Default::default() });
+            continue;
+        }
+
         let ty = &field.ty;
         params.push(quote! { #ident: #ty });
-        field_idents.push(ident);
+        field_values.push(quote! { #ident });
     }
 
     quote! {
@@ -53,7 +60,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
             pub fn new(#(#params),*) -> Self {
                 Self {
                     struct_size: ::std::mem::size_of::<#name>(),
-                    #(#field_idents),*
+                    #(#field_values),*
                 }
             }
         }

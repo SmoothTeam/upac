@@ -6,17 +6,19 @@
 use std::os::raw::c_void;
 
 use upac_abi::request::{
-    CBootPluginEntryRequest, CBootPluginInstallRequest, CDecodeRequest, CRequestBase, CSetupBootstrapDeployRequest,
-    CSetupBootstrapImportRequest, CSetupBootstrapKernelRequest, CSetupFormatRequest, CSetupPartitionAddRequest,
-    CSetupPartitionTableRequest, CreateFileFn, FinishFileFn,
+    CBootPluginDescriptorRequest, CBootPluginEntryRequest, CBootPluginInstallRequest, CDecodeRequest, CRequestBase,
+    CSetupBootstrapDeployRequest, CSetupBootstrapImportRequest, CSetupBootstrapKernelRequest, CSetupFormatRequest,
+    CSetupPartitionAddRequest, CSetupPartitionTableRequest, CreateFileFn, FinishFileFn,
 };
 use upac_abi::types::{COwned, CSlice};
-use upac_abi::{CPackageChecksum, CProgressEvent, HookMessageFn};
+use upac_abi::{CPackageChecksum, CPackageMeta, CProgressEvent, HookMessageFn};
 
 use upac_macro::{CEnum, CTryToRust, RustToC};
 
+use crate::booter::BootResourceKind;
 use crate::error::ErrorKind;
-use crate::{CancelToken, PackageChecksum, ProgressEvent};
+use crate::package::{PackageChecksum, PackageMeta};
+use crate::{CancelToken, ProgressEvent};
 
 pub mod mutated;
 pub mod unmutated;
@@ -43,6 +45,13 @@ pub enum PartitionKind {
 pub enum InitramfsGenerator {
     Dracut = 0,
     Mkinitcpio = 1,
+}
+
+pub trait Output<'data> {
+    type Value;
+
+    fn read_output(&'data self) -> Result<Self::Value, ErrorKind>;
+    fn write_output(&mut self, value: Self::Value);
 }
 
 impl AsRef<str> for FsKind {
@@ -104,6 +113,11 @@ pub struct SetupPartitionAddRequest<'data> {
     pub label: &'data str,
     pub size_mib: u64,
     pub kind: PartitionKind,
+
+    #[out]
+    pub partition_label: String,
+    #[out]
+    pub partition_device_path: String,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -116,6 +130,9 @@ pub struct SetupBootstrapImportRequest<'data> {
     pub mount_point: Option<&'data str>,
     pub tmp_path: Option<&'data str>,
     pub source: &'data str,
+
+    #[out]
+    pub image_digest: String,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -129,6 +146,9 @@ pub struct SetupBootstrapKernelRequest<'data> {
     pub tmp_path: Option<&'data str>,
     pub digest: &'data str,
     pub initramfs_generator: InitramfsGenerator,
+
+    #[out]
+    pub image_digest: String,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -143,6 +163,14 @@ pub struct SetupBootstrapDeployRequest<'data> {
     pub digest: &'data str,
     pub boot_plugin: &'data str,
     pub pinned: bool,
+}
+
+#[derive(Debug, Clone, RustToC)]
+pub struct BootPluginDescriptorRequest {
+    #[out]
+    pub abi_version: u32,
+    #[out]
+    pub kind: BootResourceKind,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
@@ -166,4 +194,9 @@ pub struct DecodeRequest<'data> {
     pub finish_file: FinishFileFn,
     pub store_ctx: *mut c_void,
     pub cancel_token: &'data CancelToken,
+
+    #[out]
+    pub meta: PackageMeta,
+    #[out]
+    pub dumpfile: String,
 }

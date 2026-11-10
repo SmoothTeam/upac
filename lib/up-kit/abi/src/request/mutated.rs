@@ -7,7 +7,7 @@ use upac_macro::{CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
-use crate::CPackageInfo;
+use crate::CPackageId;
 use crate::types::{CSlice, CVec};
 
 #[repr(C)]
@@ -15,8 +15,6 @@ use crate::types::{CSlice, CVec};
 pub struct CInstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
-
-    pub boot_plugin: CSlice,
 
     pub subject: CSlice,
     #[optional]
@@ -30,8 +28,6 @@ pub struct CInstallRequest {
 pub struct CUpdateRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
-
-    pub boot_plugin: CSlice,
 
     pub subject: CSlice,
     #[optional]
@@ -48,13 +44,11 @@ pub struct CUninstallRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
-    pub boot_plugin: CSlice,
-
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
 
-    pub packages: CVec<CPackageInfo>,
+    pub packages: CVec<CPackageId>,
 }
 
 #[repr(C)]
@@ -62,8 +56,6 @@ pub struct CUninstallRequest {
 pub struct CRollbackRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
-
-    pub boot_plugin: CSlice,
 
     #[non_empty]
     pub digest: CSlice,
@@ -97,8 +89,6 @@ pub struct CAttachRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
-    pub boot_plugin: CSlice,
-
     pub subject: CSlice,
     #[optional]
     pub message: CSlice,
@@ -111,8 +101,6 @@ pub struct CAttachRequest {
 pub struct CDetachRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
-
-    pub boot_plugin: CSlice,
 
     pub subject: CSlice,
     #[optional]

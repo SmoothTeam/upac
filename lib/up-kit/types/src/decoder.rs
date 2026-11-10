@@ -3,81 +3,14 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::fs::File;
 use std::io::{Error as IoError, Write};
 use std::os::fd::{FromRawFd, IntoRawFd};
-use std::str::{FromStr, Utf8Error};
+use std::str::Utf8Error;
 
-use serde::{Deserialize, Serialize};
-
-use upac_abi::CPackageTrigger;
-use upac_abi::types::{COwned, CSlice};
-
-use upac_macro::{CEnum, CTryToRust, RustToC};
+use upac_macro::CEnum;
 
 use crate::error::ErrorKind;
-use crate::{DecodedPackageMeta, PackageChecksum};
-
-const PLUGIN_SUCCESS_STATUS: i32 = 0;
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, CEnum)]
-pub enum TriggerPosition {
-    PreInstall = 0,
-    PostInstall = 1,
-    PreUpgrade = 2,
-    PostUpgrade = 3,
-    PreRemove = 4,
-    PostRemove = 5,
-}
-
-impl TriggerPosition {
-    pub const ALL: [TriggerPosition; 6] = [
-        TriggerPosition::PreInstall,
-        TriggerPosition::PostInstall,
-        TriggerPosition::PreUpgrade,
-        TriggerPosition::PostUpgrade,
-        TriggerPosition::PreRemove,
-        TriggerPosition::PostRemove,
-    ];
-}
-
-impl Display for TriggerPosition {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        formatter.write_str(match self {
-            TriggerPosition::PreInstall => "pre-install",
-            TriggerPosition::PostInstall => "post-install",
-            TriggerPosition::PreUpgrade => "pre-upgrade",
-            TriggerPosition::PostUpgrade => "post-upgrade",
-            TriggerPosition::PreRemove => "pre-remove",
-            TriggerPosition::PostRemove => "post-remove",
-        })
-    }
-}
-
-impl FromStr for TriggerPosition {
-    type Err = DecodeError;
-
-    fn from_str(name: &str) -> Result<Self, Self::Err> {
-        TriggerPosition::ALL
-            .into_iter()
-            .find(|position| position.to_string() == name)
-            .ok_or(DecodeError::MalformedMetadata)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, CTryToRust, RustToC)]
-pub struct PackageTrigger {
-    pub position: TriggerPosition,
-    pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PackageTriggers {
-    pub format: String,
-    pub triggers: Vec<PackageTrigger>,
-}
 
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
@@ -125,10 +58,6 @@ impl From<DecodeError> for ErrorKind {
     }
 }
 
-pub trait DecodeMeta {
-    fn decode(&self, checksum: PackageChecksum) -> Result<DecodedPackageMeta, DecodeError>;
-}
-
 pub struct ObjectFile(File);
 
 impl ObjectFile {
@@ -168,19 +97,4 @@ impl Write for ObjectFile {
     fn flush(&mut self) -> Result<(), IoError> {
         self.0.flush()
     }
-}
-
-pub fn plugin_status<StatusError: Into<i32>>(result: Result<(), StatusError>) -> i32 {
-    match result {
-        Ok(()) => PLUGIN_SUCCESS_STATUS,
-        Err(error) => error.into(),
-    }
-}
-
-pub fn plugin_result<StatusError: TryFrom<i32>>(status: i32) -> Result<(), Option<StatusError>> {
-    if status == PLUGIN_SUCCESS_STATUS {
-        return Ok(());
-    }
-
-    Err(StatusError::try_from(status).ok())
 }

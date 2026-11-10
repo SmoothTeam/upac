@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::CVersion;
-use upac_abi::response::entry::{
+use upac_abi::entry::{
     CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
 };
 use upac_abi::types::{COwned, CSlice, CVec};
@@ -12,8 +12,9 @@ use upac_abi::types::{COwned, CSlice, CVec};
 use upac_macro::{CTryToRust, RustToC};
 
 use crate::error::ErrorKind;
+use crate::package::Version;
 use crate::transaction::TransactionKind;
-use crate::{FileDiffKind, PackageDiffKind, Version};
+use crate::{FileDiffKind, PackageDiffKind};
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
 pub struct DiffFileEntry {

@@ -106,6 +106,12 @@ impl CSlice {
     }
 }
 
+impl Default for CSlice {
+    fn default() -> Self {
+        CSlice { ptr: null(), len: 0 }
+    }
+}
+
 impl CBorrowed for CSlice {
     type Borrowed = [u8];
 
@@ -225,6 +231,15 @@ impl<Element> CVec<Element> {
     /// Same contract as `free_cvec_owning`.
     pub unsafe fn free_owning(&self, free_elem: impl FnMut(&Element)) {
         unsafe { free_cvec_owning(self, free_elem) }
+    }
+}
+
+impl<Element> Default for CVec<Element> {
+    fn default() -> Self {
+        CVec {
+            ptr: null_mut(),
+            len: 0,
+        }
     }
 }
 

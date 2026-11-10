@@ -8,7 +8,9 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Error, Fields, Ident, Lifetime, PathSegment, Type, TypeReference, parse_macro_input};
 
-use crate::common::{ABI_ENUMS, PASSTHROUGH_TYPES, PRIMITIVES, generic_arg, is_str_ref, is_str_type, segment_name};
+use crate::common::{
+    ABI_ENUMS, PASSTHROUGH_TYPES, PRIMITIVES, generic_arg, is_out_field, is_str_ref, is_str_type, segment_name,
+};
 
 pub(crate) fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -41,11 +43,39 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
                 .into();
         };
 
+        if is_out_field(field) {
+            field_values.push(quote! { #ident: Default::default(), });
+            continue;
+        }
+
         let value = field_from_c_fallible(ident, &field.ty);
         field_values.push(quote! { #ident: #value, });
     }
 
     try_from_impl(name, &c_name, lifetime.as_ref(), &field_values).into()
+}
+
+pub(crate) fn field_from_c_fallible(ident: &Ident, ty: &Type) -> TokenStream2 {
+    if let Type::Array(_) = ty {
+        return quote! { value.#ident };
+    }
+
+    if let Type::Ptr(_) = ty {
+        return quote! { value.#ident };
+    }
+
+    if let Type::Reference(reference) = ty {
+        return reference_from_c(ident, reference);
+    }
+
+    let Type::Path(type_path) = ty else {
+        return quote! { compile_error!("CTryToRust: unsupported field type") };
+    };
+
+    match type_path.path.segments.last() {
+        Some(segment) => field_path_from_c(ident, segment),
+        None => quote! { compile_error!("CTryToRust: unsupported field type") },
+    }
 }
 
 fn string_from_c(ident: &Ident) -> TokenStream2 {
@@ -144,29 +174,6 @@ fn reference_from_c(ident: &Ident, reference: &TypeReference) -> TokenStream2 {
     let referenced = &reference.elem;
 
     quote! { unsafe { <#referenced>::from_ptr(value.#ident)? } }
-}
-
-fn field_from_c_fallible(ident: &Ident, ty: &Type) -> TokenStream2 {
-    if let Type::Array(_) = ty {
-        return quote! { value.#ident };
-    }
-
-    if let Type::Ptr(_) = ty {
-        return quote! { value.#ident };
-    }
-
-    if let Type::Reference(reference) = ty {
-        return reference_from_c(ident, reference);
-    }
-
-    let Type::Path(type_path) = ty else {
-        return quote! { compile_error!("CTryToRust: unsupported field type") };
-    };
-
-    match type_path.path.segments.last() {
-        Some(segment) => field_path_from_c(ident, segment),
-        None => quote! { compile_error!("CTryToRust: unsupported field type") },
-    }
 }
 
 fn try_from_impl(

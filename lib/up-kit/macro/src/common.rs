@@ -41,7 +41,7 @@ pub(crate) const VALIDATABLE_LIB_ENTRY_COMPOSITES: &[&str] = &[
 pub(crate) const VALIDATABLE_LIB_PACKAGE_COMPOSITES: &[&str] = &[
     "CVersion",
     "CPackageMeta",
-    "CPackageInfo",
+    "CPackageId",
     "CPackageDependency",
     "CPackageTrigger",
 ];
@@ -85,6 +85,10 @@ pub(crate) fn is_str_type(ty: &Type) -> bool {
 
 pub(crate) fn is_str_ref(ty: &Type) -> bool {
     matches!(ty, Type::Reference(reference) if is_str_type(&reference.elem))
+}
+
+pub(crate) fn is_out_field(field: &Field) -> bool {
+    field.attrs.iter().any(|attr| attr.path().is_ident("out"))
 }
 
 pub(crate) struct FieldCondition {

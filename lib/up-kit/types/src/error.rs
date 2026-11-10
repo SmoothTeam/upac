@@ -5,7 +5,6 @@
 
 use std::ffi::FromBytesWithNulError;
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
-use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::str::Utf8Error;
 
 #[cfg(feature = "gpt")]
@@ -171,88 +170,4 @@ impl Error {
             subject: None,
         }))
     }
-}
-
-/// # Safety
-/// `err_out`, if non-null, must point to writable `CError` storage.
-pub unsafe fn export_mutated_command<'request, CRequest, Request, State>(
-    request: &'request CRequest, err_out: *mut CError,
-    run: impl FnOnce(Request) -> Result<(), (State, ErrorKind, Option<String>)>,
-) -> i32
-where
-    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
-    State: CommandState,
-{
-    match call_exported(request, run) {
-        Ok(()) => 0,
-        Err(error) => unsafe { write_error(err_out, error) },
-    }
-}
-
-/// # Safety
-/// `response_out`, if non-null, must point to writable `CResponse` storage, and `err_out`, if non-null, to
-/// writable `CError` storage.
-pub unsafe fn export_mutated_command_with_response<'request, CRequest, Request, State, Response, CResponse>(
-    request: &'request CRequest, response_out: *mut CResponse, err_out: *mut CError,
-    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind, Option<String>)>,
-) -> i32
-where
-    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
-    State: CommandState,
-    CResponse: From<Response>,
-{
-    match call_exported(request, run) {
-        Ok(response) => unsafe { write_response(response_out, response) },
-        Err(error) => unsafe { write_error(err_out, error) },
-    }
-}
-
-/// # Safety
-/// `response_out`, if non-null, must point to writable `CResponse` storage, and `err_out`, if non-null, to
-/// writable `CError` storage.
-pub unsafe fn export_unmutated_command<'request, CRequest, Request, State, Response, CResponse>(
-    request: &'request CRequest, response_out: *mut CResponse, err_out: *mut CError,
-    run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind, Option<String>)>,
-) -> i32
-where
-    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
-    State: CommandState,
-    CResponse: From<Response>,
-{
-    match call_exported(request, run) {
-        Ok(response) => unsafe { write_response(response_out, response) },
-        Err(error) => unsafe { write_error(err_out, error) },
-    }
-}
-
-fn call_exported<'request, CRequest, Request, State, Response>(
-    request: &'request CRequest, run: impl FnOnce(Request) -> Result<Response, (State, ErrorKind, Option<String>)>,
-) -> Result<Response, Error>
-where
-    Request: TryFrom<&'request CRequest, Error = ErrorKind>,
-    State: CommandState,
-{
-    let request = Request::try_from(request).map_err(|kind| Error::new(State::VALIDATION, kind))?;
-
-    match catch_unwind(AssertUnwindSafe(|| run(request))) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err((state, kind, subject))) => Err(Error::new(state, kind).with_subject(subject)),
-        Err(_) => Err(Error::new(State::VALIDATION, ErrorKind::Unexpected)),
-    }
-}
-
-unsafe fn write_response<Response, CResponse: From<Response>>(response_out: *mut CResponse, response: Response) -> i32 {
-    if !response_out.is_null() {
-        unsafe { response_out.write(CResponse::from(response)) };
-    }
-
-    0
-}
-
-unsafe fn write_error(err_out: *mut CError, error: Error) -> i32 {
-    if !err_out.is_null() {
-        unsafe { err_out.write(error.into()) };
-    }
-
-    -1
 }

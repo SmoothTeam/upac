@@ -6,21 +6,24 @@
 extern crate self as upac_abi;
 
 use std::ffi::c_void;
+use std::mem::size_of;
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::types::CSlice;
+use crate::types::{CSlice, CVec};
 
+pub mod entry;
 pub mod error;
 pub mod memory;
 pub mod request;
-pub mod response;
 pub mod types;
 
 pub const LIB_ABI_VERSION: u32 = 3;
 pub const BOOT_ABI_VERSION: u32 = 3;
 pub const DECODER_ABI_VERSION: u32 = 3;
 pub const SETUP_ABI_VERSION: u32 = 3;
+
+pub const PLUGIN_SUCCESS_STATUS: i32 = 0;
 
 pub const OWNER_XATTR: &str = "user.upac.owner";
 pub const OWNER_SEPARATOR: &str = ":";
@@ -54,7 +57,10 @@ pub struct CPackageMeta {
 
     #[optional]
     pub arch_sub: CSlice,
+    pub format: CSlice,
+    #[optional]
     pub maintainer: CSlice,
+    #[optional]
     pub description: CSlice,
     #[optional]
     pub license: CSlice,
@@ -62,11 +68,14 @@ pub struct CPackageMeta {
     pub url: CSlice,
     pub checksum: CPackageChecksum,
     pub installed_size: u64,
+
+    pub dependencies: CVec<CPackageDependency>,
+    pub triggers: CVec<CPackageTrigger>,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CPackageInfo {
+pub struct CPackageId {
     pub struct_size: usize,
     pub name: CSlice,
     pub arch: CSlice,
@@ -104,4 +113,35 @@ pub struct CProgressEvent {
     pub subject: CSlice,
     pub current: u64,
     pub total: u64,
+}
+
+impl Default for CVersion {
+    fn default() -> Self {
+        CVersion {
+            struct_size: size_of::<CVersion>(),
+            epoch: 0,
+            raw: CSlice::default(),
+        }
+    }
+}
+
+impl Default for CPackageMeta {
+    fn default() -> Self {
+        CPackageMeta {
+            struct_size: size_of::<CPackageMeta>(),
+            name: CSlice::default(),
+            version: CVersion::default(),
+            arch: CSlice::default(),
+            arch_sub: CSlice::default(),
+            format: CSlice::default(),
+            maintainer: CSlice::default(),
+            description: CSlice::default(),
+            license: CSlice::default(),
+            url: CSlice::default(),
+            checksum: CPackageChecksum::default(),
+            installed_size: 0,
+            dependencies: CVec::default(),
+            triggers: CVec::default(),
+        }
+    }
 }

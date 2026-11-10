@@ -9,7 +9,7 @@ use crate::CVersion;
 use crate::types::{CSlice, CVec};
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CDiffFileEntry {
     pub struct_size: usize,
 
@@ -18,7 +18,7 @@ pub struct CDiffFileEntry {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CDiffPackageEntry {
     pub struct_size: usize,
 
@@ -29,7 +29,7 @@ pub struct CDiffPackageEntry {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CSearchFileEntry {
     pub struct_size: usize,
 
@@ -39,7 +39,7 @@ pub struct CSearchFileEntry {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CDeployEntry {
     pub struct_size: usize,
 
@@ -49,7 +49,7 @@ pub struct CDeployEntry {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CTransactionEntry {
     pub struct_size: usize,
 
@@ -61,7 +61,7 @@ pub struct CTransactionEntry {
 }
 
 #[repr(C)]
-#[derive(CFree, CNew, CValidate)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CConfigSnapshotEntry {
     pub struct_size: usize,
 

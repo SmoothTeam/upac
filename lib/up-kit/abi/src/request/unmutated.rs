@@ -7,14 +7,20 @@ use upac_macro::{CFree, CNew, CValidate};
 
 use super::CRequestBase;
 
-use crate::CPackageInfo;
-use crate::types::CSlice;
+use crate::entry::{
+    CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
+};
+use crate::types::{CSlice, CVec};
+use crate::{CPackageId, CPackageMeta};
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CListPackagesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
+
+    #[out]
+    pub metas: CVec<CPackageMeta>,
 }
 
 #[repr(C)]
@@ -22,6 +28,9 @@ pub struct CListPackagesRequest {
 pub struct CListDeploysRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
+
+    #[out]
+    pub deploys: CVec<CDeployEntry>,
 }
 
 #[repr(C)]
@@ -32,6 +41,9 @@ pub struct CListHistoryRequest {
 
     #[optional]
     pub digest: CSlice,
+
+    #[out]
+    pub transactions: CVec<CTransactionEntry>,
 }
 
 #[repr(C)]
@@ -42,6 +54,9 @@ pub struct CListConfigRequest {
 
     #[optional]
     pub digest: CSlice,
+
+    #[out]
+    pub snapshots: CVec<CConfigSnapshotEntry>,
 }
 
 #[repr(C)]
@@ -54,6 +69,11 @@ pub struct CDiffRequest {
     pub from_digest: CSlice,
     #[optional]
     pub to_digest: CSlice,
+
+    #[out]
+    pub packages: CVec<CDiffPackageEntry>,
+    #[out]
+    pub files: CVec<CDiffFileEntry>,
 }
 
 #[repr(C)]
@@ -64,6 +84,9 @@ pub struct CSearchMetaRequest {
 
     pub search: CSlice,
     pub is_regex: bool,
+
+    #[out]
+    pub metas: CVec<CPackageMeta>,
 }
 
 #[repr(C)]
@@ -74,6 +97,9 @@ pub struct CSearchFilesRequest {
 
     pub search: CSlice,
     pub is_regex: bool,
+
+    #[out]
+    pub files: CVec<CSearchFileEntry>,
 }
 
 #[repr(C)]
@@ -82,9 +108,12 @@ pub struct CSearchInMetaRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
-    pub package: CPackageInfo,
+    pub package: CPackageId,
     pub search: CSlice,
     pub is_regex: bool,
+
+    #[out]
+    pub metas: CVec<CPackageMeta>,
 }
 
 #[repr(C)]
@@ -93,7 +122,10 @@ pub struct CSearchInPackageFilesRequest {
     pub struct_size: usize,
     pub base: CRequestBase,
 
-    pub package: CPackageInfo,
+    pub package: CPackageId,
     pub search: CSlice,
     pub is_regex: bool,
+
+    #[out]
+    pub files: CVec<CSearchFileEntry>,
 }

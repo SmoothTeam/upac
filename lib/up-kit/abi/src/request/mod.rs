@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicU8;
 use upac_macro::{CFree, CNew, CValidate};
 
 use crate::types::CSlice;
-use crate::{CPackageChecksum, HookMessageFn};
+use crate::{CPackageChecksum, CPackageMeta, HookMessageFn};
 
 pub mod mutated;
 pub mod unmutated;
@@ -69,6 +69,11 @@ pub struct CSetupPartitionAddRequest {
     pub label: CSlice,
     pub size_mib: u64,
     pub kind: u8,
+
+    #[out]
+    pub partition_label: CSlice,
+    #[out]
+    pub partition_device_path: CSlice,
 }
 
 #[repr(C)]
@@ -88,6 +93,9 @@ pub struct CSetupBootstrapImportRequest {
     #[optional]
     pub tmp_path: CSlice,
     pub source: CSlice,
+
+    #[out]
+    pub image_digest: CSlice,
 }
 
 #[repr(C)]
@@ -108,6 +116,9 @@ pub struct CSetupBootstrapKernelRequest {
     pub tmp_path: CSlice,
     pub digest: CSlice,
     pub initramfs_generator: u8,
+
+    #[out]
+    pub image_digest: CSlice,
 }
 
 #[repr(C)]
@@ -129,6 +140,17 @@ pub struct CSetupBootstrapDeployRequest {
     pub digest: CSlice,
     pub boot_plugin: CSlice,
     pub pinned: bool,
+}
+
+#[repr(C)]
+#[derive(CFree, CNew, CValidate)]
+pub struct CBootPluginDescriptorRequest {
+    pub struct_size: usize,
+
+    #[out]
+    pub abi_version: u32,
+    #[out]
+    pub kind: u8,
 }
 
 #[repr(C)]
@@ -163,4 +185,9 @@ pub struct CDecodeRequest {
     pub store_ctx: *mut c_void,
 
     pub cancel_token: *const AtomicU8,
+
+    #[out]
+    pub meta: CPackageMeta,
+    #[out]
+    pub dumpfile: CSlice,
 }

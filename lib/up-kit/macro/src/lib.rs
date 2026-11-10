@@ -27,22 +27,22 @@ pub fn derive_c_free(input: TokenStream) -> TokenStream {
     c_free::expand(input)
 }
 
-#[proc_macro_derive(CNew)]
+#[proc_macro_derive(CNew, attributes(out))]
 pub fn derive_c_new(input: TokenStream) -> TokenStream {
     c_new::expand(input)
 }
 
-#[proc_macro_derive(RustToC)]
+#[proc_macro_derive(RustToC, attributes(out))]
 pub fn derive_rust_to_c(input: TokenStream) -> TokenStream {
     rust_to_c::expand(input)
 }
 
-#[proc_macro_derive(CTryToRust)]
+#[proc_macro_derive(CTryToRust, attributes(out))]
 pub fn derive_c_try_to_rust(input: TokenStream) -> TokenStream {
     c_try_to_rust::expand(input)
 }
 
-#[proc_macro_derive(CValidate, attributes(optional, non_empty, bitflags, skip_if))]
+#[proc_macro_derive(CValidate, attributes(optional, non_empty, bitflags, skip_if, out))]
 pub fn derive_c_validate(input: TokenStream) -> TokenStream {
     c_validate::expand(input)
 }
