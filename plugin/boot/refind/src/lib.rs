@@ -17,54 +17,60 @@ use rustix::fs::{IFlags, ioctl_getflags, ioctl_setflags};
 use uuid::Uuid;
 
 use upac_abi::BOOT_ABI_VERSION;
-use upac_abi::request::booter::{
-    CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
-};
+use upac_abi::request::{CBootPluginEntryRequest, CBootPluginInstallRequest};
+use upac_abi::response::CBootPluginInfo;
 
-use upac_booter_kit::{BootBackend, BuiltinBooter};
+use upac_booter_kit::BootBackend;
 
 use upac_types::booter::{BootError, BootResourceKind};
-use upac_types::plugin::plugin_status;
-use upac_types::request::booter::{
-    BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
-};
+use upac_types::decoder::plugin_status;
+use upac_types::request::{BootPluginEntryRequest, BootPluginInstallRequest};
+use upac_types::response::BootPluginInfo;
 
 use self::layout::efivarfs::PATH as EFIVARFS_PATH;
 use self::layout::install::{ASSUME_YES_FLAG, TOOL};
-use self::layout::manifest::NAME;
 use self::layout::previous_boot::{VARIABLE, VENDOR_GUID};
 
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
 
-pub const BOOTER: BuiltinBooter = BuiltinBooter {
-    name: NAME,
-    boot_resource_kind,
-    set_one_shot,
-    confirm_boot,
-    install,
-};
-
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub extern "C" fn boot_abi_version() -> u32 {
-    BOOT_ABI_VERSION
-}
-
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub extern "C" fn boot_resource_kind() -> u8 {
-    Refind::boot_resource_kind().into()
+#[unsafe(no_mangle)]
+pub extern "C" fn boot_plugin_info() -> CBootPluginInfo {
+    BootPluginInfo {
+        abi_version: BOOT_ABI_VERSION,
+        kind: BootResourceKind::Bls,
+    }
+    .into()
 }
 
 /// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginSetOneShotRequest` for the
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginInstallRequest` for the
 /// duration of the call.
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotRequest) -> i32 {
-    fn set_one_shot_entry(request: &CBootPluginSetOneShotRequest) -> Result<(), BootError> {
-        let request = BootPluginSetOneShotRequest::try_from(request)?;
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i32 {
+    fn install_booter(request: &CBootPluginInstallRequest) -> Result<(), BootError> {
+        let request = BootPluginInstallRequest::try_from(request)?;
 
-        Refind::new()?.set_one_shot(&request.entry_name)
+        Refind::new()?.install(&request)
+    }
+
+    if request.is_null() {
+        return plugin_status(Err(BootError::InvalidRequest));
+    }
+
+    plugin_status(install_booter(unsafe { &*request }))
+}
+
+/// # Safety
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginEntryRequest` for the
+/// duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginEntryRequest) -> i32 {
+    fn set_one_shot_entry(request: &CBootPluginEntryRequest) -> Result<(), BootError> {
+        let request = BootPluginEntryRequest::try_from(request)?;
+
+        Refind::new()?.set_one_shot(&request)
     }
 
     if request.is_null() {
@@ -75,39 +81,21 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotReque
 }
 
 /// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginConfirmSuccessBootRequest` for
-/// the duration of the call.
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn confirm_boot(request: *const CBootPluginConfirmSuccessBootRequest) -> i32 {
-    fn confirm_boot_entry(request: &CBootPluginConfirmSuccessBootRequest) -> Result<(), BootError> {
-        let request = BootPluginConfirmSuccessBootRequest::try_from(request)?;
-
-        Refind::new()?.confirm_boot(&request.entry_name, &request.esp_mount_point)
-    }
-
-    if request.is_null() {
-        return plugin_status(Err(BootError::InvalidRequest));
-    }
-
-    plugin_status(confirm_boot_entry(unsafe { &*request }))
-}
-
-/// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginInstallRequest` for the
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginEntryRequest` for the
 /// duration of the call.
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i32 {
-    fn install_booter(request: &CBootPluginInstallRequest) -> Result<(), BootError> {
-        let request = BootPluginInstallRequest::try_from(request)?;
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn set_default(request: *const CBootPluginEntryRequest) -> i32 {
+    fn set_default_entry(request: &CBootPluginEntryRequest) -> Result<(), BootError> {
+        let request = BootPluginEntryRequest::try_from(request)?;
 
-        Refind::new()?.install(&request.esp_mount_point, &request.to_slot, &request.from_slot)
+        Refind::new()?.set_default(&request)
     }
 
     if request.is_null() {
         return plugin_status(Err(BootError::InvalidRequest));
     }
 
-    plugin_status(install_booter(unsafe { &*request }))
+    plugin_status(set_default_entry(unsafe { &*request }))
 }
 
 struct Refind {
@@ -123,22 +111,8 @@ impl BootBackend for Refind {
         Ok(Self { manager })
     }
 
-    fn boot_resource_kind() -> BootResourceKind {
-        BootResourceKind::Bls
-    }
-
-    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), BootError> {
-        self.write_previous_boot(entry_name)
-    }
-
-    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), BootError> {
-        let _ = esp_mount_point;
-
-        self.write_previous_boot(entry_name)
-    }
-
-    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), BootError> {
-        let _ = (esp_mount_point, to_slot, from_slot);
+    fn install(&mut self, request: &BootPluginInstallRequest) -> Result<(), BootError> {
+        let _ = request;
 
         match Command::new(TOOL).arg(ASSUME_YES_FLAG).status() {
             Ok(status) if status.success() => Ok(()),
@@ -147,10 +121,18 @@ impl BootBackend for Refind {
             Err(error) => Err(error.into()),
         }
     }
+
+    fn set_one_shot(&mut self, request: &BootPluginEntryRequest) -> Result<(), BootError> {
+        self.write_previous_boot(&request.entry_id)
+    }
+
+    fn set_default(&mut self, request: &BootPluginEntryRequest) -> Result<(), BootError> {
+        self.write_previous_boot(&request.entry_id)
+    }
 }
 
 impl Refind {
-    fn write_previous_boot(&mut self, entry_name: &str) -> Result<(), BootError> {
+    fn write_previous_boot(&mut self, entry_id: &str) -> Result<(), BootError> {
         fn clear_immutable(variable: &Variable) {
             let Ok(file) = File::open(format!("{EFIVARFS_PATH}/{variable}")) else {
                 return;
@@ -170,7 +152,7 @@ impl Refind {
 
         clear_immutable(&variable);
 
-        let value: Vec<u8> = entry_name
+        let value: Vec<u8> = entry_id
             .encode_utf16()
             .chain(once(0))
             .flat_map(u16::to_le_bytes)

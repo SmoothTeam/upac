@@ -3,104 +3,94 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-#[cfg(feature = "dynamic-plugins")]
+use std::env::consts::DLL_EXTENSION;
+use std::ffi::OsStr;
+use std::fs::read_dir;
+use std::io::ErrorKind as IoErrorKind;
+use std::path::Path;
+
 use libloading::Library;
 
-#[cfg(feature = "dynamic-plugins")]
 use upac_abi::BOOT_ABI_VERSION;
-#[cfg(feature = "dynamic-plugins")]
-use upac_abi::plugin::BootPluginAbiVersionFn;
-use upac_abi::plugin::{BootResourceKindFn, ConfirmBootFn, InstallFn, SetOneShotFn};
-#[cfg(feature = "host")]
-use upac_abi::request::booter::{
-    CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
-};
+use upac_abi::request::{CBootPluginEntryRequest, CBootPluginInstallRequest};
+use upac_abi::response::CBootPluginInfo;
 
-#[cfg(any(feature = "host", feature = "plugin"))]
 use upac_types::booter::BootResourceKind;
-#[cfg(feature = "host")]
-use upac_types::plugin::plugin_result;
-#[cfg(feature = "host")]
-use upac_types::request::booter::{
-    BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
-};
+use upac_types::decoder::plugin_result;
+use upac_types::request::{BootPluginEntryRequest, BootPluginInstallRequest};
+use upac_types::response::BootPluginInfo;
 
-#[cfg(feature = "host")]
 use self::error::BooterError;
-#[cfg(feature = "dynamic-plugins")]
-use self::manifest::BooterManifest;
 
-#[cfg(feature = "host")]
 pub mod error;
-#[cfg(feature = "host")]
-pub mod manifest;
 
-#[cfg(feature = "dynamic-plugins")]
 macro_rules! load_symbol {
     ($library:expr, $name:literal) => {
         unsafe { load_symbol(&$library, $name)? }
     };
 }
 
-#[cfg(feature = "plugin")]
+pub type BootPluginInfoFn = unsafe extern "C" fn() -> CBootPluginInfo;
+
+pub type InstallFn = unsafe extern "C" fn(request: *const CBootPluginInstallRequest) -> i32;
+
+pub type SetOneShotFn = unsafe extern "C" fn(request: *const CBootPluginEntryRequest) -> i32;
+
+pub type SetDefaultFn = unsafe extern "C" fn(request: *const CBootPluginEntryRequest) -> i32;
+
 pub trait BootBackend: Sized {
     type Error;
 
     fn new() -> Result<Self, Self::Error>;
-    fn boot_resource_kind() -> BootResourceKind;
-    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), Self::Error>;
-    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), Self::Error>;
-    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), Self::Error>;
+    fn install(&mut self, request: &BootPluginInstallRequest) -> Result<(), Self::Error>;
+    fn set_one_shot(&mut self, request: &BootPluginEntryRequest) -> Result<(), Self::Error>;
+    fn set_default(&mut self, request: &BootPluginEntryRequest) -> Result<(), Self::Error>;
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct BuiltinBooter {
-    pub name: &'static str,
-    pub boot_resource_kind: BootResourceKindFn,
-    pub set_one_shot: SetOneShotFn,
-    pub confirm_boot: ConfirmBootFn,
-    pub install: InstallFn,
-}
-
-#[cfg(feature = "host")]
 pub struct Booter {
     name: String,
-    boot_resource_kind: BootResourceKindFn,
-    set_one_shot: SetOneShotFn,
-    confirm_boot: ConfirmBootFn,
+    kind: BootResourceKind,
     install: InstallFn,
+    set_one_shot: SetOneShotFn,
+    set_default: SetDefaultFn,
 
-    #[cfg(feature = "dynamic-plugins")]
-    _library: Option<Library>,
+    _library: Library,
 }
 
-#[cfg(feature = "host")]
 impl Booter {
-    #[cfg(feature = "dynamic-plugins")]
-    pub fn load(manifest: &BooterManifest) -> Result<Self, BooterError> {
-        let library = unsafe { Library::new(&manifest.library) }.map_err(|_| BooterError::Load)?;
+    pub fn load(library_path: &Path) -> Result<Self, BooterError> {
+        let name = library_path
+            .file_stem()
+            .and_then(OsStr::to_str)
+            .ok_or(BooterError::Load)?
+            .to_owned();
 
-        let abi_version: BootPluginAbiVersionFn = load_symbol!(library, "boot_abi_version");
-        let boot_resource_kind: BootResourceKindFn = load_symbol!(library, "boot_resource_kind");
-        let set_one_shot: SetOneShotFn = load_symbol!(library, "set_one_shot");
-        let confirm_boot: ConfirmBootFn = load_symbol!(library, "confirm_boot");
-        let install: InstallFn = load_symbol!(library, "install");
+        let library = unsafe { Library::new(library_path) }.map_err(|_| BooterError::Load)?;
 
-        let got_abi_version = unsafe { abi_version() };
-        if got_abi_version != BOOT_ABI_VERSION {
+        let plugin_info: BootPluginInfoFn = load_symbol!(library, "boot_plugin_info");
+        let plugin_info = unsafe { plugin_info() };
+
+        if plugin_info.abi_version != BOOT_ABI_VERSION {
             return Err(BooterError::AbiMismatch {
-                got: got_abi_version,
+                got: plugin_info.abi_version,
                 expected: BOOT_ABI_VERSION,
             });
         }
 
+        let BootPluginInfo { kind, .. } =
+            BootPluginInfo::try_from(&plugin_info).map_err(|_| BooterError::InvalidResponse)?;
+
+        let install: InstallFn = load_symbol!(library, "install");
+        let set_one_shot: SetOneShotFn = load_symbol!(library, "set_one_shot");
+        let set_default: SetDefaultFn = load_symbol!(library, "set_default");
+
         Ok(Booter {
-            name: manifest.name.clone(),
-            boot_resource_kind,
-            set_one_shot,
-            confirm_boot,
+            name,
+            kind,
             install,
-            _library: Some(library),
+            set_one_shot,
+            set_default,
+            _library: library,
         })
     }
 
@@ -108,28 +98,8 @@ impl Booter {
         &self.name
     }
 
-    pub fn boot_resource_kind(&self) -> Result<BootResourceKind, BooterError> {
-        let kind = unsafe { (self.boot_resource_kind)() };
-
-        BootResourceKind::try_from(kind).map_err(|_| BooterError::InvalidResponse)
-    }
-
-    pub fn set_one_shot(&self, request: BootPluginSetOneShotRequest) -> Result<(), BooterError> {
-        let request: CBootPluginSetOneShotRequest = request.into();
-
-        let status = unsafe { (self.set_one_shot)(&request) };
-        unsafe { request.free() };
-
-        plugin_result(status).map_err(|error| error.map_or(BooterError::InvalidResponse, BooterError::Failed))
-    }
-
-    pub fn confirm_boot(&self, request: BootPluginConfirmSuccessBootRequest) -> Result<(), BooterError> {
-        let request: CBootPluginConfirmSuccessBootRequest = request.into();
-
-        let status = unsafe { (self.confirm_boot)(&request) };
-        unsafe { request.free() };
-
-        plugin_result(status).map_err(|error| error.map_or(BooterError::InvalidResponse, BooterError::Failed))
+    pub fn kind(&self) -> BootResourceKind {
+        self.kind
     }
 
     pub fn install(&self, request: BootPluginInstallRequest) -> Result<(), BooterError> {
@@ -140,25 +110,76 @@ impl Booter {
 
         plugin_result(status).map_err(|error| error.map_or(BooterError::InvalidResponse, BooterError::Failed))
     }
-}
 
-#[cfg(feature = "host")]
-impl From<&BuiltinBooter> for Booter {
-    fn from(builtin: &BuiltinBooter) -> Self {
-        Booter {
-            name: builtin.name.to_owned(),
-            boot_resource_kind: builtin.boot_resource_kind,
-            set_one_shot: builtin.set_one_shot,
-            confirm_boot: builtin.confirm_boot,
-            install: builtin.install,
+    pub fn set_one_shot(&self, request: BootPluginEntryRequest) -> Result<(), BooterError> {
+        let request: CBootPluginEntryRequest = request.into();
 
-            #[cfg(feature = "dynamic-plugins")]
-            _library: None,
-        }
+        let status = unsafe { entry_fn(&request) };
+        unsafe { request.free() };
+
+        plugin_result(status).map_err(|error| error.map_or(BooterError::InvalidResponse, BooterError::Failed))
+    }
+
+    pub fn set_default(&self, request: BootPluginEntryRequest) -> Result<(), BooterError> {
+        let request: CBootPluginEntryRequest = request.into();
+
+        let status = unsafe { entry_fn(&request) };
+        unsafe { request.free() };
+
+        plugin_result(status).map_err(|error| error.map_or(BooterError::InvalidResponse, BooterError::Failed))
     }
 }
 
-#[cfg(feature = "dynamic-plugins")]
+pub struct Booters {
+    booters: Vec<Booter>,
+}
+
+impl Booters {
+    pub fn scan(plugin_dir: &Path) -> Result<Self, BooterError> {
+        let mut booters = Vec::new();
+
+        let entries = match read_dir(plugin_dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == IoErrorKind::NotFound => return Ok(Booters { booters }),
+            Err(error) => return Err(error.into()),
+        };
+
+        for entry in entries {
+            let library_path = entry?.path();
+            if library_path.extension() != Some(OsStr::new(DLL_EXTENSION)) {
+                continue;
+            }
+
+            booters.push(Booter::load(&library_path)?);
+        }
+
+        Ok(Booters { booters })
+    }
+
+    pub fn get(&self, name: &str) -> Result<&Booter, BooterError> {
+        let requested_name = name.replace('-', "_");
+
+        let mut matching = self
+            .booters
+            .iter()
+            .filter(|booter| booter.name.ends_with(&requested_name));
+
+        let booter = matching
+            .next()
+            .ok_or_else(|| BooterError::UnknownName(name.to_owned()))?;
+
+        if matching.next().is_some() {
+            return Err(BooterError::AmbiguousName(name.to_owned()));
+        }
+
+        Ok(booter)
+    }
+
+    pub fn list(&self) -> impl Iterator<Item = (&str, BootResourceKind)> {
+        self.booters.iter().map(|booter| (booter.name(), booter.kind()))
+    }
+}
+
 unsafe fn load_symbol<Symbol: Copy>(library: &Library, name: &str) -> Result<Symbol, BooterError> {
     unsafe { library.get::<Symbol>(name.as_bytes()) }
         .map(|symbol| *symbol)

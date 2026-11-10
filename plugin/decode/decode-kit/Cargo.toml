@@ -30,35 +30,17 @@ name = "upac_decoder_kit"
 
 [dependencies]
 upac-lib-abi       = { workspace = true }
-upac-lib-composefs = { workspace = true, optional = true }
-upac-lib-types     = { workspace = true, optional = true }
+upac-lib-composefs = { workspace = true }
+upac-lib-types     = { workspace = true }
 
-composefs  = { workspace = true, optional = true }
-libloading = { workspace = true, optional = true }
-nix        = { workspace = true, optional = true }
-serde      = { workspace = true, optional = true }
-tar        = { workspace = true, optional = true }
-toml       = { workspace = true, optional = true }
+composefs  = { workspace = true }
+libloading = { workspace = true }
+nix        = { workspace = true }
+serde      = { workspace = true }
+tar        = { workspace = true }
+toml       = { workspace = true }
 
-zerocopy = { version = "0.8", optional = true }
+zerocopy = { version = "0.8" }
 
 [build-dependencies]
 toml = { workspace = true }
-
-[features]
-plugin = [
-    "dep:composefs",
-    "dep:upac-lib-composefs",
-    "dep:nix",
-    "dep:tar",
-    "dep:upac-lib-types",
-    "dep:zerocopy",
-]
-host = [
-    "dep:upac-lib-composefs",
-    "dep:upac-lib-types",
-    "dep:serde",
-    "dep:toml",
-    "dep:zerocopy",
-]
-dynamic-plugins = ["host", "dep:libloading"]

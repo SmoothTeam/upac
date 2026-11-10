@@ -3,128 +3,75 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-#[cfg(feature = "plugin")]
 use std::collections::BTreeMap;
-#[cfg(feature = "plugin")]
 use std::ffi::OsStr;
-#[cfg(feature = "host")]
 use std::fs::File;
-#[cfg(feature = "plugin")]
 use std::io::{Read, copy};
-#[cfg(feature = "host")]
 use std::mem::MaybeUninit;
-#[cfg(any(feature = "host", feature = "plugin"))]
 use std::os::raw::c_void;
-#[cfg(feature = "plugin")]
 use std::os::unix::ffi::OsStrExt;
-#[cfg(feature = "plugin")]
-use std::path::Component;
-#[cfg(feature = "host")]
-use std::path::Path;
+use std::path::{Component, Path};
 
-#[cfg(feature = "plugin")]
 use composefs::MAX_INLINE_CONTENT;
-#[cfg(feature = "plugin")]
 use composefs::generic_tree::{LeafContent, Stat};
-#[cfg(feature = "plugin")]
 use composefs::tree::{Leaf, RegularFile};
 
-#[cfg(feature = "dynamic-plugins")]
 use libloading::Library;
 
-#[cfg(feature = "plugin")]
 use nix::sys::stat::Mode;
 
-#[cfg(feature = "plugin")]
 use tar::{Entry, EntryType};
 
-#[cfg(feature = "plugin")]
-use zerocopy::FromBytes;
-#[cfg(feature = "host")]
-use zerocopy::IntoBytes;
+use zerocopy::{FromBytes, IntoBytes};
 
-#[cfg(feature = "dynamic-plugins")]
 use upac_abi::DECODER_ABI_VERSION;
-#[cfg(feature = "host")]
-use upac_abi::request::CDecodeRequest;
-use upac_abi::request::DecodeFn;
-#[cfg(feature = "dynamic-plugins")]
-use upac_abi::request::DecodePluginAbiVersionFn;
-#[cfg(feature = "plugin")]
-use upac_abi::request::{CreateFileFn, FinishFileFn};
-#[cfg(feature = "host")]
+use upac_abi::request::{CDecodeRequest, CreateFileFn, FinishFileFn};
 use upac_abi::response::CDecodeResponse;
-#[cfg(feature = "plugin")]
 use upac_abi::{OWNER_SEPARATOR, OWNER_XATTR};
 
-#[cfg(feature = "plugin")]
-use upac_composefs::ObjectID;
-#[cfg(feature = "host")]
-use upac_composefs::Repo;
-#[cfg(feature = "plugin")]
 use upac_composefs::tree::entry::TreeEntry;
+use upac_composefs::{ObjectID, Repo};
 
-#[cfg(feature = "host")]
-use upac_types::decoder::plugin_status;
-#[cfg(any(feature = "host", feature = "plugin"))]
-use upac_types::decoder::{DecodeError, ObjectFile, plugin_result};
-#[cfg(feature = "host")]
+use upac_types::decoder::{DecodeError, ObjectFile, plugin_result, plugin_status};
 use upac_types::request::DecodeRequest;
-#[cfg(feature = "host")]
 use upac_types::response::DecodeResponse;
-#[cfg(feature = "host")]
 use upac_types::{CancelToken, PackageChecksum};
 
-#[cfg(feature = "host")]
 use self::error::DecoderError;
-#[cfg(feature = "plugin")]
 use self::layout::owners::ROOT as ROOT_OWNER;
-#[cfg(feature = "plugin")]
 use self::layout::tar::XATTR_PREFIX;
-#[cfg(feature = "dynamic-plugins")]
 use self::manifest::DecoderManifest;
 
-#[cfg(feature = "host")]
 pub mod error;
-#[cfg(feature = "plugin")]
 mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
-#[cfg(feature = "host")]
 pub mod manifest;
 
-#[cfg(feature = "dynamic-plugins")]
 macro_rules! load_symbol {
     ($library:expr, $name:literal) => {
         unsafe { load_symbol(&$library, $name)? }
     };
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct BuiltinDecoder {
-    pub format: &'static str,
-    pub extensions: &'static [&'static str],
-    pub decode: DecodeFn,
-}
+pub type DecodePluginAbiVersionFn = unsafe extern "C" fn() -> u32;
 
-#[cfg(feature = "plugin")]
+pub type DecodeFn = unsafe extern "C" fn(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32;
+
 pub struct ObjectStore {
     create_file: CreateFileFn,
     finish_file: FinishFileFn,
     store_ctx: *mut c_void,
 }
 
-#[cfg(feature = "host")]
 pub struct Decoder {
     format: String,
     extensions: Vec<String>,
     decode: DecodeFn,
 
-    #[cfg(feature = "dynamic-plugins")]
-    _library: Option<Library>,
+    _library: Library,
 }
 
-#[cfg(feature = "plugin")]
 impl ObjectStore {
     pub fn new(create_file: CreateFileFn, finish_file: FinishFileFn, store_ctx: *mut c_void) -> Self {
         Self {
@@ -263,9 +210,7 @@ impl ObjectStore {
     }
 }
 
-#[cfg(feature = "host")]
 impl Decoder {
-    #[cfg(feature = "dynamic-plugins")]
     pub fn load(manifest: &DecoderManifest) -> Result<Self, DecoderError> {
         let library = unsafe { Library::new(&manifest.library) }.map_err(|_| DecoderError::Load)?;
 
@@ -284,7 +229,7 @@ impl Decoder {
             format: manifest.format.clone(),
             extensions: manifest.extensions.clone(),
             decode,
-            _library: Some(library),
+            _library: library,
         })
     }
 
@@ -376,25 +321,6 @@ impl Decoder {
     }
 }
 
-#[cfg(feature = "host")]
-impl From<&BuiltinDecoder> for Decoder {
-    fn from(builtin: &BuiltinDecoder) -> Self {
-        Decoder {
-            format: builtin.format.to_owned(),
-            extensions: builtin
-                .extensions
-                .iter()
-                .map(|extension| (*extension).to_owned())
-                .collect(),
-            decode: builtin.decode,
-
-            #[cfg(feature = "dynamic-plugins")]
-            _library: None,
-        }
-    }
-}
-
-#[cfg(feature = "plugin")]
 pub fn insert_owner(xattrs: &mut BTreeMap<Box<OsStr>, Box<[u8]>>, user: &str, group: &str) {
     if user.is_empty() || group.is_empty() || (user == ROOT_OWNER && group == ROOT_OWNER) {
         return;
@@ -406,12 +332,10 @@ pub fn insert_owner(xattrs: &mut BTreeMap<Box<OsStr>, Box<[u8]>>, user: &str, gr
     );
 }
 
-#[cfg(feature = "plugin")]
 pub fn write_tree_entry(dumpfile: &mut String, tree_entry: TreeEntry) -> Result<(), DecodeError> {
     tree_entry.write(dumpfile).map_err(|_| DecodeError::MalformedMetadata)
 }
 
-#[cfg(feature = "dynamic-plugins")]
 unsafe fn load_symbol<Symbol: Copy>(library: &Library, name: &str) -> Result<Symbol, DecoderError> {
     unsafe { library.get::<Symbol>(name.as_bytes()) }
         .map(|symbol| *symbol)

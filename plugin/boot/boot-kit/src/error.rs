@@ -6,8 +6,6 @@
 use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 
-use toml::de::Error as TomlError;
-
 use upac_types::booter::BootError;
 use upac_types::error::ErrorKind;
 
@@ -19,7 +17,8 @@ pub enum BooterError {
     Failed(BootError),
     InvalidResponse,
     Io(IoErrorKind),
-    Manifest,
+    UnknownName(String),
+    AmbiguousName(String),
 }
 
 impl From<BootError> for BooterError {
@@ -34,12 +33,6 @@ impl From<IoError> for BooterError {
     }
 }
 
-impl From<TomlError> for BooterError {
-    fn from(_: TomlError) -> Self {
-        BooterError::Manifest
-    }
-}
-
 impl From<BooterError> for ErrorKind {
     fn from(error: BooterError) -> Self {
         match error {
@@ -49,7 +42,8 @@ impl From<BooterError> for ErrorKind {
             BooterError::Failed(error) => error.into(),
             BooterError::InvalidResponse => ErrorKind::InvalidEntry,
             BooterError::Io(_) => ErrorKind::ReadFailed,
-            BooterError::Manifest => ErrorKind::InvalidEntry,
+            BooterError::UnknownName(_) => ErrorKind::NotFound,
+            BooterError::AmbiguousName(_) => ErrorKind::InvalidEntry,
         }
     }
 }

@@ -8,30 +8,11 @@ use std::sync::atomic::AtomicU8;
 
 use upac_macro::{CFree, CNew, CValidate};
 
-use crate::response::CDecodeResponse;
 use crate::types::CSlice;
 use crate::{CPackageChecksum, HookMessageFn};
 
 pub mod mutated;
 pub mod unmutated;
-
-pub type BootPluginAbiVersionFn = unsafe extern "C" fn() -> u32;
-
-pub type BootResourceKindFn = unsafe extern "C" fn() -> u8;
-
-pub type InstallFn = unsafe extern "C" fn(request: *const CBootPluginInstallRequest) -> i32;
-
-pub type AddEntryFn = unsafe extern "C" fn(request: *const CBootPluginEntryRequest) -> i32;
-
-pub type RemoveEntryFn = unsafe extern "C" fn(request: *const CBootPluginEntryRequest) -> i32;
-
-pub type SetOneShotFn = unsafe extern "C" fn(request: *const CBootPluginEntryRequest) -> i32;
-
-pub type SetDefaultFn = unsafe extern "C" fn(request: *const CBootPluginEntryRequest) -> i32;
-
-pub type DecodePluginAbiVersionFn = unsafe extern "C" fn() -> u32;
-
-pub type DecodeFn = unsafe extern "C" fn(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32;
 
 pub type CreateFileFn = unsafe extern "C" fn(store_ctx: *mut c_void, fd_out: *mut i32) -> i32;
 

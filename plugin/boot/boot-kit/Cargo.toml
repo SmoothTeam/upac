@@ -30,17 +30,6 @@ name = "upac_booter_kit"
 
 [dependencies]
 upac-lib-abi   = { workspace = true }
-upac-lib-types = { workspace = true, optional = true }
+upac-lib-types = { workspace = true }
 
-libloading = { workspace = true, optional = true }
-serde      = { workspace = true, optional = true }
-toml       = { workspace = true, optional = true }
-
-[features]
-plugin = ["dep:upac-lib-types"]
-host = [
-    "dep:upac-lib-types",
-    "dep:serde",
-    "dep:toml",
-]
-dynamic-plugins = ["host", "dep:libloading"]
+libloading = { workspace = true }

@@ -28,13 +28,8 @@ name = "upac_setup"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-upac-lib-decoder-kit    = { workspace = true, features = ["host"] }
-upac-lib-booter-loader  = { workspace = true, features = ["builtin-all-booters"] }
-
-upac-decoders-alpm = { workspace = true }
-upac-decoders-deb  = { workspace = true }
-upac-decoders-rpm  = { workspace = true }
-upac-decoders-xbps = { workspace = true }
+upac-lib-decoder-kit    = { workspace = true }
+upac-lib-booter-kit     = { workspace = true }
 upac-lib-types          = { workspace = true, features = ["gpt"] }
 upac-lib-abi            = { workspace = true }
 upac-lib-macro          = { workspace = true }

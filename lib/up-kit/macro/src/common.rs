@@ -23,6 +23,7 @@ pub(crate) const ABI_ENUMS: &[&str] = &[
     "FsKind",
     "PartitionKind",
     "InitramfsGenerator",
+    "BootResourceKind",
     "ErrorDomain",
     "ErrorKind",
     "TriggerPosition",

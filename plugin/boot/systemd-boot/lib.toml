@@ -3,9 +3,6 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-name = "systemd-boot"
-library = "/usr/lib/upac/booters/libupac_boot_systemd_boot.so"
-
 [efivarfs]
 path = "/sys/firmware/efi/efivars"
 

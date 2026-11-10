@@ -3,24 +3,12 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-name = "uki"
-library = "/usr/lib/upac/booters/libupac_boot_uki.so"
-
 [efivarfs]
 path = "/sys/firmware/efi/efivars"
 
 [variables]
 boot_next = "BootNext"
 boot_order = "BootOrder"
-
-[esp]
-linux_directory = "\\EFI\\Linux\\"
-linux_path = "EFI/Linux"
-image_extension = "efi"
-
-[slots]
-to = "upac-to"
-from = "upac-from"
 
 [udev]
 subsystem = "block"
@@ -32,5 +20,7 @@ partition_size = "size"
 logical_block_size = "queue/logical_block_size"
 
 [device_path]
+separator = "\\"
+
 sector_size = 512
 partition_format = 2

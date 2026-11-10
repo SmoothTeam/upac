@@ -1,32 +1,32 @@
 [workspace]
 resolver = "3"
 members = [
-    "user/upac-cli",
-    "user/sign-cli",
-    "user/setup-cli",
-    "core/macro",
-    "core/abi",
-    "core/pki",
-    "core/types",
-    "core/locale",
-    "core/composefs",
-    "core/database",
-    "core/deploy",
-    "core/hooks",
-    "core/image",
-    "lib/orchestrator",
-    "lib/lib",
-    "lib/setup",
-    "booter/booter-kit",
-    "booter/uki",
-    "booter/systemd-boot",
-    "booter/grub",
-    "booter/refind",
-    "decoder/decoder-kit",
-    "decoder/alpm",
-    "decoder/deb",
-    "decoder/rpm",
-    "decoder/xbps"]
+    "cli/up",
+    "cli/up-sign",
+    "cli/up-setup",
+    "lib/up-kit/macro",
+    "lib/up-kit/abi",
+    "lib/up-kit/pki",
+    "lib/up-kit/types",
+    "lib/up-kit/locale",
+    "lib/up-kit/composefs",
+    "lib/up-kit/database",
+    "lib/up-kit/deploy",
+    "lib/up-kit/hooks",
+    "lib/up-kit/image",
+    "lib/up-kit/orchestrator",
+    "lib/up",
+    "lib/up-sp",
+    "plugin/boot/boot-kit",
+    "plugin/boot/uki",
+    "plugin/boot/systemd-boot",
+    "plugin/boot/grub",
+    "plugin/boot/refind",
+    "plugin/decode/decode-kit",
+    "plugin/decode/alpm",
+    "plugin/decode/deb",
+    "plugin/decode/rpm",
+    "plugin/decode/xbps"]
 
 [workspace.package]
 version = "0.2.0"
@@ -53,32 +53,22 @@ dbg_macro = "warn"
 str_to_string = "warn"
 
 [workspace.dependencies]
-upac-lib-macro          = { path = "core/macro" }
-upac-lib-types          = { path = "core/types" }
-upac-lib-abi            = { path = "core/abi" }
-upac-lib-locale         = { path = "core/locale" }
-upac-lib-orchestrator   = { path = "lib/orchestrator" }
-upac-lib-composefs      = { path = "core/composefs" }
-upac-lib-database       = { path = "core/database" }
-upac-lib-deploy         = { path = "core/deploy" }
-upac-lib-decoder-kit    = { path = "decoder/decoder-kit", default-features = false }
-upac-lib-hooks          = { path = "core/hooks" }
-upac-lib-image          = { path = "core/image" }
-upac-lib-booter-kit     = { path = "booter/booter-kit", default-features = false }
+upac-lib-macro          = { path = "lib/up-kit/macro" }
+upac-lib-types          = { path = "lib/up-kit/types" }
+upac-lib-abi            = { path = "lib/up-kit/abi" }
+upac-lib-locale         = { path = "lib/up-kit/locale" }
+upac-lib-orchestrator   = { path = "lib/up-kit/orchestrator" }
+upac-lib-composefs      = { path = "lib/up-kit/composefs" }
+upac-lib-database       = { path = "lib/up-kit/database" }
+upac-lib-deploy         = { path = "lib/up-kit/deploy" }
+upac-lib-decoder-kit    = { path = "plugin/decode/decode-kit" }
+upac-lib-hooks          = { path = "lib/up-kit/hooks" }
+upac-lib-image          = { path = "lib/up-kit/image" }
+upac-lib-booter-kit     = { path = "plugin/boot/boot-kit" }
 
-upac-lib = { path = "lib/lib", default-features = false }
-upac-lib-setup    = { path = "lib/setup" }
-upac-lib-pki      = { path = "core/pki" }
-
-upac-booters-uki          = { path = "booter/uki", default-features = false }
-upac-booters-systemd-boot = { path = "booter/systemd-boot", default-features = false }
-upac-booters-grub         = { path = "booter/grub", default-features = false }
-upac-booters-refind       = { path = "booter/refind", default-features = false }
-
-upac-decoders-alpm = { path = "decoder/alpm", package = "upac-decoder-alpm", default-features = false }
-upac-decoders-deb  = { path = "decoder/deb", package = "upac-decoder-deb", default-features = false }
-upac-decoders-rpm  = { path = "decoder/rpm", package = "upac-decoder-rpm", default-features = false }
-upac-decoders-xbps = { path = "decoder/xbps", package = "upac-decoder-xbps", default-features = false }
+upac-lib = { path = "lib/up" }
+upac-lib-setup    = { path = "lib/up-sp" }
+upac-lib-pki      = { path = "lib/up-kit/pki" }
 
 i18n-embed    = { version = "0.16", features = ["fluent-system", "desktop-requester", "filesystem-assets"] }
 composefs-oci = { version = "0.10.0", features = ["composefs-boot", "boot", "tar"] }

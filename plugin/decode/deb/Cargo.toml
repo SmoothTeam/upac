@@ -25,11 +25,11 @@ workspace = true
 
 [lib]
 name = "upac_decoder_deb"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 upac-lib-abi         = { workspace = true }
-upac-lib-decoder-kit = { workspace = true, features = ["plugin"] }
+upac-lib-decoder-kit = { workspace = true }
 upac-lib-types       = { workspace = true }
 
 ar     = { workspace = true }
@@ -40,7 +40,3 @@ zstd   = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }
-
-[features]
-default = []
-cdylib = []

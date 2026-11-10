@@ -34,24 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let raw = read_to_string(&source)?;
     let config: Value = from_str(&raw)?;
 
-    let format = config
-        .get("format")
-        .and_then(Value::as_str)
-        .ok_or("lib.toml: format must be a string")?;
-
-    let extensions = config
-        .get("extensions")
-        .and_then(Value::as_array)
-        .ok_or("lib.toml: extensions must be an array")?;
-
     let mut generated = String::new();
-    generated.push_str("pub mod manifest {\n");
-    generated.push_str(&format!("    pub const FORMAT: &str = {format:?};\n"));
-    generated.push_str(&format!(
-        "    pub const EXTENSIONS: &[&str] = {};\n",
-        render_strings(extensions, "extensions")?
-    ));
-    generated.push_str("}\n");
 
     let sections = config.as_table().ok_or("lib.toml: root must be a table")?;
     for (section, entries) in sections {

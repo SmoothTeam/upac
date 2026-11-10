@@ -18,7 +18,7 @@ pub mod response;
 pub mod types;
 
 pub const LIB_ABI_VERSION: u32 = 3;
-pub const BOOT_ABI_VERSION: u32 = 4;
+pub const BOOT_ABI_VERSION: u32 = 3;
 pub const DECODER_ABI_VERSION: u32 = 3;
 pub const SETUP_ABI_VERSION: u32 = 3;
 

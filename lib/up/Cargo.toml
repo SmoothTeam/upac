@@ -38,13 +38,8 @@ upac-lib-composefs      = { workspace = true }
 upac-lib-database       = { workspace = true }
 upac-lib-deploy         = { workspace = true }
 upac-lib-hooks          = { workspace = true }
-upac-lib-decoder-kit    = { workspace = true, features = ["host"] }
-upac-lib-booter-loader  = { workspace = true }
-
-upac-decoders-alpm = { workspace = true, optional = true }
-upac-decoders-deb  = { workspace = true, optional = true }
-upac-decoders-rpm  = { workspace = true, optional = true }
-upac-decoders-xbps = { workspace = true, optional = true }
+upac-lib-decoder-kit    = { workspace = true }
+upac-lib-booter-kit     = { workspace = true }
 
 composefs = { workspace = true }
 uuid      = { workspace = true }
@@ -54,22 +49,3 @@ regex = "1"
 
 [build-dependencies]
 toml = { workspace = true }
-
-[features]
-default = ["dynamic-plugins"]
-
-dynamic-plugins = ["upac-lib-decoder-kit/dynamic-plugins", "upac-lib-booter-loader/dynamic-plugins"]
-
-builtin-uki          = ["upac-lib-booter-loader/builtin-uki"]
-builtin-systemd-boot = ["upac-lib-booter-loader/builtin-systemd-boot"]
-builtin-grub         = ["upac-lib-booter-loader/builtin-grub"]
-builtin-refind       = ["upac-lib-booter-loader/builtin-refind"]
-
-builtin-alpm = ["dep:upac-decoders-alpm"]
-builtin-deb  = ["dep:upac-decoders-deb"]
-builtin-rpm  = ["dep:upac-decoders-rpm"]
-builtin-xbps = ["dep:upac-decoders-xbps"]
-
-builtin-all-booters  = ["upac-lib-booter-loader/builtin-all-booters"]
-builtin-all-decoders = ["builtin-alpm", "builtin-deb", "builtin-rpm", "builtin-xbps"]
-builtin-all          = ["builtin-all-booters", "builtin-all-decoders"]

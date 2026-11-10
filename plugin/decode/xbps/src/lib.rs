@@ -9,7 +9,7 @@ use upac_abi::DECODER_ABI_VERSION;
 use upac_abi::request::CDecodeRequest;
 use upac_abi::response::CDecodeResponse;
 
-use upac_decoder_kit::{BuiltinDecoder, ObjectStore};
+use upac_decoder_kit::ObjectStore;
 
 use upac_types::DecodedPackageMeta;
 use upac_types::decoder::{DecodeError, DecodeMeta, plugin_status};
@@ -17,7 +17,6 @@ use upac_types::request::DecodeRequest;
 use upac_types::response::DecodeResponse;
 
 use self::archive::XbpsArchive;
-use self::layout::manifest::{EXTENSIONS, FORMAT};
 use self::meta::Props;
 
 mod archive;
@@ -28,13 +27,7 @@ mod layout {
 pub mod meta;
 pub mod triggers;
 
-pub const DECODER: BuiltinDecoder = BuiltinDecoder {
-    format: FORMAT,
-    extensions: EXTENSIONS,
-    decode,
-};
-
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
+#[unsafe(no_mangle)]
 pub extern "C" fn decode_abi_version() -> u32 {
     DECODER_ABI_VERSION
 }
@@ -43,7 +36,7 @@ pub extern "C" fn decode_abi_version() -> u32 {
 /// `request`, if non-null, must point to a valid, initialized `CDecodeRequest` for the duration
 /// of the call. `response_out`, if non-null, must point to writable, uninitialized
 /// `CDecodeResponse` storage that this function fully initializes on success.
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn decode(request: *const CDecodeRequest, response_out: *mut CDecodeResponse) -> i32 {
     fn decode_package(request: &CDecodeRequest) -> Result<CDecodeResponse, DecodeError> {
         let request = DecodeRequest::try_from(request)?;

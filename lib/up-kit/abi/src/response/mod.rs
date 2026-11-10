@@ -12,6 +12,15 @@ pub mod entry;
 pub mod unmutated;
 
 #[repr(C)]
+#[derive(Clone, Copy, CFree, CNew, CValidate)]
+pub struct CBootPluginInfo {
+    pub struct_size: usize,
+
+    pub abi_version: u32,
+    pub kind: u8,
+}
+
+#[repr(C)]
 #[derive(CFree, CNew, CValidate)]
 pub struct CSetupPartitionAddResponse {
     pub struct_size: usize,

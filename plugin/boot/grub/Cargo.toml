@@ -25,16 +25,12 @@ workspace = true
 
 [lib]
 name = "upac_boot_grub"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 upac-lib-abi        = { workspace = true }
-upac-lib-booter-kit = { workspace = true, features = ["plugin"] }
+upac-lib-booter-kit = { workspace = true }
 upac-lib-types      = { workspace = true }
 
 [build-dependencies]
 toml = { workspace = true }
-
-[features]
-default = []
-cdylib = []

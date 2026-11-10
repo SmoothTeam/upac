@@ -3,9 +3,6 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-name = "grub"
-library = "/usr/lib/upac/booters/libupac_boot_grub.so"
-
 [reboot]
 tools = ["grub-reboot", "grub2-reboot"]
 
@@ -27,4 +24,15 @@ bootloader_id = "upac"
 [config]
 directory = "grub"
 file = "grub.cfg"
-contents = "insmod blscfg\nblscfg\n"
+contents = '''
+insmod blscfg
+load_env
+if [ "${next_entry}" ] ; then
+    set default="${next_entry}"
+    set next_entry=
+    save_env next_entry
+else
+    set default="${saved_entry}"
+fi
+blscfg
+'''

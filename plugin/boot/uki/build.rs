@@ -34,15 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let raw = read_to_string(&source)?;
     let config: Value = from_str(&raw)?;
 
-    let name = config
-        .get("name")
-        .and_then(Value::as_str)
-        .ok_or("lib.toml: name must be a string")?;
-
     let mut generated = String::new();
-    generated.push_str("pub mod manifest {\n");
-    generated.push_str(&format!("    pub const NAME: &str = {name:?};\n"));
-    generated.push_str("}\n");
 
     let sections = config.as_table().ok_or("lib.toml: root must be a table")?;
     for (section, entries) in sections {

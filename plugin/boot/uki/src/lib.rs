@@ -4,11 +4,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use std::ffi::OsStr;
-use std::fs::{File, copy, metadata};
-use std::io::ErrorKind as IoErrorKind;
+use std::fs::{File, metadata};
 use std::os::unix::fs::MetadataExt;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use efivar::boot::{
     BootEntry, BootEntryAttributes, BootVarName, EFIHardDrive, EFIHardDriveType, FilePath, FilePathList,
@@ -23,23 +22,18 @@ use udev::{Device, DeviceType};
 use uuid::Uuid;
 
 use upac_abi::BOOT_ABI_VERSION;
-use upac_abi::request::booter::{
-    CBootPluginConfirmSuccessBootRequest, CBootPluginInstallRequest, CBootPluginSetOneShotRequest,
-};
+use upac_abi::request::{CBootPluginEntryRequest, CBootPluginInstallRequest};
+use upac_abi::response::CBootPluginInfo;
 
-use upac_booter_kit::{BootBackend, BuiltinBooter};
+use upac_booter_kit::BootBackend;
 
 use upac_types::booter::{BootError, BootResourceKind};
-use upac_types::plugin::plugin_status;
-use upac_types::request::booter::{
-    BootPluginConfirmSuccessBootRequest, BootPluginInstallRequest, BootPluginSetOneShotRequest,
-};
+use upac_types::decoder::plugin_status;
+use upac_types::request::{BootPluginEntryRequest, BootPluginInstallRequest};
+use upac_types::response::BootPluginInfo;
 
-use self::layout::device_path::{PARTITION_FORMAT, SECTOR_SIZE};
+use self::layout::device_path::{PARTITION_FORMAT, SECTOR_SIZE, SEPARATOR};
 use self::layout::efivarfs::PATH as EFIVARFS_PATH;
-use self::layout::esp::{IMAGE_EXTENSION, LINUX_DIRECTORY, LINUX_PATH};
-use self::layout::manifest::NAME;
-use self::layout::slots::{FROM as FROM_SLOT, TO as TO_SLOT};
 use self::layout::udev::{
     DISK_DEVTYPE, LOGICAL_BLOCK_SIZE, PARTITION_NUMBER, PARTITION_SIZE, PARTITION_START, PARTITION_UUID, SUBSYSTEM,
 };
@@ -49,33 +43,42 @@ mod layout {
     include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 }
 
-pub const BOOTER: BuiltinBooter = BuiltinBooter {
-    name: NAME,
-    boot_resource_kind,
-    set_one_shot,
-    confirm_boot,
-    install,
-};
-
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub extern "C" fn boot_abi_version() -> u32 {
-    BOOT_ABI_VERSION
-}
-
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub extern "C" fn boot_resource_kind() -> u8 {
-    Uki::boot_resource_kind().into()
+#[unsafe(no_mangle)]
+pub extern "C" fn boot_plugin_info() -> CBootPluginInfo {
+    BootPluginInfo {
+        abi_version: BOOT_ABI_VERSION,
+        kind: BootResourceKind::Uki,
+    }
+    .into()
 }
 
 /// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginSetOneShotRequest` for the
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginInstallRequest` for the
 /// duration of the call.
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotRequest) -> i32 {
-    fn set_one_shot_entry(request: &CBootPluginSetOneShotRequest) -> Result<(), BootError> {
-        let request = BootPluginSetOneShotRequest::try_from(request)?;
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i32 {
+    fn install_booter(request: &CBootPluginInstallRequest) -> Result<(), BootError> {
+        let request = BootPluginInstallRequest::try_from(request)?;
 
-        Uki::new()?.set_one_shot(&request.entry_name)
+        Uki::new()?.install(&request)
+    }
+
+    if request.is_null() {
+        return plugin_status(Err(BootError::InvalidRequest));
+    }
+
+    plugin_status(install_booter(unsafe { &*request }))
+}
+
+/// # Safety
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginEntryRequest` for the
+/// duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginEntryRequest) -> i32 {
+    fn set_one_shot_entry(request: &CBootPluginEntryRequest) -> Result<(), BootError> {
+        let request = BootPluginEntryRequest::try_from(request)?;
+
+        Uki::new()?.set_one_shot(&request)
     }
 
     if request.is_null() {
@@ -86,39 +89,21 @@ pub unsafe extern "C" fn set_one_shot(request: *const CBootPluginSetOneShotReque
 }
 
 /// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginConfirmSuccessBootRequest` for
-/// the duration of the call.
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn confirm_boot(request: *const CBootPluginConfirmSuccessBootRequest) -> i32 {
-    fn confirm_boot_entry(request: &CBootPluginConfirmSuccessBootRequest) -> Result<(), BootError> {
-        let request = BootPluginConfirmSuccessBootRequest::try_from(request)?;
-
-        Uki::new()?.confirm_boot(&request.entry_name, &request.esp_mount_point)
-    }
-
-    if request.is_null() {
-        return plugin_status(Err(BootError::InvalidRequest));
-    }
-
-    plugin_status(confirm_boot_entry(unsafe { &*request }))
-}
-
-/// # Safety
-/// `request`, if non-null, must point to a valid, initialized `CBootPluginInstallRequest` for the
+/// `request`, if non-null, must point to a valid, initialized `CBootPluginEntryRequest` for the
 /// duration of the call.
-#[cfg_attr(feature = "cdylib", unsafe(no_mangle))]
-pub unsafe extern "C" fn install(request: *const CBootPluginInstallRequest) -> i32 {
-    fn install_booter(request: &CBootPluginInstallRequest) -> Result<(), BootError> {
-        let request = BootPluginInstallRequest::try_from(request)?;
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn set_default(request: *const CBootPluginEntryRequest) -> i32 {
+    fn set_default_entry(request: &CBootPluginEntryRequest) -> Result<(), BootError> {
+        let request = BootPluginEntryRequest::try_from(request)?;
 
-        Uki::new()?.install(&request.esp_mount_point, &request.to_slot, &request.from_slot)
+        Uki::new()?.set_default(&request)
     }
 
     if request.is_null() {
         return plugin_status(Err(BootError::InvalidRequest));
     }
 
-    plugin_status(install_booter(unsafe { &*request }))
+    plugin_status(set_default_entry(unsafe { &*request }))
 }
 
 struct Uki {
@@ -134,12 +119,14 @@ impl BootBackend for Uki {
         Ok(Self { manager })
     }
 
-    fn boot_resource_kind() -> BootResourceKind {
-        BootResourceKind::Uki
+    fn install(&mut self, request: &BootPluginInstallRequest) -> Result<(), BootError> {
+        let _ = request;
+
+        Ok(())
     }
 
-    fn set_one_shot(&mut self, entry_name: &str) -> Result<(), BootError> {
-        let boot_id = self.find_boot_id(entry_name)?;
+    fn set_one_shot(&mut self, request: &BootPluginEntryRequest) -> Result<(), BootError> {
+        let boot_id = self.register_entry(request)?;
 
         let variable = Variable::new(BOOT_NEXT);
         clear_immutable(&variable);
@@ -149,24 +136,22 @@ impl BootBackend for Uki {
             .map_err(convert_efivar_error)
     }
 
-    fn confirm_boot(&mut self, entry_name: &str, esp_mount_point: &str) -> Result<(), BootError> {
-        let boot_id = self.find_boot_id(entry_name)?;
+    fn set_default(&mut self, request: &BootPluginEntryRequest) -> Result<(), BootError> {
+        let boot_id = self.register_entry(request)?;
 
         let mut boot_order = self.manager.get_boot_order().map_err(convert_efivar_error)?;
+        self.remove_stale_entries(request, &mut boot_order)?;
+
         boot_order.retain(|&existing_id| existing_id != boot_id);
         boot_order.insert(0, boot_id);
 
         clear_immutable(&Variable::new(BOOT_ORDER));
-        self.manager.set_boot_order(boot_order).map_err(convert_efivar_error)?;
-
-        if entry_name == TO_SLOT {
-            copy_slot_image(esp_mount_point, TO_SLOT, FROM_SLOT)?;
-        }
-
-        Ok(())
+        self.manager.set_boot_order(boot_order).map_err(convert_efivar_error)
     }
+}
 
-    fn install(&mut self, esp_mount_point: &str, to_slot: &str, from_slot: &str) -> Result<(), BootError> {
+impl Uki {
+    fn register_entry(&mut self, request: &BootPluginEntryRequest) -> Result<u16, BootError> {
         fn read_esp_hard_drive(esp_mount_point: &str) -> Result<EFIHardDrive, BootError> {
             let partition = Device::from_devnum(DeviceType::Block, metadata(esp_mount_point)?.dev())?;
             let disk = partition
@@ -206,50 +191,23 @@ impl BootBackend for Uki {
             })
         }
 
-        if !build_slot_image_path(esp_mount_point, from_slot).exists() {
-            copy_slot_image(esp_mount_point, to_slot, from_slot)?;
+        let device_path = build_device_path(&request.entry_path);
+
+        if let Some(boot_id) = self.find_boot_id(&device_path)? {
+            return Ok(boot_id);
         }
 
-        let hard_drive = read_esp_hard_drive(esp_mount_point)?;
+        let hard_drive = read_esp_hard_drive(&request.esp_mount_point)?;
 
-        self.register_slot(hard_drive.clone(), to_slot)?;
-        self.register_slot(hard_drive, from_slot)
-    }
-}
-
-impl Uki {
-    fn find_boot_id(&self, slot: &str) -> Result<u16, BootError> {
-        let image_name = format!("{}.{IMAGE_EXTENSION}", slot.to_lowercase());
-
-        for (entry, _variable) in self.manager.get_boot_entries().map_err(convert_efivar_error)? {
-            let entry = entry.map_err(convert_efivar_error)?;
-
-            let matches = entry
-                .entry
-                .file_path_list
-                .as_ref()
-                .is_some_and(|list| list.file_path.path.to_lowercase().ends_with(&image_name));
-
-            if matches {
-                return Ok(entry.id);
-            }
-        }
-
-        Err(BootError::EntryNotFound)
-    }
-
-    fn register_slot(&mut self, hard_drive: EFIHardDrive, slot: &str) -> Result<(), BootError> {
         let boot_id = (0..u16::MAX)
             .find(|id| !self.manager.exists(&Variable::new(&id.boot_var_name())).unwrap_or(true))
             .ok_or(BootError::NoFreeBootId)?;
 
         let entry = BootEntry {
             attributes: BootEntryAttributes::LOAD_OPTION_ACTIVE,
-            description: slot.to_owned(),
+            description: request.entry_id.clone(),
             file_path_list: Some(FilePathList {
-                file_path: FilePath {
-                    path: format!("{LINUX_DIRECTORY}{slot}.{IMAGE_EXTENSION}"),
-                },
+                file_path: FilePath { path: device_path },
                 hard_drive,
             }),
             optional_data: Vec::new(),
@@ -257,26 +215,93 @@ impl Uki {
 
         self.manager
             .add_boot_entry(boot_id, entry)
-            .map_err(convert_efivar_error)
+            .map_err(convert_efivar_error)?;
+
+        Ok(boot_id)
+    }
+
+    fn find_boot_id(&self, device_path: &str) -> Result<Option<u16>, BootError> {
+        for (entry, _variable) in self.manager.get_boot_entries().map_err(convert_efivar_error)? {
+            let Ok(entry) = entry else {
+                continue;
+            };
+
+            let matches = entry
+                .entry
+                .file_path_list
+                .as_ref()
+                .is_some_and(|list| list.file_path.path.eq_ignore_ascii_case(device_path));
+
+            if matches {
+                return Ok(Some(entry.id));
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn remove_stale_entries(
+        &mut self, request: &BootPluginEntryRequest, boot_order: &mut Vec<u16>,
+    ) -> Result<(), BootError> {
+        let device_path = build_device_path(&request.entry_path);
+        let Some((directory, _)) = device_path.rsplit_once(SEPARATOR) else {
+            return Ok(());
+        };
+        let directory = format!("{directory}{SEPARATOR}").to_lowercase();
+
+        let mut stale_ids = Vec::new();
+
+        for (entry, _variable) in self.manager.get_boot_entries().map_err(convert_efivar_error)? {
+            let Ok(entry) = entry else {
+                continue;
+            };
+
+            let Some(list) = entry.entry.file_path_list else {
+                continue;
+            };
+
+            if !list.file_path.path.to_lowercase().starts_with(&directory) {
+                continue;
+            }
+
+            if build_esp_path(&request.esp_mount_point, &list.file_path.path).exists() {
+                continue;
+            }
+
+            stale_ids.push(entry.id);
+        }
+
+        for stale_id in stale_ids {
+            let variable = Variable::new(&stale_id.boot_var_name());
+            clear_immutable(&variable);
+
+            self.manager.delete(&variable).map_err(convert_efivar_error)?;
+            boot_order.retain(|&existing_id| existing_id != stale_id);
+        }
+
+        Ok(())
     }
 }
 
-fn build_slot_image_path(esp_mount_point: &str, slot: &str) -> PathBuf {
-    Path::new(esp_mount_point)
-        .join(LINUX_PATH)
-        .join(format!("{slot}.{IMAGE_EXTENSION}"))
+fn build_device_path(entry_path: &str) -> String {
+    Path::new(entry_path)
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(name) => name.to_str(),
+            _ => None,
+        })
+        .fold(String::new(), |mut device_path, name| {
+            device_path.push_str(SEPARATOR);
+            device_path.push_str(name);
+            device_path
+        })
 }
 
-fn copy_slot_image(esp_mount_point: &str, source_slot: &str, target_slot: &str) -> Result<(), BootError> {
-    copy(
-        build_slot_image_path(esp_mount_point, source_slot),
-        build_slot_image_path(esp_mount_point, target_slot),
-    )
-    .map(|_| ())
-    .map_err(|error| match error.kind() {
-        IoErrorKind::NotFound => BootError::EntryNotFound,
-        _ => error.into(),
-    })
+fn build_esp_path(esp_mount_point: &str, device_path: &str) -> PathBuf {
+    device_path
+        .split(SEPARATOR)
+        .filter(|name| !name.is_empty())
+        .fold(PathBuf::from(esp_mount_point), |esp_path, name| esp_path.join(name))
 }
 
 fn clear_immutable(variable: &Variable) {

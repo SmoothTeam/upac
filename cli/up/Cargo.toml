@@ -28,7 +28,7 @@ name = "up"
 path = "src/main.rs"
 
 [dependencies]
-upac-lib   = { workspace = true, optional = true, default-features = false }
+upac-lib   = { workspace = true, optional = true }
 
 upac-lib-abi    = { workspace = true }
 upac-lib-types  = { workspace = true }
@@ -60,19 +60,5 @@ toml = { workspace = true }
 [features]
 default = ["dynamic-plugins"]
 
-dynamic-plugins = ["dep:libloading", "upac-lib?/dynamic-plugins"]
+dynamic-plugins = ["dep:libloading"]
 static-link     = ["dep:upac-lib"]
-
-builtin-uki          = ["static-link", "upac-lib/builtin-uki"]
-builtin-systemd-boot = ["static-link", "upac-lib/builtin-systemd-boot"]
-builtin-grub         = ["static-link", "upac-lib/builtin-grub"]
-builtin-refind       = ["static-link", "upac-lib/builtin-refind"]
-
-builtin-alpm = ["static-link", "upac-lib/builtin-alpm"]
-builtin-deb  = ["static-link", "upac-lib/builtin-deb"]
-builtin-rpm  = ["static-link", "upac-lib/builtin-rpm"]
-builtin-xbps = ["static-link", "upac-lib/builtin-xbps"]
-
-builtin-all-booters  = ["static-link", "upac-lib/builtin-all-booters"]
-builtin-all-decoders = ["static-link", "upac-lib/builtin-all-decoders"]
-builtin-all          = ["static-link", "upac-lib/builtin-all"]
