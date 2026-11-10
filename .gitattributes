@@ -2,9 +2,9 @@
 # contributor checks the repo out on.
 * text=auto eol=lf
 
-# Only lib/**, user/**, booters/**, xtask/** (Rust) and decoders/** (Zig) are
-# actual source code — everything else is docs/config/legal text and
-# shouldn't count toward GitHub's language stats.
+# Only lib/**, plugin/** and cli/** (Rust) are actual source code — everything
+# else is docs/config/legal text and shouldn't count toward GitHub's language
+# stats.
 *.md         linguist-documentation
 *.toml       linguist-documentation
 LICENSE      linguist-documentation

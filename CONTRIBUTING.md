@@ -39,9 +39,8 @@ git config core.hooksPath .githooks
 ## Repo tree in the docs
 
 The directory tree embedded in each design chapter (between `<!-- tree:start -->`/`<!-- tree:end
--->` markers) is generated, not hand-edited. Run `cargo xtask gen-tree` after a structural change
-(new crate, moved directory) to refresh it, or `cargo xtask gen-tree --check` to verify it's still
-current before opening a PR.
+-->` markers) is maintained by hand. Update it after a structural change (new crate, moved
+directory) before opening a PR.
 
 ## License and REUSE
 

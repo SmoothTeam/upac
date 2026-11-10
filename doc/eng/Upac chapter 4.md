@@ -39,10 +39,6 @@ upac/
 ├── user/
 │   ├── sign-cli/
 │   └── upac-cli/
-├── xtask/
-│   ├── src/
-│   ├── Cargo.lock
-│   └── Cargo.toml
 ├── .gitignore
 ├── Cargo.lock
 ├── Cargo.toml
@@ -77,12 +73,11 @@ upac/
 - **(14)** `user/` — a folder with user-facing utilities;
 - **(15)** `sign-cli/` — a CLI for working with certificates (signing them, verifying them);
 - **(16)** `upac-cli/` — a CLI for working with the main library, carrying out the core operations;
-- **(17)** `xtask/` — a script for automatically updating the repository map in the documentation, based on Cargo;
-- **(18)** `.gitignore` — the configuration file for files ignored by the Git version control system;
-- **(19)** `Cargo.toml` — the workspace file that manages the other nested projects;
-- **(20)** `CONTRIBUTING.md` — a file describing how to get involved in contributing to the project;
-- **(21)** `README.md` — the project's brief reference file;
-- **(22)** `REUSE.toml` — the configuration file for the reuse licensing-check utility;
-- **(23)** `rust-toolchain.toml` — the configuration file for the project's Cargo build system version;
-- **(24)** `rustfmt.toml` — the configuration file for formatting the project's source code files;
-- **(25)** `SECURITY.md` — a file describing how vulnerabilities in the program's code are handled and tracked in the project, along with reference information on the subject;
+- **(17)** `.gitignore` — the configuration file for files ignored by the Git version control system;
+- **(18)** `Cargo.toml` — the workspace file that manages the other nested projects;
+- **(19)** `CONTRIBUTING.md` — a file describing how to get involved in contributing to the project;
+- **(20)** `README.md` — the project's brief reference file;
+- **(21)** `REUSE.toml` — the configuration file for the reuse licensing-check utility;
+- **(22)** `rust-toolchain.toml` — the configuration file for the project's Cargo build system version;
+- **(23)** `rustfmt.toml` — the configuration file for formatting the project's source code files;
+- **(24)** `SECURITY.md` — a file describing how vulnerabilities in the program's code are handled and tracked in the project, along with reference information on the subject;
