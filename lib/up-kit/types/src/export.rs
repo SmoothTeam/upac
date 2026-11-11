@@ -9,7 +9,7 @@ use upac_abi::error::CError;
 
 use crate::error::{Error, ErrorKind};
 use crate::request::Output;
-use crate::transaction::CommandState;
+use crate::state::CommandState;
 
 /// # Safety
 /// `err_out`, if non-null, must point to writable `CError` storage.

@@ -36,6 +36,7 @@ use upac_macro::{CEnum, CTryToRust, RustToC};
 use crate::CancelToken;
 use crate::decoder::DecodeError;
 use crate::error::ErrorKind;
+use crate::layout::trigger::{POST_INSTALL, POST_REMOVE, POST_UPGRADE, PRE_INSTALL, PRE_REMOVE, PRE_UPGRADE};
 
 pub type ObjectID = Sha256HashValue;
 
@@ -131,12 +132,12 @@ impl TriggerPosition {
 impl Display for TriggerPosition {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         formatter.write_str(match self {
-            TriggerPosition::PreInstall => "pre-install",
-            TriggerPosition::PostInstall => "post-install",
-            TriggerPosition::PreUpgrade => "pre-upgrade",
-            TriggerPosition::PostUpgrade => "post-upgrade",
-            TriggerPosition::PreRemove => "pre-remove",
-            TriggerPosition::PostRemove => "post-remove",
+            TriggerPosition::PreInstall => PRE_INSTALL,
+            TriggerPosition::PostInstall => POST_INSTALL,
+            TriggerPosition::PreUpgrade => PRE_UPGRADE,
+            TriggerPosition::PostUpgrade => POST_UPGRADE,
+            TriggerPosition::PreRemove => PRE_REMOVE,
+            TriggerPosition::PostRemove => POST_REMOVE,
         })
     }
 }

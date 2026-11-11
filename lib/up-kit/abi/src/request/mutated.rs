@@ -63,17 +63,6 @@ pub struct CRollbackRequest {
 
 #[repr(C)]
 #[derive(Clone, Copy, CFree, CNew, CValidate)]
-pub struct CCommitRequest {
-    pub struct_size: usize,
-    pub base: CRequestBase,
-
-    pub subject: CSlice,
-    #[optional]
-    pub message: CSlice,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, CFree, CNew, CValidate)]
 pub struct CFileTransfer {
     pub struct_size: usize,
 

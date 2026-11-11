@@ -22,6 +22,10 @@ pub mod settings;
 pub mod state;
 pub mod transaction;
 
+mod layout {
+    include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, CEnum)]
 pub enum FileDiffKind {

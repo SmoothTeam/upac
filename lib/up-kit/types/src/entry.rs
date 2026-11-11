@@ -3,6 +3,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
+
 use upac_abi::CVersion;
 use upac_abi::entry::{
     CConfigSnapshotEntry, CDeployEntry, CDiffFileEntry, CDiffPackageEntry, CSearchFileEntry, CTransactionEntry,
@@ -45,12 +49,26 @@ pub struct DeployEntry {
     pub current: bool,
 }
 
-#[derive(Debug, Clone, RustToC, CTryToRust)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, RustToC, CTryToRust)]
 pub struct TransactionEntry {
-    pub timestamp: u64,
+    pub timestamp: u128,
     pub kind: TransactionKind,
     pub subject: String,
     pub message: Option<String>,
+}
+
+impl TransactionEntry {
+    pub fn new(kind: TransactionKind, subject: String, message: Option<String>) -> Self {
+        Self {
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or(Duration::ZERO)
+                .as_nanos(),
+            kind,
+            subject,
+            message,
+        }
+    }
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]

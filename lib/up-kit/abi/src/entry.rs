@@ -53,7 +53,7 @@ pub struct CDeployEntry {
 pub struct CTransactionEntry {
     pub struct_size: usize,
 
-    pub timestamp: u64,
+    pub timestamp: u128,
     pub kind: u8,
     pub subject: CSlice,
     #[optional]

@@ -3,13 +3,11 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-pub mod mutated;
-pub mod setup;
-pub mod unmutated;
+use crate::error::ErrorDomain;
 
 macro_rules! impl_command_state {
     ($name:ident, $domain:ident) => {
-        impl crate::transaction::CommandState for $name {
+        impl $crate::state::CommandState for $name {
             const DOMAIN: $crate::error::ErrorDomain = $crate::error::ErrorDomain::$domain;
             const VALIDATION: Self = $name::Setup;
 
@@ -24,3 +22,16 @@ macro_rules! impl_command_state {
     };
 }
 pub(crate) use impl_command_state;
+
+pub mod mutated;
+pub mod setup;
+pub mod unmutated;
+
+pub trait CommandState: Copy {
+    const DOMAIN: ErrorDomain;
+    const VALIDATION: Self;
+
+    fn as_u32(self) -> u32;
+
+    fn from_stage_index(index: usize) -> Self;
+}

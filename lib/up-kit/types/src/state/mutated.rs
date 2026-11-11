@@ -104,15 +104,6 @@ impl_command_state!(RollbackStateId, Rollback);
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
-pub enum CommitStateId {
-    Snapshot = 0,
-    Setup = 1,
-}
-
-impl_command_state!(CommitStateId, Commit);
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, FromStageIndex, StageKey)]
 pub enum GcStateId {
     Pruning = 0,
     CollectRoots = 1,

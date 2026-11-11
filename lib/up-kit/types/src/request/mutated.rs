@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
 use upac_abi::request::mutated::{
-    CAttachRequest, CCommitRequest, CDetachRequest, CFileTransfer, CGcRequest, CInstallRequest, CMimeSyncRequest,
-    CPinRequest, CRollbackRequest, CUninstallRequest, CUpdateRequest,
+    CAttachRequest, CDetachRequest, CFileTransfer, CGcRequest, CInstallRequest, CMimeSyncRequest, CPinRequest,
+    CRollbackRequest, CUninstallRequest, CUpdateRequest,
 };
 
 use upac_abi::CPackageId;
@@ -55,13 +55,6 @@ pub struct UninstallRequest<'data> {
 pub struct RollbackRequest<'data> {
     pub base: RequestBase<'data>,
     pub digest: &'data str,
-}
-
-#[derive(Debug, Clone, RustToC, CTryToRust)]
-pub struct CommitRequest<'data> {
-    pub base: RequestBase<'data>,
-    pub subject: &'data str,
-    pub message: Option<&'data str>,
 }
 
 #[derive(Debug, Clone, RustToC, CTryToRust)]
