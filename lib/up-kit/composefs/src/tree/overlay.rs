@@ -12,10 +12,11 @@ use composefs::erofs::format::XATTR_OVERLAY_OPAQUE_ROOT;
 use composefs::generic_tree::{LeafContent, LeafId};
 use composefs::tree::{Directory, Inode, Leaf};
 
+use upac_types::package::ObjectID;
+
 use super::Tree;
 use super::builder::TreeBuilder;
 
-use crate::ObjectID;
 use crate::error::RepoError;
 
 pub struct OverlayBuilder<'tree> {

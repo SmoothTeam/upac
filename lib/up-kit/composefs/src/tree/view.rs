@@ -10,9 +10,10 @@ use composefs::dumpfile::write_dumpfile;
 use composefs::generic_tree::{LeafContent, Stat};
 use composefs::tree::{Directory, FileSystem, Inode, RegularFile};
 
+use upac_types::package::ObjectID;
+
 use super::Tree;
 
-use crate::ObjectID;
 use crate::error::RepoError;
 
 #[derive(Clone, Copy)]

@@ -9,15 +9,16 @@ use std::io::Read;
 use composefs::erofs::reader::erofs_to_filesystem;
 use composefs::tree::FileSystem;
 
+use upac_types::package::ObjectID;
+
 use self::builder::TreeBuilder;
 use self::view::TreeView;
 
 use crate::error::RepoError;
-use crate::{Digest, ObjectID, Repo};
+use crate::{Digest, Repo};
 
 pub mod builder;
 pub mod diff;
-pub mod entry;
 pub mod overlay;
 pub mod view;
 

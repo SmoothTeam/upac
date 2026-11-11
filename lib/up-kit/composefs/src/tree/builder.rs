@@ -11,10 +11,11 @@ use composefs::tree::{Directory, FileSystem, Inode, RegularFile};
 
 use nix::sys::stat::Mode;
 
+use upac_types::package::ObjectID;
+
 use super::Tree;
 use super::view::TreeView;
 
-use crate::ObjectID;
 use crate::error::RepoError;
 
 const DIRECTORY_MODE: Mode = Mode::S_IRWXU

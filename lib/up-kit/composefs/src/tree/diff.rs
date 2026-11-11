@@ -9,10 +9,9 @@ use std::path::PathBuf;
 use composefs::tree::{Inode, Leaf, LeafContent, RegularFile};
 
 use upac_types::FileDiffKind;
+use upac_types::package::ObjectID;
 
 use super::Tree;
-
-use crate::ObjectID;
 
 pub struct Diff<'tree> {
     from: &'tree Tree,

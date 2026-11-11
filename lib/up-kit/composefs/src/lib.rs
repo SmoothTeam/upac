@@ -10,7 +10,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use composefs::MAX_INLINE_CONTENT;
-use composefs::fsverity::{FsVerityHashValue, Sha256HashValue};
+use composefs::fsverity::FsVerityHashValue;
+use composefs::generic_tree::LeafContent;
 use composefs::repository::{GcResult, ImportContext, Repository, RepositoryConfig};
 use composefs::tree::RegularFile;
 
@@ -19,12 +20,12 @@ use nix::fcntl::AT_FDCWD;
 use serde::de::Error as DeserializeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use upac_types::package::{ObjectID, PackageNode};
+
 use self::error::RepoError;
 
 pub mod error;
 pub mod tree;
-
-pub type ObjectID = Sha256HashValue;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digest(ObjectID);
@@ -135,6 +136,26 @@ impl Repo {
         let root_names: Vec<&str> = root_hexes.iter().map(String::as_str).collect();
 
         Ok(self.repository.gc(&root_names)?)
+    }
+
+    pub fn verify_objects(&self, files: &[PackageNode]) -> Result<(), RepoError> {
+        for node in files {
+            let PackageNode::Leaf(_, leaf) = node else {
+                continue;
+            };
+
+            let LeafContent::Regular(RegularFile::External(object_id, _) | RegularFile::ExternalNoVerity(object_id, _)) =
+                &leaf.content
+            else {
+                continue;
+            };
+
+            self.repository
+                .open_object(object_id)
+                .map_err(|_| RepoError::NotFound)?;
+        }
+
+        Ok(())
     }
 
     fn from_repository(repository: Repository<ObjectID>) -> Self {
