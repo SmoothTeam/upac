@@ -9,12 +9,12 @@ use upac_types::error::ErrorKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DatabaseError {
-    InvalidPackageId,
-    InvalidEntryId,
+    InvalidNodeId,
+    InvalidMeta,
     InvalidTriggers,
     InvalidTransaction,
-    UnsupportedEntry,
-    EntryKindMismatch,
+    UnsupportedNode,
+    NodeKindMismatch,
     Tree(RepoError),
 }
 
@@ -27,12 +27,12 @@ impl From<RepoError> for DatabaseError {
 impl From<DatabaseError> for ErrorKind {
     fn from(error: DatabaseError) -> Self {
         match error {
-            DatabaseError::InvalidPackageId
-            | DatabaseError::InvalidEntryId
+            DatabaseError::InvalidNodeId
+            | DatabaseError::InvalidMeta
             | DatabaseError::InvalidTriggers
             | DatabaseError::InvalidTransaction
-            | DatabaseError::UnsupportedEntry
-            | DatabaseError::EntryKindMismatch => ErrorKind::InvalidEntry,
+            | DatabaseError::UnsupportedNode
+            | DatabaseError::NodeKindMismatch => ErrorKind::InvalidEntry,
             DatabaseError::Tree(error) => error.into(),
         }
     }

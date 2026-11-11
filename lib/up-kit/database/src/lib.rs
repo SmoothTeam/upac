@@ -12,15 +12,13 @@ use composefs::fsverity::{FsVerityHashValue, compute_verity};
 use composefs::generic_tree::{LeafContent, Stat};
 use composefs::tree::{Inode, RegularFile};
 
-use upac_composefs::ObjectID;
 use upac_composefs::error::RepoError;
 use upac_composefs::tree::view::TreeView;
 
-use upac_types::PackageInfo;
+use upac_types::package::ObjectID;
 
 use self::error::DatabaseError;
-use self::layout::entry::{DIR_PREFIX, FILE_PREFIX, PERMISSION_MASK, SEPARATOR as ENTRY_SEPARATOR, SYMLINK_PREFIX};
-use self::layout::package::{LOSSY_REPLACEMENT, SEPARATOR as PACKAGE_SEPARATOR};
+use self::layout::node::{DIR_PREFIX, FILE_PREFIX, PERMISSION_MASK, SEPARATOR as NODE_SEPARATOR, SYMLINK_PREFIX};
 
 pub mod error;
 pub mod layout {
@@ -30,91 +28,44 @@ pub mod package;
 pub mod transaction;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PackageEntryKind {
+pub enum PackageNodeKind {
     File,
     Symlink,
     Dir,
 }
 
-impl Display for PackageEntryKind {
+impl Display for PackageNodeKind {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         formatter.write_str(match self {
-            PackageEntryKind::File => FILE_PREFIX,
-            PackageEntryKind::Symlink => SYMLINK_PREFIX,
-            PackageEntryKind::Dir => DIR_PREFIX,
+            PackageNodeKind::File => FILE_PREFIX,
+            PackageNodeKind::Symlink => SYMLINK_PREFIX,
+            PackageNodeKind::Dir => DIR_PREFIX,
         })
     }
 }
 
-impl FromStr for PackageEntryKind {
+impl FromStr for PackageNodeKind {
     type Err = DatabaseError;
 
     fn from_str(prefix: &str) -> Result<Self, Self::Err> {
         match prefix {
-            FILE_PREFIX => Ok(PackageEntryKind::File),
-            SYMLINK_PREFIX => Ok(PackageEntryKind::Symlink),
-            DIR_PREFIX => Ok(PackageEntryKind::Dir),
-            _ => Err(DatabaseError::InvalidEntryId),
+            FILE_PREFIX => Ok(PackageNodeKind::File),
+            SYMLINK_PREFIX => Ok(PackageNodeKind::Symlink),
+            DIR_PREFIX => Ok(PackageNodeKind::Dir),
+            _ => Err(DatabaseError::InvalidNodeId),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PackageId(String);
-
-impl PackageId {
-    pub fn new(info: &PackageInfo) -> Self {
-        fn sanitize_component(component: &str) -> String {
-            component
-                .replace(['/', '\0'], LOSSY_REPLACEMENT)
-                .replace(PACKAGE_SEPARATOR, LOSSY_REPLACEMENT)
-        }
-
-        let mut directory_name = format!(
-            "{}{}{}",
-            sanitize_component(&info.name),
-            PACKAGE_SEPARATOR,
-            sanitize_component(&info.arch)
-        );
-
-        if let Some(arch_sub) = &info.arch_sub {
-            directory_name.push_str(PACKAGE_SEPARATOR);
-            directory_name.push_str(&sanitize_component(arch_sub));
-        }
-
-        Self(directory_name)
-    }
-}
-
-impl Display for PackageId {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        formatter.write_str(&self.0)
-    }
-}
-
-impl FromStr for PackageId {
-    type Err = DatabaseError;
-
-    fn from_str(directory_name: &str) -> Result<Self, Self::Err> {
-        let components: Vec<&str> = directory_name.split(PACKAGE_SEPARATOR).collect();
-
-        if !(2..=3).contains(&components.len()) || components.iter().any(|component| component.is_empty()) {
-            return Err(DatabaseError::InvalidPackageId);
-        }
-
-        Ok(Self(directory_name.to_owned()))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PackageEntryId {
-    kind: PackageEntryKind,
+pub struct PackageNodeId {
+    kind: PackageNodeKind,
     content: ObjectID,
     metadata: ObjectID,
 }
 
-impl PackageEntryId {
-    pub fn new(kind: PackageEntryKind, content: ObjectID, stat: &Stat, place: &Path) -> Self {
+impl PackageNodeId {
+    pub fn new(kind: PackageNodeKind, content: ObjectID, stat: &Stat, place: &Path) -> Self {
         fn hash_metadata(stat: &Stat, place: &Path) -> ObjectID {
             let place = place.as_os_str().as_bytes();
 
@@ -147,11 +98,11 @@ impl PackageEntryId {
     ) -> Result<Self, DatabaseError> {
         let (kind, content) = match content {
             LeafContent::Regular(RegularFile::External(object, _) | RegularFile::ExternalNoVerity(object, _)) => {
-                (PackageEntryKind::File, object.clone())
+                (PackageNodeKind::File, object.clone())
             }
-            LeafContent::Regular(RegularFile::Inline(bytes)) => (PackageEntryKind::File, compute_verity(bytes)),
-            LeafContent::Symlink(target) => (PackageEntryKind::Symlink, compute_verity(target.as_bytes())),
-            _ => return Err(DatabaseError::UnsupportedEntry),
+            LeafContent::Regular(RegularFile::Inline(bytes)) => (PackageNodeKind::File, compute_verity(bytes)),
+            LeafContent::Symlink(target) => (PackageNodeKind::Symlink, compute_verity(target.as_bytes())),
+            _ => return Err(DatabaseError::UnsupportedNode),
         };
 
         Ok(Self::new(kind, content, stat, place))
@@ -159,7 +110,7 @@ impl PackageEntryId {
 
     pub fn from_directory(stat: &Stat, place: &Path) -> Self {
         Self::new(
-            PackageEntryKind::Dir,
+            PackageNodeKind::Dir,
             compute_verity(place.as_os_str().as_bytes()),
             stat,
             place,
@@ -184,7 +135,7 @@ impl PackageEntryId {
         }
     }
 
-    pub fn kind(&self) -> PackageEntryKind {
+    pub fn kind(&self) -> PackageNodeKind {
         self.kind
     }
 
@@ -197,33 +148,33 @@ impl PackageEntryId {
     }
 }
 
-impl Display for PackageEntryId {
+impl Display for PackageNodeId {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
         write!(
             formatter,
             "{}{}{}{}{}",
             self.kind,
-            ENTRY_SEPARATOR,
+            NODE_SEPARATOR,
             self.content.to_hex(),
-            ENTRY_SEPARATOR,
+            NODE_SEPARATOR,
             self.metadata.to_hex()
         )
     }
 }
 
-impl FromStr for PackageEntryId {
+impl FromStr for PackageNodeId {
     type Err = DatabaseError;
 
-    fn from_str(entry_name: &str) -> Result<Self, Self::Err> {
-        let components: Vec<&str> = entry_name.split(ENTRY_SEPARATOR).collect();
+    fn from_str(node_name: &str) -> Result<Self, Self::Err> {
+        let components: Vec<&str> = node_name.split(NODE_SEPARATOR).collect();
         let [kind, content, metadata] = components.as_slice() else {
-            return Err(DatabaseError::InvalidEntryId);
+            return Err(DatabaseError::InvalidNodeId);
         };
 
         Ok(Self {
             kind: kind.parse()?,
-            content: ObjectID::from_hex(content).map_err(|_| DatabaseError::InvalidEntryId)?,
-            metadata: ObjectID::from_hex(metadata).map_err(|_| DatabaseError::InvalidEntryId)?,
+            content: ObjectID::from_hex(content).map_err(|_| DatabaseError::InvalidNodeId)?,
+            metadata: ObjectID::from_hex(metadata).map_err(|_| DatabaseError::InvalidNodeId)?,
         })
     }
 }

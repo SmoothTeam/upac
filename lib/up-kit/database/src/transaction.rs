@@ -14,7 +14,7 @@ use composefs::tree::RegularFile;
 use upac_composefs::tree::builder::TreeBuilder;
 use upac_composefs::tree::view::TreeView;
 
-use upac_types::transaction::Transaction;
+use upac_types::entry::TransactionEntry;
 
 use super::error::DatabaseError;
 use super::layout::store::{DIR_MODE, FILE_MODE, ROOT_DIR};
@@ -29,7 +29,7 @@ impl<'tree> TransactionStore<TreeView<'tree>> {
         Self { tree }
     }
 
-    pub fn list(&self) -> Result<Vec<Transaction>, DatabaseError> {
+    pub fn list(&self) -> Result<Vec<TransactionEntry>, DatabaseError> {
         let directory = PathBuf::from(ROOT_DIR).join(DIR);
 
         if !self.tree.check(&directory) {
@@ -64,7 +64,7 @@ impl<'tree> TransactionStore<&'tree mut TreeBuilder> {
         Ok(())
     }
 
-    pub fn append(&mut self, transaction: &Transaction) -> Result<(), DatabaseError> {
+    pub fn append(&mut self, transaction: &TransactionEntry) -> Result<(), DatabaseError> {
         let mut xattrs = BTreeMap::from([(OsStr::new(SUBJECT_XATTR).into(), transaction.subject.as_bytes().into())]);
 
         if let Some(message) = &transaction.message {
@@ -89,13 +89,13 @@ impl<'tree> TransactionStore<&'tree mut TreeBuilder> {
 }
 
 impl<TreeAccess> TransactionStore<TreeAccess> {
-    fn parse_transaction(&self, record_name: &OsStr, stat: &Stat) -> Result<Transaction, DatabaseError> {
+    fn parse_transaction(&self, record_name: &OsStr, stat: &Stat) -> Result<TransactionEntry, DatabaseError> {
         let (timestamp, kind) = record_name
             .to_str()
             .and_then(|record_name| record_name.split_once(SEPARATOR))
             .ok_or(DatabaseError::InvalidTransaction)?;
 
-        Ok(Transaction {
+        Ok(TransactionEntry {
             timestamp: timestamp.parse().map_err(|_| DatabaseError::InvalidTransaction)?,
             kind: kind.parse().map_err(|_| DatabaseError::InvalidTransaction)?,
             subject: self

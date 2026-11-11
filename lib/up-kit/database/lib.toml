@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later WITH LGPL-3.0-linking-exception
 
-[entry]
+[node]
 separator = "-"
 file_prefix = "file"
 symlink_prefix = "symlink"
@@ -18,17 +18,18 @@ lossy_replacement = "_"
 [store]
 root_dir = "pkg"
 link_root = "/"
+forbidden_characters = "/\u0000"
 
 file_mode = 0o644
 dir_mode = 0o755
 link_mode = 0o777
 
+[meta]
+file_name = "meta"
+
 [trigger]
-file_name = "triggers"
-xattr = "user.upac.triggers"
-format_xattr = "user.upac.format"
-separator = " "
-line_separator = "\n"
+file_prefix = "trigger:"
+xattr_prefix = "user.upac.trigger."
 
 [transaction]
 dir = "upac-tx"
